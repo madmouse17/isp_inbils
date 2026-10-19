@@ -6,6 +6,7 @@ use App\Models\Core\Company;
 use App\Models\Core\EmployeeProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Testing\TestResponse;
@@ -99,14 +100,16 @@ class LoginTest extends TestCase
         $audit = Activity::query()->where('description', 'api.token_issued')->sole();
         $this->assertSame('security', $audit->log_name);
         $this->assertSame($user->id, $audit->subject_id);
-        $this->assertEqualsCanonicalizing([
+        $this->assertSame($user->company_id, (int) $audit->company_id, 'the company lives in its column, not in the properties');
+        // Keyed, not canonicalized: sorting ints together with '127.0.0.1' is not a total order in PHP 8, so a
+        // canonicalized comparison passes or fails by the size of the ids.
+        $this->assertEquals([
             'user_id' => $user->id,
             'token_id' => PersonalAccessToken::query()->sole()->id,
             'app' => 'customer',
             'device_name' => 'Pixel 8',
             'ip' => '127.0.0.1',
             'via' => 'login',
-            'company_id' => $user->company_id,
         ], $audit->properties->all());
         $this->assertStringNotContainsString(explode('|', $response->json('data.token'), 2)[1], json_encode($audit->properties));
     }
@@ -124,9 +127,12 @@ class LoginTest extends TestCase
 
         foreach ($answers as $answer) {
             $answer->assertStatus(422)->assertJsonPath('code', 'validation_failed')->assertJsonValidationErrors(['email']);
+            $this->assertSame($answer->headers->get('X-Request-Id'), $answer->json('request_id'));
         }
-        $this->assertSame($answers[0]->json(), $answers[1]->json());
-        $this->assertSame($answers[0]->json(), $answers[2]->json());
+        // Each answer names its own request, and nothing else tells the three cases apart.
+        $bodies = array_map(fn (TestResponse $answer): array => Arr::except($answer->json(), ['request_id']), $answers);
+        $this->assertSame($bodies[0], $bodies[1]);
+        $this->assertSame($bodies[0], $bodies[2]);
         $this->assertSame(0, PersonalAccessToken::query()->count());
     }
 

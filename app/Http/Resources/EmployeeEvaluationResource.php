@@ -2,9 +2,11 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Core\EmployeeEvaluation;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin EmployeeEvaluation */
 class EmployeeEvaluationResource extends JsonResource
 {
     /** @return array<string, mixed> */
@@ -22,6 +24,7 @@ class EmployeeEvaluationResource extends JsonResource
             'comment' => $this->comment,
             'evaluator_id' => $this->evaluator?->public_id,
             'evaluated_at' => $this->evaluated_at,
+            ...$this->lifecycleAttributes(),
             'created_at' => $this->created_at,
             'employee' => new UserResource($this->whenLoaded('employee')),
             'evaluator' => new UserResource($this->whenLoaded('evaluator')),

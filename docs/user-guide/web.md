@@ -146,11 +146,52 @@ Hampir semua menu memakai kerangka yang sama. Bagian ini menjelaskan kerangka it
 - Kotak pilihan di samping pencarian menyaring daftar, misalnya status atau jenis. Pilihan pertamanya menghapus saringan, misalnya "Semua status". Mengubah filter selalu kembali ke halaman pertama. Tombol **Reset filter** (di samping filter, atau di tabel yang hasilnya kosong) mengosongkan pencarian dan semua filter.
 - Klik judul kolom yang berpanah untuk mengurutkan. Klik lagi untuk membalik urutan.
 - Di bawah tabel, Inbils menulis rentang baris yang tampil dan totalnya (diawali "Menampilkan"), pemilih **Baris per halaman** (10, 25, atau 50), tombol **Sebelumnya** dan **Berikutnya**, dan nomor halaman (misalnya Halaman 1 dari 3). Bagian ini tidak tampil bila tabel kosong, atau bila semua baris muat dalam satu halaman dan halaman itu tidak punya pemilih jumlah baris.
-- Kolom **Aksi** memuat nama baris sebagai tautan ke halaman detail, satu tombol utama (**Ubah**, atau **Lihat** bila baris tidak bisa Anda ubah), dan menu tiga titik **Aksi lainnya** berisi **Lihat detail** dan **Hapus**. Tombol hanya tampil bila Anda punya izinnya.
-- **Hapus** selalu membuka dialog konfirmasi. Judulnya menyebut data yang dihapus. Bila halaman tidak menyebut nama, judulnya "Hapus data ini?". Tombolnya **Batal** dan **Hapus**, dan keduanya nonaktif selama permintaan berjalan. Dialog menutup sendiri bila penghapusan berhasil.
-- Data yang masih dipakai tidak bisa dihapus. Pada banyak halaman, kalimat di bawah judul dialog menyebut aturannya, misalnya "Pelanggan yang masih punya langganan belum berhenti tidak bisa dihapus." Bila server menolak, dialog tetap terbuka dan toast merah "Data gagal disimpan. Periksa input." muncul. Di Pengguna dan Organisasi, alasan penolakan juga tampil dalam kotak merah di atas daftar.
+- Kolom **Aksi** memuat nama baris sebagai tautan ke halaman detail, satu tombol utama (**Ubah**, atau **Lihat** bila baris tidak bisa Anda ubah), dan menu tiga titik **Aksi lainnya** berisi **Lihat detail** dan **Hapus**. Pada data master, menu itu berisi **Nonaktifkan**, **Aktifkan**, atau **Hapus permanen** sebagai ganti **Hapus** (lihat "Nonaktifkan, Hapus permanen, filter Status, dan Pulihkan" di bawah). Tombol hanya tampil bila Anda punya izinnya.
+- **Hapus** (pada data yang bukan master) selalu membuka dialog konfirmasi. Judulnya menyebut data yang dihapus. Bila halaman tidak menyebut nama, judulnya "Hapus data ini?". Tombolnya **Batal** dan **Hapus**, dan keduanya nonaktif selama permintaan berjalan. Dialog menutup sendiri bila penghapusan berhasil.
+- Data yang masih dipakai tidak bisa dihapus. Pada banyak halaman, kalimat di bawah judul dialog menyebut aturannya, misalnya "Tiket hanya bisa dihapus saat berstatus ditutup." Bila server menolak, dialog tetap terbuka dan toast merah "Data gagal disimpan. Periksa input." muncul. Di Pengguna dan Organisasi, alasan penolakan juga tampil dalam kotak merah di atas daftar.
 - Bila filter atau pencarian tidak menemukan apa pun, tabel menulis "Tidak ada &lt;item&gt; yang cocok" dengan tombol **Reset filter**. Bila belum ada data, tabel menulis "Belum ada &lt;item&gt; yang tercatat." atau penjelasan khusus halaman itu, dengan tombol pembuatan data bila Anda boleh membuatnya.
-- Tombol **Ekspor** membuka menu **Ekspor CSV** dan, di daftar yang menyediakannya, **Ekspor PDF**. Hasilnya mengikuti filter yang sedang aktif. Satu ekspor dibatasi 5.000 baris. Bila terpotong, baris terakhir CSV berisi "# Ekspor dipotong pada 5000 baris. Persempit filter untuk mengekspor sisa barisnya." dan PDF menulis "dibatasi sampai" disusul batasnya di bawah judul. Persempit filter lalu ekspor lagi.
+- Tombol **Ekspor** membuka menu **Ekspor CSV** dan, di daftar yang menyediakannya, **Ekspor PDF**. Hasilnya mengikuti filter yang sedang aktif. Satu ekspor dibatasi 5.000 baris. Bila terpotong, baris terakhir CSV berisi "# Ekspor dipotong pada 5000 baris. Persempit filter untuk mengekspor sisa barisnya." PDF memuat paling banyak 1.500 sel (jumlah baris dikali jumlah kolom), jadi PDF dengan banyak kolom terpotong lebih awal dari 5.000 baris. Bila PDF terpotong, di bawah judulnya tertulis "dibatasi sampai" disusul batasnya dan "PDF dibatasi N baris. Untuk data lengkap, unduh CSV atau persempit periode." Persempit filter atau unduh CSV, lalu ekspor lagi. Setiap ekspor tercatat di Log Audit (bagian 7.12).
+
+### Nonaktifkan, Hapus permanen, filter Status, dan Pulihkan
+
+Data master (profil bandwidth, profil kecepatan, tingkat SLA, paket, barang, kategori barang, satuan, lokasi, pelanggan, jenis dokumen, kendaraan, dan unit organisasi) tidak memakai **Hapus** biasa. Data yang sudah dipakai data lain tidak boleh hilang, karena tagihan, SPK, dan tiket lama tetap membutuhkannya. Menu **Aksi lainnya** pada baris master berisi:
+
+- **Nonaktifkan**, pada baris yang aktif (izin ubah). Data nonaktif tidak muncul di pilihan formulir baru, tetapi semua yang sudah memakainya tetap utuh, dan formulir yang sudah memegangnya tetap menampilkannya. Dialog menulis "Nonaktifkan `<nama>`?" disusul, bila data sudah dipakai, kalimat seperti `Paket layanan "<nama>" dipakai 12 langganan, jadi tidak bisa dihapus permanen. Setelah dinonaktifkan, data ini tidak muncul di pilihan baru dan riwayatnya tetap utuh.` Toast hijau menulis "`<Jenis>` dinonaktifkan." (misalnya "Profil bandwidth dinonaktifkan.").
+- **Aktifkan**, pada baris yang nonaktif (izin ubah). Data kembali muncul di pilihan baru. Toast "`<Jenis>` diaktifkan."
+- **Hapus permanen**, hanya bila tidak ada data lain yang menunjuk ke baris itu (izin hapus). Dialog menulis `<Jenis> "<nama>" belum pernah dipakai data lain. Penghapusan permanen tidak bisa dibatalkan.` Tombolnya merah. Toast "`<Jenis>` dihapus permanen." Data yang dihapus permanen tidak bisa dipulihkan dan tidak muncul lagi, juga tidak di **Dihapus** atau **Semua, termasuk dihapus**.
+
+Angka pemakai ("dipakai 3 paket, 12 langganan") menghitung setiap baris data lain yang menunjuk ke data ini, termasuk riwayat dan baris yang sudah dihapus. Selama satu angka di atas nol, menu tidak menawarkan **Hapus permanen**: pilihan satu-satunya adalah **Nonaktifkan**. Bila data baru dipakai setelah Anda membuka menu, server menolak penghapusan. Dialog tetap terbuka dan menulis alasannya dalam teks merah, misalnya "Profil bandwidth masih dipakai 1 paket. Nonaktifkan saja."
+
+Filter **Status** di daftar ini punya pilihan, berurutan:
+
+1. **Semua status** (bawaan). Menampilkan data yang tidak dihapus.
+2. **Aktif** dan **Nonaktif**, hanya di daftar master yang bisa dinonaktifkan.
+3. Status milik halaman itu (misalnya **Terbuka**, **Lunas**, atau **Dikerjakan**).
+4. **Dihapus**. Hanya data yang dihapus.
+5. **Semua, termasuk dihapus**.
+
+Baris yang dihapus tampil dengan status **Dihapus**, namanya berupa teks biasa (tidak bisa dibuka), dan tidak punya tombol **Ubah** atau **Lihat**. Menu **Aksi lainnya** hanya berisi **Pulihkan** (izin yang sama dengan hapus). Dialog menulis "Pulihkan `<nama>`?" dan toast "`<Jenis>` dipulihkan." Data kembali ke daftar dengan statusnya semula. Pulihkan ditolak dengan teks merah di dialog bila:
+
+- induknya masih dihapus (lokasi, unit organisasi, kategori barang): "`<Jenis>` tidak bisa dipulihkan karena induknya, `<nama induk>`, masih dihapus. Pulihkan induknya dulu." Pulihkan induknya lebih dulu;
+- kode atau namanya sudah dipakai data lain: "`<Jenis>` tidak bisa dipulihkan karena kode atau namanya sudah dipakai data lain. Ubah data itu dulu."
+
+Lokasi dan unit organisasi yang dipulihkan menghitung ulang jalurnya dari induknya yang sekarang, sehingga nama jalurnya mengikuti induk yang mungkin sudah diganti nama atau dipindah selama data itu dihapus.
+
+Kode dan nama tetap terpesan. Data nonaktif atau dihapus masih memegang kode dan namanya, jadi membuat data baru dengan kode atau nama yang sama ditolak dengan pesan isian "sudah digunakan". Buka filter **Nonaktif** atau **Dihapus** untuk menemukan pemegangnya, lalu **Aktifkan** atau **Pulihkan** data itu, atau pakai kode lain.
+
+Karyawan, evaluasi, aset jaringan, tiket, SPK, dan tagihan tidak punya **Nonaktifkan**. Aturan hapusnya tidak berubah (misalnya tiket hanya dihapus saat **Ditutup** dan tagihan hanya saat **Draf**), tetapi daftarnya punya filter **Dihapus** dan aksi **Pulihkan** dengan aturan yang sama.
+
+Dokumen yang sudah terbit tidak berubah bila nama aslinya diganti: lihat bagian "Nama beku pada dokumen" di bawah.
+
+### Nama beku pada dokumen
+
+Mengganti nama pelanggan, paket, kategori tiket, atau teknisi tidak menulis ulang dokumen yang sudah terbit. Tagihan, SPK, dan tiket menyimpan nama pada saat yang menentukan:
+
+- **Tagihan** menyimpan nama pelanggan, alamat, NPWP, dan nama paket pada saat keluar dari **Draf** (saat dikirim, saat dibuat otomatis, dan saat draf dibatalkan). PDF, detail tagihan, dan aplikasi pelanggan memakai nama itu.
+- **SPK** menyimpan nama teknisi dan kode lokasi saat disetujui menjadi **Selesai**.
+- **Tiket** menyimpan nama kategori dan nama petugas saat **Ditutup**.
+
+Bila nama saat ini berbeda, halaman detail menulis nama yang beku, disusul "(saat terbit)", "(saat selesai)", atau "(saat ditutup)" di sampingnya. Draf, SPK yang belum selesai, dan tiket yang belum ditutup masih mengikuti nama yang berlaku. Data lama yang sudah terbit sebelum fitur ini diisi sekali dengan nama saat itu.
 
 ### Formulir dan pesan
 
@@ -158,6 +199,15 @@ Hampir semua menu memakai kerangka yang sama. Bagian ini menjelaskan kerangka it
 - Toast hijau menandai penyimpanan berhasil. Teksnya berbahasa Indonesia dan datang dari server, misalnya "Pelanggan dihapus." Toast hilang sendiri setelah sekitar 4 detik. Klik tombol x di toast untuk menutupnya lebih cepat.
 - Tombol yang sedang memproses menampilkan indikator putar dan tidak bisa diklik dua kali.
 - Rupiah tampil tanpa desimal. Format tanggal mengikuti pengaturan perusahaan (bagian 8.1), dan jam memakai format 24 jam.
+
+### Pesan benturan
+
+Empat pesan ini berarti server menolak penyimpanan Anda karena keadaan data sudah berubah, dan tidak ada yang tersimpan. Pesannya tampil sebagai toast merah di kanan atas.
+
+- "Permintaan yang sama baru saja dikirim.": Anda mengirim isian yang persis sama ke halaman yang sama dua kali dalam 10 detik, misalnya karena klik ganda atau dua tab. Permintaan pertama tetap berlaku, jadi cukup periksa hasilnya di daftar. Isian yang ditolak karena salah tidak dihitung, jadi setelah memperbaikinya Anda bisa mengirim lagi langsung. Bila Anda memang perlu mengirim dua isian yang sama persis, tunggu 10 detik di antaranya.
+- "Data diubah pengguna lain; muat ulang.": orang lain menyimpan data yang sama sejak Anda membuka formulir ubah. Banner dengan judul pesan itu, keterangan "Muat ulang halaman untuk melihat data terbaru, lalu ulangi perubahan Anda." dan tombol **Muat ulang** tampil di atas formulir. Klik **Muat ulang** untuk membuka ulang halaman dengan data terbaru, lalu ulangi perubahan Anda. Isian yang sudah Anda ketik hilang. Pesan ini berlaku di **Ubah Pelanggan**, **Ubah Barang**, **Ubah Paket Layanan**, dialog **Ubah Karyawan**, dan **Pengaturan Perusahaan**.
+- "Perusahaan aktif berubah di tab lain.": lihat bagian 1.6, **Kesalahan umum**.
+- "Stok berubah sejak dihitung; hitung ulang.": hanya saat menyetujui penyesuaian stok, lihat bagian 6.5.
 
 ### Isian pilihan, tanggal, dan jam
 
@@ -178,6 +228,8 @@ Bila Anda membuka halaman yang tidak diizinkan atau tidak ada, atau bila terjadi
 - **Layanan sedang tidak tersedia** (503): aplikasi sedang dalam pemeliharaan. Coba lagi beberapa saat lagi.
 
 Tombol **Ke dasbor** (bila Anda sudah masuk) atau **Masuk** membawa Anda keluar dari halaman galat. Halaman 419, 500, dan 503 juga punya tombol **Muat ulang halaman**. Bila satu halaman gagal tampil karena kesalahan di browser, Inbils menampilkan **Halaman tidak dapat ditampilkan** dengan tombol **Muat ulang halaman**.
+
+Halaman galat juga menulis "ID permintaan:" disusul kode panjang bila server memberinya. Sebut kode itu (klik dua kali untuk memilihnya, lalu salin) saat Anda melapor ke administrator: pengelola server mencari semua catatan permintaan Anda dengan kode itu.
 
 ### Tautan data memakai kode acak
 
@@ -205,6 +257,7 @@ Perusahaan induk (Head) adalah perusahaan tanpa induk yang punya minimal satu an
 - Angka di layar mendadak berbeda: periksa nama perusahaan aktif di tombol sidebar. Anda mungkin masih berada di perusahaan lain.
 - Tombol ganti perusahaan tidak ada: akun Anda hanya punya satu perusahaan, atau perannya tidak memiliki izin `company.switch`. Minta administrator server menambah akses.
 - Menu **Metrik Konsolidasi** tidak ada di anak perusahaan. Pindah ke Head dulu.
+- Toast merah "Perusahaan aktif berubah di tab lain." saat menyimpan: Anda mengganti perusahaan di tab lain, lalu menyimpan dari tab yang masih menampilkan perusahaan sebelumnya. Inbils menolak penyimpanan itu dan membuka ulang halaman di perusahaan yang sekarang aktif. Cek nama perusahaan di tombol sidebar, lalu ulangi (bagian 1.5, **Pesan benturan**).
 
 ## 1.7 Profil dan kata sandi
 
@@ -420,7 +473,7 @@ Peran yang dapat memakai: admin dan manajer pada peran bawaan. Izin: `spk.approv
 Hasil setiap keputusan:
 
 - SPK disetujui: status **Selesai**. Sistem memakai stok material yang tercatat di SPK, memasang aset berseri pada SPK pemasangan, dan mengaktifkan langganan pelanggan yang masih **Menunggu**.
-- SPK ditolak: status **Ditolak** dan stok yang direservasi dilepas. Alasan tersimpan di SPK dan riwayat audit. SPK muncul lagi di **Penugasan** (bagian 3.1) untuk ditugaskan ulang.
+- SPK ditolak: status **Ditolak**. Stok tidak berubah, karena SPK tidak mencadangkan stok. Alasan tersimpan di SPK dan riwayat audit. SPK muncul lagi di **Penugasan** (bagian 3.1) untuk ditugaskan ulang.
 - Permintaan barang disetujui: status **Disetujui**, stok direservasi di gudang sumber, dan pemohon menerima email. Gudang lalu menyiapkan dan menyerahkan barang (bagian 6.1).
 - Permintaan barang ditolak: status **Ditolak**, dan pemohon menerima email berisi alasan.
 
@@ -432,7 +485,6 @@ Hasil setiap keputusan:
 - Alert **Gagal memproses tindakan** dengan pesan "SPK harus berstatus menunggu review untuk bisa disetujui." (untuk menolak: "... untuk bisa ditolak."), "Permintaan barang bukan berstatus menunggu persetujuan." atau "Hanya permintaan berstatus menunggu persetujuan yang dapat ditolak.": pengguna lain sudah memproses item itu. Klik **Muat ulang antrean**.
 - Setujui SPK gagal dengan pesan "SPK belum bisa disetujui sampai seluruh retur material berstatus direkonsiliasi atau diselesaikan.": selesaikan retur material SPK itu di Pengembalian Barang (bagian 6.8) sampai berstatus **Diterima** atau **Selisih diselesaikan**, klik **Muat ulang antrean**, lalu setujui lagi.
 - Setujui SPK gagal dengan pesan "Stok tidak mencukupi. Diminta: ..., Tersedia: ...": stok produk di **Lokasi** SPK kurang dari jumlah **Terpakai**. Tambah stok (bagian 6.5), lalu setujui lagi.
-- Tolak SPK gagal dengan pesan "Stok tersedia tidak mencukupi untuk reservasi. Diminta: ..., Tersedia: ...": lihat penjelasan pada bagian 3.3, bagian Kesalahan umum, tentang jumlah **Dicadangkan**.
 - Setujui permintaan barang gagal dengan pesan "Stok tidak mencukupi untuk produk ID ...": stok di gudang sumber kurang. Tambah stok (bagian 6.5), atau setujui sebagian jumlah dari **Lihat detail**.
 - Setujui permintaan barang gagal dengan pesan "Lokasi gudang sumber wajib ditentukan untuk reservasi.": permintaan itu tersimpan tanpa gudang, dan kotak masuk ini tidak punya pilihan gudang. Buka permintaannya lewat **Lihat detail** (bagian 6.1). Dialog setujui di halaman itu juga belum punya pilihan gudang, jadi permintaan seperti ini belum bisa disetujui dari web.
 
@@ -456,7 +508,7 @@ Pengguna yang memegang `spk.start` atau `spk.submit` tetapi tidak `spk.assign` (
 2. Baca daftar SPK.
 
    - Kotak **Cari** mencari pada nomor dan judul SPK (isian bertuliskan "Nomor atau judul...").
-   - Pilihan **Jenis** berisi **Semua jenis**, **Instalasi**, **Perawatan**, **Peningkatan layanan**, dan **Pindah lokasi**. Pilihan **Status** berisi **Semua status** dan delapan status SPK: **Draf**, **Menunggu penugasan**, **Ditugaskan**, **Dikerjakan**, **Menunggu review**, **Selesai**, **Ditolak**, dan **Dibatalkan**.
+    - Pilihan **Jenis** berisi **Semua jenis**, **Instalasi**, **Perawatan**, **Peningkatan layanan**, dan **Pindah lokasi**. Pilihan **Status** berisi **Semua status**, delapan status SPK (**Draf**, **Menunggu penugasan**, **Ditugaskan**, **Dikerjakan**, **Menunggu review**, **Selesai**, **Ditolak**, dan **Dibatalkan**), **Dihapus**, dan **Semua, termasuk dihapus**.
    - Kolom: **Nomor** (tautan ke detail), **Judul**, **Jenis**, **Status** (lencana), **Pelanggan**, **Jadwal**, **Dibuat**. Semua kolom kecuali **Pelanggan** bisa diurutkan, dan urutan awal menaruh SPK terbaru di atas.
    - Tombol **Ekspor** (pemegang `spk.export`) membuka menu **Ekspor CSV** dan **Ekspor PDF**. Berkas memuat kolom Kode, Judul, Tipe, Status, Prioritas, Pelanggan, dan Teknisi sesuai pencarian dan filter aktif. Kolom Tipe, Status, dan Prioritas berisi nilai tersimpan (misalnya `maintenance`), bukan label lencana.
    - Tombol **Buat SPK** (pemegang `spk.create`) membuka form buat.
@@ -464,7 +516,7 @@ Pengguna yang memegang `spk.start` atau `spk.submit` tetapi tidak `spk.assign` (
 
    ![Daftar SPK dengan filter Jenis dan Status, tombol Ekspor, dan tombol Buat SPK](images/web/spk-index.png)
 
-3. Klik nomor SPK untuk membuka detail. Baris tidak punya tombol **Ubah**, **Lihat detail**, atau **Hapus**.
+3. Klik nomor SPK untuk membuka detail. Baris tidak punya tombol **Ubah**, **Lihat detail**, atau **Hapus**, kecuali baris SPK yang dihapus: menunya berisi **Pulihkan** (izin `spk.delete`), nomornya berupa teks biasa, dan SPK kembali dengan statusnya semula (toast "SPK dipulihkan.").
 
 ### Status SPK
 
@@ -511,11 +563,11 @@ SPK dari pendaftaran pelanggan baru berjenis **Instalasi** dan berjudul "Pemasan
 
 2. Baca halaman dari atas ke bawah:
    - Judul halaman memuat judul SPK, dengan nomor SPK di bawahnya. Tombol **Kembali** kembali ke daftar.
-   - Kartu **Rincian** memuat **Status** dan **Jenis** (lencana), **Prioritas** (lencana), **Pelanggan**, **Langganan**, **Lokasi**, **Teknisi**, **Jadwal**, **Dimulai**, **Check-in**, dan **Selesai**. **Deskripsi**, **Hasil**, dan **Alasan penolakan** tampil bila terisi.
+   - Kartu **Rincian** memuat **Status** dan **Jenis** (lencana), **Prioritas** (lencana), **Pelanggan**, **Langganan**, **Lokasi**, **Teknisi**, **Jadwal**, **Dimulai**, **Check-in**, dan **Selesai**. **Deskripsi**, **Hasil**, dan **Alasan penolakan** tampil bila terisi. Pada SPK **Selesai**, baris **Teknisi** dan **Lokasi** menulis nilai saat SPK disetujui (lihat "Yang terjadi saat SPK disetujui").
    - Baris **Lokasi** menunjukkan POP atau gudang SPK, bukan alamat pelanggan. Baris **Check-in** menunjukkan jarak ke alamat pemasangan pelanggan (ke **Lokasi** bila SPK tanpa langganan) bila aplikasi teknisi mencatat lokasi saat memulai, atau alasan lokasi tidak tersedia. Tanpa catatan, tertulis "Belum ada check-in". Baris **Port drop** (ODP dan nomor port yang dicadangkan untuk pelanggan, bagian 5.5) tampil pada SPK **Instalasi** yang punya langganan, bagi pemegang `odn.view`.
    - Kartu **Tindakan** memuat tombol langkah berikut sesuai status. Pada gambar, SPK berstatus **Menunggu penugasan**, jadi hanya **Tugaskan** dan **Batalkan** yang tampil.
    - Kartu **Tahap kunjungan** di bawah **Tindakan** menunjukkan empat langkah kunjungan dengan waktunya (bagian **Tahap kunjungan** di bawah).
-   - Kartu **Item** (kolom **Barang**, **Aset jaringan**, **Satuan**, **Dicadangkan**, **Terpakai**, **Catatan**), **Bukti**, dan **Riwayat penugasan** (kolom **Teknisi**, **Ditugaskan**, **Dicabut**).
+   - Kartu **Item** (kolom **Barang**, **Aset jaringan**, **Satuan**, **Terpakai**, **Catatan**), **Bukti**, dan **Riwayat penugasan** (kolom **Teknisi**, **Ditugaskan**, **Dicabut**).
 
 Tombol **Setujui** dan **Tolak** hanya tampil bagi pemegang `spk.approve` dan `spk.reject`. Tombol lain tampil menurut status saja, dan server memeriksa izinnya saat tombol ditekan.
 
@@ -563,20 +615,20 @@ Pengajuan juga ditolak dengan pesan "Bukti pekerjaan wajib diunggah sebelum SPK 
 
 ### Mengelola item material
 
-Izin: `spk.update` (admin, manajer). Kartu **Item** mencatat barang dan perangkat SPK. **Dicadangkan** adalah jumlah rencana yang Anda tulis, **Terpakai** adalah jumlah yang dipakai, dan stok baru berkurang saat SPK disetujui, sebesar **Terpakai**.
+Izin: `spk.update` (admin, manajer). Kartu **Item** mencatat barang dan perangkat SPK. **Terpakai** adalah jumlah yang dipakai, dan stok baru berkurang saat SPK disetujui, sebesar **Terpakai**. SPK tidak mencadangkan stok.
 
-1. Di kartu **Item**, klik **Tambah item**. Dialog **Tambah item** terbuka. Tombol ini hilang pada SPK **Selesai** dan **Dibatalkan**. Bila SPK belum punya baris, kartu menampilkan "Belum ada barang di SPK ini." dengan petunjuk memakai **Tambah item**.
+1. Di kartu **Item**, klik **Tambah item**. Dialog **Tambah item** terbuka. Tombol ini tampil selama SPK berstatus **Draf**, **Menunggu penugasan**, **Ditugaskan**, **Dikerjakan**, atau **Ditolak**. Pada SPK **Menunggu review**, **Selesai**, dan **Dibatalkan** tombolnya hilang dan kartu menulis "Item dikunci selama SPK menunggu review.", "SPK selesai, item tidak bisa diubah." atau "SPK dibatalkan, item tidak bisa diubah." Bila SPK belum punya baris, kartu menampilkan "Belum ada barang di SPK ini." dengan petunjuk memakai **Tambah item**.
 
-   ![Dialog Tambah item dengan isian Barang, Jumlah dicadangkan, Jumlah terpakai, dan Catatan](images/web/spk-add-item.png)
+   ![Dialog Tambah item dengan isian Barang, Jumlah terpakai, dan Catatan](images/web/spk-add-item.png)
 
 2. Isi dialog:
    - **Barang**: wajib. Ketik nama atau SKU (minimal 2 huruf), lalu pilih produk aktif. Tiap pilihan tertulis "SKU - Nama", dengan kategori di bawahnya.
    - **Aset jaringan**: tampil dan wajib hanya bila barang bertipe **Aset**. Ketik kode atau nama aset (minimal 2 huruf), lalu pilih. Daftar memuat aset **Tersedia** milik barang itu, tertulis "kode - nama".
-   - **Jumlah dicadangkan** dan **Jumlah terpakai**: angka 0 atau lebih dengan dua desimal. Setelah barang dipilih, labelnya memuat satuan barang, misalnya "Jumlah dicadangkan - Meter (m)". Isi 0 bila tidak ada jumlah.
+   - **Jumlah terpakai**: angka 0 atau lebih dengan dua desimal. Boleh dikosongkan, dan kosong dihitung 0. Setelah barang dipilih, labelnya memuat satuan barang, misalnya "Jumlah terpakai - Meter (m)".
    - **Catatan**: opsional, maksimal 500 karakter.
 3. Klik **Tambah**. Muncul toast "Item berhasil ditambahkan." dan baris tampil di tabel. **Batal** menutup dialog tanpa menyimpan. Bila server menolak satu isian dialog, dialog tetap terbuka dan pesan merah tampil di bawah isian itu, misalnya "Aset jaringan yang dipilih sedang terpasang." di bawah **Aset jaringan**. Perbaiki isian, lalu klik **Tambah** lagi.
 
-Mengisi **Dicadangkan** tidak mencadangkan stok. Satu produk hanya punya satu baris, jadi menambah produk yang sama menimpa jumlah, catatan, dan aset pada baris lama dengan isian terbaru. Web tidak punya tombol hapus baris, walau rute hapus server memerlukan `spk.update`.
+Dialog **Tambah item** tidak punya isian cadangan, karena SPK tidak mencadangkan stok. Satu produk hanya punya satu baris, jadi menambah produk yang sama menimpa jumlah, catatan, dan aset pada baris lama dengan isian terbaru. Web tidak punya tombol hapus baris, walau rute hapus server memerlukan `spk.update`.
 
 Teknisi mengisi **Terpakai** produk biasa di aplikasi saat SPK **Dikerjakan**. Teknisi dapat menarik kembali pemakaian itu selama status masih **Dikerjakan**; baris rencana tetap ada dengan **Terpakai** 0, sedangkan baris tanpa rencana atau catatan dihapus. Teknisi tidak dapat menambah atau menghapus baris produk **Aset**; baris itu hanya dikelola kantor di web.
 
@@ -610,17 +662,18 @@ Pembuat SPK dan teknisi yang ditugaskan tidak boleh menyetujui atau menolak SPK 
 
 Persetujuan butuh minimal satu bukti. Bila SPK punya permintaan barang **Diserahkan**, semua retur materialnya harus berstatus **Diterima** atau **Selisih diselesaikan** (bagian 6.8).
 
-Pembatalan tidak bisa dibalik, dan alasannya hanya tercatat di Log Audit (bagian 7.12). Pembatalan dan penolakan melepas cadangan stok sebanyak **Dicadangkan** pada setiap baris dan mengosongkan **Dicadangkan**, bila SPK punya **Lokasi**. Bila stok lokasi itu tidak punya cadangan sebanyak itu, tindakan gagal dan SPK tidak berubah.
+Pembatalan tidak bisa dibalik, dan alasannya hanya tercatat di Log Audit (bagian 7.12). Pembatalan dan penolakan tidak menggerakkan stok, karena SPK tidak mencadangkan stok. Permintaan barang yang sudah **Diserahkan** untuk SPK itu tidak berubah.
 
 ### Yang terjadi saat SPK disetujui
 
 **Setujui** menjalankan langkah berikut dalam satu transaksi. Bila satu langkah gagal, SPK tetap **Menunggu review** dan tidak ada yang berubah. Persetujuan tidak bisa dibatalkan dari web.
 
-- Setiap baris dengan **Terpakai** lebih dari 0 mengurangi stok produk di **Lokasi** SPK sebesar **Terpakai**, dengan mutasi **Keluar** bercatatan "SPK &lt;nomor SPK&gt;" (bagian 6.7). Jumlah yang sudah dikeluarkan lewat permintaan barang untuk SPK ini tidak dikurangi dua kali.
-- Tanpa **Lokasi**, stok tidak berubah dan aset tidak dipasang. Stok yang kurang membuat persetujuan gagal.
+- Setiap baris dengan **Terpakai** lebih dari 0 mengurangi stok produk sebesar **Terpakai**, dengan mutasi **Keluar** bercatatan "SPK &lt;nomor SPK&gt;" (bagian 6.7). Jumlah yang sudah dikeluarkan lewat permintaan barang **Diserahkan** untuk SPK ini tidak dikurangi dua kali. Bila **Terpakai** melebihi jumlah yang diserahkan, selisihnya keluar dari gudang permintaan itu (lokasi sumber barisnya, atau **Gudang Tujuan** permintaan), bukan dari **Lokasi** SPK. Barang yang tidak pernah diminta keluar dari **Lokasi** SPK.
+- Tanpa **Lokasi**, aset tidak dipasang, dan stok barang yang tidak pernah diminta lewat permintaan barang tidak berubah. Stok yang kurang membuat persetujuan gagal.
 - Pada SPK **Instalasi**, setiap baris produk **Aset** memasang **Aset jaringan** yang dipilih: aset berstatus **Terpasang** pada lokasi, pelanggan, dan langganan SPK (bagian 5.2). Aset pertama dicatat sebagai ONT langganan bila langganan belum punya.
 - Langganan SPK yang berstatus **Menunggu** menjadi **Aktif**, dengan tanggal aktivasi hari itu dan tanggal tagihan berikutnya dari hari tagih langganan (bagian 4.1). Jenis **Peningkatan layanan** dan **Pindah lokasi** tidak mengubah paket, alamat, atau aset langganan.
 - Bila saklar "Buat tagihan otomatis saat SPK selesai" aktif di **Pengaturan Perusahaan** (bagian 8.1), sistem membuat satu tagihan **Sekali bayar** berstatus **Draf** dengan jatuh tempo 14 hari (bagian 7.1). Isinya setiap item **Terpakai** dikali harga jual produk, ditambah baris "Biaya Instalasi &lt;jenis SPK&gt;" bila langganan punya biaya pemasangan, dengan pajak perusahaan.
+- SPK menjadi **Selesai** dan menyimpan nama teknisi, kode lokasi, dan unit organisasi teknisi pada saat itu. Mengganti nama akun teknisi atau kode lokasi sesudahnya tidak mengubah SPK yang sudah selesai. Bila nilainya sekarang berbeda, kartu **Rincian** menulis nilai yang tersimpan disusul "(saat selesai)" pada baris **Teknisi** dan **Lokasi**.
 
 Satu SPK paling banyak punya satu tagihan, dan web tidak punya tombol untuk membuatnya manual.
 
@@ -632,7 +685,7 @@ Satu SPK paling banyak punya satu tagihan, dan web tidak punya tombol untuk memb
 - Isian SPK salah setelah **Simpan**: web tidak punya layar ubah atau hapus untuk SPK. Batalkan dengan **Batalkan**, lalu buat SPK baru. Server hanya menghapus SPK **Draf** atau **Dibatalkan**, untuk pemegang `spk.delete` (admin), tetapi tidak ada layar yang memanggilnya.
 - Tombol **Mulai**, **Ajukan review**, atau **Tugaskan** tampil tetapi ditolak: tombol mengikuti status, sedangkan izin dan penunjukan teknisi diperiksa server. Hanya teknisi yang ditugaskan boleh memulai dan mengajukan, termasuk bila Anda admin.
 - **Setujui** gagal dan hanya muncul toast "Data gagal disimpan. Periksa input.": dialog di halaman SPK tidak menulis penyebabnya. Penyebab yang mungkin: Anda pembuat atau teknisi SPK itu, bukti belum ada, retur material belum **Diterima** atau **Selisih diselesaikan**, atau stok di **Lokasi** kurang. Buka SPK dari **Persetujuan** (bagian 3.2) supaya penyebabnya tampil di panel tinjauan, atau minta orang lain menyetujui.
-- **Batalkan** atau **Tolak** gagal dan hanya muncul toast "Data gagal disimpan. Periksa input.": SPK punya baris dengan **Dicadangkan** lebih dari 0 dan **Lokasi**, sedangkan stok lokasi itu tidak punya cadangan sebanyak itu, karena isian **Jumlah dicadangkan** di web tidak mencadangkan stok. Di **Persetujuan**, penolakan seperti ini menampilkan pesan "Stok tersedia tidak mencukupi untuk reservasi. Diminta: ..., Tersedia: ...". Tambahkan lagi produk yang sama lewat **Tambah item** dengan **Jumlah dicadangkan** 0 dan **Jumlah terpakai** yang benar, lalu ulangi.
+- Tombol **Tambah item** hilang dan kartu **Item** menulis "Item dikunci selama SPK menunggu review.", "SPK selesai, item tidak bisa diubah." atau "SPK dibatalkan, item tidak bisa diubah.": item hanya bisa diubah sampai SPK diajukan untuk review. SPK **Ditolak** masih bisa diubah itemnya. Bila SPK berpindah status saat dialog **Tambah item** terbuka, server menolak dengan "Item SPK tidak bisa diubah saat SPK menunggu review, selesai, atau dibatalkan."
 - Stok tidak berkurang dan aset tidak terpasang setelah **Setujui**: SPK tidak punya **Lokasi**. Isi **Lokasi** saat membuat SPK, karena tidak bisa diubah sesudahnya.
 - Tagihan tidak muncul setelah **Setujui**: saklar "Buat tagihan otomatis saat SPK selesai" mati, dan itu nilai awalnya.
 - Jumlah salah pada **Tambah item**: tambahkan lagi produk yang sama dengan jumlah yang benar, dan baris lama diganti.
@@ -657,7 +710,7 @@ Pengguna yang memegang `ticket.start`, `ticket.resolve`, atau `ticket.close` tet
 2. Baca daftar tiket.
 
    - Kotak **Cari** mencari pada nomor dan judul tiket (isian bertuliskan "Nomor atau judul..."). Filter dan pencarian jalan sendiri sesaat setelah Anda mengetik atau memilih. Daftar tidak punya tombol cari.
-   - Filter **Prioritas** berisi **Semua prioritas**, **Rendah**, **Sedang**, **Tinggi**, dan **Mendesak**. Filter **Status** berisi **Semua status**, **Terbuka**, **Ditugaskan**, **Dikerjakan**, **Diselesaikan**, dan **Ditutup**.
+   - Filter **Prioritas** berisi **Semua prioritas**, **Rendah**, **Sedang**, **Tinggi**, dan **Mendesak**. Filter **Status** berisi **Semua status**, **Terbuka**, **Ditugaskan**, **Dikerjakan**, **Diselesaikan**, **Ditutup**, **Dihapus**, dan **Semua, termasuk dihapus**.
    - Kolom: **Nomor** (tautan ke detail), **Judul**, **Prioritas** (lencana berwarna), **Status** (lencana berwarna), **Pelanggan**, **Dibuat** (tanggal dan jam, dalam format tanggal perusahaan). Semua kolom kecuali **Pelanggan** bisa diurutkan, dan urutan awal menaruh tiket terbaru di atas.
    - Tombol **Ekspor** (pemegang `ticket.export`) membuka menu **Ekspor CSV** dan **Ekspor PDF**. Berkas memuat kolom Kode, Judul, Prioritas, Status, Pelanggan, dan Dibuat sesuai pencarian dan filter aktif. Kolom Prioritas dan Status di berkas itu berisi kode (misalnya `medium` dan `on_progress`), bukan label di layar.
    - Tombol **Buat tiket** (pemegang `ticket.create`) membuka form buat.
@@ -665,7 +718,7 @@ Pengguna yang memegang `ticket.start`, `ticket.resolve`, atau `ticket.close` tet
 
    ![Daftar tiket dengan tombol Ekspor dan Buat tiket, kotak Cari, filter Prioritas dan Status, serta tabel tiket](images/web/tickets-index.png)
 
-3. Klik nomor tiket untuk membuka detail. Baris tidak punya tombol **Lihat**, **Ubah**, atau **Hapus**, dan tidak punya menu **Aksi lainnya**.
+3. Klik nomor tiket untuk membuka detail. Baris tidak punya tombol **Lihat**, **Ubah**, atau **Hapus**, dan tidak punya menu **Aksi lainnya**, kecuali baris tiket yang dihapus: menunya berisi **Pulihkan** (izin `ticket.delete`), nomornya berupa teks biasa, dan tiket kembali dengan statusnya semula (toast "Tiket dipulihkan.").
 
 Daftar yang kosong menulis **Belum ada tiket** dengan tombol **Buat tiket**. Bila pencarian atau filter tidak menemukan apa pun, daftar menulis **Tidak ada tiket yang cocok** dengan tombol **Reset filter**.
 
@@ -692,7 +745,7 @@ Mengganti petugas tiket **Ditugaskan** memakai `ticket.reassign` lewat Penugasan
 2. Isi kartu **Data tiket**:
    - **Judul**: wajib, maksimal 255 karakter.
    - **Sumber**: wajib. Pilih **Pelanggan** (isian awal), **NOC**, atau **Internal**.
-   - **Kategori**: wajib. Ketik untuk mencari, lalu pilih. Daftar memuat kategori aktif perusahaan. Kategori menjadi sumber target bila tiket tidak punya **Langganan** atau paket langganannya tidak punya tingkat SLA aktif. Bila ada tingkat SLA aktif, targetnya dipakai dan kategori tidak menentukan jam.
+   - **Kategori**: wajib. Ketik untuk mencari, lalu pilih. Daftar memuat kategori aktif perusahaan. Kategori menjadi sumber target hanya bila tiket tidak punya **Langganan**. Bila tiket punya langganan, tingkat SLA versi paket langganan itu dipakai dan kategori tidak menentukan jam.
    - **Prioritas**: **Rendah**, **Sedang** (isian awal), **Tinggi**, atau **Mendesak**. Isian ini dipakai apa adanya, prioritas bawaan kategori tidak diterapkan form ini.
    - **Pelanggan**: opsional di form. Ketik nama atau kode pelanggan (minimal 2 huruf), lalu pilih. Daftar memuat pelanggan aktif, paling banyak 20 hasil. Isi untuk tiket dari pelanggan, karena pelanggan hanya menerima WhatsApp bila tiket punya **Pelanggan**.
    - **Langganan**: opsional. Ketik kode langganan, lalu pilih. Daftar memuat langganan berstatus `active` dan `suspended`. Setelah Anda memilih pelanggan, daftar hanya memuat langganan milik pelanggan itu.
@@ -710,7 +763,7 @@ Mengganti petugas tiket **Ditugaskan** memakai `ticket.reassign` lewat Penugasan
    ![Detail tiket berstatus Terbuka dengan kartu Rincian, kartu Status, dan kartu Tindakan berisi tombol Tugaskan dan Tambah komentar](images/web/tickets-show.png)
 
 2. Baca halaman dari atas ke bawah. Judul halaman adalah judul tiket, dengan nomor tiket di bawahnya.
-   - Kartu **Rincian** memuat **Kategori**, **Sumber** (lencana **Pelanggan**, **NOC**, atau **Internal**), **Pelanggan**, **Langganan**, **Aset jaringan**, **Lokasi**, **Petugas**, dan **Deskripsi**. **Catatan penyelesaian** muncul setelah tiket diselesaikan. Isian kosong tampil sebagai `-`.
+   - Kartu **Rincian** memuat **Kategori**, **Sumber** (lencana **Pelanggan**, **NOC**, atau **Internal**), **Pelanggan**, **Langganan**, **Aset jaringan**, **Lokasi**, **Petugas**, dan **Deskripsi**. **Catatan penyelesaian** muncul setelah tiket diselesaikan. Isian kosong tampil sebagai `-`. Tiket **Ditutup** menyimpan nama kategori dan nama petugas saat ditutup: mengganti nama kategori atau akun petugas sesudahnya tidak mengubah tiket itu, dan bila nama sekarang berbeda halaman menulis nama beku disusul "(saat ditutup)". Tiket yang belum ditutup mengikuti nama yang berlaku.
    - Kartu **Status** memuat **Kode**, **Status**, **Prioritas**, **Target respons**, **Respons pertama**, **Target penyelesaian**, **Check-in**, **Diselesaikan**, dan **Ditutup**. **Target respons** dan **Target penyelesaian** memuat waktu tenggat dan sumbernya dalam tanda kurung, misalnya `(Target Gold)` bila berasal dari tingkat SLA atau `(Target kategori No Internet)` bila berasal dari kategori. Tiket lama tanpa target respons menulis "Tanpa target respons". Lencana **Respons terlambat** dan **Penyelesaian terlambat** tampil di samping tenggatnya bila terlewat. **Respons pertama** berisi waktu **Mulai**, atau `-` bila belum ada. Semua waktu tampil dalam format tanggal perusahaan diikuti jam.
    - **Check-in** memuat catatan lokasi dari aplikasi teknisi saat tiket dimulai: jarak dari lokasi dan akurasinya, atau alasan lokasi tidak tersedia (misalnya izin lokasi ditolak). Tanpa catatan, tertulis "Belum ada check-in".
    - Kartu **Tindakan** memuat tombol langkah berikut. **Tugaskan** tampil pada tiket **Terbuka**, **Mulai** bagi petugas yang boleh memulai, **Selesaikan** pada tiket **Ditugaskan** dan **Dikerjakan**, **Tutup** bagi yang boleh menutup, dan **Buat SPK** pada tiket **Ditugaskan** dan **Dikerjakan** selama belum ada catatan penyelesaian. **Selesaikan** dan **Buat SPK** tampil tanpa memeriksa izin Anda. Server menolak klik tanpa izin dengan halaman **Akses ditolak**. **Tambah komentar** selalu tampil.
@@ -782,8 +835,10 @@ Setiap tiket baru mendapat dua tenggat saat dibuat. Keduanya dihitung dalam jam 
 
 Sumber kedua target:
 
-1. Tiket yang punya **Langganan** mengambil target dari tingkat SLA aktif pada paket langganan itu (bagian 4.5). Halaman tiket menulis `(Target <nama tingkat>)` di samping tenggat.
-2. Tiket tanpa **Langganan**, atau yang paket langganannya memakai tingkat nonaktif, mengambil target dari **Kategori Tiket** yang dipilih (lihat di bawah). Halaman tiket menulis `(Target kategori <nama kategori>)`.
+1. Tiket yang punya **Langganan** mengambil target dari tingkat SLA **versi paket** yang dipakai langganan itu (bagian 4.5). Tingkat itu tetap berlaku walau paketnya sudah berganti versi atau tingkatnya dinonaktifkan: menonaktifkan hanya menghentikan penjualan baru. Halaman tiket menulis `(Target <nama tingkat>)` di samping tenggat.
+2. Tiket tanpa **Langganan** mengambil target dari **Kategori Tiket** yang dipilih (lihat di bawah). Halaman tiket menulis `(Target kategori <nama kategori>)`.
+
+Tenggat dihitung saat tiket dibuat, dan dihitung ulang hanya saat prioritas tiket **Terbuka** diubah. Tiket yang sudah ada tidak berubah bila paket atau tingkat SLA langganannya diganti kemudian.
 
 Prioritas **Mendesak** memotong kedua target menjadi separuh, dibulatkan ke atas, apa pun sumbernya. Contoh: 5 jam menjadi 3 jam. Kategori bawaan perusahaan baru: **No Internet** 4 jam penyelesaian dan 2 jam respons, **Slow Connection** 8 dan 4, **Packet Loss** 8 dan 4, **Device Issue** 12 dan 6, **Fiber Issue** 12 dan 6. Target respons bawaan adalah separuh target penyelesaian, dibulatkan ke atas.
 
@@ -798,7 +853,7 @@ Setiap 15 menit sistem memeriksa tiket yang lewat **Target penyelesaian** dan me
 
 ### Kategori Tiket
 
-Kategori Tiket menyimpan target cadangan untuk tiket yang tidak bisa memakai tingkat SLA, yaitu tiket tanpa **Langganan** atau dengan paket yang tingkatnya nonaktif. Kategori juga menyimpan **Saran untuk pelanggan**, teks yang dibaca pelanggan di aplikasi sebelum ia membuat tiket. Buka layar ini saat Anda ingin mengubah jam target kategori, mengganti namanya, menonaktifkannya, atau menulis saran untuknya.
+Kategori Tiket menyimpan target cadangan untuk tiket tanpa **Langganan**. Tiket yang punya langganan memakai tingkat SLA versi paketnya, aktif atau tidak. Kategori juga menyimpan **Saran untuk pelanggan**, teks yang dibaca pelanggan di aplikasi sebelum ia membuat tiket. Buka layar ini saat Anda ingin mengubah jam target kategori, mengganti namanya, menonaktifkannya, atau menulis saran untuknya.
 
 Peran yang dapat memakai: admin dan manajer pada peran bawaan, staf tidak. Izin: `ticket.category.manage`. Tanpa izin ini menu tidak tampil dan alamat `/admin/ticket-categories` ditolak dengan halaman **Akses ditolak**.
 
@@ -832,7 +887,7 @@ Layar ini tidak punya tombol untuk menambah atau menghapus kategori, dan kode ka
 - Pesan "Langganan bukan milik pelanggan yang dipilih." di **Langganan**, atau "Aset jaringan bukan milik pelanggan yang dipilih." dan "Aset jaringan bukan milik langganan yang dipilih." di **Aset jaringan**: pilihan tidak cocok satu sama lain. Daftar pilihan sudah dipersempit menurut pelanggan dan langganan yang Anda pilih, jadi pesan ini jarang muncul. Pilih langganan dan aset milik pelanggan yang sama.
 - Toast "Data gagal disimpan. Periksa input." muncul bersama pesan di bawah isian: baca pesan di bawah setiap isian yang bermasalah.
 - Daftar tiket tampak terpotong setelah dibuka dari Dasbor: filter `sla_breached` masih aktif. Klik **Tiket** di sidebar.
-- Judul atau prioritas tiket salah: web tidak punya layar ubah, **Ubah**, maupun **Hapus** untuk tiket. Server hanya mengubah tiket **Terbuka** (izin `ticket.update`) dan menghapus tiket **Ditutup** (izin `ticket.delete`), tetapi tidak ada layar yang memanggilnya. Tulis koreksi sebagai komentar.
+- Judul atau prioritas tiket salah: web tidak punya layar ubah, **Ubah**, maupun **Hapus** untuk tiket. Server hanya mengubah tiket **Terbuka** (izin `ticket.update`) dan menghapus tiket **Ditutup** (izin `ticket.delete`), tetapi tidak ada layar yang memanggilnya. Tulis koreksi sebagai komentar. Tiket yang dihapus lewat jalur lain tampil di filter **Status** **Dihapus** dan bisa dikembalikan dengan **Pulihkan** (izin `ticket.delete`).
 
 ## 3.5 Evaluasi
 
@@ -850,8 +905,8 @@ Peran yang dapat memakai: admin, manajer, dan staf pada peran bawaan. Izin: `eva
 3. Isi filter. Daftar langsung menyesuaikan diri sesaat setelah Anda mengetik atau memilih, tanpa tombol filter:
    - Isian **Cari** mencari nama karyawan (isian bertuliskan "Nama karyawan").
    - Isian **Karyawan** memilih satu karyawan: ketik nama atau email (minimal 2 huruf), lalu pilih. Daftar memuat pengguna aktif perusahaan yang berperan `technician`, `staff`, atau `noc`, paling banyak 20 hasil. Pengguna berperan `technician` hanya mendapat dirinya sendiri di daftar ini. Klik **Hapus pilihan** untuk mencabut filter ini.
-   - Pilihan **Jenis referensi** berisi **Semua jenis**, **SPK**, dan **Tiket**.
-4. Baca tabel. Kolom: **Karyawan**, **Referensi**, **Nilai**, **Penilaian pelanggan**, **Penilai**, **Tanggal**, dan **Aksi**. Kolom **Referensi** memuat lencana jenis (**SPK** atau **Tiket**) dan kode tiket atau SPK-nya. Bila tiket atau SPK itu sudah tidak ada, kolom menulis `#` dan nomor id internalnya. Kolom **Tanggal** memuat tanggal dan jam dalam format tanggal perusahaan. Kolom **Referensi**, **Nilai**, dan **Tanggal** bisa diurutkan. Setiap baris hanya punya tombol **Lihat**.
+   - Pilihan **Jenis referensi** berisi **Semua jenis**, **SPK**, dan **Tiket**. Filter **Status** berisi **Semua status**, **Dihapus**, dan **Semua, termasuk dihapus**.
+4. Baca tabel. Kolom: **Karyawan**, **Referensi**, **Nilai**, **Penilaian pelanggan**, **Penilai**, **Tanggal**, dan **Aksi**. Kolom **Referensi** memuat lencana jenis (**SPK** atau **Tiket**) dan kode tiket atau SPK-nya. Bila tiket atau SPK itu sudah tidak ada, kolom menulis `#` dan nomor id internalnya. Kolom **Tanggal** memuat tanggal dan jam dalam format tanggal perusahaan. Kolom **Referensi**, **Nilai**, dan **Tanggal** bisa diurutkan. Setiap baris hanya punya tombol **Lihat**, kecuali evaluasi yang dihapus: barisnya tidak punya tombol dan menu **Aksi lainnya** berisi **Pulihkan** (izin `evaluation.delete`, toast "Evaluasi dipulihkan.").
 5. Daftar memuat 10 evaluasi per halaman, terbaru di atas. Bila ada lebih dari satu halaman, di bawah tabel tampil "Menampilkan" rentang baris dan jumlah total, tombol **Sebelumnya** dan **Berikutnya**, serta "Halaman" nomor dan jumlah halaman.
 
 Daftar yang kosong menulis **Belum ada evaluasi** dengan tombol **Buat evaluasi**. Bila filter tidak menemukan apa pun, daftar menulis **Tidak ada evaluasi yang cocok** dengan tombol **Reset filter**.
@@ -1098,9 +1153,9 @@ Admin dapat mengubah susunan izin melalui **Peran** dan **Hak Akses**. Tombol ya
 2. Ubah tab **Data pelanggan**, lalu klik **Simpan pelanggan**. Toast **Pelanggan diperbarui.** muncul dan layar kembali ke daftar pelanggan. Klik **Batal** untuk membuang perubahan dan kembali ke detail. Tombol **Kembali** di pojok atas juga kembali ke detail. Tab **Alamat** dan **Kontak** menyimpan datanya sendiri, jadi perubahan yang belum disimpan pada tab **Data pelanggan** tidak ikut tersimpan atau hilang saat Anda mengelola alamat dan kontak.
 3. Pengguna dengan Ubah pelanggan dapat mengubah kotak centang **Pelanggan setuju menerima notifikasi WhatsApp**. Di bawahnya tertulis **Tercatat:** diikuti **Setuju sejak** (dengan tanggal), **Berhenti sejak** (dengan tanggal), atau **Belum ada persetujuan tercatat**. Mencentang mencatat waktu, sumber `staff`, dan pengguna pencatat. Melepas centang mencatat waktu berhenti. Sistem hanya mengirim persetujuan bila Anda mengubahnya.
 4. Jika nomor tidak dapat dinormalisasi sebagai nomor seluler Indonesia, layar menampilkan peringatan **Nomor pelanggan ini bukan nomor seluler Indonesia yang valid**. Pesan WhatsApp dilewati sampai nomor diperbaiki.
-5. Pelanggan dapat membalas `STOP` atau `BERHENTI`, tanpa membedakan huruf besar atau kecil. Sistem mencabut persetujuan untuk semua pelanggan dengan nomor cocok. Staf dapat mencentang kembali setelah memperoleh persetujuan baru.
-6. Pada tab **Alamat**, setiap alamat tampil sebagai baris dengan tanda **(utama)** atau **(pemasangan)**, tombol **Ubah**, dan tombol **Hapus**. Tombol **Tambah alamat** mengosongkan formulir di bawah daftar. Formulir itu berjudul **Tambah Alamat** (tombol **Tambah**) atau **Ubah Alamat** (tombol **Simpan**), dengan isian yang sama seperti pada tab **Alamat** di form tambah: peta, wilayah berjenjang, **Alamat**, **Kode pos**, **Catatan**, dan dua penanda. Klik **Batal** untuk mengosongkan formulir. Toast: **Alamat ditambahkan.**, **Alamat diperbarui.**, atau **Alamat dihapus.** Alamat pertama selalu menjadi utama dan pemasangan. Sistem mempertahankan tepat satu alamat utama dan satu alamat pemasangan. Menghapus alamat yang membawa penanda memindahkan penanda ke alamat tertua yang tersisa.
-7. Alamat yang dipakai oleh langganan tidak dapat dihapus. Pesan **Alamat yang dipakai langganan tidak bisa dihapus.** tampil di bawah isian **Alamat** pada formulir, dan toast **Data gagal disimpan. Periksa input.** muncul. Mengubah penanda pemasangan tidak mengubah alamat pemasangan pada langganan lama.
+5. Pelanggan dapat membalas `STOP` atau `BERHENTI`, tanpa membedakan huruf besar atau kecil. Sistem mencabut persetujuan pelanggan dengan nomor cocok hanya di perusahaan pemilik nomor WhatsApp pengirim itu (lihat **Integrasi**, bagian 8.9). Perusahaan lain yang memakai nomor pengirim berbeda tidak terpengaruh, walau pelanggannya punya nomor telepon yang sama. Staf dapat mencentang kembali setelah memperoleh persetujuan baru.
+6. Pada tab **Alamat**, setiap alamat tampil sebagai baris dengan tanda **(utama)** atau **(pemasangan)**, tombol **Ubah**, dan tombol **Hapus**. Tombol **Tambah alamat** mengosongkan formulir di bawah daftar. Formulir itu berjudul **Tambah Alamat** (tombol **Tambah**) atau **Ubah Alamat** (tombol **Simpan**), dengan isian yang sama seperti pada tab **Alamat** di form tambah: peta, wilayah berjenjang, **Alamat**, **Kode pos**, **Catatan**, dan dua penanda. Klik **Batal** untuk mengosongkan formulir. Toast: **Alamat ditambahkan.**, **Alamat diperbarui.**, atau **Alamat dihapus permanen.** Alamat pertama selalu menjadi utama dan pemasangan. Sistem mempertahankan tepat satu alamat utama dan satu alamat pemasangan. Menghapus alamat yang membawa penanda memindahkan penanda ke alamat tertua yang tersisa.
+7. Alamat yang dipakai oleh langganan tidak dapat dihapus. Tombol **Hapus** pada alamat membuka dialog "Hapus alamat" dengan teks "Alamat yang belum pernah dipakai langganan dihapus permanen." Bila alamat sudah dipakai, dialog tetap terbuka dan menulis alasannya dalam teks merah, misalnya "Alamat masih dipakai 1 langganan, jadi tidak bisa dihapus." Mengubah penanda pemasangan tidak mengubah alamat pemasangan pada langganan lama. Alamat yang dihapus permanen tidak bisa dipulihkan.
 8. Pada tab **Kontak**, formulir bekerja sama: **Tambah kontak**, **Ubah**, atau **Hapus**, formulir **Tambah Kontak** atau **Ubah Kontak**, dan toast **Kontak ditambahkan.**, **Kontak diperbarui.**, atau **Kontak dihapus.** **Nama** dan **Telepon** bertanda wajib. **Jabatan**, **Email**, dan **Catatan** opsional. Kartu kontak yang utama bertanda **(utama)**. Jika kontak utama dihapus, sistem memilih kontak tertua yang tersisa sebagai kontak utama.
 9. Pengguna tanpa Kelola alamat pelanggan hanya melihat daftar alamat dan kontak, tanpa tombol dan formulir.
 10. E-mail dan status pelanggan pada halaman ini tidak disinkronkan ke akun masuk yang dibuat saat onboarding. Admin mengubah e-mail atau status akun pengguna pada Pengguna (bagian 8.5). **Kirim ulang link akses** selalu memakai e-mail akun pengguna.
@@ -1129,7 +1184,7 @@ Admin dapat mengubah susunan izin melalui **Peran** dan **Hak Akses**. Tombol ya
 
    ![Halaman detail langganan dengan kartu Rincian langganan dan Status](images/web/subscriptions-show.png)
 
-6. Detail langganan memuat kartu **Rincian langganan** (**Paket**, **Kategori paket**, **Pelanggan**, **Alamat pemasangan**, **POP pelayan**, **Biaya bulanan**, **Biaya pemasangan**, **Tanggal tagihan**, **Masa kontrak**, dan **Catatan** bila terisi) dan kartu **Status** (**Status**, **Tanggal aktivasi**, **Tanggal berakhir**, **Tagihan berikutnya**, **Berhenti pada**, dan **Alasan berhenti** bila ada). Untuk langganan yang diblokir, kartu **Status** menambah **Internet**, **Alasan blokir**, dan **Diblokir oleh**. Panel **Alamat IP** dan **Port drop** muncul bagi pengguna dengan izin lihat IPAM dan ODN. Pengisiannya dijelaskan di Alamat IP (bagian 5.4) dan ODN (bagian 5.5).
+6. Detail langganan memuat kartu **Rincian langganan** (**Pelanggan**, **Alamat pemasangan**, **POP pelayan**, **Biaya bulanan**, **Biaya pemasangan**, **Tanggal tagihan**, **Masa kontrak**, dan **Catatan** bila terisi), kartu **Paket** (nama paket, versi, dan syaratnya, lihat langkah 14), dan kartu **Status** (**Status**, **Tanggal aktivasi**, **Tanggal berakhir**, **Tagihan berikutnya**, **Berhenti pada**, dan **Alasan berhenti** bila ada). Untuk langganan yang diblokir, kartu **Status** menambah **Internet**, **Alasan blokir**, dan **Diblokir oleh**. Panel **Alamat IP** dan **Port drop** muncul bagi pengguna dengan izin lihat IPAM dan ODN. Pengisiannya dijelaskan di Alamat IP (bagian 5.4) dan ODN (bagian 5.5).
 7. Gunakan kartu **Aksi langganan** sesuai status dan izin:
 
    | Tombol | Syarat | Izin | Efek |
@@ -1148,6 +1203,12 @@ Admin dapat mengubah susunan izin melalui **Peran** dan **Hak Akses**. Tombol ya
 11. **Blokir internet** berbeda dari penangguhan. Pembayaran tidak menghapus blokir. Gunakan **Buka blokir** secara terpisah.
 12. **Hentikan** tidak dapat dibatalkan. Layar saat ini tidak menyediakan pilihan melepas ONT pada saat penghentian.
 13. Tombol siklus muncul menurut status, bukan menurut izin Anda. Server memeriksa izin saat tombol ditekan. Server juga menolak aksi pada status yang tidak cocok, misalnya **Langganan harus berstatus Menunggu untuk diaktifkan.**, **Langganan harus berstatus Aktif untuk ditangguhkan.**, atau **Langganan harus berstatus Ditangguhkan untuk diaktifkan kembali.** Muat ulang halaman bila status sudah berubah.
+14. **Ganti paket** memindahkan langganan ke versi terbaru sebuah paket. Tombolnya ada di kartu **Paket**, hanya dengan Kelola langganan (`customer.subscription.manage`), dan tidak ada untuk langganan **Berhenti**. Kartu **Paket** menulis nama paket, "Versi `<n>` sejak `<tanggal>`", dan syarat versi itu (**Kategori**, **Harga bulanan**, **Harga pemasangan**, **Profil bandwidth**, **Profil kecepatan**, **Tingkat SLA**). Lencana **Versi terbaru tersedia** muncul bila paketnya sudah punya versi lebih baru. Edit paket tidak mengubah langganan yang ada (lihat bagian 4.2): langganan tetap di versinya sampai Anda memindahkannya.
+    - Klik **Ganti paket**. Jendela memuat kotak cari **Paket** (paket aktif saja, awalnya paket saat ini) dan **Biaya bulanan**. Biaya bulanan yang kosong berarti harga bulanan versi terbaru paket itu ("Otomatis dari harga paket"). Isi angka untuk memakai biaya lain.
+    - Klik **Pindahkan**. Toast **Langganan dipindahkan ke versi terbaru paket.** muncul. Langganan memakai profil kecepatan (RADIUS) dan tingkat SLA versi barunya, dan **Biaya bulanan** menjadi nilai di jendela itu. **Biaya pemasangan** ikut harga versi baru hanya bila langganan masih **Menunggu**; selain itu tidak berubah.
+    - Tagihan yang sudah terbit tidak berubah. Tagihan berikutnya memakai **Biaya bulanan** yang baru, tanpa prorata antara paket lama dan baru.
+    - Penolakan: "Langganan sudah memakai versi terbaru paket ini." (tombol **Pindahkan** nonaktif bila paket yang dipilih adalah paket saat ini dan sudah di versi terbaru), "Langganan yang sudah berhenti tidak bisa pindah paket.", dan "Pilih paket layanan yang masih aktif." di bawah isian **Paket**.
+    - Mengubah data langganan tidak lagi memindahkan paket: **Ganti paket** adalah satu-satunya cara. Tiap perpindahan tercatat di log audit (`package_changed`, dengan paket, versi, dan biaya sebelum dan sesudah).
 
 ### Mengelola akun jaringan
 
@@ -1163,13 +1224,14 @@ Bagian ini merangkum akun jaringan dari sisi langganan. Rincian lengkap ada di R
 5. Gunakan kartu **Ubah akun jaringan** untuk mengganti jenis layanan, nama pengguna, atau kata sandi, lalu klik **Simpan perubahan**. Kata sandi kosong mempertahankan nilai lama. Langganan **Berhenti** tidak dapat memiliki akun jaringan.
 6. Klik **Tampilkan kata sandi** dengan Tampilkan kata sandi akun jaringan. Dialog **Tampilkan kata sandi?** menjelaskan bahwa kata sandi tampil sekali dan pengungkapannya dicatat di log audit. Rute dibatasi 10 permintaan per menit.
 7. Klik **Sinkron ulang** dengan Kelola akun jaringan untuk mengantrekan penulisan ulang ke RADIUS dan pemutusan sesi. Toast **Sinkron ulang dijadwalkan.** muncul. Rute dibatasi 6 permintaan per menit.
-8. Bila RADIUS nonaktif atau tidak terjangkau, perubahan tetap tersimpan. Halaman menulis **RADIUS dimatikan untuk instalasi ini.** bila RADIUS dimatikan. Status online dan pemakaian tidak tersedia sampai RADIUS kembali tersedia.
+8. Bila RADIUS belum dikonfigurasi atau tidak terjangkau, perubahan tetap tersimpan. Halaman menulis **RADIUS belum dikonfigurasi untuk perusahaan ini. Perubahan disimpan tetapi tidak dikirim ke FreeRADIUS.** bila perusahaan belum mengisi dan mengaktifkan kartu **RADIUS** di **Integrasi** (bagian 8.9), dengan tombol **Atur di Pengaturan → Integrasi** untuk admin. Status online dan pemakaian tidak tersedia sampai RADIUS kembali tersedia.
 
-### Menghapus pelanggan
+### Menonaktifkan, menghapus permanen, dan memulihkan pelanggan
 
-1. Pada daftar, klik menu **Aksi lainnya** pada baris pelanggan, lalu **Hapus**. Pilihan **Hapus** hanya ada dengan Hapus pelanggan (`customer.delete`).
-2. Dialog menanyakan **Hapus** diikuti nama pelanggan dan menjelaskan bahwa pelanggan yang masih punya langganan belum berhenti tidak bisa dihapus. Klik **Hapus** untuk melanjutkan atau **Batal** untuk membatalkan. Sistem melakukan soft delete. Toast **Pelanggan dihapus.** muncul dan dialog menutup setelah berhasil.
-3. Penghapusan ditolak selama ada langganan selain **Berhenti**. Dialog tetap terbuka dan toast **Data gagal disimpan. Periksa input.** muncul. Hentikan semua langganan terlebih dahulu.
+1. Pada daftar, klik menu **Aksi lainnya** pada baris pelanggan. Isinya **Nonaktifkan** (atau **Aktifkan** bila pelanggan sudah nonaktif) dengan izin Ubah pelanggan (`customer.update`), dan **Hapus permanen** dengan izin Hapus pelanggan (`customer.delete`). **Nonaktifkan** mematikan **Akun** pelanggan (filter **Akun** di daftar). Status pelanggan (**Prospek**, **Aktif**, **Nonaktif**, **Ditangguhkan**, **Berhenti**) tidak berubah.
+2. **Hapus permanen** hanya ada bila tidak ada langganan, tagihan, SPK, tiket, aset jaringan, atau riwayat pemasangan yang menunjuk ke pelanggan itu, dalam status apa pun. Angkanya tampil di dialog **Nonaktifkan**, misalnya "dipakai 1 langganan, 3 tagihan". Dialog menulis "Hapus permanen `<nama>`?" dan "Pelanggan "`<nama>`" belum pernah dipakai data lain. Penghapusan permanen tidak bisa dibatalkan." Alamat dan kontak pelanggan ikut terhapus. Toast **Pelanggan dihapus permanen.** muncul.
+3. Toast **Pelanggan dinonaktifkan.** atau **Pelanggan diaktifkan.** muncul setelah **Nonaktifkan** atau **Aktifkan**. Pelanggan **Berhenti** tetap bisa dinonaktifkan.
+4. Filter **Status** punya **Dihapus** dan **Semua, termasuk dihapus**. Baris pelanggan yang dihapus punya menu **Pulihkan** (toast **Pelanggan dipulihkan.**).
 
 ### Kesalahan umum
 
@@ -1183,8 +1245,8 @@ Bagian ini merangkum akun jaringan dari sisi langganan. Rincian lengkap ada di R
 - Mengubah e-mail atau **Akun aktif** pada pelanggan tidak mengubah akun pengguna. Perbarui akun pada Pengguna (bagian 8.5).
 - Permintaan **Kirim ulang link akses** keempat dalam satu menit menghasilkan HTTP 429. Tunggu sampai jendela satu menit berlalu.
 - Tombol siklus langganan mengikuti status, tetapi server tetap memeriksa izin. Halaman **Akses ditolak** (kode 403) berarti peran tidak memegang izin aksi itu.
-- Alamat yang terhubung ke langganan tidak dapat dihapus (**Alamat yang dipakai langganan tidak bisa dihapus.**). Pilih alamat lain pada langganan yang sesuai sebelum mencoba lagi.
-- Pelanggan tidak dapat dihapus selama masih memiliki langganan **Menunggu**, **Aktif**, atau **Ditangguhkan** (**Pelanggan yang masih punya langganan belum berhenti tidak bisa dihapus.**). Hentikan seluruh langganan lebih dahulu.
+- Alamat yang dipakai langganan tidak bisa dihapus. Dialog **Hapus alamat** menulis alasannya dalam teks merah, misalnya "Alamat masih dipakai 1 langganan, jadi tidak bisa dihapus." Pilih alamat lain pada langganan yang sesuai sebelum mencoba lagi.
+- Pelanggan yang sudah punya langganan, tagihan, SPK, tiket, aset, atau riwayat pemasangan, dalam status apa pun termasuk **Berhenti**, tidak bisa dihapus permanen. Dialog menulis, misalnya, "Pelanggan masih dipakai 1 langganan, 3 tagihan. Nonaktifkan saja." Pakai **Nonaktifkan** (bagian 1.5). Pelanggan nonaktif tidak muncul di pilihan baru dan semua riwayatnya tetap utuh.
 
 ## 4.2 Paket Layanan
 
@@ -1198,7 +1260,7 @@ Peran yang dapat memakai: admin, manajer, staf. Izin: `service.view` atau `servi
 2. Baca daftar paket.
 
    - Kotak **Cari** (isian "Nama atau kode") mencari kode dan nama paket.
-   - Filter **Status** berisi **Semua status**, **Aktif** dan **Nonaktif**.
+   - Filter **Status** berisi **Semua status**, **Aktif**, **Nonaktif**, **Dihapus**, dan **Semua, termasuk dihapus** (bagian 1.5).
    - Filter **Tingkat SLA** adalah kotak cari: ketik untuk mencari, lalu pilih. Isinya semua tingkat SLA perusahaan. Selama belum ada pilihan, kotak menampilkan **Semua tingkat**. Ikon X di kotak itu mengosongkan filter.
    - Filter **Kategori** bekerja sama dan menampilkan **Semua kategori** selama belum ada pilihan. Isinya semua kategori perusahaan. Kategori nonaktif tampil dengan tulisan `(nonaktif)`.
    - Tombol **Reset filter** muncul bila ada filter atau pencarian yang aktif. Bila tidak ada paket yang cocok, daftar menampilkan "Tidak ada paket yang cocok" dengan tombol **Reset filter** yang sama.
@@ -1211,7 +1273,7 @@ Peran yang dapat memakai: admin, manajer, staf. Izin: `service.view` atau `servi
 
 3. Klik nama paket untuk membuka halaman rincian. Kartu **Rincian paket** memuat kategori, profil bandwidth, profil kecepatan, tingkat SLA, masa kontrak minimum dan deskripsi (baris deskripsi hanya tampil bila diisi). Kartu **Harga dan status** memuat harga bulanan, harga pemasangan dan status. Masa kontrak `0` tampil sebagai tanda hubung. Dari sini tombol **Ubah** membuka form ubah dan **Kembali** membawa Anda ke daftar.
 
-Di setiap baris, tombol **Ubah** membuka form ubah. Menu **Aksi lainnya** berisi **Lihat detail** dan **Hapus**. Tombol dan menu ini tampil untuk semua orang yang bisa melihat daftar. Server menolak aksi dari pengguna tanpa izin yang sesuai dengan halaman **Akses ditolak**. Cara kerja tombol dan dialog hapus ada di bagian 1.5.
+Di setiap baris, tombol **Ubah** membuka form ubah. Menu **Aksi lainnya** berisi **Lihat detail** dan **Nonaktifkan** atau **Aktifkan**, serta **Hapus permanen** bila paket belum pernah dipakai. Baris paket yang dihapus hanya punya **Pulihkan**. Tombol dan menu ini tampil untuk semua orang yang bisa melihat daftar. Server menolak aksi dari pengguna tanpa izin yang sesuai dengan halaman **Akses ditolak**. Cara kerja tombol dan dialognya ada di bagian 1.5.
 
 ### Menyiapkan bahan paket
 
@@ -1247,14 +1309,18 @@ Form tidak punya isian pajak. Harga yang Anda isi adalah angka yang akan disalin
 
 Bila profil bandwidth, profil kecepatan atau tingkat SLA paket itu sudah dinonaktifkan, kolomnya tampak kosong karena daftar hanya memuat yang aktif, tetapi pilihan lama tetap tersimpan sampai Anda memilih yang lain.
 
-Harga disalin ke langganan saat langganan dibuat: **MRC** pelanggan diisi dari **Harga bulanan** dan biaya pemasangan dari **Harga pemasangan**. Karena itu mengubah harga atau isian lain pada paket tidak mengubah langganan yang sudah ada. Hanya langganan baru yang memakai harga baru. Harga di langganan lama dapat diubah sendiri pada langganan itu (lihat bagian Pelanggan, bab 4).
+Harga disalin ke langganan saat langganan dibuat atau dipindahkan: **Biaya bulanan** pelanggan diisi dari **Harga bulanan** dan biaya pemasangan dari **Harga pemasangan**. Karena itu mengubah harga atau isian lain pada paket tidak mengubah langganan yang sudah ada. Hanya langganan baru, atau langganan yang Anda pindahkan lewat **Ganti paket** di detail langganan (bagian 4.1), yang memakai syarat baru. Biaya bulanan langganan lama tetap bisa diubah sendiri saat **Ganti paket**.
 
-### Menonaktifkan dan menghapus paket
+**Versi paket.** Mengubah **Harga bulanan**, **Harga pemasangan**, **Profil bandwidth**, **Profil kecepatan**, **Tingkat SLA**, atau **Kategori** membuat versi baru paket itu. Halaman **Ubah Paket Layanan** menulis ini di kotak biru. Mengubah **Kode**, **Nama**, **Deskripsi**, **Masa kontrak minimum**, atau **Aktif** tidak membuat versi: namanya berubah di tempat. Halaman rincian paket punya kartu **Versi paket** dengan kolom **Versi**, **Berlaku sejak**, **Harga bulanan**, **Harga pemasangan**, **Profil bandwidth**, **Profil kecepatan**, **Tingkat SLA**, **Kategori**, dan **Langganan** (jumlah langganan di versi itu), versi terbaru ditandai **Terbaru**. Langganan baru memakai versi terbaru. Langganan lama tetap di versinya, dengan profil kecepatan RADIUS, tingkat SLA tiket, dan kategori laporannya, sampai dipindahkan.
 
-1. Untuk berhenti menjual paket, buka **Ubah**, matikan saklar **Aktif**, lalu klik **Simpan**. Paket tetap ada di daftar dengan lencana **Nonaktif**, langganan yang sudah berjalan tidak terganggu, dan paket tidak ditawarkan pada pelanggan baru. Untuk menyembunyikan satu kelompok paket sekaligus, nonaktifkan kategorinya (bagian Kategori Paket di bawah).
-2. Untuk menghapus, buka **Aksi lainnya** di baris paket, klik **Hapus**, lalu konfirmasi di dialog **Hapus {nama paket}?** dengan tombol **Hapus**. Dialog itu berbunyi `Paket "{nama paket}" akan dihapus permanen. Paket yang masih dipakai langganan menunggu atau aktif tidak bisa dihapus.` Muncul toast `Paket layanan dihapus.`
+**Peringatan: profil, tingkat SLA, dan kategori tetap diubah di tempatnya.** Versi mencatat profil mana yang dipilih paket, bukan isi profilnya. Mengubah angka Mbps sebuah profil kecepatan mengubah semua versi dan grup RADIUS yang memakainya, termasuk langganan lama (sesi yang sedang online memakai laju baru setelah menyambung ulang atau **Sinkron ulang**). Hal yang sama berlaku bagi profil bandwidth dan tingkat SLA. Untuk mengubah syarat hanya bagi penjualan baru, buat profil (atau tingkat SLA) baru lalu pilih itu di paket. Perubahan itu membuat versi baru, dan langganan lama tetap memakai profil lama.
 
-Server menolak penghapusan dengan pesan `Paket masih dipakai langganan menunggu atau aktif. Nonaktifkan saja.` bila masih ada langganan berstatus **Menunggu** atau **Aktif** pada paket itu. Langganan yang sudah berhenti tidak menghalangi. Pesan ini belum tampil di layar. Dialog tetap terbuka dan yang muncul hanya toast `Data gagal disimpan. Periksa input.` Tutup dialog dengan **Batal**, lalu periksa langganan paket itu. Bila ragu, nonaktifkan paketnya, jangan hapus.
+### Menonaktifkan, menghapus permanen, dan memulihkan paket
+
+1. Untuk berhenti menjual paket, buka **Aksi lainnya** di baris paket dan klik **Nonaktifkan**, lalu konfirmasi (dialog menulis jumlah langganan yang memakainya). Anda juga bisa mematikan saklar **Aktif** di **Ubah**. Paket tetap ada di daftar dengan lencana **Nonaktif**, langganan yang sudah berjalan tidak terganggu, dan paket tidak ditawarkan pada pelanggan baru. **Aktifkan** menjual paket itu lagi. Untuk menyembunyikan satu kelompok paket sekaligus, nonaktifkan kategorinya (bagian Kategori Paket di bawah).
+2. **Hapus permanen** hanya ada di menu paket yang belum pernah dipakai langganan mana pun, dalam status apa pun (menunggu, aktif, ditangguhkan, atau berhenti). Dialog **Hapus permanen `<nama paket>`?** berbunyi `Paket layanan "<nama paket>" belum pernah dipakai data lain. Penghapusan permanen tidak bisa dibatalkan.` Toast `Paket layanan dihapus permanen.` muncul, dan riwayat versinya ikut terhapus.
+3. Bila langganan baru memakai paket itu setelah Anda membuka menu, server menolak dan dialog menulis `Paket layanan masih dipakai 1 langganan. Nonaktifkan saja.`
+4. Paket yang dihapus dengan cara lama muncul di filter **Status** **Dihapus**. **Pulihkan** mengembalikannya dengan statusnya semula.
 
 ### Kesalahan umum
 
@@ -1262,8 +1328,8 @@ Server menolak penghapusan dengan pesan `Paket masih dipakai langganan menunggu 
 - Pesan `harga pemasangan harus berupa angka.` atau `masa kontrak minimum harus berupa bilangan bulat.`: isian itu dikosongkan. Isi `0`.
 - Paket baru tidak muncul pada form pelanggan baru: saklar **Aktif** paket masih mati, atau kategorinya nonaktif. Nyalakan di **Ubah**.
 - Pilihan profil atau tingkat SLA kosong atau tidak lengkap: hanya data aktif yang tampil. Buat atau aktifkan dulu di menu yang bersangkutan.
-- Harga paket sudah diubah tetapi tagihan pelanggan lama tetap memakai harga lama: harga tersimpan di langganan, bukan di paket. Ubah harga di langganan itu bila memang perlu.
-- Tombol **Hapus** hanya memunculkan toast `Data gagal disimpan. Periksa input.`: masih ada langganan **Menunggu** atau **Aktif** pada paket itu. Akhiri atau pindahkan langganannya dulu, atau nonaktifkan paket.
+- Harga paket sudah diubah tetapi tagihan pelanggan lama tetap memakai harga lama: harga tersimpan di langganan, bukan di paket, dan langganan lama tetap di versi paket yang dijualnya. Pindahkan langganan itu lewat **Ganti paket** di detail langganan (bagian 4.1).
+- Menu baris paket tidak menawarkan **Hapus permanen**: paket itu sudah dipakai langganan, dalam status apa pun termasuk **Berhenti**. Pilih **Nonaktifkan**.
 - Staf menekan **Ubah** atau **Hapus** dan ditolak: staf hanya punya `service.view`. Minta admin menambah izin atau mengubah perannya (bagian 8.6 dan 8.7).
 - Paket baru tidak bisa disimpan karena **Kategori** kosong (`kategori wajib diisi.`): pilih kategori. Kategori yang nonaktif tidak ada di daftar. Aktifkan lagi di **Kategori Paket** atau pilih kategori lain.
 
@@ -1287,7 +1353,7 @@ Setiap perusahaan punya tiga kategori bawaan: **Rumahan** (urutan 1), **Bisnis**
    - **Aktif**: saklar, aktif secara awal.
 4. Klik **Simpan**. Muncul toast `Kategori paket dibuat.` Untuk mengubah, klik **Ubah** di baris. Dialog **Ubah Kategori Paket** terbuka dengan **Kode** terkunci. Ubah **Nama**, **Urutan** atau **Aktif**, lalu klik **Simpan** (`Kategori paket diperbarui.`). Tombol **Batal** menutup dialog tanpa menyimpan.
 5. Untuk berhenti memakai kategori, matikan saklar **Aktif**. Kategori nonaktif tidak muncul di pilihan **Kategori** saat membuat paket baru dan tidak muncul di pilihan paket pada form pelanggan dan langganan. Paket yang sudah memakainya tetap utuh, dan kategorinya tetap tampil di form ubah paket itu.
-6. Untuk menghapus, klik **Hapus** di baris (pemegang `service.delete` atau `service.manage`). Dialog **Hapus kategori {nama}?** terbuka. Isinya `Kategori hanya bisa dihapus selama tidak ada paket di dalamnya. Nonaktifkan kategori jika sudah dipakai.` Klik **Hapus kategori** untuk menghapus. Muncul toast `Kategori paket dihapus.` Kategori yang masih dipakai paket (paket yang sudah dihapus ikut dihitung) tidak bisa dihapus. Dialog tetap terbuka dan menampilkan kotak merah `Kategori masih dipakai {n} paket. Nonaktifkan saja.` Klik **Batal**, lalu nonaktifkan kategorinya sebagai gantinya.
+6. Untuk menghapus, klik **Hapus** di baris (pemegang `service.delete` atau `service.manage`). Dialog **Hapus kategori {nama}?** terbuka. Isinya `Kategori hanya bisa dihapus selama tidak ada paket di dalamnya. Nonaktifkan kategori jika sudah dipakai.` Klik **Hapus kategori** untuk menghapus. Muncul toast `Kategori paket dihapus.` Kategori yang masih dipakai paket tidak bisa dihapus. Paket yang sudah dihapus dan paket yang pernah memakai kategori itu di versi lama ikut dihitung. Dialog tetap terbuka dan menampilkan kotak merah `Kategori masih dipakai {n} paket. Nonaktifkan saja.` Klik **Batal**, lalu nonaktifkan kategorinya sebagai gantinya. Kategori Paket memakai aturan hapus ini, bukan **Nonaktifkan**, **Hapus permanen**, dan **Pulihkan** di bagian 1.5.
 
 Pesan galat lain di dialog kategori: kode yang sudah ada menampilkan `Kode kategori sudah dipakai.` dan kode dengan karakter lain menampilkan `Kode hanya boleh berisi huruf, angka, tanda hubung, dan garis bawah.`
 
@@ -1300,7 +1366,7 @@ Peran yang dapat memakai: sama dengan bagian 4.2. Izin: `service.view` atau `ser
 ### Membuka dan membaca daftar
 
 1. Di sidebar, buka grup **Pelanggan & Layanan**, lalu klik **Profil Bandwidth**.
-2. Baca daftar. Kolomnya **Nama**, **Unduh (Mbps)**, **Unggah (Mbps)**, **Dibuat** dan **Aksi**. Kotak **Cari** (isian "Nama atau tipe") mencari nama dan jenis. Untuk jenis, ketik `shared` atau `dedicated` (kata asli di basis data, bukan **Berbagi** atau **Dedikasi**). Tidak ada halaman rincian: nama profil dan tombol **Ubah** sama-sama membuka form ubah, dan menu **Aksi lainnya** hanya berisi **Hapus**. Jenis, rasio dan status aktif hanya terlihat di form ubah. Tombol **Ekspor** (pemegang `service.export`) menghasilkan CSV atau PDF (judul PDF **Profil Bandwidth**) dengan kolom Nama, Unduh (Mbps), Unggah (Mbps), Tipe (**Berbagi** atau **Dedikasi**), Rasio berbagi dan Status (**Aktif** atau **Nonaktif**).
+2. Baca daftar. Kolomnya **Nama**, **Unduh (Mbps)**, **Unggah (Mbps)**, **Dibuat**, **Status** dan **Aksi**. Kotak **Cari** (isian "Nama atau tipe") mencari nama dan jenis. Untuk jenis, ketik `shared` atau `dedicated` (kata asli di basis data, bukan **Berbagi** atau **Dedikasi**). Tidak ada halaman rincian: nama profil dan tombol **Ubah** sama-sama membuka form ubah, dan menu **Aksi lainnya** berisi **Nonaktifkan** atau **Aktifkan**, dan **Hapus permanen** bila profil belum pernah dipakai. Jenis dan rasio hanya terlihat di form ubah. Tombol **Ekspor** (pemegang `service.export`) menghasilkan CSV atau PDF (judul PDF **Profil Bandwidth**) dengan kolom Nama, Unduh (Mbps), Unggah (Mbps), Tipe (**Berbagi** atau **Dedikasi**), Rasio berbagi dan Status (**Aktif** atau **Nonaktif**).
 
    ![Daftar Profil Bandwidth dengan kolom Nama, Unduh (Mbps), Unggah (Mbps), Dibuat dan Aksi](images/web/bandwidth-profiles.png)
 
@@ -1316,14 +1382,14 @@ Peran yang dapat memakai: sama dengan bagian 4.2. Izin: `service.view` atau `ser
    - **Aktif**: saklar, aktif secara awal.
 3. Klik **Simpan**. Muncul toast `Profil bandwidth dibuat.`
 
-Untuk mengubah, klik **Ubah**, ubah isian, lalu klik **Simpan** (toast `Profil bandwidth diperbarui.`). Untuk menghapus, buka **Aksi lainnya**, klik **Hapus**, lalu konfirmasi di dialog **Hapus {nama profil}?** (toast `Profil bandwidth dihapus.`).
+Untuk mengubah, klik **Ubah**, ubah isian, lalu klik **Simpan** (toast `Profil bandwidth diperbarui.`). **Peringatan:** profil diubah di tempatnya, jadi perubahan Mbps berlaku bagi semua paket, versi paket, dan langganan yang memakai profil itu. Untuk mengubah kapasitas hanya bagi penjualan baru, buat profil baru lalu pilih di paket (versi baru). Untuk berhenti memakai profil, buka **Aksi lainnya** dan klik **Nonaktifkan**: dialog menulis berapa paket yang memakainya (misalnya "dipakai 1 paket"), dan toast `Profil bandwidth dinonaktifkan.` muncul. **Aktifkan** memakainya lagi. **Hapus permanen** hanya ada bila profil belum pernah dipakai paket atau versi paket mana pun (toast `Profil bandwidth dihapus permanen.`). Filter **Status** punya **Aktif**, **Nonaktif**, **Dihapus**, dan **Semua, termasuk dihapus**. **Pulihkan** ada di menu baris yang dihapus (bagian 1.5).
 
 ### Kesalahan umum
 
 - Profil tidak muncul di form paket: saklar **Aktif** mati. Nyalakan di **Ubah**.
 - Penyimpanan ditolak dengan pesan `nama sudah digunakan.`: **Nama** sudah dipakai profil lain di perusahaan ini.
 - Penyimpanan ditolak dengan pesan `rasio kontensi wajib diisi.`: profil berjenis **Berbagi** butuh rasio. Isi angka minimal 1.
-- Profil yang masih dipakai paket bisa dihapus tanpa peringatan, karena penghapusan tidak memeriksa paket. Untuk berhenti memakai profil, matikan **Aktif** saja.
+- Menu baris profil tidak menawarkan **Hapus permanen**: profil itu masih dipakai paket atau versi paket (angkanya tampil di dialog **Nonaktifkan**). Pilih **Nonaktifkan**. Profil nonaktif tidak muncul di form paket, tetapi paket yang sudah memakainya tetap memakainya.
 
 ## 4.4 Profil Kecepatan
 
@@ -1334,7 +1400,7 @@ Peran yang dapat memakai: sama dengan bagian 4.2. Izin: `service.view` atau `ser
 ### Membuka dan membaca daftar
 
 1. Di sidebar, buka grup **Pelanggan & Layanan**, lalu klik **Profil Kecepatan**.
-2. Baca daftar. Kolomnya **Nama**, **Unduh maksimum (Mbps)**, **Unggah maksimum (Mbps)**, **Dibuat** dan **Aksi**. Kotak **Cari** (isian "Nama atau profil RADIUS") mencari nama profil dan nama profil RADIUS. Nama profil dan tombol **Ubah** membuka form ubah, dan menu **Aksi lainnya** hanya berisi **Hapus**, seperti Profil Bandwidth. Tombol **Ekspor** (pemegang `service.export`) menghasilkan CSV atau PDF (judul PDF **Profil Kecepatan**) dengan kolom Nama, Unduh maks (Mbps), Unggah maks (Mbps), Burst unduh (Mbps), Burst unggah (Mbps), Profil RADIUS dan Status (**Aktif** atau **Nonaktif**). Burst atau profil RADIUS yang kosong diisi `-`.
+2. Baca daftar. Kolomnya **Nama**, **Unduh maksimum (Mbps)**, **Unggah maksimum (Mbps)**, **Dibuat**, **Status** dan **Aksi**. Kotak **Cari** (isian "Nama atau profil RADIUS") mencari nama profil dan nama profil RADIUS. Nama profil dan tombol **Ubah** membuka form ubah, dan menu **Aksi lainnya** berisi **Nonaktifkan** atau **Aktifkan**, dan **Hapus permanen** bila profil belum pernah dipakai, seperti Profil Bandwidth. Tombol **Ekspor** (pemegang `service.export`) menghasilkan CSV atau PDF (judul PDF **Profil Kecepatan**) dengan kolom Nama, Unduh maks (Mbps), Unggah maks (Mbps), Burst unduh (Mbps), Burst unggah (Mbps), Profil RADIUS dan Status (**Aktif** atau **Nonaktif**). Burst atau profil RADIUS yang kosong diisi `-`.
 
    ![Daftar Profil Kecepatan dengan kolom Nama, Unduh maksimum (Mbps), Unggah maksimum (Mbps), Dibuat dan Aksi](images/web/speed-profiles.png)
 
@@ -1351,7 +1417,7 @@ Peran yang dapat memakai: sama dengan bagian 4.2. Izin: `service.view` atau `ser
    - **Aktif**: saklar, aktif secara awal.
 3. Klik **Simpan**. Muncul toast `Profil kecepatan dibuat.`
 
-Untuk mengubah, klik **Ubah**, ubah isian, lalu klik **Simpan** (toast `Profil kecepatan diperbarui.`). Untuk menghapus, buka **Aksi lainnya**, klik **Hapus**, lalu konfirmasi di dialog **Hapus {nama profil}?** (toast `Profil kecepatan dihapus.`).
+Untuk mengubah, klik **Ubah**, ubah isian, lalu klik **Simpan** (toast `Profil kecepatan diperbarui.`). **Peringatan:** profil diubah di tempatnya. Mengubah **Unduh maksimum** atau **Unggah maksimum** mengubah laju semua langganan yang memakai profil itu lewat versi paket mana pun, termasuk langganan lama (lihat "Hubungan dengan RADIUS"). Untuk mengubah laju hanya bagi penjualan baru, buat profil kecepatan baru lalu pilih di paket (versi baru). Untuk berhenti memakai profil, buka **Aksi lainnya** dan klik **Nonaktifkan** (toast `Profil kecepatan dinonaktifkan.`). **Hapus permanen** hanya ada bila profil belum pernah dipakai paket atau versi paket mana pun (toast `Profil kecepatan dihapus permanen.`). Filter **Status** punya **Aktif**, **Nonaktif**, **Dihapus**, dan **Semua, termasuk dihapus**. **Pulihkan** ada di menu baris yang dihapus (bagian 1.5).
 
 ### Hubungan dengan RADIUS
 
@@ -1365,7 +1431,7 @@ Paket yang profil kecepatannya tidak punya **Nama profil RADIUS** tidak dapat di
 
 - Akun jaringan pelanggan ditolak dengan pesan di atas: isi **Nama profil RADIUS** pada profil kecepatan paket itu.
 - Penyimpanan ditolak dengan pesan `nama sudah digunakan.`: **Nama** sudah dipakai profil lain di perusahaan ini.
-- Profil yang masih dipakai paket bisa dihapus tanpa peringatan. Untuk berhenti memakai profil, matikan **Aktif** saja.
+- Menu baris profil tidak menawarkan **Hapus permanen**: profil itu masih dipakai paket atau versi paket. Pilih **Nonaktifkan**. Profil nonaktif tidak muncul di form paket, tetapi paket yang sudah memakainya tetap memakainya.
 
 ## 4.5 Tingkat SLA
 
@@ -1376,7 +1442,7 @@ Peran yang dapat memakai: sama dengan bagian 4.2. Izin: `service.view` atau `ser
 ### Membuka dan membaca daftar
 
 1. Di sidebar, buka grup **Pelanggan & Layanan**, lalu klik **Tingkat SLA**.
-2. Baca daftar. Kolomnya **Nama**, **Target respons (jam)**, **Target penyelesaian (jam)**, **Respons tepat waktu (30 hari)**, **Penyelesaian tepat waktu (30 hari)**, **Tiket (30 hari)**, **Dibuat** dan **Aksi**. Kotak **Cari** (isian "Nama tingkat") mencari nama tingkat. Tiga kolom 30 hari tidak bisa diurutkan dan dihitung dari tiket yang dibuat dalam 30 hari terakhir pada langganan paket bertingkat itu. Kolom persen bernilai `-` bila belum ada tiket yang bisa dinilai. Nama tingkat dan tombol **Ubah** membuka form ubah, dan menu **Aksi lainnya** hanya berisi **Hapus**. Tombol **Ekspor** (pemegang `service.export`) menghasilkan CSV atau PDF (judul PDF **Tingkat SLA**) dengan kolom Nama, Target respons (jam), Target penyelesaian (jam) dan Status (**Aktif** atau **Nonaktif**).
+2. Baca daftar. Kolomnya **Nama**, **Target respons (jam)**, **Target penyelesaian (jam)**, **Respons tepat waktu (30 hari)**, **Penyelesaian tepat waktu (30 hari)**, **Tiket (30 hari)**, **Dibuat**, **Status** dan **Aksi**. Kotak **Cari** (isian "Nama tingkat") mencari nama tingkat. Tiga kolom 30 hari tidak bisa diurutkan dan dihitung dari tiket yang dibuat dalam 30 hari terakhir pada langganan yang versi paketnya memakai tingkat itu. Kolom persen bernilai `-` bila belum ada tiket yang bisa dinilai. Nama tingkat dan tombol **Ubah** membuka form ubah, dan menu **Aksi lainnya** berisi **Nonaktifkan** atau **Aktifkan**, dan **Hapus permanen** bila tingkat belum pernah dipakai. Tombol **Ekspor** (pemegang `service.export`) menghasilkan CSV atau PDF (judul PDF **Tingkat SLA**) dengan kolom Nama, Target respons (jam), Target penyelesaian (jam) dan Status (**Aktif** atau **Nonaktif**).
 
    ![Daftar Tingkat SLA dengan kolom Nama, Target respons (jam), Target penyelesaian (jam), Respons tepat waktu (30 hari), Penyelesaian tepat waktu (30 hari), Tiket (30 hari), Dibuat dan Aksi](images/web/sla-tiers.png)
 
@@ -1390,11 +1456,11 @@ Peran yang dapat memakai: sama dengan bagian 4.2. Izin: `service.view` atau `ser
    - **Aktif**: saklar, aktif secara awal.
 3. Klik **Simpan**. Muncul toast `Tingkat SLA dibuat.`
 
-Untuk mengubah, klik **Ubah** (halaman **Ubah Tingkat SLA**), ubah isian, lalu klik **Simpan** (toast `Tingkat SLA diperbarui.`). Untuk menghapus, buka **Aksi lainnya**, klik **Hapus**, lalu konfirmasi di dialog **Hapus {nama tingkat}?** (toast `Tingkat SLA dihapus.`). Perubahan jam hanya berlaku untuk tiket yang dibuat sesudahnya. Tiket yang sudah ada tidak dihitung ulang.
+Untuk mengubah, klik **Ubah** (halaman **Ubah Tingkat SLA**), ubah isian, lalu klik **Simpan** (toast `Tingkat SLA diperbarui.`). Perubahan jam hanya berlaku untuk tiket yang dibuat sesudahnya. Tiket yang sudah ada tidak dihitung ulang. **Peringatan:** tingkat SLA diubah di tempatnya, jadi perubahan jam berlaku bagi semua versi paket dan langganan yang memakai tingkat itu. Untuk mengubah target hanya bagi penjualan baru, buat tingkat baru lalu pilih di paket (versi baru). Untuk berhenti memakai tingkat, buka **Aksi lainnya** dan klik **Nonaktifkan** (toast `Tingkat SLA dinonaktifkan.`). **Hapus permanen** hanya ada bila tingkat belum pernah dipakai paket atau versi paket mana pun (toast `Tingkat SLA dihapus permanen.`). Filter **Status** punya **Aktif**, **Nonaktif**, **Dihapus**, dan **Semua, termasuk dihapus**. **Pulihkan** ada di menu baris yang dihapus (bagian 1.5).
 
 Sebuah tingkat memengaruhi tiket seperti ini:
 
-- Tiket yang punya **Langganan** pada paket dengan tingkat ini mengambil kedua targetnya dari tingkat itu, selama tingkatnya **Aktif**. Tingkat nonaktif dilewati dan tiket memakai **Kategori Tiket** (bagian 3.4).
+- Tiket yang punya **Langganan** mengambil kedua targetnya dari tingkat SLA **versi paket** yang dipakai langganan itu. Tingkat tetap berlaku walau sudah **Nonaktif**: menonaktifkan hanya menghentikan penjualan baru dan tidak mengubah tiket langganan yang sudah dijual. Memindahkan langganan lewat **Ganti paket** mengganti tingkatnya sesuai versi baru. Tiket tanpa langganan memakai **Kategori Tiket** (bagian 3.4).
 - Tiket berprioritas **Mendesak** memakai separuh dari kedua target, dibulatkan ke atas.
 - Jam dihitung kalender, bukan jam kerja.
 - Hasilnya muncul di kolom 30 hari pada daftar ini dan di laporan Kepatuhan SLA (bagian 7.6). Sistem tidak memakai tingkat ini untuk menghitung uptime atau kredit tagihan. Kedua isian itu sudah dihapus dari tingkat SLA.
@@ -1405,7 +1471,7 @@ Sebuah tingkat memengaruhi tiket seperti ini:
 - Target respons atau penyelesaian ditolak: isi bilangan bulat jam antara 1 dan 720. Angka desimal tidak diterima.
 - Target respons ditolak dengan pesan `Target respons tidak boleh lebih lama dari target penyelesaian.`: turunkan target respons atau naikkan target penyelesaian.
 - Penyimpanan ditolak dengan pesan `nama sudah digunakan.`: **Nama** sudah dipakai tingkat lain di perusahaan ini.
-- Tingkat yang masih dipakai paket bisa dihapus tanpa peringatan. Untuk berhenti memakainya, matikan **Aktif** saja.
+- Menu baris tingkat tidak menawarkan **Hapus permanen**: tingkat itu masih dipakai paket atau versi paket (angkanya tampil di dialog **Nonaktifkan**). Pilih **Nonaktifkan**. Tingkat nonaktif tidak muncul di form paket, tetapi langganan yang sudah dijual dengan tingkat itu tetap memakainya.
 
 ## 4.6 Pengumuman & Promo
 
@@ -1575,7 +1641,7 @@ Setiap tipe punya induk tertentu:
 ### Mengubah lokasi
 
 1. Di tab **Tabel**, klik **Ubah** pada baris lokasi. Dari tab **Peta**, klik penanda, lalu klik **Ubah** di kartunya.
-2. Ubah isian di dialog **Ubah** yang memuat kode lokasi di judulnya. Isiannya sama dengan dialog tambah. Dialog tidak punya isian untuk mengubah status **Aktif** atau **Nonaktif**.
+2. Ubah isian di dialog **Ubah** yang memuat kode lokasi di judulnya. Isiannya sama dengan dialog tambah. Dialog tidak punya isian untuk mengubah status **Aktif** atau **Nonaktif**: gunakan **Nonaktifkan** atau **Aktifkan** di menu **Aksi lainnya** (lihat di bawah).
    - Mengubah **Kode** atau **Induk** memperbarui **Jalur** lokasi itu dan semua lokasi di bawahnya.
    - Mengubah **Tipe** hanya diterima bila semua sub-lokasi masih cocok dengan tipe baru.
    - Bila **Lintang** atau **Bujur** berubah, kotak **Koordinat berubah** menampilkan nilai **Lama** dan **Baru**, dan tombol simpan menjadi **Simpan dan konfirmasi koordinat**.
@@ -1589,14 +1655,14 @@ Setiap tipe punya induk tertentu:
 
 Induk baru harus bertipe satu tingkat di atas lokasi yang dipindah, sama seperti saat menambah. Lokasi bertipe Wilayah tidak bisa dipindah. Sistem juga menolak memindahkan lokasi ke bawah dirinya sendiri atau turunannya dengan pesan "Lokasi tidak dapat dipindahkan ke bawah dirinya sendiri." di bawah **Induk baru**.
 
-### Menghapus lokasi
+### Menonaktifkan, menghapus permanen, dan memulihkan lokasi
 
-1. Klik **Hapus** pada baris di tab **Tabel**, atau pada kartu penanda di peta. Tombol ini butuh `location.delete`, yang dimiliki peran admin. Di tab **Tabel**, tombol **Hapus** nonaktif pada lokasi yang masih punya sub-lokasi, dan petunjuknya berbunyi "Lokasi ini masih punya lokasi turunan."
-2. Di dialog `Hapus <kode>?`, klik **Hapus**. Dialog menyatakan lokasi akan dihapus dan tindakan ini tidak dapat dibatalkan. Klik **Batal** untuk membatalkan. Toast "Lokasi dihapus." muncul bila berhasil.
+1. Di tab **Tabel**, buka **Aksi lainnya** pada baris lokasi. Isinya **Nonaktifkan** (atau **Aktifkan**) dengan `location.update`, dan **Hapus permanen** dengan `location.delete`. Dialog **Nonaktifkan** menulis apa saja yang memakai lokasi itu, misalnya "dipakai 2 lokasi turunan, 3 aset jaringan, 1 stok". Lokasi nonaktif tidak muncul di pilihan lokasi baru, dan semua data yang memakainya tetap utuh.
+2. **Hapus permanen** hanya ada bila tidak ada data lain yang pernah menunjuk ke lokasi itu: lokasi turunan, pelanggan, langganan, stok, mutasi stok, permintaan barang, retur material, penyesuaian stok, VLAN, prefiks IP, aset jaringan, riwayat pemasangan, SPK, tiket, pengumuman, atau banner promo, termasuk yang sudah dihapus. Dialog `Hapus permanen <kode>?` menyatakan penghapusan tidak bisa dibatalkan. Toast "Lokasi dihapus permanen." muncul bila berhasil.
+3. Di tab **Peta**, tombol **Hapus** pada kartu penanda membuka dialog `Hapus permanen <kode>?` yang sama. Dialog itu menulis alasan penolakan dalam teks merah, misalnya "Lokasi masih dipakai 1 lokasi turunan. Nonaktifkan saja." Lokasi yang sudah dipakai dinonaktifkan dari tab **Tabel**.
+4. Filter **Status** di tab **Tabel** punya **Aktif**, **Nonaktif**, **Dihapus**, dan **Semua, termasuk dihapus**. Baris lokasi yang dihapus punya **Pulihkan**. Lokasi turunan tidak bisa dipulihkan selama induknya masih dihapus ("Lokasi tidak bisa dipulihkan karena induknya, `<nama>`, masih dihapus. Pulihkan induknya dulu."). Lokasi yang dipulihkan menghitung ulang **Jalur** dari induknya yang sekarang.
 
-Sistem hanya menghapus lokasi yang tidak punya sub-lokasi dan tidak dipakai aset jaringan atau stok. Bila menolak, toast merah "Data gagal disimpan. Periksa input." muncul dan dialog tetap terbuka. Server menolak dengan salah satu dari dua alasan, yaitu "Lokasi masih punya lokasi turunan." atau "Lokasi masih dipakai oleh aset atau stok yang aktif.", tetapi dialog hapus tidak menampilkan alasan itu. Klik **Batal**, lalu pindahkan atau hapus sub-lokasinya dan pindahkan asetnya ke lokasi lain (bagian 5.2). Bila penolakan berlanjut padahal lokasi tampak kosong, periksa stok di lokasi itu (bagian 6.5).
-
-Lokasi yang sudah dihapus tidak bisa dikembalikan dari layar ini, dan kodenya tetap tidak bisa dipakai lagi.
+Lokasi yang dihapus permanen tidak bisa dikembalikan. Kode lokasi yang dihapus tidak permanen (**Dihapus**) atau yang nonaktif tetap terpesan dan tidak bisa dipakai lokasi lain.
 
 ### Kesalahan umum
 
@@ -1621,11 +1687,11 @@ Peran yang dapat memakai: admin, manajer, staf. Izin: `network_asset.view` membu
 2. Baca daftar.
 
    - Kotak **Cari** mencari sebagian kode, nama, serial, MAC dan alamat IP, walau petunjuknya hanya `Kode, nama, atau nomor seri`.
-   - Filter **Tipe** berisi **Semua tipe** dan 12 jenis aset (daftarnya ada di form buat). Filter **Status** berisi **Semua status** dan lima status: Tersedia, Terpasang, Perawatan, Rusak, dan Dipensiunkan (lihat tabel di bagian Mengubah status aset).
+   - Filter **Tipe** berisi **Semua tipe** dan 12 jenis aset (daftarnya ada di form buat). Filter **Status** berisi **Semua status**, lima status (Tersedia, Terpasang, Perawatan, Rusak, dan Dipensiunkan; lihat tabel di bagian Mengubah status aset), **Dihapus**, dan **Semua, termasuk dihapus**.
    - Kolom: **Kode** (tautan ke rincian), **Nama**, **Tipe**, **Nomor seri**, **Status**, **Lokasi**, **Dibuat** dan **Aksi**. Tipe dan status tampil sebagai lencana, misalnya ONU/ONT dan Tersedia. Kolom **Kode**, **Nama**, **Tipe**, **Status** dan **Dibuat** bisa diurutkan, dan urutan awalnya dari aset terbaru.
    - Kolom **Dibuat** berisi `-` di semua baris, karena server tidak mengirim tanggal pembuatan ke halaman ini.
    - Tombol **Ekspor** (pemegang `network_asset.export`) membuka menu **Ekspor CSV** dan **Ekspor PDF**. Berkas memuat kolom Kode, Nama, Tipe, Nomor seri, Status dan Kepemilikan dari hasil yang sedang difilter. Isi kolom Tipe, Status dan Kepemilikan di berkas berupa kode mentah, misalnya `onu_ont`, `available` dan `owned`.
-   - Tombol **Buat Aset Jaringan** (pemegang `network_asset.create`) membuka form buat. Baris daftar hanya punya tombol **Lihat**, tanpa **Ubah** dan **Hapus**.
+   - Tombol **Buat Aset Jaringan** (pemegang `network_asset.create`) membuka form buat. Baris daftar hanya punya tombol **Lihat**, tanpa **Ubah** dan **Hapus**. Aset yang dihapus muncul di filter **Status** **Dihapus**: barisnya tidak punya tombol, namanya teks biasa, dan menu **Aksi lainnya** berisi **Pulihkan** (izin `network_asset.delete`). Aset kembali dengan statusnya semula (toast "Aset jaringan dipulihkan.").
    - Daftar yang kosong menampilkan `Belum ada aset jaringan`, dan saringan yang tidak menemukan apa pun menampilkan `Tidak ada aset jaringan yang cocok` dengan tombol **Reset filter**.
 
    ![Daftar Aset Jaringan dengan kotak Cari, filter Tipe dan Status, serta tombol Ekspor dan Buat Aset Jaringan](images/web/network-assets.png)
@@ -1636,6 +1702,7 @@ Peran yang dapat memakai: admin, manajer, staf. Izin: `network_asset.view` membu
 
 Judul halaman memuat nama aset, dengan kodenya di bawahnya. Tombol di kanan atas adalah **Kembali**, **Ubah** dan, untuk aset OLT, ODC atau ODP bagi pemegang `odn.view`, **Port ODN** (lihat bagian 5.5).
 
+- Untuk router, switch, OLT, ONU/ONT, ODC, ODP, dan rak, kartu **Panel perangkat** menggambar perangkat seperti wajah aslinya, dengan port, sambungan, dan posisi di rak. Kartu ini ada di atas kartu **Detail aset** dan dijelaskan di bagian 5.6.
 - Kartu **Detail aset** memuat Status, Tipe, Produk, Kepemilikan, Nomor seri, Alamat MAC, Alamat IP, IP manajemen, Vendor, Model, Lokasi, Jalur lokasi, Pelanggan, Langganan, Dipasang, Dipensiunkan dan Catatan (bila terisi). Status, Tipe dan Kepemilikan tampil sebagai lencana. Pelanggan dan Langganan adalah tautan ke halaman pelanggan dan langganan. Tanggal pembelian, harga beli dan masa garansi hanya terlihat di form **Ubah**.
 - Kartu **Siklus hidup** berisi tombol ubah status.
 - Kartu **Riwayat pemasangan** mencatat tiap pemasangan dengan kolom **Lokasi**, **Dipasang**, **Dilepas** dan **Alasan**. Aset yang belum pernah dipasang menampilkan `Belum ada riwayat pemasangan. Riwayat tercatat setiap kali aset dipasang dan dilepas.`
@@ -1730,7 +1797,7 @@ Pencarian mencocokkan sebagian teks, tetapi tidak mencari nama aset. Hasil tidak
 - Tombol **Ubah** atau tombol di **Siklus hidup** ditolak dengan galat 403: tombol tampil untuk semua pemegang `network_asset.view`, tetapi server memeriksa izin tiap aksi. Staf hanya punya `network_asset.view`. Minta admin menambah izin atau mengubah perannya (bagian 8.6 dan 8.7).
 - Tombol yang dicari tidak tampil di **Siklus hidup**: tombol mengikuti status. Misalnya **Pasang aset** hanya tampil saat status Tersedia, dan **Selesaikan perawatan** hanya saat Perawatan.
 - Aksi status ditolak dengan pesan seperti "Aset harus berstatus tersedia untuk dipasang.", "Aset harus terpasang untuk dilepas.", "Aset harus dalam perawatan untuk dilanjutkan." atau "Aset sudah dipensiunkan.": status aset sudah berubah sejak halaman dibuka. Muat ulang halaman rincian dan baca status terbaru.
-- Aset jaringan tidak punya tombol **Hapus**, baik di daftar maupun di rincian. Endpoint hapus hanya menerima admin dengan `network_asset.delete`, dan menolak aset Terpasang atau Perawatan dengan pesan "Aset yang terpasang atau dalam perawatan tidak dapat dihapus. Lepas dulu." Pakai **Lepas aset** lebih dulu bila penghapusan memang diperlukan. Untuk menghentikan pemakaian sambil mempertahankan riwayat, pakai **Pensiunkan aset**.
+- Aset jaringan tidak punya tombol **Hapus**, baik di daftar maupun di rincian. Endpoint hapus hanya menerima admin dengan `network_asset.delete`, dan menolak aset Terpasang atau Perawatan dengan pesan "Aset yang terpasang atau dalam perawatan tidak dapat dihapus. Lepas dulu." Endpoint itu juga hanya menghapus permanen aset yang belum pernah dipakai data lain (riwayat pemasangan, item SPK, tiket, splitter atau port ODN, perangkat NAS, ONT langganan, port perangkat, atau perangkat di rak), dengan pesan seperti "Aset jaringan masih dipakai 1 riwayat pemasangan, jadi tidak bisa dihapus." Pakai **Lepas aset** lebih dulu bila penghapusan memang diperlukan. Untuk menghentikan pemakaian sambil mempertahankan riwayat, pakai **Pensiunkan aset**.
 
 ## 5.3 Router NAS
 
@@ -1766,17 +1833,18 @@ Siapkan dulu aset berjenis Router dengan **IP manajemen** di Aset Jaringan (bagi
    - **Realm**: hanya baca. Isinya kode perusahaan dalam huruf kecil. Pelanggan masuk dengan nama pengguna `nama@realm`.
 4. Klik **Daftarkan router**. Inbils membuka rincian router dan muncul toast "Router NAS didaftarkan." Klik **Batal** untuk kembali ke daftar tanpa menyimpan.
 
-Bila RADIUS dimatikan di instalasi ini (pengaturan server) atau basis datanya tidak terjangkau, router tetap tersimpan dan muncul toast peringatan `Tersimpan, tetapi RADIUS belum diperbarui: <alasan> Sinkronisasi mencoba lagi setiap 15 menit.` Lencana **RADIUS** menjadi **Menunggu ditulis** atau **Gagal ditulis** sampai penulisan berhasil.
+Bila RADIUS belum dikonfigurasi untuk perusahaan ini (kartu **RADIUS** di **Integrasi**, bagian 8.9) atau basis datanya tidak terjangkau, router tetap tersimpan dan muncul toast peringatan `Tersimpan, tetapi RADIUS belum diperbarui: <alasan> Sinkronisasi mencoba lagi setiap 15 menit.` Lencana **RADIUS** menjadi **Menunggu ditulis** atau **Gagal ditulis** sampai penulisan berhasil.
 
 ### Membaca halaman rincian router
 
 Judul halaman `Router NAS` diikuti kode aset, dengan nama aset dan alamat NAS di bawahnya. Tombol **Kembali** selalu tampil. **Ubah** dan **Hapus router** hanya tampil bagi pemegang `network_asset.nas.manage`.
 
-- Peringatan `RADIUS dimatikan untuk instalasi ini. Tidak ada yang ditulis ke FreeRADIUS dan tidak ada sesi yang ditampilkan.` muncul bila RADIUS dimatikan. Saklarnya ada di pengaturan server, tidak di Inbils.
+- Peringatan `RADIUS belum dikonfigurasi untuk perusahaan ini. Perubahan disimpan tetapi tidak dikirim ke FreeRADIUS.` muncul bila kartu **RADIUS** di **Integrasi** (bagian 8.9) belum diisi dan diaktifkan. Admin yang boleh membuka **Integrasi** melihat tombol **Atur di Pengaturan → Integrasi** di peringatan itu. Setiap perusahaan mengisi database FreeRADIUS-nya sendiri, jadi saklar ini tidak lagi ada di pengaturan server.
 - Info `Mulai ulang FreeRADIUS setelah menambah NAS ini atau mengganti secret-nya.` selalu muncul. FreeRADIUS membaca daftar router hanya saat start, jadi pengelola server FreeRADIUS yang me-restart-nya. Tidak ada tombolnya di Inbils.
 - Kartu **Status** memuat **Klien RADIUS** (lencana), **Terakhir ditulis** (waktu atau `Belum pernah`), **Alamat NAS**, **Target CoA**, **Realm** dan **Secret RADIUS** (`Tersimpan` atau `Belum diisi`). **Target CoA** adalah `IP manajemen:Port CoA`, tujuan permintaan putus sesi. Mengubah **IP manajemen** aset mengubah **Target CoA** tetapi tidak mengubah **Alamat NAS**. Bila penulisan terakhir gagal, kotak **Kesalahan terakhir** memuat alasannya.
 - Kartu **Halaman isolir** memuat alamat halaman isolir perusahaan dan tombol **Salin URL**, yang berubah menjadi **Tersalin** sesaat setelah diklik (lihat bagian Isolir otomatis dan halaman isolir).
 - Kartu **Sesi terbuka** menampilkan sampai 100 sesi terbuka lewat router ini, dengan kolom **Nama pengguna**, **Alamat** dan **Mulai**. **Nama pengguna** menjadi tautan ke halaman **Akses jaringan** bila Inbils mengenali langganannya. Bila kosong, tertulis `Tidak ada sesi terbuka`.
+- Untuk router yang sudah punya model, rincian juga memuat kartu **Panel router** dengan gambar port router itu (bagian 5.6).
 
   ![Halaman rincian Router NAS dengan kartu Status dan Halaman isolir](images/web/nas-devices-show.png)
 
@@ -1814,7 +1882,7 @@ Izin: `network_asset.account.view` membuka halaman akun, `network_asset.account.
    - Kartu **Langganan** memuat **Langganan**, **Status**, **Pelanggan**, **Profil kecepatan** (dengan nama grup RADIUS), **POP layanan** dan **Status yang diharapkan**.
    - **Status yang diharapkan** Aktif berarti akun ada di RADIUS dengan grup kecepatan paket. Diisolir berarti akun ada di grup isolir perusahaan dan sesinya diputus. Alasannya tertulis di bawahnya: `Diisolir karena ditangguhkan.`, `Diisolir karena diblokir.`, atau `Diisolir karena ditangguhkan dan diblokir.` Dihapus berarti akun dihapus dari RADIUS.
    - Kartu **Akun jaringan**, setelah akun dibuat, memuat **Jenis layanan**, **Nama pengguna**, **Status sinkronisasi** (Menunggu, Tersinkron atau Gagal, dengan alasan terakhir), **Grup RADIUS**, **Online**, **Alamat**, **NAS**, **Sesi mulai** dan **Bulan ini** (unggah dan unduh bulan berjalan). Baris **Alamat**, **NAS** dan **Sesi mulai** hanya tampil saat pelanggan online.
-   - Peringatan `RADIUS dimatikan untuk instalasi ini. Perubahan disimpan tetapi tidak dikirim ke FreeRADIUS, dan status online serta pemakaian tidak tersedia.` muncul bila RADIUS dimatikan.
+   - Peringatan `RADIUS belum dikonfigurasi untuk perusahaan ini. Perubahan disimpan tetapi tidak dikirim ke FreeRADIUS.` muncul bila kartu **RADIUS** di **Integrasi** (bagian 8.9) belum diisi dan diaktifkan. Status online dan pemakaian tidak tersedia sampai itu selesai.
    - Langganan yang belum punya akun menampilkan `Langganan ini belum punya akun jaringan.` bagi pengguna tanpa `network_asset.account.manage`.
 
 ### Membuat akun jaringan
@@ -2028,6 +2096,8 @@ ODN adalah register pasif jaringan serat optik: port PON pada OLT, splitter pada
 
 OLT, ODC, dan ODP sendiri didaftarkan di **Aset Jaringan** (bagian 5.2), dengan **Tipe aset** OLT, ODC, atau ODP.
 
+Panel perangkat (bagian 5.6) menggambar OLT, ODC, dan ODP seperti wajah aslinya dan membuka lembar port dengan tindakan ODN yang sama. Jalur fiber seorang pelanggan juga digambar di sana.
+
 Peran yang dapat memakai: admin dan manajer (semua tindakan), staf (melihat dan mengatur port drop, tanpa mengelola port PON dan splitter). Izin: `odn.view` untuk membuka menu dan halaman ODN, `odn.manage` untuk menambah dan menghapus port PON dan splitter serta menyambung splitter, `odn.assign` untuk mencatat dan melepas port drop. Data berlaku per perusahaan aktif (bagian 1.6).
 
 ### Membuka dan membaca daftar
@@ -2086,7 +2156,7 @@ Penghapusan ini butuh `odn.manage`. Splitter yang masih punya drop atau splitter
 
 ### Mencatat dan melepas port drop pelanggan
 
-Catat port drop dari formulir pelanggan baru atau halaman langganan, bukan dari halaman ODN. Halaman ODN hanya menunjukkan siapa memegang port dan menyediakan tombol **Lepas**. Semua langkah ini butuh `odn.assign`.
+Catat port drop dari formulir pelanggan baru, dari halaman langganan, atau dari lembar port sebuah ODP di panel perangkat (**Pasang pelanggan**, bagian 5.6), bukan dari halaman daftar ODN. Halaman ODN hanya menunjukkan siapa memegang port dan menyediakan tombol **Lepas**. Semua langkah ini butuh `odn.assign`.
 
 1. Di formulir pelanggan baru, buka tab **Langganan & SPK**, pilih **POP pelayan**, lalu isi **Port drop (ODP)**. Isian ini opsional dan hanya tampil bagi pemegang `odn.assign`. Sebelum POP dipilih, isian nonaktif dengan petunjuk "Pilih POP layanan untuk melihat port kosongnya."
 2. Di halaman langganan, buka kartu **Port drop**, lalu klik **Atur port drop**. Bila langganan sudah punya port, tombolnya **Pindahkan port drop**. Kartu menulis "Belum ada port drop tercatat." bila belum ada port.
@@ -2110,6 +2180,163 @@ Port drop harus berupa port keluaran ODP yang bebas, dan ODP harus berada di baw
 - "Masih ada yang terhubung ke keluarannya. Lepas port drop dan putuskan splitter hilir lebih dulu." menolak penghapusan splitter. Lepas semua port drop dan putuskan splitter hilir lebih dulu.
 - "Sebuah splitter terhubung ke port PON ini. Putuskan lebih dulu." menolak penghapusan port PON yang baru saja disambung. Putuskan splitternya, lalu hapus port.
 - Tombol **Tambah port PON**, **Tambah splitter**, **Simpan sambungan**, dan **Hapus** tidak muncul tanpa `odn.manage`. Staf hanya punya `odn.view` dan `odn.assign`.
+
+## 5.6 Panel perangkat
+
+Panel perangkat menggambar router, switch, OLT, ONU/ONT, ODC, ODP, dan rak seperti wajah perangkat aslinya: setiap port ada di tempat port itu berada, dan warnanya menunjukkan statusnya. Buka panel saat Anda perlu tahu port mana yang kosong atau terpakai, perangkat mana yang tersambung ke sebuah port, siapa pelanggan di belakang port itu, dan lewat OLT, ODC, dan ODP mana serat seorang pelanggan berjalan. Panel hanya membaca dan mencatat data di Inbils. Inbils tidak menghubungi perangkatnya, jadi lampu link dan lalu lintas per port tidak ada di sini.
+
+Peran yang dapat memakai: admin, manajer, dan staf melihat panel, dan hanya admin dan manajer yang mengubahnya. Izin: `network_asset.view` membuka panel, dan `odn.view` menambahkan data ODN di dalamnya (port PON, splitter, pelanggan di port, jalur fiber). `network_asset.update` mengizinkan memilih model, memberi label, menyambung port, dan memasang perangkat di rak. Memilih atau mengganti model OLT dan ODP juga butuh `odn.manage`. Memasang pelanggan di port ODP dan melepas port drop butuh `odn.assign`, yang dengan peran bawaan dimiliki staf juga. Panel tidak menambah izin baru. Gambar di bagian ini diambil dari data contoh tanpa RADIUS, jadi port pelanggan berwarna **Terpakai**, bukan **Online** atau **Offline** (lihat "Membaca warna port").
+
+### Membuka panel
+
+1. Di sidebar, buka grup **Jaringan**, klik **Aset Jaringan**, lalu klik kode aset (bagian 5.2). Kartu **Panel perangkat** ada di atas kartu **Detail aset**, dan hanya ada untuk aset bertipe Router, Switch, OLT, ONU/ONT, ODC, ODP, dan Rak.
+2. Panel yang sama tampil di tiga tempat lain: kartu **Panel router** di rincian **Router NAS** (untuk aset router milik NAS itu, bagian 5.3), kartu **Panel perangkat** di halaman OLT, ODC, dan ODP di **ODN** (bagian 5.5), dan jalur fiber di **Lacak Aset** (lihat "Melacak jalur fiber").
+3. Tunggu gambarnya muncul. Selama data dimuat, kartu menampilkan bidang abu-abu, dan sisa halaman sudah bisa dibaca.
+4. Baca keterangan di bawah judul kartu: nama model dan tinggi unitnya (misalnya "MikroTik CCR2004-16G-2S+ · 1U"), "Susunan manual" diikuti jumlah port bila port disusun sendiri, atau, pada rak, tinggi rak dan jumlah perangkat ("42U · 2 perangkat"). ODC dan ODP tidak punya keterangan, karena gambarnya mengikuti splitter.
+5. Baca gambarnya seperti unit aslinya. Nomor port tercetak di atas atau di bawah port, nama blok ("Slot 1", "Ethernet 1-8", "Uplink") ada di bawah blok, dan simbol daya, konsol, USB, WLAN, serta reset hanya gambar yang tidak bisa diklik.
+
+   ![Panel perangkat sebuah OLT: delapan baris slot berisi 16 port PON dan empat port uplink, legenda Terpakai dan Kosong, serta tooltip port gpon-olt_1/1/1](images/web/panel-olt.png)
+
+### Memilih model perangkat
+
+Aset Router, Switch, OLT, dan ONU/ONT yang baru dibuat belum punya gambar sampai Anda memilih modelnya. Pengguna tanpa `network_asset.update` hanya membaca "Model perangkat belum dipilih. Minta admin memilih model agar panel tampil."
+
+1. Buka rincian aset. Di kartu **Panel perangkat**, baca judul **Pilih model perangkat** dan kalimat "Panel digambar dari model perangkat. Pilih dari katalog atau susun port sendiri."
+2. Isi **Model perangkat** (wajib). Isian ini kotak cari dengan petunjuk "Cari vendor atau model": ketik sebagian vendor atau model, lalu klik hasilnya. Bila isian **Vendor** dan **Model** di aset memuat nama sebuah model katalog, Inbils sudah memilihkannya dan menulis "Disarankan dari vendor dan model aset ini." Misalnya vendor MikroTik dengan model "hAP ac2 RBD52G-5HacD2HnD" disarankan "MikroTik hAP ac² (RBD52G-5HacD2HnD)". Pilihan hanya berisi model untuk tipe aset itu, dan unit rak memuat tingginya (misalnya 1U) sebagai keterangan.
+3. Klik **Terapkan model**. Toast "Model perangkat diterapkan." muncul dan gambarnya tampil. Semua port barunya **Kosong**.
+
+   ![Kartu Panel perangkat pada router tanpa model: kotak Model perangkat berisi saran MikroTik hAP ac², serta tombol Terapkan model dan Susun manual](images/web/panel-picker.png)
+
+Katalog memuat 14 model:
+
+| Tipe | Model di pilihan |
+| --- | --- |
+| Router | MikroTik hAP ac² (RBD52G-5HacD2HnD), MikroTik RB4011iGS+RM, MikroTik CCR2004-16G-2S+ |
+| Switch | MikroTik CRS326-24G-2S+RM, MikroTik CRS317-1G-16S+RM, Umum Switch 8 port, Umum Switch 24 port + 2 SFP, Umum Switch 48 port + 4 SFP |
+| OLT | ZTE ZXA10 C320 · 2× GTGH (32 PON), ZTE ZXA10 C320 · 2× GTGO (16 PON), Huawei SmartAX MA5608T · 2× GPFD (32 PON) |
+| ONU/ONT | Umum ONT 1 PON · 4 LAN · 2 POTS · WLAN |
+| ODP | Umum ODP 1:8, Umum ODP 1:16 |
+
+Model OLT juga mendaftarkan port PON ke ODN: model dengan 32 slot PON membuat port PON yang belum ada di register (bagian 5.5). Nama port mengikuti nama di unit aslinya, misalnya `gpon-olt_1/2/1` pada ZTE C320 atau `0/1/0` pada Huawei MA5608T. Baris **Di register ODN** di lembar port (lihat "Menghubungkan port") tetap menulis nomor PON seperti di tabel ODN ("PON 17").
+
+Untuk unit yang tidak ada di katalog, susun port sendiri:
+
+1. Klik **Susun manual**. Satu baris isian muncul: **Jenis port**, **Jumlah**, dan **Awalan nama**.
+2. Pilih **Jenis port**: **RJ45 (kabel LAN)** atau **SFP / SFP+ (fiber)**, dan untuk ONU/ONT juga **SC (fiber)** dan **RJ11 (telepon)**. Isi **Jumlah** (1 sampai 64) dan, bila perlu, **Awalan nama** (maksimal 20 karakter). Awalan yang kosong memakai bawaan jenisnya: ether, sfp, PON, TEL, atau LAN untuk RJ45 di ONU/ONT. Port dinamai awalan diikuti nomornya, misalnya ether1.
+3. Klik **Tambah baris** untuk kelompok port berikutnya (paling banyak 8 baris), atau tombol ikon tempat sampah **Hapus baris N** untuk membuang satu baris. Tulisan "Total N port (paling banyak 256)" menghitung semua baris. Baris dengan 13 port atau lebih digambar dalam dua tingkat.
+4. Klik **Terapkan model**. Klik **Pilih dari katalog** untuk kembali ke daftar model.
+
+Susunan manual tidak punya blok PON. Pada OLT, port PON yang sudah ada di ODN digambar di baris tambahan **Port PON di luar model**, tanpa nama dari unit aslinya. Pilih model katalog bila ada, supaya port PON tergambar di tempatnya.
+
+Untuk mengganti model:
+
+1. Klik **Ganti model** di kanan atas kartu. Tombol ini ada pada Router, Switch, OLT, dan ONU/ONT yang sudah punya model, bagi pemegang `network_asset.update`.
+2. Baca dialog **Ganti model perangkat**: "Port yang bernama sama tetap menyimpan label, catatan, dan sambungannya. Port yang tidak ada di model baru dihapus; port yang masih terhubung menahan penggantian." Port dianggap sama bila kelompok dan nomornya sama di model lama dan baru, misalnya ether1 sampai ether5 di dua model router.
+3. Pilih model baru, atau klik **Susun manual**, lalu klik **Terapkan model**. Bila ada port yang masih terhubung dan tidak ada di model baru, pesan merah di dialog menyebut port itu. Lepas sambungannya lebih dulu (lihat "Menghubungkan port").
+
+ODC dan ODP tidak memakai model sendiri: gambarnya mengikuti splitter di ODN, satu baris per splitter, dengan port **Masuk** (masukan splitter) dan port keluarannya. ODC atau ODP tanpa splitter menulis "Belum ada splitter. Tambah splitter di halaman ODN." dengan tombol **Buka halaman ODN** (bagi pemegang `odn.manage`). Pada ODP tanpa splitter, pilihan Umum ODP 1:8 atau Umum ODP 1:16 (butuh `odn.manage`) membuat splitter pertamanya sekaligus.
+
+### Membaca warna port
+
+Legenda di atas gambar hanya memuat status yang sedang ada di panel itu, dengan jumlah port di sampingnya (misalnya "Terpakai 2" dan "Kosong 130"). Setiap status punya tanda selain warna, jadi gambar tetap terbaca bagi orang yang sulit membedakan warna:
+
+| Status | Tampilan port | Arti |
+| --- | --- | --- |
+| **Kosong** | garis tanpa isi | Menurut data Inbils, tidak ada perangkat yang tersambung dan tidak ada pelanggan. |
+| **Terpakai** | isi biru | Port tersambung ke perangkat lain, memberi makan sebuah splitter, atau dipegang pelanggan yang status onlinenya tidak diketahui. |
+| **Online** | isi hijau dengan titik di lubang | Pelanggan di port itu, atau salah satu pelanggan di belakangnya, punya sesi RADIUS yang terbuka. |
+| **Offline** | isi abu-abu dengan garis pendek di lubang | Ada pelanggan di port itu atau di belakangnya, tetapi tidak satu pun punya sesi RADIUS yang terbuka. |
+| **Diisolir** | isi oranye dengan arsiran miring | Langganan pemegang port berstatus Ditangguhkan atau diblokir. |
+| **Dinonaktifkan** | isi merah dengan tanda silang | Seseorang menandai port nonaktif di panel (saklar **Nonaktifkan port**). Ini penanda saja, pengaturan perangkatnya tidak berubah. |
+| **Belum terdaftar** | garis putus-putus | Port ada di model, tetapi register belum punya barisnya. Pada OLT, ini berarti baris port PON-nya belum ada di ODN. |
+
+Status **Online** dan **Offline** hanya muncul bila RADIUS menyala. Legenda menulis "Online = sesi RADIUS terbuka, diperbarui paling lama tiap 15 detik." Sesi yang tidak memberi kabar selama 15 menit tidak dihitung. Bila RADIUS nonaktif atau tidak terjangkau, legenda menulis "Status online tidak tersedia: RADIUS nonaktif." atau "Status online tidak tersedia: RADIUS tidak dapat dihubungi.", dan port berpelanggan tampil **Terpakai**. Halaman tetap terbuka.
+
+Port yang memberi makan sebuah splitter (port PON, dan output ODC yang mengisi ODP) menyala mengikuti pelanggan di belakangnya: satu pelanggan online cukup untuk membuatnya **Online**, dan tooltip-nya menulis jumlah pelanggan dan berapa yang online.
+
+Untuk membaca satu port:
+
+- Arahkan penunjuk ke port, atau fokuskan dengan keyboard, untuk melihat tooltip: nama port dan statusnya, nomor di ODN ("PON 1 di ODN"), label, tujuan sambungan ("ke E2E-PANEL-ODC · 1:8"), pelanggan, dan "2 pelanggan · 0 online". Di layar sentuh tidak ada tooltip: ketuk port untuk membuka lembar port, yang memuat semua isi tooltip.
+- Klik port, tekan Enter, atau tekan Spasi untuk membuka lembar port (lihat "Menghubungkan port").
+- Tab masuk ke panel di satu port saja, dan Tab berikutnya keluar dari panel. Tombol panah memindah fokus antar port, Home dan End ke port pertama dan terakhir, dan Escape menutup lembar port dengan fokus kembali ke port itu.
+- Pembaca layar menyebut nama, label, status, dan tujuan sebuah port, misalnya "ether3, cadangan: Dinonaktifkan".
+
+### Menghubungkan port
+
+Klik sebuah port untuk membuka lembar port, yang terbuka di sisi kanan layar (dari bawah di ponsel). Judulnya nama port dan labelnya (misalnya "sfp-sfpplus1 · ke OLT"), dan di bawahnya tertulis kelompok port dan kode aset ("Ethernet 1-8 · E2E-PANEL-RTR"). Bagian atas lembar memuat **Status**, **Kecepatan**, **Terhubung ke** (tautan ke halaman perangkat tujuan), **Di register ODN** (port PON), **Pelanggan di bawah** (port yang memberi makan splitter), dan **Catatan**. Bagian di bawahnya mengikuti jenis port.
+
+Untuk menyambung port router, switch, uplink OLT, atau port ONU/ONT ke port perangkat lain (butuh `network_asset.update`):
+
+1. Klik port yang berstatus **Kosong**, lalu klik **Hubungkan ke port lain** di bagian **Sambungan**.
+2. Isi **Perangkat tujuan**: ketik kode atau nama perangkat, lalu klik hasilnya. Daftarnya hanya memuat router, switch, OLT, dan ONU/ONT yang sudah punya model, kecuali aset ini sendiri. Bila tidak ada yang cocok, daftar menulis "Tidak ada perangkat berpanel yang cocok."
+3. Isi **Port tujuan**. Sebelum perangkat dipilih, isian ini menulis "Pilih perangkat tujuan dulu". Sesudahnya, isian menawarkan port kosong perangkat itu, ditulis dengan namanya dan labelnya bila ada. Bila perangkat itu tidak punya port kosong, daftar menulis "Perangkat itu tidak punya port kosong."
+4. Klik **Hubungkan**. Toast "Port dihubungkan." muncul, dan kedua port berubah menjadi **Terpakai**. Bagian **Terhubung ke** menulis tautan ke perangkat tujuan, misalnya "E2E-PANEL-OLT · UP2". Di panel perangkat tujuan, portnya juga **Terpakai** dan menunjuk balik ke port ini.
+
+   ![Lembar port ether2 pada router: bagian Sambungan dengan Perangkat tujuan E2E-PANEL-OLT dan Port tujuan UP2, lalu bagian Label dan catatan](images/web/panel-router-portsheet.png)
+
+Untuk melepas sambungan, buka port di salah satu ujung, klik **Lepas sambungan**, lalu klik **Lepas sambungan** lagi di dialog "Lepas sambungan ether2?" yang menjelaskan "Port ether2 dan port UP2 di E2E-PANEL-OLT menjadi kosong." Toast "Sambungan port dilepas." muncul, dan kedua port kembali **Kosong**.
+
+Bagian **Label dan catatan** di lembar yang sama menyimpan keterangan port:
+
+1. Isi **Label** (maksimal 64 karakter, misalnya "ke CCR-INTI") dan **Catatan** (maksimal 255 karakter, misalnya "VLAN 100 · ke ODC barat."). Label tampil di tooltip dan di judul lembar.
+2. Nyalakan saklar **Nonaktifkan port** bila port sengaja dimatikan di unitnya, dan Anda ingin panel menunjukkannya. Panel menulis "Hanya penanda di panel. Pengaturan perangkatnya tidak berubah."
+3. Klik **Simpan port**. Tombol ini aktif setelah ada perubahan. Toast "Port diperbarui." muncul dan "Tersimpan." tampil di samping tombol.
+
+Port ODN punya isi lembar sendiri:
+
+- Port PON OLT dan output ODC atau ODP menulis di mana ia tersambung dan berapa pelanggan di belakangnya. Tombol **Buka halaman ODN** membuka halaman splitter atau aset itu (butuh `odn.view`). Sambungan splitter, port PON, dan splitter diatur di ODN (bagian 5.5), bukan dari panel.
+- Port ODP yang dipegang pelanggan menampilkan bagian **Pelanggan** dengan **Langganan** (kode dan status), **Pelanggan**, **Paket**, dan **Sesi** ("Online sejak" disusul tanggal dan jam, "Offline", atau "Status online tidak tersedia."). Tombolnya **Buka langganan** (butuh `customer.subscription.view`), **Buka pelanggan** (butuh `customer.view`), **Lacak jalur**, **Blokir internet** atau **Buka blokir** (butuh `customer.subscription.block`, dialognya sama dengan di bagian 5.3), dan **Lepas port drop** (butuh `odn.assign`). Dialog "Lepas ... dari port ...?" menjelaskan "Port menjadi kosong. Langganannya sendiri tidak berubah." Klik **Lepas port drop** untuk melanjutkan.
+- Port output ODP yang kosong menampilkan **Pasang pelanggan** (butuh `odn.assign`). Isi **Langganan**: ketik kode langganan atau nama pelanggan, lalu klik hasilnya. Daftarnya hanya memuat langganan yang belum punya port drop dan dilayani POP di atas ODP itu ("Hanya langganan yang belum punya port drop dan dilayani POP di atas ODP ini."). Klik **Pasang pelanggan**, dan toast "Port drop dicatat." muncul. Ini jalan ketiga mencatat port drop, di samping formulir pelanggan dan halaman langganan (bagian 5.5).
+- Port yang ada di model OLT tetapi belum ada di ODN menulis "Port ini ada di model, tetapi belum terdaftar di ODN." Port **Masuk** pada splitter menulis apakah masukannya sudah tersambung ke port hulu, dan sambungannya diatur di halaman ODN.
+- Port ONU/ONT yang menghadap serat (**PON SC/APC**) menampilkan pelanggan dari langganan ONU/ONT itu, dengan tujuan ke port output ODP-nya. Lembarnya punya **Lacak jalur** tetapi tidak punya **Lepas port drop**, karena ODP yang memegang drop-nya. Port LAN dan POTS ONU/ONT berlaku seperti port router.
+
+### Panel di ponsel
+
+Di layar sempit (lebar di bawah 640 piksel), gambar panel tidak mengecil. Gambar tetap berukuran besar, dan tiap port berukuran paling sedikit 44 piksel supaya mudah diketuk di layar sentuh. Gambar bergeser ke samping di dalam kartu, dan halaman tidak ikut bergeser. Legenda berada di luar bagian yang bergeser dan menempel di bawah bilah atas saat halaman digulir, jadi legenda selalu terbaca. Ketuk port untuk membuka lembar port, yang naik dari bagian bawah layar dan memuat semua yang ada di tooltip.
+
+![Panel router di layar ponsel: legenda Terpakai, Kosong, dan Dinonaktifkan di atas gambar yang bergeser ke samping, dengan port berukuran besar dan satu port berwarna merah bertanda silang](images/web/panel-phone.png)
+
+### Memasang perangkat di rak
+
+Rak di sini adalah aset bertipe Rak, bukan lokasi bertipe Rak di pohon lokasi (bagian 5.1). Buat aset bertipe Rak di Aset Jaringan (bagian 5.2) dan buka rinciannya.
+
+1. Di kartu **Panel perangkat**, baca judul **Tentukan ukuran rak**. Isi **Tinggi rak (U)** (1 sampai 52, isian awal 42), lalu klik **Simpan**. Toast "Ukuran rak disimpan." muncul dan rak digambar dari U1 di bagian bawah sampai U teratas di atas. Pengguna tanpa `network_asset.update` membaca "Ukuran rak belum ditentukan. Minta admin menentukannya agar isi rak tampil."
+2. Rak yang kosong menulis "Rak masih kosong. Pilih slot U untuk memasang perangkat." Tiap slot kosong punya tanda plus, dan namanya ("U12 kosong, pasang perangkat") dibaca pembaca layar. Klik slot kosong.
+3. Di dialog **Pasang perangkat di U12** (nomor sesuai slot yang Anda klik), baca "E2E-PANEL-RACK, 42U. U1 ada di bagian bawah rak." Isi **Perangkat**: ketik kode atau nama aset, lalu klik hasilnya. Daftarnya memuat semua aset selain rak. Periksa **Mulai di U** (terisi dari slot yang Anda klik) dan **Tinggi (U)** (1 sampai 10, isian awal 1).
+4. Klik **Pasang di rak**. Toast "Posisi rak disimpan." muncul. Perangkat tampil sebagai batang berlabel kode dan namanya, dengan gambar mini wajahnya, dan jumlah perangkat di keterangan kartu bertambah satu (misalnya "42U · 3 perangkat").
+
+   ![Rak dengan nomor U di sisi kiri: router di U13, OLT di U10 dan U11, dan tanda plus di setiap slot kosong](images/web/panel-rack.png)
+
+Untuk memindahkan atau melepas perangkat, klik batangnya. Dialog berjudul "{kode perangkat} di {kode rak}" memuat tautan **Buka halaman aset** serta isian **Mulai di U** dan **Tinggi (U)**. Ubah angkanya lalu klik **Simpan posisi**, atau klik **Lepas dari rak** (toast "Perangkat dilepas dari rak."). Untuk mengubah ukuran rak, klik **Ubah ukuran** di kanan atas kartu. Rak tidak bisa diperkecil sampai di bawah U tertinggi yang terisi. Pengguna tanpa `network_asset.update` tidak melihat slot kosong yang bisa diklik, dan klik pada batang membuka halaman asetnya.
+
+### Melacak jalur fiber
+
+Jalur fiber menunjukkan lewat perangkat mana serat seorang pelanggan berjalan, dari OLT sampai ONU/ONT di rumahnya. Jalurnya butuh port drop yang sudah tercatat (bagian 5.5) dan `odn.view`. Ada dua jalan masuk:
+
+1. Buka lembar port milik pelanggan (port output ODP yang dipegang pelanggan, atau port PON ONU/ONT-nya), lalu klik **Lacak jalur**.
+2. Atau buka **Lacak Aset** (bagian 5.2), cari ONU/ONT dengan kodenya, lalu klik **Jalur fiber** di kolom **Langganan** pada baris yang punya langganan.
+
+Halaman **Lacak Aset** menampilkan kartu **Jalur fiber** diikuti kode langganan, dengan nama pelanggan di bawahnya. Legenda di atas gambar memuat status jalur. Gambar di bawahnya berisi satu kartu per titik, dari OLT di kiri sampai pelanggan di kanan. Tiap kartu menulis kode asetnya, dan di bawah gambar kecil perangkatnya tertulis port yang dilalui: port PON untuk OLT (misalnya `gpon-olt_1/1/1`), port output untuk ODC dan ODP ("KODE · 1:8 · 1"), dan nama pelanggan untuk ONU/ONT. Bila langganan tidak punya ONU/ONT, kartu terakhir berjudul **Pelanggan** dan hanya menulis nama pelanggan. Port yang dilalui diberi lingkaran, dan garis penghubung memakai warna status drop. Klik kartu untuk membuka halaman asetnya.
+
+![Jalur fiber E2E-PANEL-SUB dari OLT lewat ODC dan ODP sampai ONT pelanggan, dengan legenda Terpakai dan tabel hasil Lacak Aset di bawahnya](images/web/panel-trace.png)
+
+Langganan tanpa port drop menulis "Belum ada port drop tercatat untuk {kode}. Atur di halaman langganan.", dengan tombol **Buka langganan**. Catat port drop-nya dulu (bagian 5.5).
+
+### Kesalahan umum
+
+- Kartu **Panel perangkat** tidak ada di rincian aset: tipe aset bukan Router, Switch, OLT, ONU/ONT, ODC, ODP, atau Rak, atau akun Anda tidak punya `network_asset.view`.
+- Kartu hanya menulis "Model perangkat belum dipilih. Minta admin memilih model agar panel tampil.": aset belum punya model dan akun Anda tidak punya `network_asset.update`.
+- Kartu menulis "Port PON dan splitter tampil untuk pengguna dengan akses ODN." dan blok PON atau splitter tidak tergambar: akun Anda tidak punya `odn.view`.
+- **Terapkan model** pada OLT atau ODP ditolak dengan galat 403, walau pilihan modelnya tampil: server juga meminta `odn.manage`. Minta admin menambahkan izin itu.
+- "OLT ini sudah punya 32 port PON terdaftar; model ini hanya 16." (angkanya mengikuti OLT dan model Anda): OLT punya lebih banyak port PON di ODN daripada slot di model. Pilih model dengan slot PON sebanyak itu, atau hapus port PON yang tidak dipakai di ODN (bagian 5.5).
+- "Port ether3 dan ether4 masih terhubung. Lepas sambungannya dulu." di dialog **Ganti model perangkat**: model baru tidak punya port itu. Lepas sambungannya, lalu terapkan lagi.
+- "Port UP2 di E2E-PANEL-OLT sudah terhubung." di bawah **Port tujuan**: orang lain mengambil port itu saat formulir Anda terbuka. Pilih port kosong yang lain.
+- Isian **Perangkat tujuan** tidak menemukan perangkat yang Anda cari: daftarnya hanya memuat router, switch, OLT, dan ONU/ONT yang sudah punya model. Pilih model perangkat itu dulu.
+- Port pelanggan tampil **Terpakai**, bukan **Online** atau **Offline**: RADIUS belum menyala atau tidak terjangkau, dan legenda menyebut alasannya (bagian 5.3).
+- "U13 sudah terisi E2E-PANEL-RTR." di dialog rak: perangkat lain memegang U itu. Pilih U lain atau kurangi **Tinggi (U)**. Pesan "Posisi melewati tinggi rak (42U)." berarti perangkat melewati puncak rak, dan "Rak belum punya ukuran." berarti ukuran rak belum diisi.
+- "Rak berisi perangkat sampai U13; ukurannya tidak boleh lebih kecil." di dialog **Ubah ukuran rak**: lepas perangkat di U yang lebih tinggi dulu, atau isi ukuran yang lebih besar.
+- Tombol **Ganti model**, **Hubungkan ke port lain**, **Simpan port**, atau **Ubah ukuran**, dan slot rak yang bisa diklik, tidak tampil: akun Anda tidak punya `network_asset.update`.
+- Tombol **Jalur fiber** di **Lacak Aset** tidak tampil: tombol itu butuh `odn.view`, dan hanya baris dengan langganan yang memilikinya.
 
 # 6. Inventaris
 
@@ -2334,14 +2561,14 @@ Form tidak punya isian jenis barang. Barang yang Anda buat di sini selalu bertip
 
 Mengganti **Kategori** ikut mengganti **Satuan** barang mengikuti satuan kategori baru. Jumlah stok tidak dikonversi.
 
-### Menonaktifkan dan menghapus barang
+### Menonaktifkan, menghapus permanen, dan memulihkan barang
 
-1. Untuk berhenti memakai barang, buka **Ubah**, matikan saklar **Aktif**, lalu klik **Simpan**. Barang tetap ada di daftar dengan lencana **Nonaktif**, dan tidak lagi muncul di pilihan **Barang** pada halaman Stok dan Mutasi Stok.
-2. Untuk menghapus, buka menu **Aksi lainnya** di baris barang, pilih **Hapus**, lalu klik **Hapus** di dialog **Hapus &lt;nama barang&gt;?** (atau **Batal**). Muncul toast `Barang berhasil dihapus.`
+1. Untuk berhenti memakai barang, buka menu **Aksi lainnya** di baris barang dan pilih **Nonaktifkan** (atau matikan saklar **Aktif** lewat **Ubah**). Toast `Barang dinonaktifkan.` muncul. Barang tetap ada di daftar dengan lencana **Nonaktif**, dan tidak lagi muncul di pilihan **Barang** pada halaman Stok dan Mutasi Stok. **Aktifkan** memakainya lagi.
+2. **Hapus permanen** hanya ada bila tidak ada data lain yang pernah memakai barang itu: mutasi stok, permintaan barang, retur material, penyesuaian stok, item SPK, aset jaringan, atau item tagihan. Konfirmasi di dialog **Hapus permanen &lt;nama barang&gt;?** Muncul toast `Barang dihapus permanen.`
+3. Barang yang belum pernah dipakai tetapi stok di salah satu lokasi masih lebih dari 0 tidak bisa dihapus permanen. Dialog tetap terbuka dan menulis "Barang masih punya stok." Kosongkan stok lewat penyesuaian (bagian 6.5), atau cukup nonaktifkan barang.
+4. Filter **Status** punya **Aktif**, **Nonaktif**, **Dihapus**, dan **Semua, termasuk dihapus**. Baris yang dihapus punya **Pulihkan**.
 
-Sistem menolak penghapusan bila stok barang di salah satu lokasi masih lebih dari 0. Dialog tetap terbuka dan muncul toast `Data gagal disimpan. Periksa input.` Alasan rincinya (`Barang tidak dapat dihapus karena masih memiliki stok.`) tidak tampil di layar. Kosongkan stok lewat penyesuaian (bagian 6.5), atau cukup nonaktifkan barang.
-
-Barang yang sudah dihapus hilang dari daftar dan tidak bisa dipulihkan dari layar ini. SKU-nya tetap terpakai, jadi barang baru tidak bisa memakai SKU yang sama.
+Barang yang dihapus permanen tidak bisa dipulihkan. SKU barang nonaktif atau yang dihapus (**Dihapus**) tetap terpakai, jadi barang baru tidak bisa memakai SKU yang sama.
 
 ### Kesalahan umum
 
@@ -2349,7 +2576,7 @@ Barang yang sudah dihapus hilang dari daftar dan tidak bisa dipulihkan dari laya
 - Kategori yang dicari tidak ada di pilihan: hanya kategori **Aktif** yang tampil. Aktifkan kategorinya di menu Kategori (bagian 6.3).
 - Isian **Satuan** tidak bisa diketik: satuan mengikuti kategori. Pilih kategori lain, atau ubah satuan kategorinya (bagian 6.3).
 - Barang tidak ada di pilihan **Barang** pada Stok: saklar **Aktif** barang mati.
-- **Hapus** ditolak padahal barang tampak tidak dipakai: salah satu lokasi masih punya stok lebih dari 0. Cek kartu **Stok per Lokasi** di rincian.
+- **Hapus permanen** tidak ada di menu barang: barang sudah dipakai data lain (mutasi stok, permintaan barang, retur material, penyesuaian stok, item SPK, aset jaringan, atau item tagihan) dan angkanya tampil di dialog **Nonaktifkan**. Pakai **Nonaktifkan**. Barang yang belum pernah dipakai tetapi masih punya stok di satu lokasi menolak **Hapus permanen** dengan "Barang masih punya stok." Cek kartu **Stok per Lokasi** di rincian.
 - Staf atau manajer memilih **Hapus** dan muncul halaman **Akses ditolak** (galat 403): pada peran bawaan, izin `inventory.delete` hanya dipegang admin. Minta operator platform menambahkannya ke peran (bagian 8.6), atau minta admin memberi Anda peran yang memegangnya (bagian 8.7).
 - Tombol **Ekspor** tidak ada: staf tidak memegang `inventory.export`.
 
@@ -2366,7 +2593,7 @@ Peran yang dapat memakai: sama dengan bagian 6.2. Izin: `inventory.view` membuka
 
    - Isian **Cari kategori** mencari nama dan kode kategori. Klik **Filter** (atau tekan Enter) untuk menerapkan.
    - Kolom: **Kode**, **Nama**, **Satuan** (nama dan simbol satuan), **Sub-kategori** (jumlah kategori anak), **Status** (**Aktif** atau **Nonaktif**) dan **Aksi**. **Kode** dan **Nama** bisa diurutkan, urutan awalnya menurut nama.
-   - Baris hanya punya tombol **Ubah** dan menu **Aksi lainnya** yang berisi **Hapus**. Tidak ada halaman detail, dan **Ubah** membuka dialog.
+   - Baris punya tombol **Ubah** dan menu **Aksi lainnya** yang berisi **Nonaktifkan** atau **Aktifkan**, dan **Hapus permanen** bila kategori belum pernah dipakai. Tidak ada halaman detail, dan **Ubah** membuka dialog. Filter **Status** punya **Aktif**, **Nonaktif**, **Dihapus**, dan **Semua, termasuk dihapus**.
    - Tombol **Ekspor** (pemegang `inventory.export`) menawarkan **Ekspor CSV** dan **Ekspor PDF** dengan kolom Kode, Nama, Satuan (nama satuan) dan Sub-kategori. Tombol **Buat Kategori** tampil bagi pemegang `inventory.create`.
    - Bila belum ada kategori, daftar menulis **Tidak ada data.** dengan keterangan **Buat kategori lebih dulu, lalu pilih kategori itu saat membuat barang.** dan tombol **Buat Kategori**.
 
@@ -2384,19 +2611,19 @@ Peran yang dapat memakai: sama dengan bagian 6.2. Izin: `inventory.view` membuka
    - Isian **Deskripsi** opsional dan menerima teks bebas.
 3. Klik **Buat**, atau **Batal**. Dialog menutup dan muncul toast `Kategori berhasil dibuat.`
 
-### Mengubah dan menghapus kategori
+### Mengubah, menonaktifkan, menghapus permanen, dan memulihkan kategori
 
 1. Klik **Ubah**, ubah isian di dialog **Ubah Kategori**, lalu klik **Simpan**. Muncul toast `Kategori berhasil diubah.` Pilihan **Induk** tidak menawarkan kategori yang sedang diubah.
-2. Untuk menghapus, buka menu **Aksi lainnya**, pilih **Hapus**, lalu klik **Hapus** di dialog **Hapus &lt;nama kategori&gt;?**. Muncul toast `Kategori berhasil dihapus.`
+2. Untuk berhenti memakai kategori, buka menu **Aksi lainnya** dan pilih **Nonaktifkan**. Toast `Kategori barang dinonaktifkan.` muncul. Kategori nonaktif tidak muncul di pilihan **Kategori** saat membuat barang baru, tetapi barang yang sudah memakainya tetap utuh. **Aktifkan** memakainya lagi.
+3. **Hapus permanen** hanya ada bila kategori belum pernah dipakai: tidak punya kategori anak dan tidak ada barang di dalamnya (termasuk yang sudah dihapus). Toast `Kategori barang dihapus permanen.` muncul.
+4. Filter **Status** punya **Aktif**, **Nonaktif**, **Dihapus**, dan **Semua, termasuk dihapus**. Baris yang dihapus punya **Pulihkan**. Kategori anak tidak bisa dipulihkan selama induknya masih dihapus ("Kategori barang tidak bisa dipulihkan karena induknya, `<nama>`, masih dihapus. Pulihkan induknya dulu.").
 
-Mengganti **Satuan** kategori ikut mengganti satuan semua barang di kategori itu. Jumlah stok barang tidak dikonversi.
-
-Sistem menolak penghapusan bila kategori masih punya kategori anak atau barang. Dialog tetap terbuka dan muncul toast `Data gagal disimpan. Periksa input.` Alasan rincinya (`Kategori tidak dapat dihapus karena masih memiliki sub-kategori atau barang.`) tidak tampil di layar, seperti pada Barang.
+Mengganti **Satuan** kategori ikut mengganti satuan semua barang di kategori itu. Jumlah stok barang tidak dikonversi. Satuan yang dipilih untuk kategori harus aktif.
 
 ### Kesalahan umum
 
 - Kode ditolak dengan pesan `kode sudah digunakan.`: kode harus unik per perusahaan, termasuk kode kategori yang sudah dihapus. Pakai kode lain.
-- **Hapus** ditolak: pindahkan barangnya ke kategori lain lewat **Ubah** di menu Barang (bagian 6.2), dan kosongkan **Induk** pada kategori anak. Atau cukup matikan **Aktif**.
+- **Hapus permanen** tidak ada di menu kategori: kategori masih punya kategori anak atau barang (angkanya tampil di dialog **Nonaktifkan**). Pindahkan barangnya ke kategori lain lewat **Ubah** di menu Barang (bagian 6.2), dan kosongkan **Induk** pada kategori anak. Atau cukup **Nonaktifkan** kategorinya.
 - Satuan barang berubah tanpa disengaja: Anda mengganti **Satuan** kategori. Pilih lagi satuan semula lewat **Ubah**.
 - Staf atau manajer memilih **Hapus** dan muncul halaman **Akses ditolak** (galat 403): izin `inventory.delete` hanya dipegang admin pada peran bawaan (bagian 6.2).
 
@@ -2409,7 +2636,7 @@ Peran yang dapat memakai dan izin: sama dengan bagian 6.3.
 ### Membuka dan membaca daftar
 
 1. Di sidebar, buka grup **Inventaris**, lalu klik **Satuan**.
-2. Baca daftar. Kolomnya **Nama**, **Simbol** (keduanya bisa diurutkan) dan **Aksi** (tombol **Ubah** dan menu **Aksi lainnya** berisi **Hapus**). Menu ini tidak punya kotak cari dan tidak punya halaman detail. Tombol **Ekspor** (pemegang `inventory.export`) menawarkan **Ekspor CSV** dan **Ekspor PDF** dengan kolom Nama dan Simbol, dan tombol **Buat Satuan** tampil bagi pemegang `inventory.create`. Bila belum ada satuan, daftar menulis **Tidak ada data.** dengan keterangan **Buat satuan lebih dulu, lalu pakai satuan itu pada kategori barang.** dan tombol **Buat Satuan**.
+2. Baca daftar. Kolomnya **Nama**, **Simbol** (keduanya bisa diurutkan), **Status**, dan **Aksi** (tombol **Ubah** dan menu **Aksi lainnya** berisi **Nonaktifkan** atau **Aktifkan**, dan **Hapus permanen** bila satuan belum pernah dipakai). Daftar punya filter **Status** dan tidak punya kotak cari atau halaman detail. Tombol **Ekspor** (pemegang `inventory.export`) menawarkan **Ekspor CSV** dan **Ekspor PDF** dengan kolom Nama dan Simbol, dan tombol **Buat Satuan** tampil bagi pemegang `inventory.create`. Bila belum ada satuan, daftar menulis **Tidak ada data.** dengan keterangan **Buat satuan lebih dulu, lalu pakai satuan itu pada kategori barang.** dan tombol **Buat Satuan**.
 
    ![Daftar Satuan dengan kolom Nama dan Simbol](images/web/units.png)
 
@@ -2421,17 +2648,17 @@ Peran yang dapat memakai dan izin: sama dengan bagian 6.3.
    - Isi **Simbol**. Isian ini wajib, maksimal 20 karakter, dan belum dipakai satuan lain di perusahaan ini. Contoh: `box`.
 3. Klik **Buat**, atau **Batal**. Dialog menutup dan muncul toast `Satuan berhasil dibuat.`
 
-### Mengubah dan menghapus satuan
+### Menonaktifkan, menghapus permanen, dan memulihkan satuan
 
 1. Klik **Ubah**, ubah isian di dialog **Ubah Satuan**, lalu klik **Simpan**. Muncul toast `Satuan berhasil diubah.`
-2. Untuk menghapus, buka menu **Aksi lainnya**, pilih **Hapus**, lalu klik **Hapus** di dialog **Hapus &lt;nama satuan&gt;?**. Muncul toast `Satuan berhasil dihapus.`
-
-Sistem menolak penghapusan bila satuan masih dipakai barang atau kategori. Dialog tetap terbuka dan muncul toast `Data gagal disimpan. Periksa input.` Alasan rincinya (`Satuan tidak dapat dihapus karena masih dipakai barang atau kategori.`) tidak tampil di layar. Satuan barang mengikuti kategori, jadi ganti dulu **Satuan** pada kategori yang bersangkutan (bagian 6.3), lalu hapus satuan lama.
+2. Untuk berhenti memakai satuan, buka menu **Aksi lainnya** dan pilih **Nonaktifkan**. Toast `Satuan dinonaktifkan.` muncul. Satuan nonaktif tidak muncul di pilihan **Satuan** saat membuat atau mengubah kategori, tetapi kategori dan barang yang sudah memakainya tetap utuh. **Aktifkan** memakainya lagi.
+3. **Hapus permanen** hanya ada bila tidak ada barang atau kategori barang yang pernah memakai satuan itu. Toast `Satuan dihapus permanen.` muncul. Satuan barang mengikuti kategori, jadi ganti dulu **Satuan** pada kategori yang bersangkutan (bagian 6.3) bila ingin menghapus satuan lama.
+4. Daftar punya kolom **Status** dan filter **Status** (**Aktif**, **Nonaktif**, **Dihapus**, **Semua, termasuk dihapus**). Baris yang dihapus punya **Pulihkan**.
 
 ### Kesalahan umum
 
 - Penyimpanan ditolak dengan pesan `nama sudah digunakan.` atau `simbol sudah digunakan.`: **Nama** dan **Simbol** harus unik per perusahaan, termasuk milik satuan yang sudah dihapus.
-- **Hapus** ditolak padahal tidak ada barang yang memakai satuan itu: satuan masih dipakai sebuah kategori. Periksa kolom **Satuan** di daftar Kategori (bagian 6.3) dan pilih satuan lain pada kategori itu.
+- **Hapus permanen** tidak ada di menu satuan: satuan masih dipakai barang atau kategori barang (angkanya tampil di dialog **Nonaktifkan**). Periksa kolom **Satuan** di daftar Kategori (bagian 6.3) dan pilih satuan lain pada kategori itu, atau cukup **Nonaktifkan** satuannya.
 - Staf atau manajer memilih **Hapus** dan muncul halaman **Akses ditolak** (galat 403): lihat bagian 6.2.
 
 ## 6.5 Stok
@@ -2497,7 +2724,7 @@ Panel **Penyesuaian stok menunggu persetujuan** muncul bila ada permintaan yang 
 2. Untuk menyetujui, periksa barang, lokasi, jumlah, dan alasan pemohon di dialog **Setujui Penyesuaian Stok**, lalu klik **Setujui**. Muncul toast `Penyesuaian stok disetujui.`
 3. Untuk menolak, isi **Alasan penolakan** di dialog **Tolak Penyesuaian Stok** (wajib, 3 sampai 500 karakter), lalu klik **Tolak**. Muncul toast `Penyesuaian stok ditolak.`
 
-Saat disetujui, stok langsung diatur ke **Jumlah baru** dan satu mutasi berjenis **Penyesuaian** tercatat dengan **Alasan** sebagai catatan. Selisih pada mutasi dihitung dari stok saat persetujuan, bukan saat pengajuan. Saat ditolak, stok tidak berubah.
+Saat disetujui, stok langsung diatur ke **Jumlah baru** dan satu mutasi berjenis **Penyesuaian** tercatat dengan **Alasan** sebagai catatan. Selisih pada mutasi dihitung dari stok yang tercatat saat pengajuan, dan persetujuan hanya berjalan bila stok saat itu masih sama dengan angka tersebut. Bila stok sudah berubah, persetujuan ditolak (lihat **Kesalahan umum** di bawah). Saat ditolak, stok tidak berubah.
 
 Sistem tidak mengirim notifikasi untuk pengajuan, persetujuan maupun penolakan. Permintaan yang sudah diputuskan hilang dari panel, dan alasan penolakan tercatat di audit trail (bagian 7.12), bukan di halaman Stok. Beri tahu pemohon secara langsung.
 
@@ -2516,6 +2743,7 @@ Izin untuk tiga operasi ini ada, tetapi halaman Stok tidak menyediakan tombolnya
 - Tombol **Terima Barang** atau **Ajukan Penyesuaian** tidak ada: peran Anda tidak memegang izinnya. Manajer sengaja tidak memegangnya karena pemisahan tugas. Minta admin mengatur peran (bagian 8.6 dan 8.7).
 - Tombol **Setujui** dan **Tolak** tidak ada pada permintaan Anda sendiri: pemohon tidak boleh memutuskan permintaannya, termasuk admin. Minta pengguna lain yang memegang `inventory.stock.adjust.approve`.
 - Dialog keputusan menampilkan `Permintaan penyesuaian stok tidak dapat disetujui karena status telah berubah atau Anda tidak berwenang.` (atau `... tidak dapat ditolak ...`): pengguna lain sudah memutuskan lebih dulu, atau izin Anda berubah. Tutup dialog dan muat ulang halaman.
+- Toast merah `Stok berubah sejak dihitung; hitung ulang.` saat **Setujui**: stok barang itu di lokasi tersebut berubah (barang masuk, keluar, atau penyesuaian lain) antara pengajuan dan persetujuan. Stok tidak berubah dan permintaan tetap menunggu. Minta penyetuju menolaknya, lalu ajukan ulang dengan hasil hitung yang baru. Penyesuaian langsung oleh admin tidak melalui pemeriksaan ini.
 - **Jumlah baru (hasil hitung fisik)** salah isi: angka ini adalah total hasil hitung fisik, bukan selisih, dan tidak boleh negatif. Pemohon tidak bisa mengubah atau membatalkan permintaan yang sudah diajukan. Minta penyetuju menolaknya, lalu ajukan ulang.
 - Persetujuan gagal dengan toast `Data gagal disimpan. Periksa input.` dan dialog tetap terbuka: **Jumlah baru** lebih kecil dari jumlah **Dicadangkan** barang itu di lokasi tersebut, dan stok tidak boleh turun di bawah jumlah yang dicadangkan. Pesan rincinya (`Stok tidak mencukupi. Diminta: <jumlah dicadangkan>, Tersedia: <jumlah baru>.`) tidak tampil di layar. Tolak permintaan, tunggu reservasi selesai, lalu ajukan ulang.
 - Pemindahan ditolak karena lokasi asal sama dengan tujuan (`Lokasi asal dan tujuan harus berbeda.`), atau jumlah melebihi **Tersedia** di asal (`Stok tidak mencukupi. Diminta: <jumlah>, Tersedia: <jumlah>.`). Pilih dua lokasi berbeda dan kurangi jumlah. Karena layar pemindahan belum ada, galat ini hanya mungkin pada panggilan langsung ke rute backend.
@@ -2583,7 +2811,7 @@ Kolom **Jenis** menampilkan salah satu dari tujuh label ini.
 | **Cadangan dilepas** | Cadangan dilepas, jumlah fisik tidak berubah | Minus | Hanya **Ke** terisi |
 | **Pengembalian** | Barang kembali ke lokasi | Plus | Hanya **Ke** terisi |
 
-Satu permintaan barang meninggalkan jejak berurutan: **Dicadangkan** saat disetujui, lalu **Cadangan dilepas** dan **Keluar** saat barang diserahkan. Cadangan juga dilepas saat SPK ditolak. Catatan mutasi memuat kode sumbernya: `Penyerahan Permintaan Barang: <kode>` untuk serah terima, `SPK <kode>` untuk pemakaian pada SPK, dan `Penerimaan Fisik Pengembalian Material: <kode permintaan>` untuk retur material yang diterima (kode permintaan barang asalnya; tanpa permintaan asal, catatan hanya `Penerimaan Fisik Pengembalian Material`). Cari kode itu di kolom **Cari mutasi** untuk menelusuri satu permintaan atau SPK.
+Satu permintaan barang meninggalkan jejak berurutan: **Dicadangkan** saat disetujui, lalu **Cadangan dilepas** dan **Keluar** saat barang diserahkan. SPK tidak membuat mutasi **Dicadangkan** atau **Cadangan dilepas**. Catatan mutasi memuat kode sumbernya: `Penyerahan Permintaan Barang: <kode>` untuk serah terima, `SPK <kode>` untuk pemakaian pada SPK (dengan tambahan `(partial IR covered <jumlah>)` bila sebagian jumlahnya sudah keluar lewat permintaan barang), dan `Penerimaan Fisik Pengembalian Material: <kode permintaan>` untuk retur material yang diterima (kode permintaan barang asalnya; tanpa permintaan asal, catatan hanya `Penerimaan Fisik Pengembalian Material`). Cari kode itu di kolom **Cari mutasi** untuk menelusuri satu permintaan atau SPK.
 
 Jenis **Pengembalian** tersedia di filter, tetapi belum ada layar web atau alur yang membuat mutasi ini. Penerimaan fisik retur material tercatat sebagai **Masuk**.
 
@@ -2732,13 +2960,13 @@ Tombol **Buat tagihan bulanan**, **Buat tagihan**, dan **Ekspor** hanya tampil b
 
 1. Di sidebar, buka grup **Keuangan & Laporan**, lalu klik **Tagihan**.
 2. Di atas daftar ada empat filter: kotak **Cari tagihan** ("Nomor tagihan atau pelanggan"), pilihan **Status**, pilihan **Pelanggan**, dan **Periode**. Daftar langsung menyesuaikan setiap kali Anda mengubah filter.
-   - **Status** berisi Semua status, Draf, Belum dibayar, Sebagian, Lunas, Lewat jatuh tempo, dan Dibatalkan.
+   - **Status** berisi Semua status, Draf, Belum dibayar, Sebagian, Lunas, Lewat jatuh tempo, Dibatalkan, Dihapus, dan Semua, termasuk dihapus. Tanpa pilihan khusus, tagihan yang dihapus tidak tampil.
    - **Pelanggan** berupa kotak cari ("Semua pelanggan"): ketik minimal 2 huruf nama atau kode pelanggan, lalu pilih dari hasil (paling banyak 20). Tombol **Hapus pilihan: Pelanggan** mengosongkannya lagi.
    - **Periode** menyaring menurut **Tanggal terbit**, bukan jatuh tempo. Ketik rentang tanggal dalam format tanggal perusahaan atau klik **Buka kalender**. Pilihan cepatnya **Hari ini**, **7 hari terakhir**, **30 hari terakhir**, **Bulan ini**, **Bulan lalu**, dan **Tahun ini**. Tombol **Hapus rentang tanggal** mengosongkannya. Tanggal akhir tidak boleh sebelum tanggal awal.
 
    ![Daftar tagihan dengan kotak Cari tagihan, filter Status, Pelanggan, dan Periode, serta tombol Ekspor, Buat tagihan bulanan, dan Buat tagihan](images/web/invoices-index.png)
 3. Kolom daftar: **Nomor tagihan** (tautan ke detail), **Pelanggan** (nama dan kode), **Status** (lencana berwarna), **Tanggal terbit**, **Jatuh tempo**, **Total**, **Sisa** (yang belum dibayar), dan **Aksi**. Daftar urut menurut **Tanggal terbit**, terbaru dulu. Kolom **Nomor tagihan**, **Status**, **Tanggal terbit**, **Jatuh tempo**, dan **Total** bisa diurutkan. Halaman, jumlah baris, dan urutan bekerja seperti di bagian 1.5.
-4. Klik nomor tagihan atau tombol **Lihat** di kolom **Aksi** untuk membuka detail. Baris tidak punya tombol **Ubah** atau **Hapus**.
+4. Klik nomor tagihan atau tombol **Lihat** di kolom **Aksi** untuk membuka detail. Baris tidak punya tombol **Ubah** atau **Hapus**. Tagihan **Draf** yang dihapus muncul di filter **Status** **Dihapus**; barisnya tidak punya tombol dan menu **Aksi lainnya** berisi **Pulihkan** (izin `billing.delete`), yang mengembalikan draf dengan statusnya semula. Lihat bagian 1.5.
 5. Bila tidak ada hasil, daftar menulis "Tidak ada tagihan yang cocok" dengan tombol **Reset filter**. Bila perusahaan belum punya tagihan, daftar menulis "Belum ada tagihan" dengan tombol **Buat tagihan** (untuk pemilik izin `billing.create`).
 6. Tombol **Ekspor** menawarkan **Ekspor CSV** dan **Ekspor PDF**. Berkas memuat kolom Nomor tagihan, Pelanggan, Status, Total, Tanggal terbit, Jatuh tempo, dan Dibuat, sesuai filter yang sedang aktif. Kolom Status di berkas berisi kode status (misalnya `sent`), bukan label lencana.
 
@@ -2765,8 +2993,8 @@ Untuk tagihan jatuh tempo, klik kartu **Tagihan jatuh tempo** di Dasbor (bab 2):
    ![Detail tagihan dengan kartu Detail, Ringkasan, dan Aksi](images/web/invoices-show.png)
 3. Angka tampil sebagai rupiah penuh, misalnya Rp 120.000. Tanggal mengikuti format tanggal perusahaan, dan kolom **Dibayar pada** memakai jam 24 jam.
 4. **Jenis** dan **Sumber** menunjukkan asal tagihan. Jenis Berlangganan dengan sumber Langganan adalah tagihan bulanan. Jenis Sekali bayar dengan sumber SPK adalah tagihan dari SPK. Jenis Sekali bayar dengan sumber Manual dibuat lewat **Buat tagihan**.
-5. Klik **Unduh PDF** untuk mengunduh berkas yang dinamai nomor tagihan, misalnya `&lt;nomor&gt;.pdf`. Berkas terbuka di tab baru. PDF memuat nama dan alamat perusahaan, "TAGIHAN" dan nomornya, tanggal, jatuh tempo, periode (tagihan bulanan), status dalam huruf kapital, "Kepada:" diikuti pelanggan dan kode langganan, tabel item, Subtotal, PPN dan Diskon (bila bernilai), Total, Terbayar dan Sisa (bila sudah ada pembayaran aktif), "Terbilang:", dan bagian "Pembayaran:" dengan isi **Rekening pembayaran** dari Pengaturan Perusahaan (bagian 8.1) bila terisi. Tanggal di PDF ditulis hari/bulan/tahun.
-6. Kartu **Pembayaran online** muncul bila pembayaran online Midtrans aktif atau tagihan sudah punya percobaan bayar, dan hanya untuk dibaca. Tabelnya memuat **Status**, **Jumlah**, **Metode**, **ID transaksi**, **Dibuat**, dan **Selesai**. Pelanggan membayar lewat aplikasi pelanggan, lalu pembayaran masuk ke tagihan setelah Midtrans mengonfirmasi. Percobaan berstatus Menunggu, Lunas, Gagal, Kedaluwarsa, atau Perlu dicek. Percobaan yang gagal dibukukan (misalnya nominal berbeda atau refund) berstatus Perlu dicek, dengan "Alasan:" di bawah lencananya, dan tidak dibalik otomatis. Teks alasan itu ditulis sistem dan sebagian masih berbahasa Inggris. Pengguna dengan izin `billing.payment.reverse` membatalkan pembayaran yang sudah tercatat bila uang memang kembali.
+5. Klik **Unduh PDF** untuk mengunduh berkas yang dinamai nomor tagihan, misalnya `&lt;nomor&gt;.pdf`. Berkas terbuka di tab baru. PDF memuat nama dan alamat perusahaan, "TAGIHAN" dan nomornya, tanggal, jatuh tempo, periode (tagihan bulanan), status dalam huruf kapital, "Kepada:" diikuti pelanggan, alamat, "NPWP:" (bila ada), dan kode langganan dengan nama paket, tabel item, Subtotal, PPN dan Diskon (bila bernilai), Total, Terbayar dan Sisa (bila sudah ada pembayaran aktif), "Terbilang:", dan bagian "Pembayaran:" dengan isi **Rekening pembayaran** dari Pengaturan Perusahaan (bagian 8.1) bila terisi. Tanggal di PDF ditulis hari/bulan/tahun. Tagihan yang sudah terbit mencetak nama, alamat, NPWP, dan paket seperti saat terbit, walau pelanggan atau paketnya sudah diganti nama atau dipindah. Di halaman detail, blok **Detail** menulis Pelanggan, Alamat, NPWP, dan Paket yang sama, dengan "(saat terbit)" di samping nama bila nama pelanggan sekarang berbeda. Draf mengikuti data yang berlaku. Kwitansi yang diunduh pelanggan dari aplikasi memakai nama yang sama tetapi tidak mencetak NPWP.
+6. Kartu **Pembayaran online** muncul bila pembayaran online Midtrans aktif atau tagihan sudah punya percobaan bayar, dan hanya untuk dibaca. Tabelnya memuat **Status**, **Jumlah**, **Metode**, **ID transaksi**, **Dibuat**, dan **Selesai**. Pelanggan membayar lewat aplikasi pelanggan, lalu pembayaran masuk ke tagihan setelah Midtrans mengonfirmasi. Percobaan berstatus Menunggu, Lunas, Gagal, Kedaluwarsa, Perlu dicek, atau Ditutup. **Ditutup** berarti Inbils sendiri menutup halaman bayar karena tagihannya sudah dibayar (tunai atau transfer yang Anda catat, juga sebagian, sebab jumlah di halaman itu tidak lagi sama dengan sisa) atau dibatalkan selagi halaman masih terbuka. Alasannya tertulis "Tagihan dibayar atau dibatalkan saat halaman pembayaran masih terbuka." Inbils lalu meminta Midtrans membatalkan transaksinya dari antrean, jadi pembayaran tunai Anda tetap tercatat meski Midtrans sedang tidak terjangkau. Pelanggan yang masih punya sisa menekan **Bayar** lagi untuk mendapat halaman baru. Bila uang tetap masuk lewat halaman yang sudah Ditutup dan tagihan tidak bisa menerimanya lagi (misalnya sudah lunas), percobaan itu menjadi Perlu dicek. Percobaan yang gagal dibukukan (misalnya nominal berbeda atau refund) berstatus Perlu dicek, dengan "Alasan:" di bawah lencananya, dan tidak dibalik otomatis. Teks alasan itu ditulis sistem dan sebagian masih berbahasa Inggris. Pengguna dengan izin `billing.payment.reverse` membatalkan pembayaran yang sudah tercatat bila uang memang kembali.
 
 ### Menerbitkan tagihan bulanan
 
@@ -2785,7 +3013,7 @@ Yang dibuat dan dilewati:
 
 - Ikut ditagih: langganan Aktif atau Berhenti yang sudah aktif pada akhir periode dan belum berhenti sebelum awal periode. Langganan Menunggu dan Ditangguhkan tidak ikut.
 - Nominal: MRC langganan. Langganan yang mulai aktif atau berhenti di tengah bulan ditagih prorata menurut hari aktif.
-- Dilewati: langganan yang sudah punya tagihan bulanan untuk periode itu (tagihan **Dibatalkan** tidak dihitung) dan langganan bernominal 0. Menjalankan ulang periode yang sama tidak membuat tagihan ganda.
+- Dilewati: langganan yang sudah punya tagihan bulanan untuk periode itu, **dalam status apa pun, termasuk Dibatalkan**, dan langganan bernominal 0. Periode yang tagihannya Anda batalkan tidak diterbitkan ulang oleh jadwal harian maupun tombol ini. Bila pelanggan memang harus ditagih untuk periode itu, buat tagihan manual (**Buat tagihan**). Menjalankan ulang periode yang sama tidak membuat tagihan ganda, juga bila dua proses berjalan bersamaan. Satu langganan yang gagal diproses tidak menghentikan yang lain: toast menambahkan ", &lt;n&gt; gagal" dan jadwal harian memberi tahu admin perusahaan.
 - Setiap tagihan baru memakai nomor otomatis (bagian 7.13), berjenis Berlangganan, bersumber Langganan, dan langsung berstatus **Belum dibayar**. Tidak ada tahap **Draf**, jadi pratinjau adalah satu-satunya pemeriksaan.
 - **Tanggal terbit** adalah hari ini. **Jatuh tempo** adalah hari ini ditambah isian **Jatuh tempo tagihan** (bawaan 14 hari). PPN memakai isian **Tarif PPN** (bawaan 11). Keduanya diatur di Pengaturan Perusahaan (bagian 8.1).
 - Satu item bertulis `MRC <nama paket> <tanggal awal> s/d <tanggal akhir>`, ditambah ` (prorata <hari aktif>/<hari dalam bulan> hari)` bila prorata. Tanggal di teks item ditulis tahun-bulan-tanggal.
@@ -2843,7 +3071,7 @@ Izin yang dibutuhkan: `billing.payment.record`. Hanya tagihan **Belum dibayar**,
 
 Tabel **Pembayaran** menyimpan riwayat pembayaran: **Jumlah**, **Metode**, **Referensi**, **Dibayar pada**, dan **Status**. Pembayaran yang dibatalkan tetap tampil dengan status **Dibatalkan**.
 
-Waktu bayar dan pencatat tersimpan otomatis, jadi tidak ada isian tanggal. Status menjadi **Lunas** bila jumlah pembayaran aktif sudah menyamai **Total**, selain itu **Sebagian**. Pembayaran tidak bisa diubah atau dihapus. Koreksi salah catat dengan **Batalkan pembayaran**, lalu catat ulang. Pelanggan juga menerima WhatsApp "Pembayaran diterima" dengan tiga syarat yang sama seperti "Tagihan terbit" di atas.
+Waktu bayar dan pencatat tersimpan otomatis, jadi tidak ada isian tanggal. Status menjadi **Lunas** bila jumlah pembayaran aktif sudah menyamai **Total**, selain itu **Sebagian**. Pembayaran tidak bisa diubah atau dihapus. Koreksi salah catat dengan **Batalkan pembayaran**, lalu catat ulang. Pelanggan juga menerima WhatsApp "Pembayaran diterima" dengan tiga syarat yang sama seperti "Tagihan terbit" di atas. Setiap pembayaran yang Anda catat, juga yang sebagian, menutup halaman pembayaran online yang masih terbuka (status **Ditutup**), karena jumlah di halaman itu tidak lagi sama dengan sisa. Pelanggan yang masih punya sisa membuka halaman baru dengan **Bayar**.
 
 ### Membatalkan pembayaran
 
@@ -2870,7 +3098,8 @@ Sistem menolak pembatalan bila tagihan masih punya pembayaran aktif ("Tagihan ya
 - Pembuat tagihan manual adalah pengguna yang mengklik **Simpan** di form **Buat tagihan**.
 - Pembuat tagihan dari SPK adalah penyetuju SPK.
 - Tagihan hasil **Buat tagihan bulanan** tidak punya pembuat, jadi siapa pun dengan izin dapat membatalkannya.
-- Tagihan bulanan yang dibatalkan tidak mengunci periodenya: penerbitan berikutnya untuk periode itu dapat membuat tagihan baru.
+- Tagihan bulanan yang dibatalkan mengunci periodenya: penerbitan berikutnya untuk periode itu, dari jadwal harian maupun **Buat tagihan bulanan**, melewatinya dan tidak membuat tagihan baru. Tagihan yang dibatalkan karena salah harus diganti dengan tagihan manual (**Buat tagihan**).
+- Membatalkan tagihan juga menutup halaman pembayaran online yang masih terbuka (status **Ditutup** di kartu **Pembayaran online**). Membatalkan **Draf** membekukan nama pelanggan, alamat, NPWP, dan paket yang berlaku saat itu, seperti tagihan yang dikirim.
 
 ### Melihat tagihan dari SPK
 
@@ -2931,6 +3160,15 @@ Yang dihitung:
 - Pelanggan yang semua tagihannya lunas tidak tampil.
 
 Beda dengan **Tagihan** (bagian 7.1): **Tagihan** memuat setiap tagihan, satu baris per tagihan, semua status, dengan filter dan ekspor. **Tunggakan** hanya memuat sisa yang masih terbuka, dijumlahkan per pelanggan dan dikelompokkan menurut umur.
+
+### Pembayaran online yang perlu dicek
+
+Bila Midtrans menerima uang yang tidak bisa dicatat Inbils sendiri, alert merah muncul di atas keenam kartu dengan judul "&lt;n&gt; pembayaran online perlu dicek". Contohnya tagihan yang sudah lunas atau dibatalkan saat pelanggan membayar, jumlah yang berbeda dari tagihan, atau uang yang ditarik kembali oleh Midtrans. Alert ini tidak muncul bila tidak ada kasus terbuka.
+
+- Angka di judul menghitung semua kasus yang masih terbuka. Daftar di bawahnya memuat paling banyak sepuluh kasus terbaru. Setiap baris memuat nomor tagihan (tautan ke detail tagihan), jumlah, order ID Midtrans, dan alasannya bila ada.
+- Teks di bawah daftar: "Catat pembayarannya dengan referensi order ID tersebut, atau refund di Midtrans." Untuk mencatat, buka tagihannya, klik **Catat pembayaran**, lalu isi **Referensi** dengan order ID itu (bagian 7.1).
+- Pemegang izin `billing.payment.record` di perusahaan itu juga menerima notifikasi "Pembayaran online perlu dicek" di lonceng dan, bila perangkatnya terdaftar, sebagai notifikasi push.
+- Kasus hilang dari alert setelah pembayarannya tercatat dengan order ID itu, atau setelah uang yang ditarik kembali sudah dibatalkan di Inbils.
 
 ### Mengisolir langganan
 
@@ -3038,7 +3276,7 @@ Klik **Rumus dan sumber data** untuk membuka rincian **Rumus**, **Satuan**, **Da
 
 Ekspor ringkasan memakai kolom Metrik, Rincian, Nilai, Satuan, Cakupan, Filter, dan Versi. Kolom Rincian dan Satuan berisi kode apa adanya, misalnya status `available` atau satuan `currency`. Kolom Cakupan menyebut apakah angka berlaku untuk periode atau posisi saat ini. Kartu Stok dan Log Audit mengekspor seluruh baris yang cocok dengan filter, bukan hanya halaman tabel yang sedang terlihat.
 
-KPI Penjualan dan Kamus Data tidak menyediakan ekspor. Metrik Konsolidasi hanya menyediakan CSV. Ekspor baris (Kartu Stok, Log Audit, dan daftar di balik angka) dibatasi 5.000 baris. Pada CSV yang terpotong, baris terakhir berbunyi "# Ekspor dipotong pada 5000 baris. Persempit filter untuk mengekspor sisa barisnya." Batas ini dijelaskan juga di bagian 1.5.
+KPI Penjualan dan Kamus Data tidak menyediakan ekspor. Metrik Konsolidasi hanya menyediakan CSV. Ekspor baris (Kartu Stok, Log Audit, dan daftar di balik angka) dibatasi 5.000 baris. Pada CSV yang terpotong, baris terakhir berbunyi "# Ekspor dipotong pada 5000 baris. Persempit filter untuk mengekspor sisa barisnya." PDF memuat lebih sedikit baris: batasnya 1.500 sel dibagi jumlah kolom, jadi tabel yang lebar terpotong lebih awal, dan di bawah judul PDF tertulis "PDF dibatasi N baris. Untuk data lengkap, unduh CSV atau persempit periode." Batas ini dijelaskan juga di bagian 1.5.
 
 ### Melihat data di balik angka
 
@@ -3370,13 +3608,13 @@ Peran yang dapat memakai: admin. Izin: `report.audit.view`. Tombol **Ekspor log*
    - **Pencarian teks** mencari pada deskripsi, modul, aksi, serta nama atau email pelaku. Isian ini mencari pada nama modul tersimpan (misalnya `customer`), bukan pada label modul yang tampil.
    - **Modul** memilih satu modul dari daftar, misalnya Pelanggan, Tagihan, Inventaris, SPK, Tiket, Pengguna, atau Autentikasi. Klik kotaknya, ketik untuk menyaring, lalu pilih. Isian kosong menampilkan **Semua modul**.
    - **Pengguna** memilih pelaku. Ketik minimal 2 huruf nama atau email ("Cari nama atau email..."), tunggu daftar, lalu pilih. Daftar hanya memuat anggota perusahaan aktif: pengguna perusahaan itu dan pengguna perusahaan lain yang diberi akses ke perusahaan aktif. Akun nonaktif ikut dalam daftar. Klik **Hapus pilihan: Pengguna** untuk mengosongkan.
-   - **Periode** membatasi waktu kejadian menurut hari kalender. Ketik rentang, atau buka kalender dan pakai pilihan cepat, seperti pada bagian 7.9.
+   - **Periode** membatasi waktu kejadian menurut hari kalender. Ketik rentang, atau buka kalender dan pakai pilihan cepat, seperti pada bagian 7.9. Log Audit selalu punya periode: bila tanggal mulai kosong, halaman memakai 7 hari sampai tanggal akhir (atau sampai hari ini menurut zona waktu perusahaan bila tanggal akhir juga kosong) dan mengisi tanggal mulai itu di isian. Periode paling lama 92 hari. Di bawah isian tertulis "Paling lama 92 hari. Tanpa tanggal mulai, 7 hari terakhir."
 3. Klik **Terapkan filter**. Klik **Reset filter** untuk menghapus semua filter dan mengembalikan urutan waktu terbaru. Kartu filter juga menulis "Menampilkan n dari m log".
 4. Klik **Muat ulang** di kanan atas untuk mengambil data terbaru tanpa mengubah filter.
 5. Baca tabel:
    - **Waktu** menampilkan waktu terformat dan waktu UTC di bawahnya.
    - **Modul** menampilkan modul sebagai lencana, misalnya Pelanggan atau Tagihan. Log tanpa modul tampil sebagai **Umum**.
-   - **Aksi** menampilkan lencana Dibuat, Diperbarui, Dihapus, atau Dipulihkan. Entri tanpa jenis aksi model (ditulis langsung oleh sistem) menampilkan tanda hubung (-), dan keterangannya ada di **Deskripsi**.
+   - **Aksi** menampilkan lencana Dibuat, Diperbarui, Dihapus, atau Dipulihkan untuk perubahan data. Entri yang ditulis langsung oleh sistem, seperti masuk, keluar, perubahan peran, dan ekspor, menyimpan kodenya di kolom ini dan menampilkannya sebagai lencana berlabel, misalnya Masuk atau Ekspor CSV. Kode yang belum punya label tampil apa adanya. Keterangannya ada di **Deskripsi**.
    - **Deskripsi** memuat keterangan aktivitas.
    - **Pelaku** memuat nama dan email, tulisan "Pengguna #" diikuti ID, atau **Sistem**.
    - **Subjek** memuat jenis data dan ID, misalnya `Customer #12`.
@@ -3385,6 +3623,25 @@ Peran yang dapat memakai: admin. Izin: `report.audit.view`. Tombol **Ekspor log*
 7. Di bawah tabel, atur **Baris per halaman** menjadi 10, 15, 25, 50, atau 100. Nilai awal dari halaman ini adalah 25. Pindah halaman dengan **Sebelumnya** dan **Berikutnya**.
 
 Pada layar yang lebih sempit dari 768 piksel, tabel berubah menjadi kartu. Tombol **Lihat detail properti** menggantikan kolom **Detail**.
+
+### Baris keamanan, ekspor, dan data pribadi
+
+Selain perubahan data, Log Audit memuat jejak keamanan perusahaan Anda di modul **Keamanan**. Kolom **Deskripsi** menyebut kodenya:
+
+- `login` dan `logout`: masuk dan keluar lewat web. Masuk lewat aplikasi tetap tercatat sebagai `api.token_issued`.
+- `login.failed`: kata sandi salah. Hanya satu baris per akun dan alamat IP dalam 15 menit. Properti `failures` menghitung percobaannya, jadi satu serangan tebak tidak memenuhi log. Kata sandi dan email yang diketik tidak disimpan. Email hanya tersimpan sebagai sidik (`email_hash`) yang tidak bisa dibaca kembali. Percobaan dengan email yang tidak terdaftar tidak punya perusahaan, jadi tidak tampil di halaman ini.
+- `lockout`: Inbils menolak karena terlalu banyak percobaan. Satu baris per rute dan alamat IP dalam 15 menit.
+- `password.reset_requested`, `password.reset`, dan `password.changed`: tautan atur ulang kata sandi diminta (hanya untuk akun yang ada), kata sandi diatur ulang, dan kata sandi berubah lewat cara apa pun. Barisnya tidak memuat kata sandi.
+- `two_factor.challenge_passed`: kode autentikator yang benar. Kode pemulihan yang dipakai tercatat sebagai `recovery_code_used`.
+- `role.attached` dan `role.detached`: peran ditambahkan atau dicabut. Properti `roles` menyebut nama perannya.
+
+Setiap ekspor CSV atau PDF tercatat di modul **Ekspor** sebagai `export.csv` atau `export.pdf`, dengan laporan, filter, jumlah baris, dan tanda terpotong. Barisnya ditulis setelah berkas selesai dikirim, jadi unduhan yang terputus tidak tercatat.
+
+Nilai data pribadi tidak tersimpan di log. Perubahan pelanggan (email, telepon, NPWP, kontak, catatan), kontak dan alamat pelanggan, profil karyawan (telepon, catatan), dan rekening pembayaran perusahaan menulis **[disembunyikan]** sebagai nilai lama dan baru. Yang terlihat hanya kolom apa yang berubah. Baris yang ditulis sebelum pembaruan ini masih menyimpan nilai aslinya sampai dihapus otomatis.
+
+Inbils juga menyimpan ID permintaan, alamat IP, dan (untuk baris keamanan) jenis browser di database untuk penelusuran oleh pengelola server. Halaman ini tidak menampilkannya dan ekspor log tidak memuatnya.
+
+Baris dihapus otomatis setiap hari: setelah 365 hari, dan setelah 730 hari untuk modul **Keamanan**.
 
 ### Membaca detail perubahan
 
@@ -3407,6 +3664,8 @@ Pada layar yang lebih sempit dari 768 piksel, tabel berubah menjadi kartu. Tombo
 
 Kedua file memuat kolom ID, Waktu, Modul, Aksi, Deskripsi, Pelaku, ID pelaku, Jenis subjek, dan ID subjek. Kolom Modul dan Aksi di file berisi kode tersimpan, bukan label lencana. CSV juga memuat kolom Properti sebagai JSON. PDF sengaja tidak memuat Properti.
 
+Ekspor memakai periode yang sama dengan halaman, paling lama 92 hari. CSV memuat sampai 5.000 baris. PDF memuat paling banyak 166 baris, karena batasnya 1.500 sel dibagi sembilan kolom, dan di bawah judulnya tertulis "PDF dibatasi 166 baris. Untuk data lengkap, unduh CSV atau persempit periode." Bila baris yang cocok lebih banyak, unduh CSV atau persempit periode.
+
 ### Kesalahan umum
 
 - Log audit hanya menampilkan baris milik perusahaan aktif. Baris lama tanpa `company_id` tidak ditampilkan.
@@ -3414,10 +3673,12 @@ Kedua file memuat kolom ID, Waktu, Modul, Aksi, Deskripsi, Pelaku, ID pelaku, Je
 - **Pencarian teks** tidak mencari jenis atau ID subjek. Gunakan **Modul**, **Pengguna**, atau **Deskripsi** untuk mempersempit hasil.
 - Isian filter belum berlaku sebelum **Terapkan filter** diklik. **Ekspor log** memakai filter yang terakhir diterapkan.
 - **Waktu** utama mengikuti jam browser, sedangkan baris kecil menunjukkan UTC. Filter tanggal tetap mengikuti zona waktu perusahaan.
-- CSV memuat Properti, sedangkan PDF tidak. Buka dialog **Detail** atau gunakan CSV bila nilai lama dan baru diperlukan.
+- CSV memuat Properti, sedangkan PDF tidak, dan PDF dibatasi 166 baris. Buka dialog **Detail** atau gunakan CSV bila nilai lama dan baru diperlukan.
 - Bila tidak ada hasil, tabel menulis **Tidak ada log aktivitas** dan tombol **Reset filter**.
 - Halaman **Akses ditolak** berarti akun tidak memegang `report.audit.view`. Peran bawaan manajer dan staf tidak mempunyai izin ini.
 - **Tanggal akhir tidak boleh sebelum tanggal mulai.** muncul di bawah **Periode** bila rentang terbalik.
+- **Periode log audit paling lama 92 hari. Persempit periode.** muncul di bawah **Periode** bila rentangnya lebih dari 92 hari. Tabel tetap menampilkan hasil sebelumnya, dan **Ekspor log** memakai periode terakhir yang sah.
+- Halaman membuka 7 hari terakhir tanpa Anda memilih tanggal: itu nilai awalnya. Ubah **Periode** untuk melihat baris yang lebih lama. Baris yang melewati masa simpan (365 hari, 730 hari untuk **Keamanan**) sudah terhapus dan tidak bisa dicari.
 
 ## 7.13 Penomoran
 
@@ -3540,7 +3801,7 @@ Peran yang dapat memakai: admin. Izin: `company.manage`. Manajer dan staf tidak 
    - **Zoom**: angka bulat 3 sampai 18. Keterangan: "3 untuk seluruh Indonesia, 12 untuk satu kota." Di luar rentang itu muncul "Zoom harus di antara 3 dan 18."
    - Peta di bawahnya: klik peta atau seret penanda untuk mengisi lintang dan bujur, atau klik **Gunakan lokasi saya** bila peramban mengizinkan. Titik yang dipilih di peta atau diketik melepas pilihan **Wilayah default**.
 5. Gulir ke kartu **WhatsApp**. Bagian ini ada di bawah batas tangkapan layar di atas:
-   - Peringatan "Notifikasi tidak akan terkirim sampai kredensial diatur di server." muncul bila server belum punya kredensial pengirim. Baris **Kredensial terkonfigurasi** menunjukkan Ya atau Tidak. Pengelola server yang mengatur kredensial, bukan layar ini.
+   - Peringatan "WhatsApp belum dikonfigurasi untuk perusahaan ini." muncul bila kartu **WhatsApp** di **Integrasi** (bagian 8.9) belum diisi dan diaktifkan. Admin melihat tautan **Atur di Pengaturan → Integrasi**, pengguna lain melihat "Minta admin mengisinya di Pengaturan → Integrasi." Baris **Kredensial terkonfigurasi** menunjukkan Ya atau Tidak untuk perusahaan ini. Akun WhatsApp diisi per perusahaan di **Integrasi**, bukan di layar ini.
    - **Aktifkan notifikasi WhatsApp**: saklar, bawaan mati.
    - **Jenis pesan yang dikirim**: sembilan kotak centang, semuanya tercentang secara bawaan: **Tagihan terbit**, **Pengingat jatuh tempo (H-3, H-1, H+1)**, **Pembayaran diterima**, **Tiket dibuat**, **Tiket mulai ditangani**, **Tiket selesai**, **Penugasan SPK ke teknisi**, **Jadwal kunjungan teknisi ke pelanggan** dan **Info link akses portal (tanpa link)**. Hanya **Penugasan SPK ke teknisi** berketerangan **Untuk teknisi**; delapan lainnya berketerangan **Untuk pelanggan**.
    - **Jam tenang mulai** dan **Jam tenang selesai**: pilih jam dengan pemilih jam. Ketik jam seperti 08:30, atau klik isian lalu pilih dari daftar per 30 menit ("Pilih jam"). Tombol "Hapus jam" mengosongkan isian, tetapi keduanya wajib terisi. Jam menurut zona waktu perusahaan, bawaan 21:00 dan 07:00. Rentang boleh melewati tengah malam. Pesan **Tagihan terbit** dan pengingat jatuh tempo menunggu sampai jam tenang selesai; jenis pesan lain dikirim langsung. Jam mulai yang sama dengan jam selesai berarti tidak ada jam tenang.
@@ -3581,7 +3842,7 @@ Peran yang dapat memakai: admin. Izin: `organization.view` membuka menu dan daft
    - **Jenis** dan **Status** berupa lencana berwarna: **Perusahaan**, **Cabang**, **Area**, **Unit** atau **Tim** untuk jenis, dan **Aktif** atau **Nonaktif** untuk status.
    - **Jalur** menulis kode unit dari yang paling atas sampai unit itu, dipisah tanda `>`. Unit paling atas hanya menampilkan kodenya sendiri.
    - **Sub-unit** menghitung unit anak langsung, misalnya "1 sub-unit" atau "2 sub-unit".
-   - Tombol **Buat Unit**, **Ubah** dan menu **Aksi lainnya** (isinya **Hapus**) tampil untuk semua pemegang `organization.view`. Server menolak aksi dari pengguna tanpa `organization.manage`. Layar ini tidak punya tombol **Lihat** atau **Lihat detail**.
+   - Tombol **Buat Unit**, **Ubah** dan menu **Aksi lainnya** (isinya **Nonaktifkan** atau **Aktifkan**, dan **Hapus permanen** bila unit belum pernah dipakai) tampil untuk semua pemegang `organization.view`. Server menolak aksi dari pengguna tanpa `organization.manage`. Layar ini tidak punya tombol **Lihat** atau **Lihat detail**. Filter **Status** punya **Aktif**, **Nonaktif**, **Dihapus**, dan **Semua, termasuk dihapus**.
    - Bila belum ada unit, layar menulis "Belum ada unit organisasi" beserta tombol **Buat Unit**. Bila pencarian tidak menemukan apa pun, layar menulis "Tidak ada unit organisasi yang cocok" dengan tombol **Reset filter**.
 
    ![Daftar Organisasi yang masih kosong pada perusahaan demo: kotak Cari, tombol Ekspor dan Buat Unit, dan pesan Belum ada unit organisasi](images/web/organizations.png)
@@ -3608,12 +3869,12 @@ Peran yang dapat memakai: admin. Izin: `organization.view` membuka menu dan daft
 
 Mengubah **Kode** atau **Induk** menghitung ulang **Jalur** unit itu dan semua unit di bawahnya. Unit yang sedang Anda ubah tidak muncul di pilihan **Induk**. Layar ini tidak punya tombol pindah atau seret-dan-lepas.
 
-### Menghapus unit
+### Menonaktifkan, menghapus permanen, dan memulihkan unit
 
-1. Klik **Aksi lainnya** pada baris unit, lalu **Hapus**.
-2. Konfirmasi di dialog "Hapus &lt;nama unit&gt;?" (keterangan: "Unit "&lt;nama unit&gt;" akan dihapus. Unit yang masih punya sub-unit atau karyawan tidak bisa dihapus."). Klik **Hapus**. Muncul toast "Unit organisasi dihapus."
-
-Unit yang masih punya unit anak (kolom **Sub-unit** lebih dari 0) atau karyawan tidak bisa dihapus. Dialog tetap terbuka, toast "Data gagal disimpan. Periksa input." muncul, dan kotak merah di atas daftar menulis alasannya: "Unit masih punya sub-unit. Pindahkan atau hapus sub-unitnya dulu." atau "Unit masih punya karyawan. Pindahkan karyawannya ke unit lain dulu." Klik **Batal** untuk melihat kotak itu, lalu pindahkan atau hapus unit anaknya, atau pindahkan karyawannya (bagian 8.3).
+1. Klik **Aksi lainnya** pada baris unit. Isinya **Nonaktifkan** (atau **Aktifkan**) dan **Hapus permanen**. Dialog **Nonaktifkan** menulis apa yang memakai unit itu, misalnya "dipakai 2 sub-unit, 5 karyawan, 12 SPK selesai". Toast "Unit organisasi dinonaktifkan." muncul. Unit nonaktif tidak muncul di pilihan **Induk** dan **Organisasi**, tidak dihitung untuk Kinerja Teknisi manajer, dan sub-unit, karyawan, serta SPK yang sudah memakainya tetap utuh.
+2. **Hapus permanen** hanya ada bila unit tidak punya sub-unit (kolom **Sub-unit** 0), tidak ada karyawan di dalamnya, dan tidak ada SPK selesai yang mencatat unit itu. Dialog "Hapus permanen &lt;nama unit&gt;?" menulis "Unit organisasi "&lt;nama unit&gt;" belum pernah dipakai data lain. Penghapusan permanen tidak bisa dibatalkan." Klik **Hapus permanen**. Toast "Unit organisasi dihapus permanen." muncul.
+3. Bila unit baru dipakai setelah Anda membuka menu, dialog tetap terbuka, dan teks merah menulis alasannya, misalnya "Unit organisasi masih dipakai 1 karyawan. Nonaktifkan saja." Klik **Batal**, lalu pindahkan karyawannya (bagian 8.3) atau nonaktifkan unitnya.
+4. Filter **Status** punya **Aktif**, **Nonaktif**, **Dihapus**, dan **Semua, termasuk dihapus**. Baris yang dihapus punya **Pulihkan**. Sub-unit tidak bisa dipulihkan selama induknya masih dihapus. Unit yang dipulihkan menghitung ulang **Jalur** dari induknya yang sekarang.
 
 ### Menempatkan karyawan dan manajer di unit
 
@@ -3634,7 +3895,7 @@ Berkas bernama `organizations-export-<tanggal>-<jam>.csv` atau `.pdf` dan berisi
 
 - Muncul "Unit tidak bisa dipindahkan ke bawah dirinya sendiri atau sub-unitnya." di bawah **Induk**: induk yang Anda pilih adalah sub-unit dari unit itu sendiri. Pilih unit lain, atau pindahkan dulu unit anaknya.
 - Penyimpanan gagal dengan toast "Data gagal disimpan. Periksa input.": baca pesan merah di bawah isian. **Kode** menulis "kode wajib diisi." atau "kode sudah digunakan.", **Email** menulis "email harus berupa alamat email yang valid." dan **Telepon** menolak lebih dari 50 karakter.
-- Menghapus unit ditolak selama unit itu punya unit anak atau karyawan (lihat "Menghapus unit"). Pindahkan karyawan ke unit lain (bagian 8.3) sebelum menghapus.
+- **Hapus permanen** tidak ada di menu unit selama unit itu punya unit anak, karyawan, atau SPK selesai yang mencatat unit itu (lihat "Menonaktifkan, menghapus permanen, dan memulihkan unit"). Pindahkan karyawan ke unit lain (bagian 8.3), atau cukup **Nonaktifkan** unitnya.
 - Unit yang dinonaktifkan (saklar **Aktif** mati) tidak muncul di pilihan **Induk** dan **Organisasi**, dan tidak dihitung untuk Kinerja Teknisi manajer. Nyalakan lagi lewat **Ubah**.
 
 ## 8.3 Karyawan
@@ -3649,10 +3910,10 @@ Peran yang dapat memakai: admin. Izin: `employee.view` membuka menu dan daftar, 
 2. Baca daftar. Cara kerja pencarian, urutan dan halaman ada di bagian 1.5.
 
    - Kotak **Cari** (teks petunjuk "Nomor, nama, email, atau telepon") mencari nomor karyawan, telepon, nama dan email pengguna.
-   - Filter **Organisasi** adalah kotak cari: ketik, lalu pilih unit aktif (petunjuk "Semua organisasi"). Tombol silang ("Hapus pilihan: Organisasi") mengembalikannya ke semua unit. Filter **Status** berisi **Semua status**, **Aktif**, **Nonaktif** dan **Berhenti**.
+   - Filter **Organisasi** adalah kotak cari: ketik, lalu pilih unit aktif (petunjuk "Semua organisasi"). Tombol silang ("Hapus pilihan: Organisasi") mengembalikannya ke semua unit. Filter **Status** berisi **Semua status**, **Aktif**, **Nonaktif**, **Berhenti**, **Dihapus** dan **Semua, termasuk dihapus**.
    - Kolom: **Nomor karyawan**, **Nama** (nama akun pengguna, dengan email di bawahnya), **Organisasi**, **Kendaraan** (nomor polisi), **Status** dan **Aksi**. **Nomor karyawan** dan **Status** bisa diurutkan; urutan awal menurut karyawan terbaru. Sel kosong berisi `-`.
    - Lencana **Status** berwarna hijau untuk **Aktif**, abu-abu untuk **Nonaktif** dan **Berhenti**.
-   - Tombol **Buat Karyawan** dan tombol **Ubah** di tiap baris hanya tampil bagi pemegang `employee.manage`. Baris tidak punya menu **Aksi lainnya**.
+   - Tombol **Buat Karyawan** dan tombol **Ubah** di tiap baris hanya tampil bagi pemegang `employee.manage`. Baris tidak punya menu **Aksi lainnya**, kecuali baris karyawan yang dihapus: menunya berisi **Pulihkan** (izin `employee.manage`), dan toast "Karyawan dipulihkan." muncul. Karyawan yang dipulihkan kembali dengan statusnya semula.
    - Bila belum ada profil, layar menulis "Belum ada karyawan". Bila filter tidak menemukan apa pun, layar menulis "Tidak ada karyawan yang cocok" dengan tombol **Reset filter**.
 
    ![Daftar Karyawan pada perusahaan demo: tiga karyawan berstatus Aktif tanpa organisasi dan kendaraan, dengan filter Organisasi dan Status](images/web/employees.png)
@@ -3718,7 +3979,7 @@ Peran yang dapat memakai: admin. Izin: `vehicle.view` membuka menu dan daftar, `
 ### Membuka dan membaca daftar
 
 1. Di sidebar, buka grup **Administrasi**, lalu klik **Kendaraan**.
-2. Baca daftar. Kotak **Cari** (teks petunjuk "Nomor polisi, jenis, merek, atau model") mencari di empat kolom itu. Kolomnya **Nomor polisi**, **Jenis**, **Merek**, **Model**, **Status** dan **Aksi**. **Nomor polisi**, **Jenis**, **Merek** dan **Model** bisa diurutkan. Urutan awal menunjukkan kendaraan terbaru di atas. Sel kosong berisi `-`, dan lencana **Status** berisi **Aktif** atau **Nonaktif**. Daftar memakai halaman: lihat teks "Menampilkan" dengan rentang baris dan jumlah total, pilihan "Baris per halaman" serta tombol halaman sebelumnya dan berikutnya di bawah tabel (bagian 1.5). Bila belum ada kendaraan, layar menulis "Belum ada kendaraan".
+2. Baca daftar. Kotak **Cari** (teks petunjuk "Nomor polisi, jenis, merek, atau model") mencari di empat kolom itu. Filter **Status** punya **Semua status**, **Aktif**, **Nonaktif**, **Dihapus**, dan **Semua, termasuk dihapus**. Kolomnya **Nomor polisi**, **Jenis**, **Merek**, **Model**, **Status** dan **Aksi**. **Nomor polisi**, **Jenis**, **Merek** dan **Model** bisa diurutkan. Urutan awal menunjukkan kendaraan terbaru di atas. Sel kosong berisi `-`, dan lencana **Status** berisi **Aktif**, **Nonaktif**, atau **Dihapus**. Daftar memakai halaman: lihat teks "Menampilkan" dengan rentang baris dan jumlah total, pilihan "Baris per halaman" serta tombol halaman sebelumnya dan berikutnya di bawah tabel (bagian 1.5). Bila belum ada kendaraan, layar menulis "Belum ada kendaraan".
 
    ![Daftar Kendaraan yang masih kosong pada perusahaan demo, dengan kotak Cari dan tombol Buat Kendaraan](images/web/vehicles.png)
 
@@ -3741,12 +4002,13 @@ Peran yang dapat memakai: admin. Izin: `vehicle.view` membuka menu dan daftar, `
 2. Ubah isian yang perlu. Mengosongkan **Tanggal pembelian** menghapus tanggal yang tersimpan.
 3. Klik **Simpan**. Muncul toast "Kendaraan diperbarui."
 
-### Menghapus kendaraan
+### Menonaktifkan, menghapus permanen, dan memulihkan kendaraan
 
-1. Klik **Aksi lainnya** pada baris kendaraan, lalu **Hapus**.
-2. Konfirmasi di dialog "Hapus &lt;nomor polisi&gt;?" (keterangan: "Kendaraan "&lt;nomor polisi&gt;" akan dihapus dari daftar."). Klik **Hapus**. Muncul toast "Kendaraan dihapus."
+1. Klik **Aksi lainnya** pada baris kendaraan. Isinya **Nonaktifkan** (atau **Aktifkan**) dan **Hapus permanen**. Dialog **Nonaktifkan** menulis berapa karyawan yang memakai kendaraan itu, misalnya "dipakai 1 karyawan". Toast "Kendaraan dinonaktifkan." muncul. Kendaraan nonaktif tidak muncul di pilihan **Kendaraan** pada form karyawan, dan karyawan yang sudah memakainya tetap tercatat.
+2. **Hapus permanen** hanya ada bila tidak ada karyawan yang memakai kendaraan itu. Dialog "Hapus permanen &lt;nomor polisi&gt;?" menulis "Kendaraan "&lt;nomor polisi&gt;" belum pernah dipakai data lain. Penghapusan permanen tidak bisa dibatalkan." Muncul toast "Kendaraan dihapus permanen."
+3. Filter **Status** punya **Aktif**, **Nonaktif**, **Dihapus**, dan **Semua, termasuk dihapus**. Baris yang dihapus punya **Pulihkan**.
 
-Kendaraan hilang dari daftar dan dari pilihan **Kendaraan** pada form karyawan. Karyawan yang memakainya lalu tampil dengan **Kendaraan** `-`. Layar ini tidak menolak penghapusan kendaraan yang masih dipakai karyawan.
+Kendaraan yang masih dipakai karyawan tidak bisa dihapus permanen: dialog menulis "Kendaraan masih dipakai 1 karyawan. Nonaktifkan saja."
 
 ### Mengekspor daftar
 
@@ -3757,7 +4019,7 @@ Berkas bernama `vehicles-export-<tanggal>-<jam>.csv` atau `.pdf` dan berisi kolo
 
 ### Kesalahan umum
 
-- Pesan "nomor polisi sudah digunakan." di bawah **Nomor polisi**: nomor itu sudah dipakai kendaraan lain, termasuk kendaraan yang sudah dihapus. Nomor yang sudah dihapus tetap dianggap terpakai, jadi untuk kendaraan yang berhenti dipakai matikan saklar **Aktif** lewat **Ubah**, jangan hapus.
+- Pesan "nomor polisi sudah digunakan." di bawah **Nomor polisi**: nomor itu sudah dipakai kendaraan lain, termasuk kendaraan yang nonaktif atau sudah dihapus (**Dihapus**). Nomor tetap terpesan, jadi untuk kendaraan yang berhenti dipakai pilih **Nonaktifkan**, bukan hapus, atau **Pulihkan** kendaraan lama dari filter **Status** **Dihapus**.
 - Penyimpanan gagal dengan toast "Data gagal disimpan. Periksa input.": baca pesan merah di bawah isian. **Nomor polisi** menulis "nomor polisi wajib diisi." bila kosong, dan **Jenis**, **Merek**, **Model** menolak teks yang melewati batas panjangnya.
 - Tombol **Buat Kendaraan**, **Ubah** atau **Hapus** tidak tampil, atau server menolaknya: peran Anda belum memegang `vehicle.manage`. Minta operator platform menambahkannya ke peran (bagian 8.6), atau minta admin memberi Anda peran yang memegangnya (bagian 8.7).
 
@@ -3988,7 +4250,7 @@ Peran yang dapat memakai: admin. Izin: `system.setting` membuka menu dan mengizi
    - Kolom: **Nama**, **Kode**, **Berlaku untuk**, **Wajib**, **Masa berlaku**, **Status** dan **Aksi**. **Nama**, **Kode** dan **Berlaku untuk** bisa diurutkan.
    - **Wajib** berisi "Ya" atau "Tidak". **Masa berlaku** berisi jumlah hari diikuti kata "hari" (misalnya "30 hari"), atau tanda "-". **Berlaku untuk** kosong tampil sebagai "-". **Status** berisi lencana **Aktif** atau **Nonaktif**.
    - Daftar menampilkan 10 baris per halaman. Pemilih "Baris per halaman" menawarkan 10, 25 dan 50, dan tombol **Sebelumnya** dan **Berikutnya** dengan keterangan "Halaman n dari m" ada di bawah tabel.
-   - Tombol **Buat Jenis Dokumen**, **Ubah** dan menu **Aksi lainnya** dengan **Hapus** tampil untuk semua orang yang bisa membuka halaman ini.
+   - Tombol **Buat Jenis Dokumen**, **Ubah** dan menu **Aksi lainnya** (**Nonaktifkan** atau **Aktifkan**, dan **Hapus permanen** bila jenis belum dipakai) tampil untuk semua orang yang bisa membuka halaman ini. Filter **Status** punya **Aktif**, **Nonaktif**, **Dihapus**, dan **Semua, termasuk dihapus**.
    - Bila tidak ada baris, layar menampilkan "Belum ada jenis dokumen" dengan tombol **Buat Jenis Dokumen**, atau "Tidak ada jenis dokumen yang cocok" dengan tombol **Reset filter** saat pencarian aktif.
 
    ![Daftar Dokumen yang masih kosong pada perusahaan demo, dengan pesan Belum ada jenis dokumen, tombol Ekspor dan Buat Jenis Dokumen](images/web/documents.png)
@@ -4011,12 +4273,13 @@ Peran yang dapat memakai: admin. Izin: `system.setting` membuka menu dan mengizi
 2. Ubah **Nama**, **Berlaku untuk**, **Masa berlaku (hari)**, **Wajib** atau **Aktif**. Isian **Kode** tampil abu-abu dan hanya bisa dibaca, dengan keterangan "Kode tidak bisa diubah setelah jenis dokumen dibuat."
 3. Klik **Simpan**. Muncul toast "Jenis dokumen diperbarui."
 
-### Menghapus jenis dokumen
+### Menonaktifkan, menghapus permanen, dan memulihkan jenis dokumen
 
-1. Klik menu **Aksi lainnya** pada baris jenis dokumen, lalu pilih **Hapus**.
-2. Konfirmasi di dialog "Hapus" diikuti nama dan tanda tanya (keterangan "Jenis dokumen" diikuti nama dalam tanda kutip, "akan dihapus dari daftar."). Klik **Hapus**. Muncul toast "Jenis dokumen dihapus."
+1. Klik menu **Aksi lainnya** pada baris jenis dokumen. Isinya **Nonaktifkan** (atau **Aktifkan**) dan **Hapus permanen**. Dialog **Nonaktifkan** menulis berapa dokumen yang memakai jenis itu, misalnya "dipakai 3 dokumen". Toast "Jenis dokumen dinonaktifkan." muncul.
+2. **Hapus permanen** hanya ada bila belum ada dokumen yang memakai jenis itu. Dialog "Hapus permanen" diikuti nama menulis "Jenis dokumen "&lt;nama&gt;" belum pernah dipakai data lain. Penghapusan permanen tidak bisa dibatalkan." Muncul toast "Jenis dokumen dihapus permanen."
+3. Filter **Status** punya **Semua status**, **Aktif**, **Nonaktif**, **Dihapus**, dan **Semua, termasuk dihapus**. Baris yang dihapus punya **Pulihkan**.
 
-Kode jenis yang sudah dihapus tetap dianggap terpakai. Untuk jenis yang tidak dipakai lagi, matikan saklar **Aktif** lewat **Ubah**.
+Kode jenis yang nonaktif atau sudah dihapus (**Dihapus**) tetap dianggap terpakai. Untuk jenis yang tidak dipakai lagi, pilih **Nonaktifkan**.
 
 ### Berkas dokumen pelanggan
 
@@ -4041,6 +4304,126 @@ Berkas `document-types-export-<tanggal>-<jam>.csv` (atau `.pdf`, berjudul "Jenis
 - Penyimpanan gagal dengan toast "Data gagal disimpan. Periksa input.": baca pesan merah di bawah isian. Periksa **Masa berlaku (hari)** (bilangan bulat 1 atau lebih) dan panjang **Berlaku untuk** (maksimal 100 karakter).
 - Anda mencari tombol untuk mengunggah berkas: halaman ini tidak punya tombol itu. Halaman ini hanya mengelola jenisnya.
 
+## 8.9 Integrasi (Pengaturan → Integrasi)
+
+Menu **Integrasi** menyimpan akun layanan milik perusahaan yang sedang aktif: Midtrans untuk pembayaran tagihan online, WhatsApp untuk pesan otomatis, Email (SMTP) untuk email ke pelanggan dan staf, dan RADIUS untuk akun jaringan pelanggan. Setiap perusahaan memakai akunnya sendiri, jadi pembayaran, pesan, email, dan akun jaringan satu ISP tidak lewat akun ISP lain. Layar lain menyebutnya Pengaturan → Integrasi, misalnya tautan di kartu **WhatsApp** pada **Pengaturan Perusahaan**.
+
+Peran yang dapat memakai: admin. Izin: `company.integrations.manage`. Manajer dan staf tidak memegangnya, jadi item **Integrasi** tidak tampil di sidebar mereka dan alamat layarnya ditolak. Pengubahan berlaku untuk perusahaan yang sedang aktif (bagian 1.6). Anak perusahaan mengisi akunnya sendiri: tidak ada pewarisan dari perusahaan induk.
+
+### Membuka dan membaca halaman
+
+1. Di sidebar, buka grup **Administrasi**, lalu klik **Integrasi**. Halaman memuat empat kartu berurutan: **Midtrans**, **WhatsApp**, **Email**, dan **RADIUS**, lalu kartu **Notifikasi aplikasi (Firebase)** yang hanya dibaca.
+
+   ![Halaman Integrasi: banner autentikasi dua langkah dan kartu Midtrans dengan lencana status, saklar Aktif, Server key, Mode, URL notifikasi, tombol Simpan dan Uji koneksi](images/web/company-integrations.png)
+
+2. Baca baris status di bawah judul tiap kartu. Lencananya:
+   - **Tidak diisi**: kartu belum punya data, atau rahasia yang tersimpan tidak bisa dibaca lagi (lihat Kesalahan umum). Teks di sebelahnya: "Belum dikonfigurasi".
+   - **Terisi**: data tersimpan tetapi belum diuji sejak terakhir diubah. Teks: "Belum pernah diuji".
+   - **Terverifikasi**: uji koneksi terakhir berhasil. Teks: "Terakhir diuji" disusul tanggal dan jam.
+   - **Galat**: uji koneksi terakhir gagal. Kotak merah di dalam kartu menulis alasannya.
+3. Selama Midtrans, WhatsApp, atau RADIUS belum diisi dan diaktifkan untuk perusahaan ini, layanan itu mati untuk perusahaan ini saja: aplikasi pelanggan tidak menawarkan bayar online, pesan WhatsApp tercatat dilewati, dan akun jaringan tidak ditulis ke RADIUS. Tidak ada cadangan dari akun perusahaan lain. Hanya Email yang punya cadangan, yaitu pengirim platform (lihat bagian Email di bawah).
+
+### Menyimpan sebuah kartu
+
+Setiap kartu punya saklar **Aktif**, isian, tombol **Simpan**, dan tombol **Uji koneksi**. Rahasia (server key, access token, app secret, verify token, kata sandi) hanya bisa diganti, tidak bisa dibaca lagi.
+
+1. Isi atau ubah isian. Kotak rahasia menampilkan keadaannya di dalam isian: "Belum diisi", "tersimpan", atau "tersimpan (••••1234)" yang menunjukkan empat karakter terakhir rahasia yang panjang. Teks bantuan "Kosongkan bila tidak diganti." berarti kotak kosong mempertahankan rahasia yang tersimpan. Rahasia yang Anda ketik menggantikan yang lama.
+2. Klik **Simpan**. Dialog **Konfirmasi dengan kode autentikasi** terbuka. Isi **Kode autentikasi** dengan kode 6 digit dari aplikasi autentikator, atau satu kode pemulihan, lalu klik **Simpan** di dialog. Tombol **Batal** menutup dialog tanpa menyimpan.
+3. Toast hijau "Integrasi Midtrans disimpan." muncul (nama kartunya berganti sesuai kartu). Kotak rahasia dikosongkan lagi.
+4. Klik **Uji koneksi** untuk memeriksa data yang baru disimpan. Lencana pindah dari **Terisi** ke **Terverifikasi** atau **Galat**.
+
+Aturan penyimpanan:
+
+- Autentikasi dua langkah di akun Anda harus menyala (bagian 1.4). Bila belum, banner kuning "Aktifkan autentikasi dua langkah di Profil untuk menyimpan perubahan." tampil dengan tombol **Buka Profil**, dan **Simpan** tidak bisa diklik.
+- Setiap penyimpanan meminta kode, termasuk saat Anda hanya mematikan saklar **Aktif**. Satu kode hanya berlaku sekali dan berganti setiap 30 detik, jadi dua penyimpanan berurutan dalam satu jendela 30 detik butuh kode kedua. Pesan "Kode autentikasi salah atau sudah dipakai." berarti kodenya sudah terpakai atau salah. Kesalahan isian ditolak lebih dulu dan tidak menghabiskan kode.
+- Mengubah isian atau rahasia menghapus status **Terverifikasi**: kartu kembali **Terisi** sampai Anda menguji lagi. Menyimpan tanpa mengubah apa pun tidak menghapusnya.
+- Setiap penyimpanan tercatat di audit dengan nama isian yang berubah, tidak pernah dengan nilainya.
+- Kartu yang **Aktif** harus lengkap. Rahasia wajib yang kosong ditolak dengan "Wajib diisi untuk mengaktifkan integrasi ini." Kartu yang tidak aktif boleh tersimpan setengah terisi.
+
+### Midtrans
+
+Pembayaran tagihan online masuk ke akun Midtrans perusahaan ini.
+
+- **Server key**: rahasia. Harus berawalan `Mid-server-` (produksi) atau `SB-Mid-server-` (sandbox). Wajib saat **Aktif**.
+- **Mode**: **Sandbox** (isian awal) atau **Produksi**. Mode harus cocok dengan key. Key sandbox dengan **Produksi** ditolak dengan "Server key sandbox (SB-Mid-server-) tidak bisa dipakai di mode produksi.", dan key produksi dengan **Sandbox** ditolak dengan "Server key produksi (Mid-server-) tidak bisa dipakai di mode sandbox."
+- **URL notifikasi**: hanya dibaca, dengan tombol salin. Bentuknya `<alamat aplikasi>/webhooks/midtrans/<kode acak perusahaan>`. Inbils mengirim URL ini ke Midtrans pada setiap pembayaran bila alamat aplikasi memakai https, jadi dashboard Midtrans tidak perlu diubah. Isi **Payment Notification URL** di dashboard Midtrans dengan URL ini bila Anda ingin dashboard sama dengan yang dikirim aplikasi. Setiap perusahaan punya URL sendiri, dan Midtrans hanya diterima bila ditandatangani dengan server key perusahaan itu. URL lama `<alamat aplikasi>/webhooks/midtrans` masih bekerja untuk pembayaran yang sudah berjalan selama masa peralihan.
+- **Uji koneksi** menanyakan ke Midtrans status sebuah pesanan contoh. Midtrans yang menjawab "tidak ditemukan" berarti key diterima. Pesan galat yang mungkin: "Server key ditolak Midtrans. Periksa key dan mode: sandbox memakai awalan SB-Mid-server-, produksi Mid-server-." dan "Midtrans tidak dapat dihubungi dalam 5 detik."
+- Pada host produksi, key sandbox tidak menerima pembayaran kecuali pengelola server menyetujuinya secara khusus saat mengimpor dari `.env`. Alasannya: pembayaran uji akan tercatat sebagai pembayaran sungguhan.
+
+### WhatsApp
+
+Notifikasi WhatsApp dikirim dari nomor milik perusahaan ini.
+
+- **ID nomor (phone_number_id)**: 5 sampai 30 digit dari Meta. Wajib saat **Aktif**.
+- **Access token**, **App secret**, dan **Verify token webhook**: rahasia, ketiganya wajib saat **Aktif**. **Verify token webhook** minimal 16 karakter.
+- **URL webhook**: hanya dibaca, dengan tombol salin. Satu alamat yang sama (`<alamat aplikasi>/webhooks/whatsapp`) berlaku untuk semua perusahaan. Tempel di Meta App → WhatsApp → Configuration bersama verify token perusahaan ini. Inbils mengarahkan setiap panggilan ke perusahaan pemilik **ID nomor** itu dan memeriksa tanda tangan dengan **App secret** perusahaan tersebut. Beberapa perusahaan dalam satu grup boleh memakai nomor yang sama, dan tiap perusahaan tetap memakai app secret dan verify token sendiri.
+- Balasan `STOP` atau `BERHENTI` dari pelanggan hanya mencabut persetujuan pelanggan di perusahaan pemilik nomor itu (bagian 4.1). Perusahaan lain dengan nomor telepon pelanggan yang sama tidak terpengaruh.
+- **Uji koneksi** mengambil profil nomor dari Meta. Pesan galat yang mungkin: "Access token ditolak Meta (kedaluwarsa atau dicabut).", "phone_number_id tidak ditemukan atau bukan milik token ini.", dan "Token tidak punya izin whatsapp_business_messaging untuk nomor ini." Uji koneksi tidak bisa memeriksa **App secret**. App secret yang salah baru terlihat sebagai panggilan webhook yang ditolak (kode 403) di log server, jadi minta pengelola server memeriksa log itu bila status pesan tidak pernah berubah.
+- Aturan lain tidak berpindah ke sini: saklar, jenis pesan, jam tenang, dan batas bulanan tetap di **Pengaturan Perusahaan** (bagian 8.1).
+
+### Email
+
+Email ke pelanggan dan staf dikirim dari server SMTP perusahaan ini.
+
+- **Host SMTP** dan **Alamat pengirim**: wajib saat **Aktif**. **Port** (1 sampai 65535, isian awal 587), **Enkripsi** (**STARTTLS** atau **TLS**), **Nama pengguna**, **Kata sandi**, dan **Nama pengirim** opsional.
+- Selama kartu nonaktif, atau belum pernah diisi, email dikirim dari pengirim platform. Kartu menulis alamatnya: "Selama nonaktif, email dikirim dari pengirim platform …". Email tidak pernah gagal terkirim hanya karena kartu kosong.
+- Email yang berisi tautan kredensial (atur ulang kata sandi, verifikasi email, undangan administrator perusahaan, tautan akses pelanggan baru) selalu keluar lewat pengirim platform, bukan lewat SMTP perusahaan ini. Satu akun bisa terdaftar di beberapa perusahaan, dan operator SMTP satu perusahaan tidak boleh membaca tautan yang membuka akun di perusahaan lain.
+- **Uji koneksi** mengirim email uji ke alamat email akun Anda, dengan subjek "Email uji Inbils". Periksa kotak masuk Anda dan folder spam. Pesan galat yang mungkin: "Login SMTP ditolak. Periksa nama pengguna dan kata sandi.", "Gagal membuka TLS ke server SMTP. Periksa enkripsi dan port.", dan "Server SMTP menolak alamat pengirim …".
+
+### RADIUS
+
+Akun jaringan pelanggan ditulis ke database FreeRADIUS perusahaan ini. Setiap ISP memakai database FreeRADIUS sendiri.
+
+- **Host**, **Database** (huruf, angka, dan garis bawah), dan **Nama pengguna**: wajib saat **Aktif**. **Port** (isian awal 3306) dan **Kata sandi** opsional.
+- Selama kartu nonaktif, tidak ada yang dibaca dari atau ditulis ke database RADIUS, dan tidak ada permintaan putus sesi yang dikirim. Akun jaringan tetap **Menunggu** dengan alasannya (bagian 4.1, **Mengelola akun jaringan**), dan layar **Router NAS** dan **Akses jaringan** menampilkan peringatan "RADIUS belum dikonfigurasi untuk perusahaan ini."
+- **Uji koneksi** membuka koneksi ke database, menjalankan pemeriksaan sederhana, lalu memastikan keenam tabel FreeRADIUS ada: `radcheck`, `radreply`, `radusergroup`, `radgroupreply`, `nas`, dan `radacct`. Pesan galat yang mungkin: "Login database RADIUS ditolak. Periksa nama pengguna dan kata sandi.", "Database … tidak ada di server RADIUS.", dan "Tabel FreeRADIUS tidak lengkap: …".
+- Rahasia bersama router (RADIUS secret) tidak diisi di sini. Itu tetap di layar **Router NAS** (bagian 5.3).
+
+### Pembatasan alamat host
+
+**Host SMTP** dan **Host** RADIUS menolak alamat yang menuju ke server Inbils sendiri atau layanan metadata cloud. Pesan "Host tidak diizinkan: alamat lokal, alamat metadata, atau nama host yang tidak valid." muncul untuk alamat loopback (`127.x`, `localhost`), alamat tautan lokal (`169.254.x`, `fe80::`), alamat tidak ditentukan, dan multicast. Alamat jaringan lokal ISP seperti `10.x`, `172.16.x`, dan `192.168.x` diizinkan karena di situlah server RADIUS dan SMTP biasanya berada. Uji koneksi memeriksa nama host sekali lagi setelah diterjemahkan ke alamat, dan menolak nama yang kini menuju alamat terlarang.
+
+Pemeriksaan ini diulang setiap kali Inbils membuka koneksi ke server itu, tidak hanya saat **Simpan**. Di server produksi, host yang sama dengan database, Redis, atau SMTP milik Inbils sendiri (atau nama yang menuju ke sana) juga ditolak. Host yang ditolak membuat kartu bersikap seolah belum diisi: email keluar lewat pengirim platform dan RADIUS tidak dipakai. Kotak merah di kartu menulis "Host … tidak diizinkan (alamat lokal atau metadata)." untuk semua sebab itu, supaya layar tidak menyebut alamat mana yang milik platform. Bila RADIUS Anda memang berada di server yang namanya sama dengan database Inbils, minta pengelola server memberinya nama atau alamat lain.
+
+### Uji koneksi
+
+1. Klik **Uji koneksi** pada kartu. Tombol aktif bila kartu bukan **Tidak diisi**. Bila belum ada yang tersimpan, server menjawab "Simpan pengaturan Midtrans dulu." (nama layanannya sesuai kartu).
+2. Tombol berubah menjadi **Menguji…** dan baris status menampilkan spinner. Uji koneksi berjalan di antrean latar, bukan di halaman, jadi halaman tidak menunggu penyedia layanan. Halaman memeriksa hasilnya setiap 2 detik.
+3. Setelah hasil masuk, lencana berubah menjadi **Terverifikasi** atau **Galat**, dan baris status menulis waktu uji terakhir.
+4. Uji koneksi selalu memakai data yang sudah tersimpan, bukan yang sedang Anda ketik. Simpan dulu, lalu uji.
+5. Satu kartu hanya menjalankan satu uji pada satu waktu: klik kedua saat uji berjalan memunculkan toast "Uji koneksi Midtrans sedang berjalan." Batas klik adalah 5 per menit per pengguna. Hasil tercatat di audit dengan pesannya saja.
+6. Bila setelah 30 detik hasil belum ada, banner biru "Uji koneksi masih berjalan; muat ulang halaman nanti." muncul dan halaman berhenti memeriksa. Muat ulang halaman nanti. Uji yang terhenti oleh antrean menulis "Uji koneksi terhenti sebelum selesai." dan lencana menjadi **Galat**.
+
+### Notifikasi aplikasi (Firebase)
+
+Kartu terakhir menunjukkan keadaan pengiriman notifikasi ke aplikasi teknisi dan aplikasi pelanggan. Satu proyek Firebase dimiliki platform dan dipakai semua perusahaan, jadi kartu ini hanya dibaca dan tidak punya isian.
+
+![Kartu Notifikasi aplikasi (Firebase) dengan baris Kredensial server dan Pengiriman terakhir berhasil](images/web/company-integrations-firebase.png)
+
+- **Kredensial server**: **Terpasang** atau **Belum terpasang**. **Terpasang** berarti jalur berkas kredensial sudah diisi di server, bukan bukti bahwa Firebase menerima pesan. Pengelola server yang memasangnya, bukan layar ini (lihat `docs/operations/push-notifications.md`).
+- **Pengiriman terakhir berhasil**: tanggal dan jam notifikasi terakhir yang diterima Firebase untuk platform ini, atau **Belum ada**. Hanya baris ini yang membuktikan Firebase berfungsi.
+- Uji dari ponsel: di aplikasi, buka **Akun** → **Notifikasi uji** dan ketuk **Kirim notifikasi uji** (panduan teknisi bab 6 dan panduan pelanggan bab 7). Hasilnya menunjukkan apakah ponsel itu menerima notifikasi, dan saran perbaikan bila tidak.
+
+### Setelah pembaruan: impor dari .env
+
+Sebelum fitur ini, Midtrans, WhatsApp, dan RADIUS memakai satu akun untuk seluruh instalasi dari file `.env` di server. Sekarang `.env` hanya menjadi sumber impor. Setelah pembaruan terpasang, pengelola server menjalankan sekali per perusahaan:
+
+```bash
+php artisan inbils:integrations:import-env --company=<kode perusahaan>
+```
+
+Perintah menyalin nilai `MIDTRANS_*`, `WHATSAPP_*`, dan `RADIUS_*` ke kartu perusahaan itu, mengaktifkannya, dan mencetak nilai yang disamarkan. Email tidak diimpor: pengirim `.env` tetap menjadi pengirim platform. Sebelum impor dijalankan, atau sebelum admin mengisi kartunya, Midtrans dan WhatsApp mati untuk perusahaan itu. Setelah impor, klik **Uji koneksi** pada tiap kartu untuk memastikan hasilnya.
+
+### Kesalahan umum
+
+- **Simpan** tidak bisa diklik dan banner kuning meminta autentikasi dua langkah: nyalakan 2FA di **Profil** (bagian 1.4).
+- "Kode autentikasi salah atau sudah dipakai.": tunggu kode berikutnya di aplikasi autentikator, atau pakai satu kode pemulihan. Jam ponsel yang menyimpang dari waktu sebenarnya juga menolak kode.
+- Kartu berlabel **Tidak diisi** padahal pernah disimpan, dan kotak rahasia berisi "Belum diisi": server kehilangan kunci enkripsi aplikasi (`APP_KEY`) atau kuncinya diganti tanpa `APP_PREVIOUS_KEYS`, sehingga rahasia yang tersimpan tidak terbaca. Isi ulang semua rahasia kartu itu lalu **Simpan**. Penyimpanan itu menggantikan data lama. Pengelola server menyimpan `APP_KEY` dengan cadangan terpisah, dan saat memutarnya memasang kunci lama di `APP_PREVIOUS_KEYS` supaya rahasia tetap terbaca.
+- Pesan merah di bawah isian saat **Simpan**: baca teksnya. Yang umum adalah "Wajib diisi untuk mengaktifkan integrasi ini.", aturan key dan mode Midtrans di atas, dan "Host tidak diizinkan: ...".
+- Status **Galat** sesudah uji: baca kotak merah di kartu. Perbaiki isian, **Simpan**, lalu **Uji koneksi** lagi.
+- WhatsApp **Terverifikasi** tetapi status pesan tidak berubah dari **Antrean** atau **Terkirim**: uji koneksi tidak memeriksa **App secret** dan **URL webhook**. Pastikan keduanya sama dengan yang ada di Meta App, dan minta pengelola server memeriksa log webhook.
+- Halaman **Integrasi** menolak dengan keterangan "Konteks perusahaan diperlukan.": tidak ada perusahaan aktif. Pilih perusahaan (bagian 1.6).
+
 # 9. Alur kerja
 
 ## 9.1 Pelanggan baru sampai pembayaran
@@ -4064,7 +4447,7 @@ Siapkan dulu:
 3. Dalam satu transaksi, Inbils membuat pelanggan, akun masuk berperan `customer`, alamat, kontak, langganan berstatus **Menunggu**, dan SPK **Instalasi** berstatus **Menunggu penugasan**. SPK itu berjudul "Pemasangan &lt;kode langganan&gt; - &lt;nama pelanggan&gt;" dan memakai **POP pelayan** sebagai **Lokasi**. Status pelanggan masih **Prospek**. Inbils lalu membuka detail pelanggan dan menampilkan toast "Pelanggan, langganan, dan SPK pemasangan dibuat. Link akses dikirim ke &lt;email&gt;."
 4. Bila **Akun aktif** menyala, pelanggan menerima email **Akun pelanggan Anda sudah dibuat** dengan tombol **Atur kata sandi**, berlaku 60 menit. Setelah mengatur kata sandi, pelanggan masuk ke aplikasi pelanggan. Toast pendaftaran tidak memeriksa **Akun aktif**: bila akunnya nonaktif, email tidak terkirim. Bila email hilang atau tautannya kedaluwarsa, buka detail pelanggan dan klik **Kirim ulang link akses**.
 5. Admin atau manajer membuka **Penugasan** (bagian 3.1), mencari SPK **Menunggu penugasan** itu, lalu klik **Tugaskan**. Pilih teknisi di **Pilih teknisi lapangan** dan klik **Simpan penugasan**. Status SPK menjadi **Ditugaskan**. Teknisi menerima WhatsApp bila WhatsApp perusahaan aktif. Pelanggan menerima pesan jadwal hanya bila SPK punya tanggal jadwal, dan SPK dari pendaftaran dibuat tanpa tanggal itu.
-6. Bila SPK harus memasang perangkat atau memakai barang, admin atau manajer membuka SPK itu (bagian 3.3) dan klik **Tambah item**. Pilih **Barang** bertipe **Aset** lalu **Aset jaringan** yang **Tersedia**, atau pilih barang **Habis pakai** dan isi **Jumlah dicadangkan** atau **Jumlah terpakai** sebagai rencana bahan. Bila bahan diambil dari gudang lewat permintaan barang, ikuti alur 9.3.
+6. Bila SPK harus memasang perangkat atau memakai barang, admin atau manajer membuka SPK itu (bagian 3.3) dan klik **Tambah item**. Pilih **Barang** bertipe **Aset** lalu **Aset jaringan** yang **Tersedia**, atau pilih barang **Habis pakai** dan isi **Jumlah terpakai** bila jumlahnya sudah diketahui. Item SPK tidak mencadangkan stok. Bila bahan diambil dari gudang lewat permintaan barang, ikuti alur 9.3.
 7. Teknisi mengerjakan SPK di aplikasi teknisi: memulai pekerjaan (status **Dikerjakan**), mencatat bahan yang dipakai, mengunggah foto bukti, lalu mengajukan hasil (status **Menunggu review**). Pengajuan ditolak dengan pesan "Bukti pekerjaan wajib diunggah sebelum SPK diajukan." bila belum ada bukti. Pengajuan juga ditolak bila ada permintaan barang **Diserahkan** yang sisa materialnya belum dilaporkan (bagian 6.8).
 8. Manajer atau admin yang bukan pembuat SPK dan bukan teknisinya membuka **Persetujuan** (bagian 3.2), klik **Tinjau**, lalu **Setujui**. Persetujuan butuh minimal satu bukti dan tidak bisa dibatalkan.
 9. Saat disetujui, SPK menjadi **Selesai** dan Inbils menjalankan langkah ini dalam satu transaksi:
@@ -4099,7 +4482,7 @@ Gangguan yang selesai dari jarak jauh melewati langkah 5 sampai 9 dan tidak butu
 ### Langkah
 
 1. Catat tiket. Buka **Tiket** (bagian 3.4), klik **Buat tiket**, isi **Judul**, **Sumber** (**Pelanggan**, **NOC**, atau **Internal**), **Kategori**, **Prioritas**, dan **Pelanggan** untuk tiket pelanggan, lalu klik **Simpan**. Isi **Langganan**, **Aset jaringan**, dan **Lokasi** bila diketahui. Isian **Pelanggan**, **Langganan**, dan **Aset jaringan** adalah kotak cari: ketik minimal 2 karakter, lalu pilih dari paling banyak 20 hasil. Pelanggan juga dapat membuat tiket sendiri dari aplikasi pelanggan, dan tiketnya tampil di daftar yang sama. Pelanggan menerima WhatsApp bahwa tiketnya tercatat bila WhatsApp perusahaan aktif dan pelanggan sudah setuju. Syarat yang sama berlaku untuk setiap pesan WhatsApp ke pelanggan di alur ini.
-2. Tiket baru berstatus **Terbuka**. **Target respons** dan **Target penyelesaian** dihitung dari waktu pembuatan. Sumbernya tingkat SLA paket langganan tiket itu, atau **Kategori Tiket** bila tidak ada langganan atau tingkatnya nonaktif, dan halaman tiket menyebut sumbernya di samping kedua target. Prioritas **Mendesak** memotong keduanya jadi separuh, dibulatkan ke atas. Tiket yang lewat **Target penyelesaian** tampil di kartu **SLA terlampaui** di Dasbor (bagian 2.1).
+2. Tiket baru berstatus **Terbuka**. **Target respons** dan **Target penyelesaian** dihitung dari waktu pembuatan. Sumbernya tingkat SLA versi paket langganan tiket itu (tetap berlaku walau tingkatnya sudah dinonaktifkan), atau **Kategori Tiket** bila tiket tidak punya langganan, dan halaman tiket menyebut sumbernya di samping kedua target. Prioritas **Mendesak** memotong keduanya jadi separuh, dibulatkan ke atas. Tiket yang lewat **Target penyelesaian** tampil di kartu **SLA terlampaui** di Dasbor (bagian 2.1).
 3. Tugaskan petugas. Admin atau manajer membuka **Penugasan** (bagian 3.1), mencari tiket itu, klik **Tugaskan**, memilih petugas di **Pilih petugas tiket**, lalu klik **Simpan penugasan**. Dari halaman tiket berstatus **Terbuka**, tombol **Tugaskan** membuka dialog dengan pilihan **Petugas** (ketik untuk mencari, lalu pilih). Status menjadi **Ditugaskan**. Petugas menerima email dan notifikasi di lonceng. Pada penugasan pertama, pelanggan menerima WhatsApp bahwa tiketnya ditangani.
 4. Petugas memulai tiket. Teknisi melakukannya di aplikasi teknisi. Pengguna web yang memegang `ticket.start` memakai **Mulai** di halaman tiket atau di **Pekerjaan Saya** (bagian 3.6). Status menjadi **Dikerjakan** dan **Respons pertama** terisi.
 5. Bila gangguan butuh kunjungan, admin atau manajer dengan izin `ticket.spawn_spk` membuka tiket berstatus **Ditugaskan** atau **Dikerjakan** yang belum punya catatan penyelesaian, klik **Buat SPK** di kartu **Tindakan**, lalu konfirmasi dengan **Buat SPK** di dialog. Inbils membuat SPK **Perawatan** berstatus **Menunggu penugasan** dengan judul "SPK dari tiket &lt;kode tiket&gt;", lalu langsung membuka halaman SPK itu dengan toast "SPK berhasil dibuat dari tiket." **Pelanggan**, **Langganan**, **Lokasi**, **Prioritas**, dan deskripsi disalin dari tiket. Aset jaringan tiket tidak ikut disalin ke SPK.
@@ -4209,6 +4592,7 @@ Kolom izin menyebut izin yang membuka menu: satu saja sudah cukup. Menu hanya me
 | Keuangan & Laporan | KPI Penjualan | `report.sales.view` | ya | ya | tidak |
 | Keuangan & Laporan | Metrik Konsolidasi | `report.consolidated.view`, perusahaan aktif berupa Head | bila Head | tidak | tidak |
 | Administrasi | Perusahaan | `company.manage` | ya | tidak | tidak |
+| Administrasi | Integrasi | `company.integrations.manage` | ya | tidak | tidak |
 | Administrasi | Organisasi | `organization.view` | ya | tidak | tidak |
 | Administrasi | Karyawan | `employee.view` | ya | tidak | tidak |
 | Administrasi | Kendaraan | `vehicle.view` | ya | tidak | tidak |
@@ -4338,6 +4722,7 @@ Layar web **Stok** hanya menyediakan **Terima Barang**, **Ajukan Penyesuaian**, 
 | Mengatur ulang 2FA pengguna lain | `users.two_factor.reset` | ya | tidak | tidak |
 | Mengelola peran dan melihat Hak Akses | `roles.manage` | ya | tidak | tidak |
 | Mengelola profil dan pengaturan perusahaan | `company.manage` | ya | tidak | tidak |
+| Mengelola akun Midtrans, WhatsApp, Email, dan RADIUS perusahaan (Integrasi) | `company.integrations.manage` | ya | tidak | tidak |
 | Berpindah perusahaan (juga butuh keanggotaan di perusahaan tujuan) | `company.switch` | ya | ya | tidak |
 | Mengelola organisasi | `organization.manage` | ya | tidak | tidak |
 | Mengelola karyawan | `employee.manage` | ya | tidak | tidak |
@@ -4402,6 +4787,8 @@ Selain itu, peran non-admin tidak boleh memegang pasangan izin yang berbenturan.
 | Dicadangkan | Jumlah stok yang dicadangkan oleh permintaan barang yang sudah disetujui (bagian 6.5). |
 | Diperoleh oleh | Karyawan yang dikreditkan memperoleh pelanggan. Angkanya dibaca KPI Penjualan (bagian 4.1 dan 7.10). |
 | Drill-down | Membuka baris data sumber di balik satu angka laporan lewat tautan **Lihat data** (bagian 7.3). |
+| Ganti paket | Tombol di kartu **Paket** pada detail langganan yang memindahkan langganan ke versi terbaru sebuah paket (bagian 4.1). |
+| Hapus permanen | Menghapus data master yang belum pernah dipakai data lain, dan tidak bisa dibatalkan. Data yang sudah dipakai hanya bisa dinonaktifkan (bagian 1.5). |
 | Head | Perusahaan induk: perusahaan tanpa induk yang punya minimal satu anak perusahaan aktif. Di **Metrik Konsolidasi** ia ditandai badge **Induk** (bagian 1.6). |
 | Isolir | Pembatasan akses jaringan pelanggan yang menunggak. Berjalan otomatis atau lewat tombol **Isolir** di **Tunggakan**, dan langganan berstatus **Ditangguhkan** (bagian 5.3 dan 7.2). |
 | Izin | Hak untuk satu tindakan, misalnya `spk.approve`. Peran adalah kumpulan izin (bagian 8.6 dan 8.7). |
@@ -4409,10 +4796,12 @@ Selain itu, peran non-admin tidak boleh memegang pasangan izin yang berbenturan.
 | Maker-checker | Pemisahan tugas: orang yang membuat atau mengajukan tidak boleh memutuskan persetujuannya (bagian 10.1). |
 | MRC | Monthly Recurring Charge, harga langganan per bulan. Di paket namanya **Harga bulanan**, dan di langganan **Biaya bulanan** (bagian 4.2). |
 | NAS | Router yang meneruskan otentikasi pelanggan ke RADIUS (bagian 5.3). |
+| Nonaktifkan | Menyembunyikan data master dari pilihan baru tanpa mengubah riwayatnya. Pilihan satu-satunya untuk data yang sudah dipakai; **Hapus permanen** hanya untuk data yang belum pernah dipakai (bagian 1.5). |
 | NPWP | Nomor pokok wajib pajak, diisi di kolom **NPWP** pelanggan (bagian 4.1). |
 | ODN | Register jaringan serat optik: port PON pada OLT, splitter pada ODC dan ODP, dan port drop tiap langganan. OLT, ODC, dan ODP didaftarkan sebagai aset jaringan (bagian 5.5). |
 | Operator platform | Orang di tim Inbils yang memakai panel `/platform`: membuat dan menangguhkan perusahaan, mengelola definisi peran, dan memberi akses dukungan. Bukan pengguna perusahaan (bab 11). |
 | OTC | One-Time Charge, biaya sekali bayar seperti biaya pemasangan. Di paket namanya **Harga pemasangan**, dan di langganan **Biaya pemasangan** (bagian 4.2). |
+| Panel perangkat | Gambar router, switch, OLT, ONU/ONT, ODC, ODP, atau rak seperti wajah aslinya, dengan port berwarna menurut statusnya. Lembar port di dalamnya mencatat label, sambungan antar perangkat, dan pelanggan di port (bagian 5.6). |
 | Periode | Rentang tanggal yang dihitung sebuah laporan (bagian 7.3). |
 | Petugas tiket | Petugas yang ditunjuk menangani tiket (bagian 3.4). |
 | POP pelayan | Lokasi POP yang melayani sebuah langganan (bagian 4.1 dan 5.5). |
@@ -4420,6 +4809,7 @@ Selain itu, peran non-admin tidak boleh memegang pasangan izin yang berbenturan.
 | PPN | Pajak pertambahan nilai pada item tagihan, dengan tarif perusahaan (bagian 7.1). |
 | PPPoE, Hotspot | Dua jenis layanan untuk akun jaringan pelanggan (bagian 4.1). |
 | Prefiks | Blok alamat IP dalam notasi CIDR yang dicatat di Alamat IP (bagian 5.4). |
+| Pulihkan | Mengembalikan data yang dihapus ke daftar dengan statusnya semula, lewat filter **Status** **Dihapus** (bagian 1.5). |
 | RADIUS | Server otentikasi akses jaringan. Inbils mengisinya dengan akun dan grup kecepatan pelanggan (bagian 4.4 dan 5.3). |
 | Respons pertama | Waktu petugas pertama kali memulai tiket (bagian 3.4). |
 | SLA | Service Level Agreement, batas waktu layanan. Tingkat SLA dipilih di paket (bagian 4.5). Target respons dan penyelesaian sebuah tiket diambil dari tingkat SLA paket langganannya, atau dari Kategori Tiket bila tidak ada tingkat aktif (bagian 3.4). |
@@ -4427,6 +4817,7 @@ Selain itu, peran non-admin tidak boleh memegang pasangan izin yang berbenturan.
 | Splitter | Pembagi yang mengubah satu port hulu menjadi beberapa port output, dengan rasio 1:2 sampai 1:64 (bagian 5.5). |
 | Tersedia | Jumlah stok yang bisa dipakai, yaitu **Jumlah** dikurangi **Dicadangkan** (bagian 6.5). |
 | Tunggakan | Menu yang mengelompokkan tagihan belum lunas per pelanggan menurut umur sejak jatuh tempo (bagian 7.2). |
+| Versi paket | Catatan harga, profil, tingkat SLA, dan kategori sebuah paket pada suatu waktu. Langganan tetap di versi yang dijualnya sampai dipindahkan lewat **Ganti paket** (bagian 4.1 dan 4.2). |
 | VLAN | Nomor jaringan virtual yang dicatat di Alamat IP dan ditautkan ke prefiks (bagian 5.4). |
 
 # 11. Panel operator (/platform)
@@ -4483,7 +4874,9 @@ Perusahaan langsung aktif dengan peran, penomoran dan pengaturan dasar. Bila adm
 
 ## 11.4 Halaman perusahaan
 
-Halaman perusahaan berisi **Profil perusahaan**, **Ringkasan** (angka yang sama dengan dasbor), **Status perusahaan**, **Admin perusahaan**, **Anak perusahaan**, **Pengguna**, **Ekspor**, **Audit terbaru**, serta daftar **Job gagal** dan **WhatsApp gagal** (tombol **Lihat 30 hari terakhir** membuka 30 hari penuh).
+Halaman perusahaan berisi **Profil perusahaan**, **Ringkasan** (angka yang sama dengan dasbor), **Status perusahaan**, **Admin perusahaan**, kartu **Integrasi**, **Anak perusahaan**, **Pengguna**, **Ekspor**, **Audit terbaru**, serta daftar **Job gagal** dan **WhatsApp gagal** (tombol **Lihat 30 hari terakhir** membuka 30 hari penuh).
+
+Kartu **Integrasi** mendaftar Midtrans, WhatsApp, Email, dan RADIUS untuk perusahaan itu dan anak perusahaannya, dengan kolom **Perusahaan**, **Layanan**, **Status** (**Tidak diisi**, **Terisi**, **Terverifikasi**, atau **Galat**), **Aktif**, dan **Terakhir diuji** (atau **Belum pernah**). Operator hanya melihat status dan waktu uji, tidak pernah isi akun atau rahasianya, dan tidak bisa mengisinya: setiap admin perusahaan mengisi kartunya sendiri di **Integrasi** (bagian 8.9).
 
 ### Tangguhkan, aktifkan kembali, ajukan hapus
 

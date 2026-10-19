@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -14,7 +15,6 @@ use Inertia\Response as InertiaResponse;
 use Modules\Service\Http\Requests\StoreServicePackageCategoryRequest;
 use Modules\Service\Http\Requests\UpdateServicePackageCategoryRequest;
 use Modules\Service\Http\Resources\ServicePackageCategoryResource;
-use Modules\Service\Models\ServicePackage;
 use Modules\Service\Models\ServicePackageCategory;
 
 class ServicePackageCategoryController extends Controller
@@ -70,7 +70,9 @@ class ServicePackageCategoryController extends Controller
     {
         Gate::authorize('delete', $servicePackageCategory);
 
-        $used = ServicePackage::query()->withTrashed()->where('service_package_category_id', $servicePackageCategory->id)->count();
+        // An old version keeps the category it was sold in, and its foreign key would refuse the delete, so the versions
+        // tell which packages ever used the category. Every package has a version with its current one.
+        $used = DB::table('service_package_versions')->where('service_package_category_id', $servicePackageCategory->id)->distinct()->count('service_package_id');
 
         if ($used > 0) {
             throw ValidationException::withMessages([

@@ -5,15 +5,23 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite/PageHeader';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
 import { DataTableActions } from '@/Components/composite/DataTableActions';
+import { StatusFilter } from '@/Components/composite/StatusFilter';
+import { UsageLine } from '@/Components/composite/UsageLine';
 import { Button, EmptyCell, EnumBadge, ExportMenu, Input, NativeSelect } from '@/Components/ui';
 import { useCan } from '@/hooks/useCan';
 import { useTableQuery } from '@/hooks/useTableQuery';
 import { formatDate } from '@/lib/format';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
-import { NETWORK_ASSET_STATUS, NETWORK_ASSET_TYPE, optionsOf } from '@/lib/statuses';
+import {
+    LIFECYCLE_STATE,
+    NETWORK_ASSET_STATUS,
+    NETWORK_ASSET_TYPE,
+    optionsOf,
+} from '@/lib/statuses';
+import type { LifecycleFields } from '@/types/models';
 import type { NetworkAssetStatus, NetworkAssetType } from '@/types/network-asset';
 
-type AssetRow = {
+type AssetRow = LifecycleFields & {
     id: string;
     code: string;
     name: string;
@@ -34,15 +42,12 @@ type Props = {
         sort_dir?: string;
         per_page?: string | number;
     };
+    can: { update: boolean; delete: boolean };
 };
 
 const typeFilterOptions = [{ value: '', label: 'Semua tipe' }, ...optionsOf(NETWORK_ASSET_TYPE)];
-const statusFilterOptions = [
-    { value: '', label: 'Semua status' },
-    ...optionsOf(NETWORK_ASSET_STATUS),
-];
 
-export default function NetworkAssetsIndex({ assets, filters }: Props) {
+export default function NetworkAssetsIndex({ assets, filters, can: lifecycleCan }: Props) {
     const can = useCan();
     const pagination = toPagination(assets);
     const { params, set, setMany, sortBy, sortDir, onSort, processing } = useTableQuery(
@@ -66,12 +71,19 @@ export default function NetworkAssetsIndex({ assets, filters }: Props) {
                 sortable: true,
                 sortKey: 'code',
                 cell: (row) => (
-                    <Link
-                        href={route('admin.network-assets.show', row.id)}
-                        className="font-medium text-primary-text hover:underline"
-                    >
-                        {row.code}
-                    </Link>
+                    <div className="space-y-0.5">
+                        {row.deleted_at ? (
+                            <span className="font-medium text-muted-foreground">{row.code}</span>
+                        ) : (
+                            <Link
+                                href={route('admin.network-assets.show', row.id)}
+                                className="font-medium text-primary-text hover:underline"
+                            >
+                                {row.code}
+                            </Link>
+                        )}
+                        <UsageLine references={row.references} />
+                    </div>
                 ),
             },
             {
@@ -103,7 +115,12 @@ export default function NetworkAssetsIndex({ assets, filters }: Props) {
                 header: 'Status',
                 sortable: true,
                 sortKey: 'status',
-                cell: (row) => <EnumBadge map={NETWORK_ASSET_STATUS} value={row.status} />,
+                cell: (row) =>
+                    row.deleted_at ? (
+                        <EnumBadge map={LIFECYCLE_STATE} value="dihapus" />
+                    ) : (
+                        <EnumBadge map={NETWORK_ASSET_STATUS} value={row.status} />
+                    ),
             },
             {
                 key: 'location',
@@ -122,11 +139,22 @@ export default function NetworkAssetsIndex({ assets, filters }: Props) {
                 header: 'Aksi',
                 className: 'text-right',
                 cell: (row) => (
-                    <DataTableActions showHref={route('admin.network-assets.show', row.id)} />
+                    <DataTableActions
+                        showHref={
+                            row.deleted_at ? undefined : route('admin.network-assets.show', row.id)
+                        }
+                        lifecycle={{
+                            row,
+                            name: row.name,
+                            noun: 'Aset jaringan',
+                            routeBase: 'admin.network-assets',
+                            can: { update: lifecycleCan.update, delete: lifecycleCan.delete },
+                        }}
+                    />
                 ),
             },
         ],
-        [],
+        [lifecycleCan.update, lifecycleCan.delete],
     );
 
     const createButton = can('network_asset.create') ? (
@@ -174,12 +202,12 @@ export default function NetworkAssetsIndex({ assets, filters }: Props) {
                         onChange={(e) => set('asset_type', e.target.value)}
                         options={typeFilterOptions}
                     />
-                    <NativeSelect
-                        label="Status"
-                        wrapperClassName="md:w-44"
+                    <StatusFilter
+                        id="na-status"
                         value={params.status ?? ''}
-                        onChange={(e) => set('status', e.target.value)}
-                        options={statusFilterOptions}
+                        onChange={(value) => set('status', value)}
+                        statuses={NETWORK_ASSET_STATUS}
+                        wrapperClassName="md:w-52"
                     />
                 </div>
 

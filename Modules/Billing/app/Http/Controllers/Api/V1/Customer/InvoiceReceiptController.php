@@ -10,6 +10,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Modules\Billing\Models\Invoice;
+use Modules\Billing\Support\InvoiceParty;
 use Modules\Billing\Support\Terbilang;
 
 class InvoiceReceiptController extends Controller
@@ -27,13 +28,15 @@ class InvoiceReceiptController extends Controller
         $invoice = Invoice::query()
             ->whereBelongsTo($customer)
             ->where('status', 'paid')
-            ->with(['customer', 'subscription.servicePackage', 'items'])
+            ->with(['subscription', 'items'])
             ->wherePublicId($id)
             ->firstOrFail();
         $company = CompanyService::current();
 
         return Pdf::loadView('pdf.invoice', [
             'invoice' => $invoice,
+            // The customer's tax id never goes to a customer app (SecretKeyWalkTest), so the receipt prints none.
+            'party' => [...InvoiceParty::of($invoice), 'customer_tax_id' => null],
             'company' => $company,
             'bankInfo' => ($company?->settings ?? [])['bank_account_info'] ?? '',
             'terbilang' => Terbilang::make((float) $invoice->total),

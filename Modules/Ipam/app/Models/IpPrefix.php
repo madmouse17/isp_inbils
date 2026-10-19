@@ -72,7 +72,7 @@ class IpPrefix extends Model
     /** @return BelongsTo<Location, $this> */
     public function location(): BelongsTo
     {
-        return $this->belongsTo(Location::class);
+        return $this->belongsTo(Location::class)->withTrashed();
     }
 
     /** @return BelongsTo<Vlan, $this> */

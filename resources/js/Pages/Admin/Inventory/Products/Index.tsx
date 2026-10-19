@@ -6,14 +6,16 @@ import {
     DataTable,
     DataTableActions,
     PageHeader,
+    StatusFilter,
     type DataTableColumn,
 } from '@/Components/composite';
+import { UsageLine } from '@/Components/composite/UsageLine';
 import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { useCompany } from '@/hooks/useCompany';
 import { useServerTable } from '@/hooks/useServerTable';
 import { formatMoney } from '@/lib/format';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
-import { ACTIVE_STATE, optionsOf } from '@/lib/statuses';
+import { LIFECYCLE_STATE, lifecycleStateOf } from '@/lib/statuses';
 import {
     Button,
     Card,
@@ -21,26 +23,26 @@ import {
     EmptyCell,
     EnumBadge,
     Input,
-    NativeSelect,
     SearchSelect,
 } from '@/Components/ui';
+import type { LifecycleFields } from '@/types/models';
 import type { Category, Product } from '@/types/inventory';
 
+type ProductRow = Product & LifecycleFields;
+
 interface IndexProps extends Record<string, unknown> {
-    products: PaginationLike<Product>;
+    products: PaginationLike<ProductRow>;
     categories: { data: Category[] };
     filters: {
         category_id?: string;
-        is_active?: string;
+        status?: string;
         search?: string;
         sort?: string;
         direction?: string;
         per_page?: number;
     };
-    can: { create: boolean; export: boolean };
+    can: { create: boolean; export: boolean; update: boolean; delete: boolean };
 }
-
-const ACTIVE_OPTIONS = [{ value: '', label: 'Semua status' }, ...optionsOf(ACTIVE_STATE)];
 
 export default function Index({ products, categories, filters, can }: IndexProps) {
     const company = useCompany();
@@ -52,7 +54,6 @@ export default function Index({ products, categories, filters, can }: IndexProps
     });
     const [search, setSearch] = useState(filters.search ?? '');
     const [categoryId, setCategoryId] = useState(filters.category_id ?? '');
-    const [isActive, setIsActive] = useState(filters.is_active ?? '');
 
     const categoryChoices = categories.data.map((c) => ({
         value: String(c.id),
@@ -61,17 +62,16 @@ export default function Index({ products, categories, filters, can }: IndexProps
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        table.visit({ search, category_id: categoryId, is_active: isActive });
+        table.visit({ search, category_id: categoryId });
     };
 
     const resetFilters = () => {
         setSearch('');
         setCategoryId('');
-        setIsActive('');
-        table.visit({ search: '', category_id: '', is_active: '' });
+        table.visit({ search: '', category_id: '', status: '' });
     };
 
-    const columns: DataTableColumn<Product>[] = [
+    const columns: DataTableColumn<ProductRow>[] = [
         {
             key: 'sku',
             header: 'SKU',
@@ -83,12 +83,19 @@ export default function Index({ products, categories, filters, can }: IndexProps
             header: 'Nama',
             sortable: true,
             cell: (p) => (
-                <Link
-                    href={route('admin.products.show', p.id)}
-                    className="font-medium text-primary-text hover:underline"
-                >
-                    {p.name}
-                </Link>
+                <div className="space-y-0.5">
+                    {p.deleted_at ? (
+                        <span className="font-medium text-muted-foreground">{p.name}</span>
+                    ) : (
+                        <Link
+                            href={route('admin.products.show', p.id)}
+                            className="font-medium text-primary-text hover:underline"
+                        >
+                            {p.name}
+                        </Link>
+                    )}
+                    <UsageLine references={p.references} />
+                </div>
             ),
         },
         { key: 'category', header: 'Kategori', cell: (p) => p.category?.name ?? <EmptyCell /> },
@@ -109,9 +116,9 @@ export default function Index({ products, categories, filters, can }: IndexProps
                 ),
         },
         {
-            key: 'is_active',
+            key: 'status',
             header: 'Status',
-            cell: (p) => <EnumBadge map={ACTIVE_STATE} value={p.is_active} />,
+            cell: (p) => <EnumBadge map={LIFECYCLE_STATE} value={lifecycleStateOf(p)} />,
         },
         {
             key: 'actions',
@@ -120,9 +127,13 @@ export default function Index({ products, categories, filters, can }: IndexProps
                 <DataTableActions
                     showHref={route('admin.products.show', p.id)}
                     editHref={route('admin.products.edit', p.id)}
-                    deleteHref={route('admin.products.destroy', p.id)}
-                    deleteMessage={`Hapus ${p.name}?`}
-                    deleteDescription={`Barang "${p.name}" akan dihapus dari daftar. Barang yang masih punya stok tidak bisa dihapus.`}
+                    lifecycle={{
+                        row: p,
+                        name: p.name,
+                        noun: 'Barang',
+                        routeBase: 'admin.products',
+                        can: { update: can.update, delete: can.delete },
+                    }}
                 />
             ),
         },
@@ -172,12 +183,11 @@ export default function Index({ products, categories, filters, can }: IndexProps
                                     onChange={setCategoryId}
                                 />
                             </div>
-                            <NativeSelect
-                                label="Status"
-                                value={isActive}
-                                onChange={(e) => setIsActive(e.target.value)}
-                                options={ACTIVE_OPTIONS}
-                                wrapperClassName="sm:w-44"
+                            <StatusFilter
+                                id="product-status"
+                                value={table.params.status ?? ''}
+                                onChange={(value) => table.set('status', value)}
+                                deactivatable
                             />
                             <Button type="submit" variant="secondary">
                                 Filter
@@ -197,7 +207,7 @@ export default function Index({ products, categories, filters, can }: IndexProps
                             emptyDescription="Barang yang dibuat muncul di sini, lengkap dengan kategori dan satuannya."
                             emptyAction={createButton}
                             hasFilters={Boolean(
-                                filters.search || filters.category_id || filters.is_active,
+                                filters.search || filters.category_id || filters.status,
                             )}
                             onResetFilters={resetFilters}
                         />

@@ -1,9 +1,11 @@
 <?php
 
+use App\Http\Controllers\Admin\LifecycleController;
 use App\Http\Middleware\EnsureCustomerAccess;
 use Illuminate\Support\Facades\Route;
 use Modules\Billing\Http\Controllers\InvoiceController;
 use Modules\Billing\Http\Controllers\Portal\PaymentReturnController;
+use Modules\Billing\Models\Invoice;
 
 Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->prefix('admin')->name('admin.')->whereUlid(['invoice', 'payment', 'item'])->group(function () {
     Route::get('invoices/export', [InvoiceController::class, 'export'])->name('invoices.export');
@@ -13,6 +15,7 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
     Route::post('invoices/generate', [InvoiceController::class, 'generate'])->name('invoices.generate');
     Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoices.pdf');
     Route::resource('invoices', InvoiceController::class);
+    LifecycleController::routes('invoices', Invoice::class, ['restore']);
     Route::post('invoices/{invoice}/send', [InvoiceController::class, 'send'])->name('invoices.send');
     Route::post('invoices/{invoice}/payments', [InvoiceController::class, 'recordPayment'])->name('invoices.payments.store');
     Route::post('invoices/{invoice}/payments/{payment}/reverse', [InvoiceController::class, 'reversePayment'])->name('invoices.payments.reverse');

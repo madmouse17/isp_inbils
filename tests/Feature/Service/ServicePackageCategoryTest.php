@@ -7,6 +7,7 @@ use App\Models\Core\Customer;
 use App\Models\User;
 use App\Services\Core\CompanyHierarchyService;
 use App\Services\Core\CompanyService;
+use App\Support\OptimisticLock;
 use Database\Seeders\CompanySeeder;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -207,13 +208,13 @@ class ServicePackageCategoryTest extends TestCase
         $package = $this->package($retired, 'Warisan');
         $url = route('admin.service-packages.update', $package);
 
-        $this->actingAs($manager)->put($url, $this->packagePayload($package, $retired->public_id, ['code' => $package->code, 'name' => 'Warisan 2']))->assertRedirect();
+        $this->actingAs($manager)->put($url, $this->packagePayload($package, $retired->public_id, ['code' => $package->code, 'name' => 'Warisan 2', OptimisticLock::FIELD => OptimisticLock::version($package->fresh())]))->assertRedirect();
         $this->assertSame('Warisan 2', $package->fresh()->name);
 
-        $this->actingAs($manager)->putJson($url, $this->packagePayload($package, $otherRetired->public_id, ['code' => $package->code]))
+        $this->actingAs($manager)->putJson($url, $this->packagePayload($package, $otherRetired->public_id, ['code' => $package->code, OptimisticLock::FIELD => OptimisticLock::version($package->fresh())]))
             ->assertUnprocessable()->assertJsonValidationErrors('service_package_category_id');
 
-        $this->actingAs($manager)->put($url, $this->packagePayload($package, $active->public_id, ['code' => $package->code]))->assertRedirect();
+        $this->actingAs($manager)->put($url, $this->packagePayload($package, $active->public_id, ['code' => $package->code, OptimisticLock::FIELD => OptimisticLock::version($package->fresh())]))->assertRedirect();
         $this->assertSame($active->id, $package->fresh()->service_package_category_id);
     }
 

@@ -75,7 +75,6 @@ test.describe('@lifecycle SPK installation', () => {
         // reject/approve) tidak bergantung pada asset; jalur asset penuh tetap
         // diuji oleh stock-asset.spec.ts.
         await selectSearchOption(page, 'Barang', 'E2E-STOCK-PRODUCT');
-        await dialog.getByLabel(/Jumlah dicadangkan/).fill('1');
         await dialog.getByLabel(/Jumlah terpakai/).fill('0');
         await dialog.getByLabel('Catatan').fill(`item-${runId}`);
         await dialog.getByRole('button', { name: 'Tambah' }).click();

@@ -8,6 +8,7 @@ use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Modules\Billing\Models\Invoice;
 use Modules\Inventory\Models\Category;
 use Modules\Inventory\Models\InventoryRequest;
@@ -60,7 +61,7 @@ class SpkCompletionOrchestrationTest extends TestCase
             'product_id' => $product->id,
             'location_id' => $location->id,
             'quantity' => 10,
-            'reserved_quantity' => 2,
+            'reserved_quantity' => 0,
         ]);
         $workOrder = WorkOrderFactory::new()->create([
             'company_id' => $company->id,
@@ -76,7 +77,6 @@ class SpkCompletionOrchestrationTest extends TestCase
             'work_order_id' => $workOrder->id,
             'product_id' => $product->id,
             'network_asset_id' => $asset->id,
-            'quantity_reserved' => 2,
             'quantity_used' => 2,
         ]);
         $workOrder->addMediaFromString('test')
@@ -121,98 +121,46 @@ class SpkCompletionOrchestrationTest extends TestCase
         $this->assertGreaterThan(0, (float) Invoice::where('work_order_id', $workOrder->id)->firstOrFail()->total);
     }
 
-    public function test_cancel_releases_reserved_stock(): void
-    {
-        [$company, $user, $location] = $this->scope();
-        $product = $this->product($company);
-        Stock::create([
-            'company_id' => $company->id,
-            'product_id' => $product->id,
-            'location_id' => $location->id,
-            'quantity' => 5,
-            'reserved_quantity' => 3,
-        ]);
-        $workOrder = WorkOrderFactory::new()->create([
-            'company_id' => $company->id,
-            'status' => 'assigned',
-            'location_id' => $location->id,
-            'created_by' => $user->id,
-        ]);
-        WorkOrderItem::create([
-            'company_id' => $company->id,
-            'work_order_id' => $workOrder->id,
-            'product_id' => $product->id,
-            'quantity_reserved' => 3,
-            'quantity_used' => 0,
-        ]);
-
-        $user->givePermissionTo('spk.cancel');
-        $this->actingAs($user);
-        SpkService::cancel($workOrder, 'customer cancelled');
-
-        $this->assertDatabaseHas('work_orders', ['id' => $workOrder->id, 'status' => 'cancelled']);
-        $this->assertDatabaseHas('work_order_items', ['work_order_id' => $workOrder->id, 'quantity_reserved' => 0]);
-        $this->assertDatabaseHas('stocks', [
-            'product_id' => $product->id,
-            'location_id' => $location->id,
-            'quantity' => 5,
-            'reserved_quantity' => 0,
-        ]);
-    }
-
-    public function test_completion_releases_excess_reservation_without_dangling_stock(): void
+    public function test_approval_locks_the_customer_before_it_touches_the_subscription(): void
     {
         [$company, $user, $location, $customer] = $this->scope();
-        $product = $this->product($company, ['type' => 'consumable']);
-
-        Stock::create([
-            'company_id' => $company->id,
-            'product_id' => $product->id,
-            'location_id' => $location->id,
-            'quantity' => 10,
-            'reserved_quantity' => 5,
-        ]);
-
+        $product = $this->product($company);
+        $subscription = ServiceSubscription::factory()->create(['customer_id' => $customer->id, 'status' => 'pending']);
+        $asset = NetworkAssetFactory::new()->create(['company_id' => $company->id, 'product_id' => $product->id, 'status' => 'available']);
+        Stock::create(['company_id' => $company->id, 'product_id' => $product->id, 'location_id' => $location->id, 'quantity' => 10, 'reserved_quantity' => 0]);
         $workOrder = WorkOrderFactory::new()->create([
             'company_id' => $company->id,
-            'type' => 'maintenance',
+            'type' => 'installation',
             'status' => 'waiting_review',
             'customer_id' => $customer->id,
+            'subscription_id' => $subscription->id,
             'location_id' => $location->id,
             'created_by' => $user->id,
         ]);
-
-        WorkOrderItem::create([
-            'company_id' => $company->id,
-            'work_order_id' => $workOrder->id,
-            'product_id' => $product->id,
-            'quantity_reserved' => 5,
-            'quantity_used' => 2,
-        ]);
-
-        $workOrder->addMediaFromString('evidence')
+        WorkOrderItem::create(['company_id' => $company->id, 'work_order_id' => $workOrder->id, 'product_id' => $product->id, 'network_asset_id' => $asset->id, 'quantity_used' => 1]);
+        $workOrder->addMediaFromString('test')
             ->usingFileName('test.jpg')
-            ->withCustomProperties([
-                'company_id' => $company->id,
-                'type' => 'photo',
-                'uploaded_by' => $user->id,
-            ])
+            ->withCustomProperties(['company_id' => $company->id, 'type' => 'photo', 'uploaded_by' => $user->id])
             ->toMediaCollection('evidence', 'public');
-
         $approver = User::factory()->create(['company_id' => $company->id]);
         $approver->givePermissionTo('spk.approve');
         $this->actingAs($approver);
 
+        DB::enableQueryLog();
         SpkService::approve($workOrder);
+        $statements = collect(DB::getQueryLog())->pluck('query');
 
-        $this->assertDatabaseHas('work_orders', ['id' => $workOrder->id, 'status' => 'completed']);
-        $this->assertDatabaseHas('work_order_items', ['work_order_id' => $workOrder->id, 'quantity_reserved' => 0]);
-        $this->assertDatabaseHas('stocks', [
-            'product_id' => $product->id,
-            'location_id' => $location->id,
-            'quantity' => 8,
-            'reserved_quantity' => 0,
-        ]);
+        // The lane locks the customer before its subscription (SubscriptionService does, and a transition of the same
+        // subscription runs concurrently with this approval). The install writes the subscription, and the activation
+        // follows it, so the customer must be locked before the first lock or write of the subscription.
+        $customerLock = $statements->search(fn (string $sql): bool => str_contains($sql, 'from `customers`') && str_ends_with($sql, 'for update'));
+        $subscriptionLock = $statements->search(fn (string $sql): bool => str_starts_with($sql, 'update `service_subscriptions`')
+            || (str_contains($sql, 'from `service_subscriptions`') && str_ends_with($sql, 'for update')));
+
+        $this->assertNotFalse($customerLock, 'the approval never locked the customer');
+        $this->assertNotFalse($subscriptionLock, 'the approval never wrote the subscription');
+        $this->assertLessThan($subscriptionLock, $customerLock);
+        $this->assertSame('active', $subscription->fresh()->status);
     }
 
     public function test_completion_with_partial_ir_coverage_issues_only_uncovered_quantity(): void

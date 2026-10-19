@@ -11,6 +11,7 @@ use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use App\Notifications\CustomerAccountCreated;
 use App\Services\Core\CustomerService;
+use App\Support\OptimisticLock;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -368,7 +369,7 @@ class CustomerAccountCreationTest extends TestCase
         $this->setManualCodes($this->company->id, false, 'customer');
 
         $this->actingAs($this->admin)
-            ->put(route('admin.customers.update', $customer), ['code' => 'CUS-CHANGED', 'name' => 'Renamed', 'type' => 'Individual'])
+            ->put(route('admin.customers.update', $customer), ['code' => 'CUS-CHANGED', 'name' => 'Renamed', 'type' => 'Individual', OptimisticLock::FIELD => OptimisticLock::version($customer->fresh())])
             ->assertRedirect()
             ->assertSessionHasNoErrors();
 
@@ -382,7 +383,7 @@ class CustomerAccountCreationTest extends TestCase
         $customer = $this->createCustomerViaForm();
 
         $this->actingAs($this->admin)
-            ->put(route('admin.customers.update', $customer), ['code' => 'CUS-CHANGED', 'name' => 'Renamed', 'type' => 'Individual'])
+            ->put(route('admin.customers.update', $customer), ['code' => 'CUS-CHANGED', 'name' => 'Renamed', 'type' => 'Individual', OptimisticLock::FIELD => OptimisticLock::version($customer->fresh())])
             ->assertRedirect()
             ->assertSessionHasNoErrors();
 

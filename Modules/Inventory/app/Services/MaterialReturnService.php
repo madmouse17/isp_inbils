@@ -172,7 +172,7 @@ class MaterialReturnService
             ]);
 
             return $case;
-        });
+        }, 3);
     }
 
     /**
@@ -296,7 +296,7 @@ class MaterialReturnService
             });
 
             return $c->fresh(['lines.product', 'events.actor', 'technician', 'warehouseLocation']);
-        });
+        }, 3);
     }
 
     /**
@@ -313,6 +313,9 @@ class MaterialReturnService
         $companyId = CompanyService::currentId() ?? CompanyService::idFor($receiver);
 
         return DB::transaction(function () use ($case, $receiver, $data, $companyId) {
+            // Lock order: SPK, case, lines, then stock. SPK approval takes the SPK row first and reads these lines.
+            $workOrder = self::lockedWorkOrderOf($case, $companyId);
+
             $c = MaterialReturnCase::withoutCompany()
                 ->where('company_id', $companyId)
                 ->lockForUpdate()
@@ -408,17 +411,8 @@ class MaterialReturnService
                 'status' => $toStatus,
             ], $c);
 
-            if ($toStatus === 'reconciled') {
-                $wo = $c->workOrder;
-                if (! $wo && $c->inventory_request_id) {
-                    $ir = InventoryRequest::withoutCompany()->find($c->inventory_request_id);
-                    if ($ir && $ir->source_type === 'work_order' && $ir->source_id) {
-                        $wo = WorkOrder::withoutCompany()->find($ir->source_id);
-                    }
-                }
-                if ($wo) {
-                    CompleteSpkAction::reconcileUsedQuantitiesFromMaterialReturns($wo);
-                }
+            if ($toStatus === 'reconciled' && $workOrder !== null) {
+                CompleteSpkAction::reconcileUsedQuantitiesFromMaterialReturns($workOrder);
             }
 
             if ($hasException) {
@@ -438,7 +432,7 @@ class MaterialReturnService
             }
 
             return $c->fresh(['lines.product', 'events.actor', 'technician', 'warehouseLocation', 'receiver', 'reconciler']);
-        });
+        }, 3);
     }
 
     /**
@@ -493,7 +487,7 @@ class MaterialReturnService
             });
 
             return $c->fresh(['lines.product', 'events.actor', 'technician', 'warehouseLocation', 'rejecter']);
-        });
+        }, 3);
     }
 
     /**
@@ -507,6 +501,9 @@ class MaterialReturnService
         $companyId = CompanyService::currentId() ?? CompanyService::idFor($resolver);
 
         return DB::transaction(function () use ($case, $resolver, $resolutionNote, $companyId) {
+            // Lock order: SPK, case, lines. The reconcile below rewrites the SPK's used quantities.
+            $workOrder = self::lockedWorkOrderOf($case, $companyId);
+
             $c = MaterialReturnCase::withoutCompany()
                 ->where('company_id', $companyId)
                 ->lockForUpdate()
@@ -544,19 +541,38 @@ class MaterialReturnService
                 'resolution_note' => $resolutionNote,
             ], $c);
 
-            $wo = $c->workOrder;
-            if (! $wo && $c->inventory_request_id) {
-                $ir = InventoryRequest::withoutCompany()->find($c->inventory_request_id);
-                if ($ir && $ir->source_type === 'work_order' && $ir->source_id) {
-                    $wo = WorkOrder::withoutCompany()->find($ir->source_id);
-                }
-            }
-            if ($wo) {
-                CompleteSpkAction::reconcileUsedQuantitiesFromMaterialReturns($wo);
+            if ($workOrder !== null) {
+                CompleteSpkAction::reconcileUsedQuantitiesFromMaterialReturns($workOrder);
             }
 
             return $c->fresh(['lines.product', 'events.actor', 'technician', 'warehouseLocation', 'resolver']);
-        });
+        }, 3);
+    }
+
+    /**
+     * The SPK a return belongs to: the one its case names, else the source of the request it came from. Neither link
+     * changes once the case exists, so a plain read says which SPK row to lock before the case row.
+     */
+    private static function workOrderIdOf(MaterialReturnCase $case): ?int
+    {
+        if ($case->work_order_id !== null) {
+            return (int) $case->work_order_id;
+        }
+
+        $source = InventoryRequest::withoutCompany()
+            ->where('company_id', $case->company_id)
+            ->whereKey($case->inventory_request_id)
+            ->first(['source_type', 'source_id']);
+
+        return $source?->source_type === 'work_order' && $source->source_id !== null ? (int) $source->source_id : null;
+    }
+
+    /** The SPK of a return, locked before the case row. Null when the return has none or it is gone. */
+    private static function lockedWorkOrderOf(MaterialReturnCase $case, int $companyId): ?WorkOrder
+    {
+        $workOrderId = self::workOrderIdOf($case);
+
+        return $workOrderId === null ? null : WorkOrder::withoutCompany()->where('company_id', $companyId)->lockForUpdate()->find($workOrderId);
     }
 
     /**

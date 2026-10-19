@@ -27,11 +27,14 @@ use Modules\Ipam\Models\Vlan;
 use Modules\Ipam\Services\IpAssignmentService;
 use Modules\Ipam\Services\IpPrefixService;
 use Modules\Ipam\Services\VlanService;
+use Modules\NetworkAsset\Models\AssetPort;
 use Modules\NetworkAsset\Models\NasDevice;
 use Modules\NetworkAsset\Models\NetworkAccount;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\NetworkAsset\Models\OdnPort;
 use Modules\NetworkAsset\Models\OdnSplitter;
+use Modules\NetworkAsset\Services\AssetPanelService;
+use Modules\NetworkAsset\Services\NetworkAccountService;
 use Modules\NetworkAsset\Services\OdnService;
 use Modules\NetworkAsset\Services\Radius\Realm;
 use Modules\SPK\Models\WorkOrder;
@@ -1099,10 +1102,11 @@ class E2eFixtureSeeder extends Seeder
     }
 
     /**
-     * Fixtures of the IPAM/ODN, MikroTik and WhatsApp specs, all under the POP of E2E-LINKED-SUB: an address plan,
-     * an OLT with a wired ODC and ODP (every port free), an unregistered router for the "register a NAS router"
-     * flow plus a registered one (RADIUS off) with a network account on a second subscription, and a customer
-     * with WhatsApp consent and a few log rows. E2E-LINKED-SUB itself gets no address, drop or network account.
+     * Fixtures of the IPAM/ODN, MikroTik, WhatsApp and hardware panel specs, all under the POP of E2E-LINKED-SUB: an
+     * address plan, an OLT with a wired ODC and ODP (every port free), an unregistered router for the "register a NAS
+     * router" flow plus a registered one (RADIUS off) with a network account on a second subscription, a customer
+     * with WhatsApp consent and a few log rows, and the modelled devices of seedPanelFixtures. E2E-LINKED-SUB itself
+     * gets no address, drop or network account.
      */
     private function seedNetworkLaneFixtures(Location $pop, int $packageId, ?User $admin): void
     {
@@ -1118,6 +1122,7 @@ class E2eFixtureSeeder extends Seeder
             $this->seedFibreFixtures($pop);
             $this->seedRouterFixtures($pop, $packageId);
             $this->seedWhatsAppFixtures($pop, $packageId, $admin);
+            $this->seedPanelFixtures($pop, $packageId);
         } finally {
             $previous !== null ? Auth::setUser($previous) : Auth::forgetGuards();
         }
@@ -1248,7 +1253,116 @@ class E2eFixtureSeeder extends Seeder
         );
     }
 
-    private function e2eAsset(string $serial, string $name, string $type, int $locationId, ?string $managementIp = null): NetworkAsset
+    /**
+     * Fixtures of tests/e2e/hardware-panel.spec.ts, under the POP, rack and ODP site of the fibre fixtures. The OLT
+     * E2E-PANEL-OLT has a custom face of 128 PON ports (8 slots of 16) and the uplinks UP1-UP4; its PON 1 feeds the ODC
+     * E2E-PANEL-ODC (1:8) and output 1 of that the ODP E2E-PANEL-ODP (1:8). The ODP gives output 1 to E2E-PANEL-SUB
+     * (in service, account e2e-panel, ONT E2E-PANEL-ONT) and output 2 to E2E-PANEL-SUB-ISO (suspended, so isolir). The
+     * router E2E-PANEL-RTR has sfp-sfpplus1 patched to UP1 and ether3 marked down, E2E-PANEL-NEW is a router nobody
+     * gave a model, and the 42U rack E2E-PANEL-RACK holds the OLT at U10 and the router at U13. No address, NAS device
+     * or invoice comes with them.
+     */
+    private function seedPanelFixtures(Location $pop, int $packageId): void
+    {
+        $rack = Location::query()->where('code', 'E2E-RACK-01')->firstOrFail();
+        $site = Location::query()->where('code', 'E2E-ODP-SITE-01')->firstOrFail();
+
+        $olt = $this->e2eAsset('E2E-PANEL-OLT', 'E2E Panel OLT', 'olt', $pop->id);
+        AssetPanelService::apply($olt, null, $this->panelOltLayout(), 2);
+        $odc = $this->e2eAsset('E2E-PANEL-ODC', 'E2E Panel ODC', 'odc', $rack->id);
+        $odp = $this->e2eAsset('E2E-PANEL-ODP', 'E2E Panel ODP', 'odp', $site->id);
+
+        $trunk = OdnPort::query()->where('network_asset_id', $olt->id)->where('kind', OdnPort::KIND_PON)->where('number', 1)->firstOrFail();
+        $odcSplitter = OdnSplitter::query()->where('network_asset_id', $odc->id)->first() ?? OdnService::createSplitter($odc, 8, $trunk);
+        $feeder = OdnPort::query()->where('odn_splitter_id', $odcSplitter->id)->where('number', 1)->firstOrFail();
+        $odpSplitter = OdnSplitter::query()->where('network_asset_id', $odp->id)->first() ?? OdnService::createSplitter($odp, 8, $feeder);
+
+        $served = $this->e2ePanelSubscription($pop, $packageId, 'E2E-PANEL-SUB', 'E2E Panel Customer', 'active');
+        $isolated = $this->e2ePanelSubscription($pop, $packageId, 'E2E-PANEL-SUB-ISO', 'E2E Panel Isolir Customer', 'suspended');
+
+        if (! NetworkAccount::query()->where('subscription_id', $served->id)->exists()) {
+            NetworkAccountService::create($served, ['service_type' => 'pppoe', 'username' => 'e2e-panel']);
+        }
+
+        foreach ([$served, $isolated] as $index => $subscription) {
+            OdnService::assignDrop(OdnPort::query()->where('odn_splitter_id', $odpSplitter->id)->where('number', $index + 1)->firstOrFail(), $subscription);
+        }
+
+        $ont = $this->e2eAsset('E2E-PANEL-ONT', 'E2E Panel ONT', 'onu_ont', $pop->id);
+        $ont->update(['customer_id' => $served->customer_id, 'subscription_id' => $served->id, 'status' => 'installed', 'installed_at' => $ont->installed_at ?? now()]);
+        AssetPanelService::apply($ont, 'generic-ont-1pon-4lan-2pots', null, null);
+
+        $router = $this->e2eAsset('E2E-PANEL-RTR', 'E2E Panel Router', 'router', $pop->id);
+        AssetPanelService::apply($router, 'mikrotik-ccr2004-16g-2s', null, null);
+        $this->e2eAsset('E2E-PANEL-NEW', 'E2E Panel Router (no model)', 'router', $pop->id, null, 'MikroTik', 'hAP ac2 RBD52G-5HacD2HnD');
+
+        $patch = $this->panelPort($router, 'sfp', 1);
+
+        if ($patch->linked_port_id === null) {
+            AssetPanelService::link($patch, $this->panelPort($olt, 'uplink', 1)->id);
+        }
+
+        AssetPanelService::updatePort($patch, ['label' => 'ke OLT']);
+        AssetPanelService::updatePort($this->panelPort($router, 'ether', 3), ['label' => 'cadangan', 'admin_down' => true]);
+
+        $mount = $this->e2eAsset('E2E-PANEL-RACK', 'E2E Panel Rack', 'rack', $pop->id);
+        AssetPanelService::apply($mount, null, null, 42);
+        AssetPanelService::place($olt, $mount->id, 10, 2);
+        AssetPanelService::place($router, $mount->id, 13, 1);
+    }
+
+    /**
+     * 8 slots of 16 PON ports, one row each, the last row also carrying the uplinks UP1-UP4.
+     *
+     * @return array{rows: list<list<array<string, mixed>>>}
+     */
+    private function panelOltLayout(): array
+    {
+        $rows = array_map(fn (int $slot): array => [[
+            'group' => "pon{$slot}", 'kind' => 'sfp', 'count' => 16, 'role' => 'pon', 'slot' => $slot,
+            'name' => 'gpon-olt_1/{slot}/{port}', 'title' => "Slot {$slot}", 'speed' => 'GPON',
+        ]], range(1, 8));
+        $rows[7][] = ['group' => 'uplink', 'kind' => 'sfp', 'count' => 4, 'name' => 'UP{port}', 'title' => 'Uplink', 'speed' => '10G'];
+
+        return ['rows' => $rows];
+    }
+
+    private function panelPort(NetworkAsset $asset, string $group, int $number): AssetPort
+    {
+        return AssetPort::query()->where('network_asset_id', $asset->id)->where('group_key', $group)->where('number', $number)->firstOrFail();
+    }
+
+    /** A customer (code: the subscription code and -CUST) with one address and a subscription of the panel fixtures. */
+    private function e2ePanelSubscription(Location $pop, int $packageId, string $code, string $customerName, string $status): ServiceSubscription
+    {
+        $customer = Customer::query()->updateOrCreate(
+            ['code' => $code.'-CUST'],
+            ['name' => $customerName, 'type' => 'Individual', 'is_active' => true],
+        );
+        $address = CustomerAddress::query()->updateOrCreate(
+            ['customer_id' => $customer->id, 'label' => 'E2E Install'],
+            ['address' => 'E2E panel street', 'city' => 'Jakarta', 'postal_code' => '12345', 'lat' => '-6.2000000', 'lng' => '106.8166667', 'is_primary' => true],
+        );
+
+        return ServiceSubscription::query()->updateOrCreate(
+            ['code' => $code],
+            [
+                'customer_id' => $customer->id,
+                'service_package_id' => $packageId,
+                'installation_address_id' => $address->id,
+                'status' => $status,
+                'activation_date' => now()->subDay()->toDateString(),
+                'billing_day' => 1,
+                'next_invoice_date' => now()->addMonth()->toDateString(),
+                'serving_pop_id' => $pop->id,
+                'mrc_amount' => 150000,
+                'otc_installation_fee' => 0,
+                'contract_months' => 12,
+            ],
+        );
+    }
+
+    private function e2eAsset(string $serial, string $name, string $type, int $locationId, ?string $managementIp = null, string $vendor = 'E2E', string $model = 'Harness'): NetworkAsset
     {
         $asset = NetworkAsset::query()->updateOrCreate(
             ['serial_number' => $serial],
@@ -1260,8 +1374,8 @@ class E2eFixtureSeeder extends Seeder
                 'management_ip' => $managementIp,
                 'status' => 'available',
                 'ownership' => 'owned',
-                'vendor' => 'E2E',
-                'model' => 'Harness',
+                'vendor' => $vendor,
+                'model' => $model,
             ],
         );
 

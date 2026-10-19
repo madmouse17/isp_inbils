@@ -37,17 +37,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Midtrans (Snap sandbox pilot)
+    | Midtrans (Snap)
     |--------------------------------------------------------------------------
     |
-    | One install-wide merchant. The gateway is off while server_key is empty,
-    | and off on a production host (APP_ENV=production) that runs sandbox keys
-    | (is_production=false) unless allow_sandbox_in_production is set on purpose:
-    | sandbox payments there would be booked as real ones. `base_url` points the
-    | gateway at a local mock and is honoured only in the local, testing and e2e
-    | environments and never when is_production is true. `notification_url`
-    | (HTTPS only) is sent as X-Override-Notification on every Snap order, so
-    | notifications reach this install without editing the Midtrans dashboard.
+    | IMPORT SOURCE ONLY. Each company keeps its own Midtrans account in
+    | Pengaturan → Integrasi (table company_integrations); the app reads these
+    | keys only in `php artisan inbils:integrations:import-env --company=<code>`,
+    | which copies server_key, is_production, allow_sandbox_in_production and
+    | base_url into that company's row. A company without a row has Midtrans off.
+    | merchant_id and client_key are not imported: nothing reads them. `base_url`
+    | points the gateway at a local mock and is honoured only in the local,
+    | testing and e2e environments and never when is_production is true. The
+    | notification URL is built per company (/webhooks/midtrans/{company public_id})
+    | and sent as X-Override-Notification on every Snap order over HTTPS.
     |
     */
     'midtrans' => [
@@ -57,7 +59,6 @@ return [
         'is_production' => (bool) env('MIDTRANS_IS_PRODUCTION', false),
         'allow_sandbox_in_production' => (bool) env('MIDTRANS_ALLOW_SANDBOX_IN_PRODUCTION', false),
         'base_url' => env('MIDTRANS_BASE_URL'),
-        'notification_url' => env('MIDTRANS_NOTIFICATION_URL'),
     ],
 
     /*
@@ -65,10 +66,15 @@ return [
     | WhatsApp Cloud API (Meta)
     |--------------------------------------------------------------------------
     |
-    | One install-wide sender. The feature is off while the access token or the phone number id is
-    | empty: every message is then logged as skipped (disabled) and nothing leaves the server.
-    | `app_secret` signs the delivery webhook (X-Hub-Signature-256); `webhook_verify_token` answers
-    | Meta's one-off GET handshake. Templates and per-company switches: config/whatsapp.php.
+    | IMPORT SOURCE ONLY, except `graph_version`, which every company shares at
+    | runtime. Each company keeps its own access token, phone number id, app
+    | secret and verify token in Pengaturan → Integrasi; the import command
+    | (`inbils:integrations:import-env --company=<code>`) copies these keys into
+    | that company's row once. A company without a row sends nothing: every
+    | message is logged as skipped (disabled). The webhook stays one shared URL
+    | (/webhooks/whatsapp), routed to the company by phone_number_id and signed
+    | with that company's own app secret. business_account_id is not imported.
+    | Templates and per-company switches: config/whatsapp.php.
     |
     */
     'whatsapp' => [
@@ -85,9 +91,13 @@ return [
     | FreeRADIUS provisioning
     |--------------------------------------------------------------------------
     |
-    | `enabled` is the installation switch: while false nothing is read from or written to the
-    | RADIUS database and no Disconnect-Request is sent. `coa_timeout` is the seconds to wait for
-    | a Disconnect answer. RADIUS shared secrets live encrypted in nas_devices, never here.
+    | `enabled` is an IMPORT SOURCE ONLY: the import command copies the `radius`
+    | database connection (RADIUS_DB_*) into the company's own RADIUS integration
+    | when it is true. At runtime each company switches RADIUS on and names its own
+    | FreeRADIUS database in Pengaturan → Integrasi; without a row nothing is read
+    | from or written to a RADIUS database and no Disconnect-Request is sent.
+    | `coa_timeout` is the runtime value shared by every company: the seconds to wait
+    | for a Disconnect answer. RADIUS shared secrets live encrypted in nas_devices.
     |
     */
     'radius' => [

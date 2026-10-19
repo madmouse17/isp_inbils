@@ -173,10 +173,10 @@ final class SalesKpiQuery
      */
     private static function customers(int $companyId, ?string $dateFrom, ?string $dateTo, ?int $acquirerId, ?int $packageCategoryId): Builder
     {
-        // With a category, money and subscriptions count only through subscriptions on packages of it.
+        // With a category, money and subscriptions count only through subscriptions sold under a package version of it.
         $packages = static fn (Builder $query): Builder => $packageCategoryId === null
             ? $query
-            : $query->whereIn('service_subscriptions.service_package_id', self::packageIdsInCategory($companyId, $packageCategoryId));
+            : $query->whereIn('service_subscriptions.service_package_version_id', self::packageVersionIdsInCategory($companyId, $packageCategoryId));
         $subscriptions = static fn (Builder $query): Builder => $packageCategoryId === null
             ? $query
             : $query->whereIn('invoices.subscription_id', self::subscriptionIdsInCategory($companyId, $packageCategoryId));

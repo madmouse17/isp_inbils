@@ -62,6 +62,11 @@ class WorkOrderPolicy
         return $this->sameCompany($user, $wo) && $user->can('spk.delete');
     }
 
+    public function restore(User $user, WorkOrder $wo): bool
+    {
+        return $this->delete($user, $wo);
+    }
+
     public function assign(User $user, WorkOrder $wo): bool
     {
         if (! $user->is_active || ! $this->sameCompany($user, $wo)) {

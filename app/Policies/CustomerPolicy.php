@@ -42,6 +42,11 @@ class CustomerPolicy
         return $user->can('customer.delete');
     }
 
+    public function restore(User $user, Customer $customer): bool
+    {
+        return $this->delete($user, $customer);
+    }
+
     /** Attribution (column, filter, display, export) is visible only to holders of assign or correct. */
     public function viewAcquirer(User $user): bool
     {

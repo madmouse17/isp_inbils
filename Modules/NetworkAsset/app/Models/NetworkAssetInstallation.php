@@ -91,17 +91,17 @@ class NetworkAssetInstallation extends Model
 
     public function location(): BelongsTo
     {
-        return $this->belongsTo(Location::class);
+        return $this->belongsTo(Location::class)->withTrashed();
     }
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Customer::class)->withTrashed();
     }
 
     public function subscription(): BelongsTo
     {
-        return $this->belongsTo(ServiceSubscription::class);
+        return $this->belongsTo(ServiceSubscription::class)->withTrashed();
     }
 
     public function installer(): BelongsTo
@@ -111,6 +111,6 @@ class NetworkAssetInstallation extends Model
 
     public function workOrder(): BelongsTo
     {
-        return $this->belongsTo(WorkOrder::class, 'spk_id');
+        return $this->belongsTo(WorkOrder::class, 'spk_id')->withTrashed();
     }
 }

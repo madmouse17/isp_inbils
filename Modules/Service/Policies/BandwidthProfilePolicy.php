@@ -41,4 +41,9 @@ class BandwidthProfilePolicy
     {
         return $user->can('service.delete') || $user->can('service.manage');
     }
+
+    public function restore(User $user, BandwidthProfile $bandwidthProfile): bool
+    {
+        return $this->delete($user, $bandwidthProfile);
+    }
 }

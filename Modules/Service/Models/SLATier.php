@@ -3,6 +3,7 @@
 namespace Modules\Service\Models;
 
 use App\Traits\BelongsToCompany;
+use App\Traits\HasLifecycle;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -22,6 +23,7 @@ class SLATier extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasLifecycle;
     use HasPublicId;
     use LogsActivity;
     use SoftDeletes;
@@ -40,6 +42,25 @@ class SLATier extends Model
         'response_time_hours' => 'integer',
         'resolution_time_hours' => 'integer',
     ];
+
+    public static function lifecycleNoun(): string
+    {
+        return 'Tingkat SLA';
+    }
+
+    public static function lifecycleFilters(): array
+    {
+        return self::ACTIVE_FILTERS;
+    }
+
+    /** A package and every version of it name the tier; the versions keep it from a delete after the package moved on. */
+    public static function lifecycleReferences(): ?array
+    {
+        return [
+            'paket' => ['service_packages.sla_tier_id'],
+            'versi paket' => ['service_package_versions.sla_tier_id'],
+        ];
+    }
 
     public function servicePackages(): HasMany
     {

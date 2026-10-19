@@ -2,9 +2,12 @@
 
 namespace Modules\Service\Http\Resources;
 
+use App\Support\OptimisticLock;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Modules\Service\Models\ServicePackage;
 
+/** @mixin ServicePackage */
 class ServicePackageResource extends JsonResource
 {
     /** @return array<string, mixed> */
@@ -23,7 +26,9 @@ class ServicePackageResource extends JsonResource
             'contract_min_months' => $this->contract_min_months,
             'description' => $this->description,
             'is_active' => $this->is_active,
+            'updated_at' => OptimisticLock::version($this->resource),
             'created_at' => $this->created_at,
+            ...$this->lifecycleAttributes(),
             'bandwidth_profile' => new BandwidthProfileResource($this->whenLoaded('bandwidthProfile')),
             'speed_profile' => new SpeedProfileResource($this->whenLoaded('speedProfile')),
             'sla_tier' => new SLATierResource($this->whenLoaded('slaTier')),

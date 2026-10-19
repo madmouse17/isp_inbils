@@ -39,17 +39,18 @@ class ReconcileMidtransPayments extends Command
 
     public function handle(): int
     {
-        if (! $this->gateway->isEnabled()) {
-            $this->info('Midtrans is not configured; nothing to reconcile.');
-
-            return self::SUCCESS;
-        }
-
         $dryRun = (bool) $this->option('dry-run');
         $totals = ['checked' => 0, 'settled' => 0, 'expired' => 0, 'exceptions' => 0, 'failed' => 0, 'still pending' => 0, 'closed' => 0, 'errors' => 0];
+        $configured = 0;
 
         foreach ($this->resolveCompanyIds() as $companyId) {
-            CompanyService::runAs($companyId, function () use ($dryRun, &$totals): void {
+            CompanyService::runAs($companyId, function () use ($dryRun, &$totals, &$configured): void {
+                // Each company asks Midtrans with its own key; one without a merchant account has nothing to ask about.
+                if (! $this->gateway->isEnabled()) {
+                    return;
+                }
+
+                $configured++;
                 $this->attemptsToAsk()->chunkById(100, function ($attempts) use ($dryRun, &$totals): void {
                     foreach ($attempts as $attempt) {
                         $totals['checked']++;
@@ -57,6 +58,12 @@ class ReconcileMidtransPayments extends Command
                     }
                 });
             });
+        }
+
+        if ($configured === 0) {
+            $this->info('Midtrans is not configured; nothing to reconcile.');
+
+            return self::SUCCESS;
         }
 
         $this->table(array_map('ucfirst', array_keys($totals)), [array_values($totals)]);

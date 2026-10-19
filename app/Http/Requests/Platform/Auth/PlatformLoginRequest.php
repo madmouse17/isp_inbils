@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Platform\Auth;
 
 use App\Models\PlatformAdmin;
+use App\Support\SecurityTrail;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Auth\SessionGuard;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -13,9 +14,10 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
- * The password step of the operator login. Two failure budgets, both checked before the credentials are looked
- * at: 5 a minute per email and address, and 20 an hour per email across every address. A failure counts against both,
- * a success clears both. An inactive admin fails exactly like a wrong password.
+ * The password step of the operator login. Three failure budgets, all checked before the credentials are looked
+ * at: 5 a minute per email and address, 20 an hour per email across every address, and 20 a minute per address
+ * whatever the email. A failure counts against all three; a success clears the two email budgets only, so a known
+ * login cannot reset the address budget. An inactive admin fails exactly like a wrong password.
  */
 class PlatformLoginRequest extends FormRequest
 {
@@ -26,6 +28,8 @@ class PlatformLoginRequest extends FormRequest
     private const ATTEMPTS_PER_EMAIL = 20;
 
     private const EMAIL_WINDOW_SECONDS = 3600;
+
+    private const FAILURES_PER_IP = 20;
 
     public function authorize(): bool
     {
@@ -58,8 +62,10 @@ class PlatformLoginRequest extends FormRequest
 
         // is_active is part of the lookup: an inactive admin fails with the same message as a wrong password.
         if (! $guard->validate([...$this->only('email', 'password'), 'is_active' => true])) {
+            SecurityTrail::failedLogin((string) $this->input('email'), 'platform', $guard->getLastAttempted());
             RateLimiter::hit($this->addressKey(), self::ADDRESS_WINDOW_SECONDS);
             RateLimiter::hit($this->emailKey(), self::EMAIL_WINDOW_SECONDS);
+            RateLimiter::hit($this->ipKey(), self::ADDRESS_WINDOW_SECONDS);
 
             throw ValidationException::withMessages(['email' => trans('auth.failed')]);
         }
@@ -81,13 +87,17 @@ class PlatformLoginRequest extends FormRequest
         $blocked = array_values(array_filter([
             RateLimiter::tooManyAttempts($this->addressKey(), self::ATTEMPTS_PER_ADDRESS) ? $this->addressKey() : null,
             RateLimiter::tooManyAttempts($this->emailKey(), self::ATTEMPTS_PER_EMAIL) ? $this->emailKey() : null,
+            RateLimiter::tooManyAttempts($this->ipKey(), self::FAILURES_PER_IP) ? $this->ipKey() : null,
         ]));
 
         if ($blocked === []) {
             return;
         }
 
-        event(new Lockout($this));
+        // Only an account lockout is an event: an address-wide refusal would write one row per rotated email.
+        if ($blocked !== [$this->ipKey()]) {
+            event(new Lockout($this));
+        }
 
         $seconds = max(array_map(RateLimiter::availableIn(...), $blocked));
 
@@ -107,6 +117,11 @@ class PlatformLoginRequest extends FormRequest
     private function emailKey(): string
     {
         return 'platform-login-email|'.$this->normalizedEmail();
+    }
+
+    private function ipKey(): string
+    {
+        return 'platform-login-ip|'.$this->ip();
     }
 
     private function normalizedEmail(): string

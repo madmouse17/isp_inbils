@@ -52,10 +52,12 @@ class EvaluationController extends Controller
             'employeeOptions' => $this->employeeOptions($request, $employees, $employeePublicId),
             'selectedEmployee' => $this->employeeOption($employees, $employeePublicId),
             'filters' => $request->only([
-                'employee_id', 'reference_type', 'search', 'sort', 'direction', 'per_page',
+                'employee_id', 'reference_type', 'status', 'search', 'sort', 'direction', 'per_page',
             ]),
             'can' => [
                 'create' => $request->user()?->can('evaluation.create') ?? false,
+                'update' => $request->user()?->can('evaluation.update') ?? false,
+                'delete' => $request->user()?->can('evaluation.delete') ?? false,
                 'export' => $request->user()?->can('evaluation.export') ?? false,
             ],
         ]);
@@ -108,6 +110,9 @@ class EvaluationController extends Controller
 
         if ($request->user()?->hasRole('technician')) {
             $query->where('employee_id', $request->user()->id);
+        } else {
+            // A technician reads only the evaluations that stand: the ones management deleted stay out of sight.
+            $query->lifecycleStatus($request->input('status'));
         }
 
         return $this->applySort($query, $request, 'evaluated_at', 'desc');

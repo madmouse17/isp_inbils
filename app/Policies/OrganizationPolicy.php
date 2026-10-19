@@ -36,4 +36,9 @@ class OrganizationPolicy
     {
         return $user->can('organization.manage');
     }
+
+    public function restore(User $user, OrganizationUnit $unit): bool
+    {
+        return $this->delete($user, $unit);
+    }
 }

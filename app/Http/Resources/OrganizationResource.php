@@ -2,9 +2,11 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Core\OrganizationUnit;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin OrganizationUnit */
 class OrganizationResource extends JsonResource
 {
     public function toArray(Request $request): array
@@ -21,6 +23,7 @@ class OrganizationResource extends JsonResource
             'email' => $this->email,
             'is_active' => $this->is_active,
             'children_count' => $this->whenCounted('children'),
+            ...$this->lifecycleAttributes(),
         ];
     }
 }

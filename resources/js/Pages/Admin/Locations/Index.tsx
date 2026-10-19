@@ -2,18 +2,16 @@ import type { FormEvent } from 'react';
 import { useMemo, useRef, useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { DataTable, type DataTableColumn, PageHeader } from '@/Components/composite';
-import { Tabs, TabList, Tab, TabPanel } from '@/Components/ui/Tabs';
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@/Components/ui/alert-dialog';
+    DataTable,
+    DataTableActions,
+    type DataTableColumn,
+    PageHeader,
+    StatusFilter,
+} from '@/Components/composite';
+import { ConfirmDialog } from '@/Components/composite/ConfirmDialog';
+import { UsageLine } from '@/Components/composite/UsageLine';
+import { Tabs, TabList, Tab, TabPanel } from '@/Components/ui/Tabs';
 import {
     Dialog,
     DialogContent,
@@ -22,9 +20,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/Components/ui/dialog';
-import { buttonVariants } from '@/Components/ui/Button';
-import { Spinner } from '@/Components/ui/Spinner';
-import { cn } from '@/lib/utils';
 import {
     Alert,
     AlertDescription,
@@ -42,8 +37,15 @@ import {
 import type { SearchSelectOption } from '@/Components/ui';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
-import { ACTIVE_STATE, LOCATION_TYPE, labelOf, optionsOf } from '@/lib/statuses';
+import {
+    LIFECYCLE_STATE,
+    LOCATION_TYPE,
+    labelOf,
+    lifecycleStateOf,
+    optionsOf,
+} from '@/lib/statuses';
 import type { Paginated } from '@/types';
+import type { LifecycleFields } from '@/types/models';
 import {
     LocationsMapView,
     type LocationType,
@@ -52,7 +54,7 @@ import {
 
 /* ---------- Page props ---------- */
 
-interface LocationRow {
+interface LocationRow extends LifecycleFields {
     id: string;
     parent_id: string | null;
     code: string;
@@ -103,13 +105,6 @@ const typeOptions = optionsOf(LOCATION_TYPE);
 
 const typeFilterOptions = [{ value: '', label: 'Semua tipe' }, ...typeOptions];
 
-/** The server filters on `active` and `inactive`; the words come from the same map as every other status. */
-const statusFilterOptions = [
-    { value: '', label: 'Semua status' },
-    { value: 'active', label: ACTIVE_STATE.true.label },
-    { value: 'inactive', label: ACTIVE_STATE.false.label },
-];
-
 /* ---------- Page component ---------- */
 
 export default function Index({ locations, tree, markers, filters, can }: LocationsProps) {
@@ -124,12 +119,8 @@ export default function Index({ locations, tree, markers, filters, can }: Locati
     });
     const hasFilters = Boolean(params.search || params.type || params.status);
 
-    /* -- Every place, and which of them have places under them -- */
+    /* -- Every place of the tree -- */
     const flat = useMemo(() => flatten(tree.data), [tree.data]);
-    const parentIds = useMemo(
-        () => new Set(flat.flatMap((loc) => (loc.parent_id === null ? [] : [loc.parent_id]))),
-        [flat],
-    );
 
     const parentOptions = useMemo<SearchSelectOption[]>(
         () =>
@@ -220,24 +211,30 @@ export default function Index({ locations, tree, markers, filters, can }: Locati
         });
     };
 
-    /* -- Delete dialog -- */
-    const [deleteTarget, setDeleteTarget] = useState<LocationRow | MapMarker | null>(null);
+    /* -- Delete from the map: a table row deletes through its own menu -- */
+    const [markerToDelete, setMarkerToDelete] = useState<MapMarker | null>(null);
     const [deleteProcessing, setDeleteProcessing] = useState(false);
+    const [deleteError, setDeleteError] = useState<string>();
     const deleteInFlight = useRef(false);
 
+    const closeDelete = () => {
+        setMarkerToDelete(null);
+        setDeleteError(undefined);
+    };
+
     const confirmDelete = () => {
-        if (!deleteTarget || deleteInFlight.current) return;
+        if (!markerToDelete || deleteInFlight.current) return;
         deleteInFlight.current = true;
         setDeleteProcessing(true);
-        router.delete(route('admin.locations.destroy', deleteTarget.id), {
+        setDeleteError(undefined);
+        router.delete(route('admin.locations.destroy', markerToDelete.id), {
             preserveScroll: true,
             onFinish: () => {
                 deleteInFlight.current = false;
                 setDeleteProcessing(false);
             },
-            onSuccess: () => {
-                setDeleteTarget(null);
-            },
+            onSuccess: closeDelete,
+            onError: (errors) => setDeleteError(errors.lifecycle ?? Object.values(errors)[0]),
         });
     };
 
@@ -254,7 +251,7 @@ export default function Index({ locations, tree, markers, filters, can }: Locati
     };
 
     const handleMarkerDelete = (marker: MapMarker) => {
-        setDeleteTarget(marker);
+        setMarkerToDelete(marker);
     };
 
     /* -- DataTable columns -- */
@@ -271,6 +268,14 @@ export default function Index({ locations, tree, markers, filters, can }: Locati
             header: 'Nama',
             sortable: true,
             sortKey: 'name',
+            cell: (row) => (
+                <div className="space-y-0.5 max-w-xs">
+                    <p className={row.deleted_at ? 'text-muted-foreground' : undefined}>
+                        {row.name}
+                    </p>
+                    <UsageLine references={row.references} />
+                </div>
+            ),
         },
         {
             key: 'type',
@@ -291,7 +296,7 @@ export default function Index({ locations, tree, markers, filters, can }: Locati
             header: 'Status',
             sortable: true,
             sortKey: 'is_active',
-            cell: (row) => <EnumBadge map={ACTIVE_STATE} value={row.is_active} />,
+            cell: (row) => <EnumBadge map={LIFECYCLE_STATE} value={lifecycleStateOf(row)} />,
         },
         {
             key: 'coordinates',
@@ -309,8 +314,8 @@ export default function Index({ locations, tree, markers, filters, can }: Locati
             key: 'actions',
             header: 'Aksi',
             cell: (row) => (
-                <div className="flex flex-wrap items-center gap-1">
-                    {can.update && (
+                <div className="flex items-center gap-1">
+                    {can.update && !row.deleted_at && (
                         <Button
                             type="button"
                             variant="outline"
@@ -320,7 +325,7 @@ export default function Index({ locations, tree, markers, filters, can }: Locati
                             Ubah
                         </Button>
                     )}
-                    {can.move && (
+                    {can.move && !row.deleted_at && (
                         <Button
                             type="button"
                             variant="outline"
@@ -333,22 +338,15 @@ export default function Index({ locations, tree, markers, filters, can }: Locati
                             Pindahkan
                         </Button>
                     )}
-                    {can.delete && (
-                        <Button
-                            type="button"
-                            variant="destructive-outline"
-                            size="sm"
-                            onClick={() => setDeleteTarget(row)}
-                            disabled={parentIds.has(row.id)}
-                            title={
-                                parentIds.has(row.id)
-                                    ? 'Lokasi ini masih punya lokasi turunan.'
-                                    : undefined
-                            }
-                        >
-                            Hapus
-                        </Button>
-                    )}
+                    <DataTableActions
+                        lifecycle={{
+                            row,
+                            name: row.name,
+                            noun: 'Lokasi',
+                            routeBase: 'admin.locations',
+                            can: { update: can.update, delete: can.delete },
+                        }}
+                    />
                 </div>
             ),
         },
@@ -359,6 +357,12 @@ export default function Index({ locations, tree, markers, filters, can }: Locati
             Buat Lokasi
         </Button>
     ) : undefined;
+
+    // A deleted location has no edit, move or delete route, so the map offers none for the markers of a view that lists them.
+    const mapCan =
+        params.status === 'dihapus' || params.status === 'semua'
+            ? { ...can, update: false, move: false, delete: false }
+            : can;
 
     return (
         <AdminLayout title="Lokasi">
@@ -380,10 +384,12 @@ export default function Index({ locations, tree, markers, filters, can }: Locati
                     <TabPanel value="map">
                         <LocationsMapView
                             markers={markers}
-                            can={can}
+                            can={mapCan}
                             onMarkerEdit={handleMarkerEdit}
                             onMarkerDelete={handleMarkerDelete}
                             onMapClick={can.create ? handleMapClick : undefined}
+                            // Leaflet's panes and the map's own controls carry z-indexes up to 1100: isolated, they stay under the dialogs and toasts.
+                            className="isolate"
                         />
                     </TabPanel>
 
@@ -408,12 +414,12 @@ export default function Index({ locations, tree, markers, filters, can }: Locati
                                         onChange={(e) => set('type', e.target.value)}
                                         options={typeFilterOptions}
                                     />
-                                    <NativeSelect
-                                        label="Status"
-                                        wrapperClassName="md:w-40"
+                                    <StatusFilter
+                                        id="location-status"
                                         value={params.status ?? ''}
-                                        onChange={(e) => set('status', e.target.value)}
-                                        options={statusFilterOptions}
+                                        onChange={(value) => set('status', value)}
+                                        deactivatable
+                                        wrapperClassName="md:w-52"
                                     />
                                 </div>
 
@@ -703,40 +709,22 @@ export default function Index({ locations, tree, markers, filters, can }: Locati
                     </DialogContent>
                 </Dialog>
 
-                {/* ---- DELETE DIALOG ---- */}
-                <AlertDialog
-                    open={deleteTarget !== null}
-                    onOpenChange={(open) => {
-                        if (deleteInFlight.current && !open) return;
-                        if (!open) setDeleteTarget(null);
-                    }}
-                >
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>
-                                Hapus {deleteTarget?.code ?? 'lokasi'}?
-                            </AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Lokasi &quot;{deleteTarget?.name}&quot; akan dihapus. Tindakan ini
-                                tidak dapat dibatalkan.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel disabled={deleteProcessing}>Batal</AlertDialogCancel>
-                            <AlertDialogAction
-                                className={cn(buttonVariants({ variant: 'destructive' }), 'gap-2')}
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    confirmDelete();
-                                }}
-                                disabled={deleteProcessing}
-                            >
-                                {deleteProcessing ? <Spinner size="sm" /> : null}
-                                Hapus
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
+                {/* ---- DELETE FROM THE MAP ---- */}
+                <ConfirmDialog
+                    open={markerToDelete !== null}
+                    title={`Hapus permanen ${markerToDelete?.code ?? 'lokasi'}?`}
+                    description={
+                        markerToDelete
+                            ? `Lokasi "${markerToDelete.name}" hanya terhapus bila belum pernah dipakai data lain, dan penghapusan permanen tidak bisa dibatalkan. Lokasi yang sudah dipakai bisa dinonaktifkan dari tab Tabel.`
+                            : ''
+                    }
+                    confirmLabel="Hapus permanen"
+                    tone="danger"
+                    processing={deleteProcessing}
+                    error={deleteError}
+                    onConfirm={confirmDelete}
+                    onClose={closeDelete}
+                />
             </div>
         </AdminLayout>
     );

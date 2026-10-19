@@ -591,7 +591,28 @@ export function abortCorrelationFor(
         )
         .sort((a, b) => a.sequence - b.sequence);
 
-    return candidates[0] ? evidenceEvent(candidates[0]) : null;
+    if (candidates[0]) return evidenceEvent(candidates[0]);
+
+    // The old page can still ask for something (a font its lazy panel just rendered) while the next document is already
+    // on its way: that request starts after the document request is recorded and is cancelled when the navigation
+    // commits, before the frame URL changes. No event falls inside its own window then, but the navigation that was
+    // pending when it failed (and did commit afterwards) is what cancelled it.
+    const pending = lifecycleEvents
+        .filter(
+            (event) =>
+                event.type === 'document-request' &&
+                event.sequence <= failure.lifecycleSequenceAtFailure,
+        )
+        .sort((a, b) => b.sequence - a.sequence)[0];
+    const commit = pending
+        ? lifecycleEvents.find(
+              (event) => event.type === 'framenavigated' && event.sequence > pending.sequence,
+          )
+        : undefined;
+
+    return pending && commit && commit.sequence > failure.lifecycleSequenceAtFailure
+        ? evidenceEvent(pending)
+        : null;
 }
 
 export function assignResponseToExpectedErrors({

@@ -41,4 +41,9 @@ class ServicePackagePolicy
     {
         return $user->can('service.delete') || $user->can('service.manage');
     }
+
+    public function restore(User $user, ServicePackage $servicePackage): bool
+    {
+        return $this->delete($user, $servicePackage);
+    }
 }

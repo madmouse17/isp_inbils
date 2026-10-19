@@ -1,0 +1,231 @@
+[
+    {
+        "key": "mikrotik-hap-ac2",
+        "vendor": "MikroTik",
+        "model": "hAP ac² (RBD52G-5HacD2HnD)",
+        "asset_type": "router",
+        "height_u": null,
+        "source_url": "https://mikrotik.com/product/hap_ac2",
+        "layout": {"rows": [[
+            {"fixture": "power"},
+            {"group": "ether", "kind": "rj45", "count": 5, "name": "ether{port}", "title": "Ethernet", "speed": "1G"},
+            {"fixture": "usb"},
+            {"fixture": "reset"},
+            {"fixture": "wlan", "title": "WLAN 2,4/5 GHz"}
+        ]]}
+    },
+    {
+        "key": "mikrotik-rb4011igs-rm",
+        "vendor": "MikroTik",
+        "model": "RB4011iGS+RM",
+        "asset_type": "router",
+        "height_u": 1,
+        "source_url": "https://help.mikrotik.com/docs/spaces/UM/pages/19136528/RB4011iGS+RM",
+        "layout": {"rows": [[
+            {"fixture": "console"},
+            {"group": "ether", "kind": "rj45", "count": 5, "name": "ether{port}", "title": "Ethernet 1-5", "speed": "1G"},
+            {"group": "ether", "kind": "rj45", "count": 5, "from": 6, "name": "ether{port}", "title": "Ethernet 6-10", "speed": "1G"},
+            {"group": "sfp", "kind": "sfp", "count": 1, "name": "sfp-sfpplus{port}", "title": "SFP+", "speed": "10G"},
+            {"fixture": "power"}
+        ]]}
+    },
+    {
+        "key": "mikrotik-ccr2004-16g-2s",
+        "vendor": "MikroTik",
+        "model": "CCR2004-16G-2S+",
+        "asset_type": "router",
+        "height_u": 1,
+        "source_url": "https://mikrotik.com/product/ccr2004_16g_2splus",
+        "layout": {"rows": [[
+            {"fixture": "console"},
+            {"fixture": "usb"},
+            {"group": "ether", "kind": "rj45", "count": 8, "stack": 2, "order": "column", "name": "ether{port}", "title": "Ethernet 1-8", "speed": "1G"},
+            {"group": "ether", "kind": "rj45", "count": 8, "from": 9, "stack": 2, "order": "column", "name": "ether{port}", "title": "Ethernet 9-16", "speed": "1G"},
+            {"group": "sfp", "kind": "sfp", "count": 2, "stack": 2, "order": "column", "name": "sfp-sfpplus{port}", "title": "SFP+", "speed": "10G"},
+            {"fixture": "power"},
+            {"fixture": "power"}
+        ]]}
+    },
+    {
+        "key": "mikrotik-crs326-24g-2s-rm",
+        "vendor": "MikroTik",
+        "model": "CRS326-24G-2S+RM",
+        "asset_type": "switch",
+        "height_u": 1,
+        "source_url": "https://help.mikrotik.com/docs/spaces/UM/pages/17956889/CRS326-24G-2S+RM",
+        "layout": {"rows": [[
+            {"fixture": "console"},
+            {"group": "ether", "kind": "rj45", "count": 8, "stack": 2, "order": "column", "name": "ether{port}", "title": "Ethernet 1-8", "speed": "1G"},
+            {"group": "ether", "kind": "rj45", "count": 8, "from": 9, "stack": 2, "order": "column", "name": "ether{port}", "title": "Ethernet 9-16", "speed": "1G"},
+            {"group": "ether", "kind": "rj45", "count": 8, "from": 17, "stack": 2, "order": "column", "name": "ether{port}", "title": "Ethernet 17-24", "speed": "1G"},
+            {"group": "sfp", "kind": "sfp", "count": 2, "stack": 2, "order": "column", "name": "sfp-sfpplus{port}", "title": "SFP+", "speed": "10G"},
+            {"fixture": "power"}
+        ]]}
+    },
+    {
+        "key": "mikrotik-crs317-1g-16s-rm",
+        "vendor": "MikroTik",
+        "model": "CRS317-1G-16S+RM",
+        "asset_type": "switch",
+        "height_u": 1,
+        "source_url": "https://mikrotik.com/product/crs317_1g_16s_rm",
+        "layout": {"rows": [[
+            {"fixture": "console"},
+            {"group": "ether", "kind": "rj45", "count": 1, "name": "ether{port}", "title": "Manajemen", "speed": "1G"},
+            {"group": "sfp", "kind": "sfp", "count": 8, "stack": 2, "order": "column", "name": "sfp-sfpplus{port}", "title": "SFP+ 1-8", "speed": "10G"},
+            {"group": "sfp", "kind": "sfp", "count": 8, "from": 9, "stack": 2, "order": "column", "name": "sfp-sfpplus{port}", "title": "SFP+ 9-16", "speed": "10G"},
+            {"fixture": "power"},
+            {"fixture": "power"}
+        ]]}
+    },
+    {
+        "key": "zte-c320-gtgh",
+        "vendor": "ZTE",
+        "model": "ZXA10 C320 · 2× GTGH (32 PON)",
+        "asset_type": "olt",
+        "height_u": 2,
+        "source_url": "http://ztegpon.cz/pdf/ZXA10_C320_Datasheet.pdf",
+        "layout": {"rows": [
+            [
+                {"fixture": "power", "title": "Daya"},
+                {"group": "pon1", "kind": "sfp", "count": 16, "role": "pon", "slot": 1, "name": "gpon-olt_1/{slot}/{port}", "title": "Slot 1 · GTGH", "speed": "GPON"}
+            ],
+            [
+                {"group": "pon2", "kind": "sfp", "count": 16, "role": "pon", "slot": 2, "name": "gpon-olt_1/{slot}/{port}", "title": "Slot 2 · GTGH", "speed": "GPON"}
+            ],
+            [
+                {"fixture": "console", "title": "Slot 3 · SMXA"},
+                {"group": "uplink", "kind": "sfp", "count": 2, "name": "10GE-{port}", "title": "Uplink 10GE", "speed": "10G"},
+                {"group": "uplinkge", "kind": "sfp", "count": 2, "name": "GE-{port}", "title": "Uplink GE", "speed": "1G"},
+                {"group": "uplinkcu", "kind": "rj45", "count": 2, "name": "GE-RJ45-{port}", "title": "Uplink GE RJ45", "speed": "1G"}
+            ]
+        ]}
+    },
+    {
+        "key": "zte-c320-gtgo",
+        "vendor": "ZTE",
+        "model": "ZXA10 C320 · 2× GTGO (16 PON)",
+        "asset_type": "olt",
+        "height_u": 2,
+        "source_url": "http://ztegpon.cz/pdf/ZXA10_C320_Datasheet.pdf",
+        "layout": {"rows": [
+            [
+                {"fixture": "power", "title": "Daya"},
+                {"group": "pon1", "kind": "sfp", "count": 8, "role": "pon", "slot": 1, "name": "gpon-olt_1/{slot}/{port}", "title": "Slot 1 · GTGO", "speed": "GPON"}
+            ],
+            [
+                {"group": "pon2", "kind": "sfp", "count": 8, "role": "pon", "slot": 2, "name": "gpon-olt_1/{slot}/{port}", "title": "Slot 2 · GTGO", "speed": "GPON"}
+            ],
+            [
+                {"fixture": "console", "title": "Slot 3 · SMXA"},
+                {"group": "uplink", "kind": "sfp", "count": 2, "name": "10GE-{port}", "title": "Uplink 10GE", "speed": "10G"},
+                {"group": "uplinkge", "kind": "sfp", "count": 2, "name": "GE-{port}", "title": "Uplink GE", "speed": "1G"},
+                {"group": "uplinkcu", "kind": "rj45", "count": 2, "name": "GE-RJ45-{port}", "title": "Uplink GE RJ45", "speed": "1G"}
+            ]
+        ]}
+    },
+    {
+        "key": "huawei-ma5608t-gpfd",
+        "vendor": "Huawei",
+        "model": "SmartAX MA5608T · 2× GPFD (32 PON)",
+        "asset_type": "olt",
+        "height_u": 2,
+        "source_url": "https://www.baudcom.com.cn/blog/comparison-of-huawei-gpon-olt-ma5608t-and-ma5800x2",
+        "layout": {"rows": [
+            [
+                {"fixture": "power", "title": "Slot 4 · MPWD"},
+                {"group": "pon0", "kind": "sfp", "count": 16, "role": "pon", "slot": 0, "first": 0, "name": "0/{slot}/{port}", "title": "Slot 0 · GPFD", "speed": "GPON"}
+            ],
+            [
+                {"group": "pon1", "kind": "sfp", "count": 16, "role": "pon", "slot": 1, "first": 0, "name": "0/{slot}/{port}", "title": "Slot 1 · GPFD", "speed": "GPON"}
+            ],
+            [
+                {"fixture": "console", "title": "Slot 2 · MCUD"},
+                {"group": "uplink", "kind": "sfp", "count": 4, "slot": 2, "first": 0, "name": "0/{slot}/{port}", "title": "Uplink MCUD", "speed": "1G"}
+            ]
+        ]}
+    },
+    {
+        "key": "generic-ont-1pon-4lan-2pots",
+        "vendor": "Umum",
+        "model": "ONT 1 PON · 4 LAN · 2 POTS · WLAN",
+        "asset_type": "onu_ont",
+        "height_u": null,
+        "source_url": null,
+        "layout": {"rows": [[
+            {"group": "pon", "kind": "sc", "count": 1, "name": "PON", "title": "PON SC/APC", "speed": "GPON"},
+            {"group": "lan", "kind": "rj45", "count": 4, "name": "LAN{port}", "title": "LAN", "speed": "1G"},
+            {"group": "tel", "kind": "rj11", "count": 2, "name": "TEL{port}", "title": "POTS"},
+            {"fixture": "usb"},
+            {"fixture": "wlan", "title": "WLAN"},
+            {"fixture": "reset"},
+            {"fixture": "power"}
+        ]]}
+    },
+    {
+        "key": "generic-switch-8",
+        "vendor": "Umum",
+        "model": "Switch 8 port",
+        "asset_type": "switch",
+        "height_u": null,
+        "source_url": null,
+        "layout": {"rows": [[
+            {"group": "ether", "kind": "rj45", "count": 8, "name": "{port}", "title": "Ethernet", "speed": "1G"},
+            {"fixture": "power"}
+        ]]}
+    },
+    {
+        "key": "generic-switch-24",
+        "vendor": "Umum",
+        "model": "Switch 24 port + 2 SFP",
+        "asset_type": "switch",
+        "height_u": 1,
+        "source_url": null,
+        "layout": {"rows": [[
+            {"fixture": "console"},
+            {"group": "ether", "kind": "rj45", "count": 12, "stack": 2, "order": "column", "name": "{port}", "title": "Ethernet 1-12", "speed": "1G"},
+            {"group": "ether", "kind": "rj45", "count": 12, "from": 13, "stack": 2, "order": "column", "name": "{port}", "title": "Ethernet 13-24", "speed": "1G"},
+            {"group": "sfp", "kind": "sfp", "count": 2, "stack": 2, "order": "column", "name": "SFP{port}", "title": "SFP", "speed": "1G"},
+            {"fixture": "power"}
+        ]]}
+    },
+    {
+        "key": "generic-switch-48",
+        "vendor": "Umum",
+        "model": "Switch 48 port + 4 SFP",
+        "asset_type": "switch",
+        "height_u": 1,
+        "source_url": null,
+        "layout": {"rows": [[
+            {"fixture": "console"},
+            {"group": "ether", "kind": "rj45", "count": 12, "stack": 2, "order": "column", "name": "{port}", "title": "Ethernet 1-12", "speed": "1G"},
+            {"group": "ether", "kind": "rj45", "count": 12, "from": 13, "stack": 2, "order": "column", "name": "{port}", "title": "Ethernet 13-24", "speed": "1G"},
+            {"group": "ether", "kind": "rj45", "count": 12, "from": 25, "stack": 2, "order": "column", "name": "{port}", "title": "Ethernet 25-36", "speed": "1G"},
+            {"group": "ether", "kind": "rj45", "count": 12, "from": 37, "stack": 2, "order": "column", "name": "{port}", "title": "Ethernet 37-48", "speed": "1G"},
+            {"group": "sfp", "kind": "sfp", "count": 4, "stack": 2, "order": "column", "name": "SFP{port}", "title": "SFP", "speed": "1G"},
+            {"fixture": "power"}
+        ]]}
+    },
+    {
+        "key": "generic-odp-8",
+        "vendor": "Umum",
+        "model": "ODP 1:8",
+        "asset_type": "odp",
+        "height_u": null,
+        "source_url": null,
+        "layout": {"rows": [[
+            {"group": "s1", "kind": "sc", "count": 8, "role": "splitter", "name": "{port}", "title": "Splitter 1:8"}
+        ]]}
+    },
+    {
+        "key": "generic-odp-16",
+        "vendor": "Umum",
+        "model": "ODP 1:16",
+        "asset_type": "odp",
+        "height_u": null,
+        "source_url": null,
+        "layout": {"rows": [[
+            {"group": "s1", "kind": "sc", "count": 16, "stack": 2, "order": "row", "role": "splitter", "name": "{port}", "title": "Splitter 1:16"}
+        ]]}
+    }
+]

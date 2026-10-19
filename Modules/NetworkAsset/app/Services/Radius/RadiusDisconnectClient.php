@@ -2,6 +2,8 @@
 
 namespace Modules\NetworkAsset\Services\Radius;
 
+use App\Services\Core\IntegrationConfig;
+
 /**
  * RFC 5176 Disconnect-Request sender. One attempt per call; the job owns retries.
  * Never logs packets, attributes or the secret; messages name only host:port.
@@ -21,11 +23,11 @@ class RadiusDisconnectClient
     /**
      * @param  array{'User-Name': string, 'Acct-Session-Id': string, 'NAS-IP-Address': string}  $attributes
      *
-     * @throws RadiusException kind disabled while the switch is off
+     * @throws RadiusException kind disabled while the company in scope has no enabled RADIUS integration
      */
     public function disconnect(string $host, int $port, string $secret, array $attributes): DisconnectResult
     {
-        if (! config('services.radius.enabled')) {
+        if (! app(IntegrationConfig::class)->isEnabled('radius')) {
             throw RadiusException::disabled();
         }
 

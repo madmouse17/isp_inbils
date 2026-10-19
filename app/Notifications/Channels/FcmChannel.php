@@ -7,6 +7,7 @@ use App\Jobs\SendPushNotification;
 use App\Models\Core\Customer;
 use App\Models\Core\DeviceToken;
 use App\Models\User;
+use App\Notifications\PushTestNotification;
 use App\Services\Core\ApiTokenService;
 use App\Services\Push\FcmSender;
 use Illuminate\Http\Request;
@@ -51,6 +52,7 @@ class FcmChannel
                 $audience['user_id'],
                 $audience['app'],
                 $this->message($notifiable, $notification->id ?? (string) Str::uuid(), $notification->toArray($notifiable)),
+                $notification instanceof PushTestNotification ? $notification->deviceTokenId : null,
             )));
         }
     }

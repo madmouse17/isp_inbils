@@ -12,6 +12,7 @@ use Inertia\Response as InertiaResponse;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\NetworkAsset\Models\OdnPort;
 use Modules\NetworkAsset\Queries\OdnOccupancyQuery;
+use Modules\NetworkAsset\Support\AssetPanelProps;
 
 class OdnController extends Controller
 {
@@ -54,6 +55,7 @@ class OdnController extends Controller
                 'manage' => $request->user()?->can('odn.manage') ?? false,
                 'assign' => $request->user()?->can('odn.assign') ?? false,
             ],
+            ...AssetPanelProps::for($request, $asset),
         ]);
     }
 }

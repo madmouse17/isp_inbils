@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Core\Company;
+use App\Models\Core\EmployeeProfile;
 use App\Models\Core\Vehicle;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
@@ -112,5 +113,43 @@ class VehicleTest extends TestCase
         ])->assertSessionHasErrors(['purchase_date' => 'tanggal pembelian harus sesuai format Y-m-d.']);
 
         $this->assertDatabaseMissing('vehicles', ['plate_number' => 'B 9 ZZ']);
+    }
+
+    public function test_delete_removes_a_vehicle_nobody_drives_for_good(): void
+    {
+        $vehicle = Vehicle::factory()->create(['company_id' => $this->admin->company_id]);
+
+        $this->actingAs($this->admin)->delete(route('admin.vehicles.destroy', $vehicle))
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Kendaraan dihapus permanen.');
+
+        $this->assertDatabaseMissing('vehicles', ['id' => $vehicle->id]);
+    }
+
+    public function test_delete_is_refused_while_an_employee_is_assigned_the_vehicle(): void
+    {
+        $vehicle = Vehicle::factory()->create(['company_id' => $this->admin->company_id]);
+        $employee = EmployeeProfile::factory()->create([
+            'company_id' => $this->admin->company_id,
+            'user_id' => User::factory()->create(['company_id' => $this->admin->company_id])->id,
+            'vehicle_id' => $vehicle->id,
+        ]);
+
+        $this->actingAs($this->admin)->deleteJson(route('admin.vehicles.destroy', $vehicle))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.lifecycle.0', 'Kendaraan masih dipakai 1 karyawan. Nonaktifkan saja.');
+
+        $this->assertNotSoftDeleted($vehicle);
+        $this->assertSame($vehicle->id, $employee->fresh()->vehicle_id);
+    }
+
+    public function test_the_plate_of_a_deleted_vehicle_stays_taken(): void
+    {
+        Vehicle::factory()->create(['company_id' => $this->admin->company_id, 'plate_number' => 'B 1 OLD'])->delete();
+
+        $this->actingAs($this->admin)->post(route('admin.vehicles.store'), [
+            'plate_number' => 'B 1 OLD',
+            'is_active' => true,
+        ])->assertSessionHasErrors(['plate_number']);
     }
 }

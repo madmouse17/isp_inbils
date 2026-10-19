@@ -8,7 +8,6 @@ use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use Modules\NetworkAsset\Models\NetworkAccount;
 use Modules\Service\Database\Factories\ServicePackageFactory;
@@ -93,7 +92,7 @@ class SubscriptionConnectionTest extends TestCase
     public function test_while_radius_is_switched_off_the_answer_is_null_and_radius_is_not_asked(): void
     {
         $this->seedRadiusSession();
-        config(['services.radius.enabled' => false]);
+        $this->disableRadius();
         $this->radiusConnection()->enableQueryLog();
 
         $this->connection($this->subscription)->assertOk()->assertExactJson(['data' => null]);
@@ -103,18 +102,7 @@ class SubscriptionConnectionTest extends TestCase
 
     public function test_a_radius_database_that_cannot_be_reached_answers_null_not_a_500(): void
     {
-        config(['database.connections.radius' => [
-            'driver' => 'mysql',
-            'host' => '127.0.0.1',
-            'port' => '1',
-            'database' => 'fake_radius_db',
-            'username' => 'fake_radius_user',
-            'password' => 'fake-db-password',
-            'charset' => 'utf8mb4',
-            'collation' => 'utf8mb4_unicode_ci',
-            'prefix' => '',
-        ]]);
-        DB::purge('radius');
+        $this->breakRadius();
 
         $response = $this->connection($this->subscription)->assertOk()->assertExactJson(['data' => null]);
 

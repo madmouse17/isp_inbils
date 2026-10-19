@@ -100,16 +100,16 @@ class WhatsAppWebhookTest extends TestCase
         $this->get('/webhooks/whatsapp?'.$query)->assertForbidden()->assertContent('');
     }
 
-    public function test_the_handshake_is_not_found_while_the_feature_is_not_configured(): void
+    public function test_the_handshake_is_refused_while_no_company_has_whatsapp_switched_on(): void
     {
         $this->disableWhatsApp();
 
-        $this->get('/webhooks/whatsapp?hub.mode=subscribe&hub.challenge=1&hub.verify_token='.self::WA_VERIFY_TOKEN)->assertNotFound();
+        $this->get('/webhooks/whatsapp?hub.mode=subscribe&hub.challenge=1&hub.verify_token='.self::WA_VERIFY_TOKEN)->assertForbidden()->assertContent('');
     }
 
     public function test_an_unset_verify_token_never_verifies(): void
     {
-        config(['services.whatsapp.webhook_verify_token' => '']);
+        $this->whatsAppIntegration($this->company, self::WA_PHONE_NUMBER_ID, ['webhook_verify_token' => '']);
 
         $this->get('/webhooks/whatsapp?hub.mode=subscribe&hub.challenge=1&hub.verify_token=')->assertForbidden();
     }
@@ -129,7 +129,7 @@ class WhatsAppWebhookTest extends TestCase
         $this->assertSame('sent', $this->fresh($message)->status);
     }
 
-    public function test_a_forged_post_does_not_touch_the_database_at_all(): void
+    public function test_a_post_without_a_signature_does_not_touch_the_database_at_all(): void
     {
         $this->message();
         $queries = [];
@@ -144,7 +144,7 @@ class WhatsAppWebhookTest extends TestCase
 
     public function test_a_post_is_forbidden_while_the_app_secret_is_unset_even_with_a_matching_empty_key_signature(): void
     {
-        config(['services.whatsapp.app_secret' => '']);
+        $this->whatsAppIntegration($this->company, self::WA_PHONE_NUMBER_ID, ['app_secret' => '']);
         $message = $this->message();
 
         $this->deliver($this->statusPayload('delivered'), '')->assertForbidden();
@@ -154,15 +154,42 @@ class WhatsAppWebhookTest extends TestCase
 
     public function test_a_valid_signature_is_answered_200_even_for_content_that_is_ignored(): void
     {
-        $this->deliver(['object' => 'whatsapp_business_account', 'entry' => []])->assertOk();
-        $this->deliver(['unexpected' => ['shape' => true]])->assertOk();
-        $this->deliver(['entry' => [['changes' => 'not-a-list']]])->assertOk();
-        $this->deliver(['entry' => [['changes' => [['value' => ['statuses' => ['junk', ['id' => 5, 'status' => ['x']]]]]]]]])->assertOk();
+        // Whatever surrounds the number it names, a payload the company's secret signs is acknowledged.
+        $named = fn (array $value): array => ['entry' => [['changes' => [['value' => ['metadata' => ['phone_number_id' => self::WA_PHONE_NUMBER_ID]] + $value]]]]];
 
-        // Signed but not JSON: nothing to read, still acknowledged. Signed for another body: refused.
-        $notJson = 'not json at all';
-        $this->call('POST', '/webhooks/whatsapp', [], [], [], ['HTTP_X_HUB_SIGNATURE_256' => 'sha256='.hash_hmac('sha256', $notJson, self::WA_APP_SECRET)], $notJson)->assertOk();
-        $this->call('POST', '/webhooks/whatsapp', [], [], [], ['HTTP_X_HUB_SIGNATURE_256' => 'sha256='.hash_hmac('sha256', '{}', self::WA_APP_SECRET)], $notJson)->assertForbidden();
+        $this->deliver($named([]))->assertOk();
+        $this->deliver($named(['statuses' => ['junk', ['id' => 5, 'status' => ['x']]]]))->assertOk();
+        $this->deliver($named(['messages' => 'not-a-list', 'statuses' => 'not-a-list-either']))->assertOk();
+        $this->deliver(['entry' => ['junk', ['changes' => 'not-a-list'], ['changes' => ['junk', ['value' => 'not-an-object']]], ...$named([])['entry']]])->assertOk();
+        $this->deliver(['unexpected' => ['shape' => true], ...$named([])])->assertOk();
+
+        // Signed for another body: refused.
+        $this->call('POST', '/webhooks/whatsapp', [], [], [], ['HTTP_X_HUB_SIGNATURE_256' => 'sha256='.hash_hmac('sha256', '{}', self::WA_APP_SECRET)], json_encode($named([])))->assertForbidden();
+    }
+
+    /** @return array<string, array{0: array<string, mixed>|string}> */
+    public static function payloadsNoCompanyCanOwn(): array
+    {
+        return [
+            'no entries' => [['object' => 'whatsapp_business_account', 'entry' => []]],
+            'an unexpected shape' => [['unexpected' => ['shape' => true]]],
+            'changes that are not a list' => [['entry' => [['changes' => 'not-a-list']]]],
+            'a status without the number it came to' => [['entry' => [['changes' => [['value' => ['statuses' => ['junk', ['id' => 5, 'status' => ['x']]]]]]]]]],
+            'a number nobody owns' => [['entry' => [['changes' => [['value' => ['metadata' => ['phone_number_id' => '999999999999999']]]]]]]],
+            'a number that is not a string' => [['entry' => [['changes' => [['value' => ['metadata' => ['phone_number_id' => (int) self::WA_PHONE_NUMBER_ID]]]]]]]],
+            'a number that is a list' => [['entry' => [['changes' => [['value' => ['metadata' => ['phone_number_id' => [self::WA_PHONE_NUMBER_ID]]]]]]]]],
+            'an empty number' => [['entry' => [['changes' => [['value' => ['metadata' => ['phone_number_id' => '']]]]]]]],
+            'not JSON at all' => ['not json at all'],
+        ];
+    }
+
+    /** @param array<string, mixed>|string $payload */
+    #[DataProvider('payloadsNoCompanyCanOwn')]
+    public function test_a_signed_payload_that_no_company_can_own_is_forbidden(array|string $payload): void
+    {
+        $body = is_array($payload) ? json_encode($payload) : $payload;
+
+        $this->call('POST', '/webhooks/whatsapp', [], [], [], ['HTTP_X_HUB_SIGNATURE_256' => 'sha256='.hash_hmac('sha256', $body, self::WA_APP_SECRET)], $body)->assertForbidden()->assertContent('');
     }
 
     public function test_only_get_and_post_are_routed_and_no_session_or_csrf_layer_is_attached(): void
@@ -336,7 +363,7 @@ class WhatsAppWebhookTest extends TestCase
         $this->assertSame('sent', $this->fresh($message)->status);
     }
 
-    public function test_a_batch_updates_every_message_in_it_across_companies(): void
+    public function test_a_batch_updates_every_message_in_it_across_the_companies_of_the_number(): void
     {
         $other = Company::factory()->create();
         $a = $this->message(['provider_message_id' => 'wamid.A']);
@@ -361,8 +388,9 @@ class WhatsAppWebhookTest extends TestCase
     }
 
     #[DataProvider('optOutWords')]
-    public function test_stop_and_berhenti_opt_the_customer_out_in_every_company_that_has_the_number(string $word): void
+    public function test_stop_and_berhenti_opt_the_customer_out_in_every_company_that_sends_from_the_number(string $word): void
     {
+        // enableWhatsApp() puts every company on the one fake number; a STOP to another number is WhatsAppPerCompanyTest's.
         $other = Company::factory()->create();
         $third = Company::factory()->create();
         $a = $this->consentedCustomer($this->company, '0812-3456-7890');
@@ -380,7 +408,7 @@ class WhatsAppWebhookTest extends TestCase
         $this->assertCount(2, $audits);
         $this->assertEqualsCanonicalizing([$this->company->id, $other->id], $audits->map(fn ($audit) => (int) $audit->company_id)->all());
         foreach ($audits as $audit) {
-            $this->assertEqualsCanonicalizing(['customer_id', 'company_id'], array_keys($audit->properties->toArray()));
+            $this->assertSame(['customer_id'], array_keys($audit->properties->toArray()));
         }
         $this->assertNull($audits->first()->causer_id);
         Http::assertNothingSent();

@@ -39,8 +39,16 @@ import {
 import type { Invoice } from '@/types/billing';
 import type { PaymentAttemptEntry } from '@/types/portal';
 
+/** What the invoice printed when it was issued; null on a draft and on invoices that predate the snapshot. */
+interface InvoiceSnapshots {
+    customer_name_snapshot?: string | null;
+    customer_address_snapshot?: string | null;
+    customer_tax_id_snapshot?: string | null;
+    package_name_snapshot?: string | null;
+}
+
 interface ShowProps extends Record<string, unknown> {
-    invoice: { data: Invoice };
+    invoice: { data: Invoice & InvoiceSnapshots };
     onlinePayments: { enabled: boolean; attempts: { data: PaymentAttemptEntry[] } };
 }
 
@@ -72,6 +80,14 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
     });
 
     const isDraft = inv.status === 'draft';
+    // An issued invoice keeps the name printed on it; a draft follows the live customer.
+    const customerName = isDraft
+        ? inv.customer?.name
+        : (inv.customer_name_snapshot ?? inv.customer?.name);
+    const customerNameChanged =
+        !isDraft &&
+        Boolean(inv.customer_name_snapshot) &&
+        inv.customer_name_snapshot !== inv.customer?.name;
     const canRecordPayment =
         ['sent', 'partial', 'overdue'].includes(inv.status) && Number(inv.sisa) > 0;
     const canCancel = !['cancelled', 'paid'].includes(inv.status);
@@ -155,8 +171,32 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                         <CardContent className="space-y-3 text-sm">
                             <p>
                                 <span className="text-muted-foreground">Pelanggan: </span>
-                                {inv.customer?.name ?? '-'}
+                                {customerName ?? '-'}
+                                {customerNameChanged && (
+                                    <span className="text-xs text-muted-foreground">
+                                        {' '}
+                                        (saat terbit)
+                                    </span>
+                                )}
                             </p>
+                            {!isDraft && inv.customer_address_snapshot && (
+                                <p>
+                                    <span className="text-muted-foreground">Alamat: </span>
+                                    {inv.customer_address_snapshot}
+                                </p>
+                            )}
+                            {!isDraft && inv.customer_tax_id_snapshot && (
+                                <p>
+                                    <span className="text-muted-foreground">NPWP: </span>
+                                    {inv.customer_tax_id_snapshot}
+                                </p>
+                            )}
+                            {!isDraft && inv.package_name_snapshot && (
+                                <p>
+                                    <span className="text-muted-foreground">Paket: </span>
+                                    {inv.package_name_snapshot}
+                                </p>
+                            )}
                             <p>
                                 <span className="text-muted-foreground">Langganan: </span>
                                 {inv.subscription?.code ?? '-'}

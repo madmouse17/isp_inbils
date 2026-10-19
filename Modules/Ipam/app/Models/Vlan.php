@@ -42,7 +42,7 @@ class Vlan extends Model
     /** @return BelongsTo<Location, $this> */
     public function location(): BelongsTo
     {
-        return $this->belongsTo(Location::class);
+        return $this->belongsTo(Location::class)->withTrashed();
     }
 
     /** @return HasMany<IpPrefix, $this> */

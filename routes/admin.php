@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\ApprovalInboxController;
 use App\Http\Controllers\Admin\CompanyController;
+use App\Http\Controllers\Admin\CompanyIntegrationController;
 use App\Http\Controllers\Admin\CompanySwitchController;
 use App\Http\Controllers\Admin\CustomerAccessLinkController;
 use App\Http\Controllers\Admin\CustomerAddressController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\Admin\DispatchQueueController;
 use App\Http\Controllers\Admin\DocumentController;
 use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\EvaluationController;
+use App\Http\Controllers\Admin\LifecycleController;
 use App\Http\Controllers\Admin\LocationController;
 use App\Http\Controllers\Admin\MediaController;
 use App\Http\Controllers\Admin\MyWorkController;
@@ -24,7 +26,15 @@ use App\Http\Controllers\Admin\SubscriptionController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\UserTwoFactorResetController;
 use App\Http\Controllers\Admin\VehicleController;
+use App\Models\Core\CompanyIntegration;
+use App\Models\Core\Customer;
+use App\Models\Core\CustomerAddress;
+use App\Models\Core\DocumentType;
+use App\Models\Core\EmployeeEvaluation;
+use App\Models\Core\EmployeeProfile;
 use App\Models\Core\Location;
+use App\Models\Core\OrganizationUnit;
+use App\Models\Core\Vehicle;
 use App\Support\SearchOptions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -53,6 +63,15 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
     Route::put('company/settings', [CompanyController::class, 'updateSettings'])->name('company.settings.update');
     Route::post('company/switch', CompanySwitchController::class)->name('company.switch');
 
+    Route::middleware('can:company.integrations.manage')->group(function () {
+        Route::get('company/integrations', [CompanyIntegrationController::class, 'edit'])->name('company.integrations.edit');
+        // Own throttle prefixes: the anonymous `throttle:N,M` key is the user alone, shared by every route that uses it.
+        Route::put('company/integrations/{provider}', [CompanyIntegrationController::class, 'update'])
+            ->whereIn('provider', CompanyIntegration::PROVIDERS)->middleware('throttle:6,1,integrations-save')->name('company.integrations.update');
+        Route::post('company/integrations/{provider}/test', [CompanyIntegrationController::class, 'test'])
+            ->whereIn('provider', CompanyIntegration::PROVIDERS)->middleware('throttle:5,1,integrations-test')->name('company.integrations.test');
+    });
+
     Route::get('users/export', [UserController::class, 'export'])->name('users.export');
     Route::resource('users', UserController::class);
     Route::post('users/{user}/two-factor/reset', UserTwoFactorResetController::class)->name('users.two-factor.reset');
@@ -69,6 +88,7 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
         Route::post('/{location}/move', [LocationController::class, 'move'])->name('move');
         Route::delete('/{location}', [LocationController::class, 'destroy'])->name('destroy');
     });
+    LifecycleController::routes('locations', Location::class);
 
     Route::get('components', function (Request $request) {
         // Developer-only gallery. Fail-closed by default: not even an admin
@@ -92,12 +112,14 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
     Route::get('customers/{customer}/addresses/export', [CustomerAddressController::class, 'export'])->name('customers.addresses.export');
     Route::get('customers/export', [CustomerController::class, 'export'])->name('customers.export');
     Route::resource('customers', CustomerController::class)->parameters(['customers' => 'customer']);
+    LifecycleController::routes('customers', Customer::class);
     Route::post('customers/{customer}/access-link', CustomerAccessLinkController::class)->middleware('throttle:3,1')->name('customers.access-link');
 
     Route::get('customers/{customer}/addresses', [CustomerAddressController::class, 'index'])->name('customers.addresses.index');
     Route::post('customers/{customer}/addresses', [CustomerAddressController::class, 'store'])->name('customers.addresses.store');
     Route::put('customers/{customer}/addresses/{address}', [CustomerAddressController::class, 'update'])->name('customers.addresses.update');
     Route::delete('customers/{customer}/addresses/{address}', [CustomerAddressController::class, 'destroy'])->name('customers.addresses.destroy');
+    LifecycleController::routes('customer-addresses', CustomerAddress::class, ['restore'], 'customers.addresses');
 
     Route::get('customers/{customer}/contacts/export', [CustomerContactController::class, 'export'])->name('customers.contacts.export');
     Route::get('customers/{customer}/contacts', [CustomerContactController::class, 'index'])->name('customers.contacts.index');
@@ -115,10 +137,12 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
     Route::post('subscriptions/{subscription}/block', [SubscriptionController::class, 'block'])->name('subscriptions.block');
     Route::post('subscriptions/{subscription}/unblock', [SubscriptionController::class, 'unblock'])->name('subscriptions.unblock');
     Route::post('subscriptions/{subscription}/terminate', [SubscriptionController::class, 'terminate'])->name('subscriptions.terminate');
+    Route::post('subscriptions/{subscription}/change-package', [SubscriptionController::class, 'changePackage'])->name('subscriptions.change-package');
 
     // Employee evaluations
     Route::get('evaluations/export', [EvaluationController::class, 'export'])->name('evaluations.export');
     Route::resource('evaluations', EvaluationController::class);
+    LifecycleController::routes('evaluations', EmployeeEvaluation::class, ['restore']);
 
     // Organization & Employee
     Route::get('organizations/export', [OrganizationController::class, 'export'])->name('organizations.export');
@@ -126,10 +150,13 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
         ->parameters(['organizations' => 'organization_unit'])
         ->except(['create', 'edit', 'show']);
     Route::post('organizations/{organization_unit}/move', [OrganizationController::class, 'move'])->name('organizations.move');
+    LifecycleController::routes('organizations', OrganizationUnit::class);
     Route::get('employees/export', [EmployeeController::class, 'export'])->name('employees.export');
     Route::resource('employees', EmployeeController::class)->except(['create', 'edit', 'show']);
+    LifecycleController::routes('employees', EmployeeProfile::class, ['restore']);
     Route::get('vehicles/export', [VehicleController::class, 'export'])->name('vehicles.export');
     Route::resource('vehicles', VehicleController::class)->except(['create', 'edit', 'show']);
+    LifecycleController::routes('vehicles', Vehicle::class);
 
     // Number Sequences
     Route::get('number-sequences/export', [NumberSequenceController::class, 'export'])->name('number-sequences.export');
@@ -138,6 +165,7 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
     // Documents (types + media)
     Route::get('documents/export', [DocumentController::class, 'export'])->name('documents.export');
     Route::resource('documents', DocumentController::class, ['parameters' => ['documents' => 'document_type']])->except(['create', 'edit', 'show']);
+    LifecycleController::routes('documents', DocumentType::class);
     Route::post('documents/media', [DocumentController::class, 'uploadMedia'])->name('documents.media.store');
     Route::delete('documents/media/{media:public_id}', [DocumentController::class, 'deleteMedia'])->name('documents.media.destroy');
 

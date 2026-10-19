@@ -44,23 +44,27 @@ test.describe('@smoke date range picker (Log audit)', () => {
         );
     });
 
-    test('a half range is sent as it is: from only, then to only', async ({ page }) => {
+    test('an open end stays open; a missing start becomes the 7 days before the end', async ({
+        page,
+    }) => {
         const field = await openAuditLog(page);
 
-        await typeDateRange(page, field, '2026-09-05', null);
+        await typeDateRange(page, field, await companyToday(page, -10), null);
         await page.getByRole('button', { name: 'Terapkan filter' }).click();
-        await expect.poll(() => query(page, 'date_from')).toBe('2026-09-05');
+        await expect.poll(() => query(page, 'date_from')).toBe(await companyToday(page, -10));
         expect(query(page, 'date_to')).toBeNull();
 
-        await typeDateRange(page, field, null, '2026-09-20');
+        await typeDateRange(page, field, null, await companyToday(page, -3));
         await page.getByRole('button', { name: 'Terapkan filter' }).click();
-        await expect.poll(() => query(page, 'date_to')).toBe('2026-09-20');
-        expect(query(page, 'date_from')).toBeNull();
+        await expect.poll(() => query(page, 'date_to')).toBe(await companyToday(page, -3));
+        expect(query(page, 'date_from')).toBe(await companyToday(page, -9));
     });
 
     test('two clicks on the calendar pick a range', async ({ page }) => {
         const field = await openAuditLog(page);
 
+        // The page opens on its default start (7 days back); clear it so the first click starts a new range.
+        await page.getByRole('button', { name: 'Hapus rentang tanggal' }).click();
         await page.getByRole('button', { name: 'Buka kalender' }).click();
         const calendar = page.getByRole('dialog', { name: 'Pilih rentang tanggal' });
         await expect(calendar).toBeVisible();
@@ -106,7 +110,9 @@ test.describe('@smoke date range picker (Log audit)', () => {
         ).toBeVisible();
         await page.getByRole('button', { name: 'Terapkan filter' }).click();
         await expect(page.getByRole('button', { name: 'Terapkan filter' })).toBeEnabled();
-        expect(query(page, 'date_from')).toBeNull();
+        // The typed text is never applied: the period keeps its default start, the 7 days up to today.
+        const defaultStart = await companyToday(page, -6);
+        await expect.poll(() => query(page, 'date_from')).toBe(defaultStart);
 
         await typeDateRange(page, field, '2026-09-10', '2026-09-01');
         await expect(
@@ -115,7 +121,7 @@ test.describe('@smoke date range picker (Log audit)', () => {
                 .filter({ hasText: 'Tanggal akhir tidak boleh sebelum tanggal mulai.' }),
         ).toBeVisible();
         await page.getByRole('button', { name: 'Terapkan filter' }).click();
-        expect(query(page, 'date_from')).toBeNull();
+        await expect.poll(() => query(page, 'date_from')).toBe(defaultStart);
         expect(query(page, 'date_to')).toBeNull();
     });
 

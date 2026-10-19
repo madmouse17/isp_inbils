@@ -99,7 +99,8 @@ class WorkOrderTripTest extends TestCase
         $this->assertSame('recorded', $properties['status']);
         $this->assertSame(0, $properties['distance_m'], 'measured to the house, not to the POP 120 km away');
         $this->assertSame(8.5, $properties['accuracy_m']);
-        $this->assertSame($workOrder->company_id, $properties['company_id']);
+        $this->assertArrayNotHasKey('company_id', $properties, 'the company lives in its column');
+        $this->assertSame($workOrder->company_id, (int) $this->activities($workOrder, 'en_route')->value('company_id'));
         $this->assertSame(0, $this->activities($workOrder, 'check_in')->count(), 'the start check-in stays its own record');
     }
 

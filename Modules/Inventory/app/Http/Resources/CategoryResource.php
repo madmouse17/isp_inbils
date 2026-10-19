@@ -18,6 +18,7 @@ class CategoryResource extends JsonResource
             'code' => $this->code,
             'description' => $this->description,
             'is_active' => $this->is_active,
+            ...$this->lifecycleAttributes(),
             'unit' => new UnitResource($this->whenLoaded('unit')),
             'children_count' => $this->whenCounted('children'),
         ];

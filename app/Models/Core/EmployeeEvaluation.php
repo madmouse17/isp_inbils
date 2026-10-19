@@ -4,6 +4,7 @@ namespace App\Models\Core;
 
 use App\Models\User;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasLifecycle;
 use App\Traits\HasPublicId;
 use Database\Factories\EmployeeEvaluationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,6 +21,7 @@ class EmployeeEvaluation extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasLifecycle;
     use HasPublicId;
     use LogsActivity;
     use SoftDeletes;
@@ -42,6 +44,22 @@ class EmployeeEvaluation extends Model
         'resolution_minutes' => 'integer',
         'evaluated_at' => 'datetime',
     ];
+
+    public static function lifecycleNoun(): string
+    {
+        return 'Evaluasi';
+    }
+
+    public static function lifecycleFilters(): array
+    {
+        return [];
+    }
+
+    /** An evaluation keeps its own soft delete: it can be deleted and restored, nothing else points at it. */
+    public static function lifecycleReferences(): ?array
+    {
+        return null;
+    }
 
     public function employee(): BelongsTo
     {

@@ -51,10 +51,12 @@ import {
     TR,
 } from '@/Components/ui';
 import { cn } from '@/lib/utils';
+import { presetRange, todayInZone } from '@/lib/dateRange';
 import { formatDateTime } from '@/lib/format';
 import { AUDIT_EVENT, AUDIT_MODULE, labelOf } from '@/lib/statuses';
 import type { StatusMap } from '@/lib/statuses/types';
 import { useServerTable } from '@/hooks/useServerTable';
+import { useCompany } from '@/hooks/useCompany';
 import type { PageProps } from '@/types';
 
 export interface AuditLogCauser {
@@ -163,7 +165,8 @@ function ModuleBadge({ value }: { value: string | null | undefined }) {
 }
 
 export default function AuditLog({ data, filters, userOptions, selectedUser, can }: AuditLogProps) {
-    const { auth } = usePage<PageProps>().props;
+    const { auth, errors } = usePage<PageProps>().props;
+    const company = useCompany();
     const searchInputId = useId();
     const dateRangeId = useId();
 
@@ -202,6 +205,10 @@ export default function AuditLog({ data, filters, userOptions, selectedUser, can
     const [localUserId, setLocalUserId] = useState<string>(String(params.user_id ?? ''));
     const [localDateFrom, setLocalDateFrom] = useState<string>(String(params.date_from ?? ''));
     const [localDateTo, setLocalDateTo] = useState<string>(String(params.date_to ?? ''));
+
+    // The audit page always has a period: no start means the 7 days up to the end, as the server does.
+    const startOrDefault = (from: string, to: string) =>
+        from || presetRange('last7', to || todayInZone(company?.timezone)).from || '';
 
     // Sorting & Pagination local state
     const [sortBy, setSortBy] = useState<string>(String(params.sort ?? 'created_at'));
@@ -345,11 +352,13 @@ export default function AuditLog({ data, filters, userOptions, selectedUser, can
     // Handle form submit (Sync to server)
     const handleFilterSubmit = (e?: FormEvent) => {
         if (e) e.preventDefault();
+        const from = startOrDefault(localDateFrom, localDateTo);
+        setLocalDateFrom(from);
         setCurrentPage(1);
         setMany({
             user_id: localUserId || '',
             log_name: localLogName,
-            date_from: localDateFrom || '',
+            date_from: from,
             date_to: localDateTo || '',
             search: localSearch || '',
             sort: sortBy,
@@ -363,10 +372,11 @@ export default function AuditLog({ data, filters, userOptions, selectedUser, can
 
     // Reset all filters
     const handleResetFilters = () => {
+        const from = startOrDefault('', '');
         setLocalSearch('');
         setLocalLogName('');
         setLocalUserId('');
-        setLocalDateFrom('');
+        setLocalDateFrom(from);
         setLocalDateTo('');
         setCurrentPage(1);
         setSortBy('created_at');
@@ -374,7 +384,7 @@ export default function AuditLog({ data, filters, userOptions, selectedUser, can
 
         router.get(
             route('admin.reports.audit-log'),
-            {},
+            { date_from: from },
             {
                 preserveState: true,
                 preserveScroll: true,
@@ -725,7 +735,11 @@ export default function AuditLog({ data, filters, userOptions, selectedUser, can
                                         setLocalDateFrom(range.from ?? '');
                                         setLocalDateTo(range.to ?? '');
                                     }}
+                                    error={errors.date_from ?? errors.date_to}
                                 />
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    Paling lama 92 hari. Tanpa tanggal mulai, 7 hari terakhir.
+                                </p>
                             </div>
 
                             {/* Buttons */}

@@ -6,6 +6,7 @@ use App\Models\Core\Company;
 use App\Models\Core\Setting;
 use App\Models\User;
 use App\Services\Core\SettingService;
+use App\Support\OptimisticLock;
 use Database\Seeders\DemoUserSeeder;
 use Database\Seeders\IndonesiaRegionSeeder;
 use Database\Seeders\RolePermissionSeeder;
@@ -56,7 +57,10 @@ class CompanyMapDefaultTest extends TestCase
     /** @param array<string, mixed> $settings */
     private function save(array $settings): TestResponse
     {
-        return $this->actingAs($this->admin)->put(route('admin.company.settings.update'), ['settings' => $settings]);
+        return $this->actingAs($this->admin)->put(route('admin.company.settings.update'), [
+            'settings' => $settings,
+            OptimisticLock::FIELD => OptimisticLock::version($this->company->fresh()),
+        ]);
     }
 
     private function sharedMap(): TestResponse

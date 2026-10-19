@@ -36,16 +36,16 @@ class WorkOrderItem extends Model
 
     public function workOrder(): BelongsTo
     {
-        return $this->belongsTo(WorkOrder::class, 'work_order_id');
+        return $this->belongsTo(WorkOrder::class, 'work_order_id')->withTrashed();
     }
 
     public function product(): BelongsTo
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(Product::class)->withTrashed();
     }
 
     public function networkAsset(): BelongsTo
     {
-        return $this->belongsTo(NetworkAsset::class, 'network_asset_id');
+        return $this->belongsTo(NetworkAsset::class, 'network_asset_id')->withTrashed();
     }
 }

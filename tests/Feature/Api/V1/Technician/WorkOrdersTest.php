@@ -87,15 +87,17 @@ class WorkOrdersTest extends TestCase
             ->assertJsonPath('data.check_in.status', 'unavailable')
             ->assertJsonPath('data.check_in.reason', 'permission_denied');
 
-        $properties = json_decode((string) DB::table('activity_log')
+        $row = DB::table('activity_log')
             ->where('log_name', 'work_order')
             ->where('description', 'check_in')
             ->where('subject_id', $workOrder->id)
-            ->value('properties'), true);
+            ->first();
+        $properties = json_decode((string) $row->properties, true);
 
         $this->assertSame('unavailable', $properties['status']);
         $this->assertSame('permission_denied', $properties['reason']);
-        $this->assertSame($workOrder->company_id, $properties['company_id']);
+        $this->assertArrayNotHasKey('company_id', $properties, 'the company lives in its column');
+        $this->assertSame($workOrder->company_id, (int) $row->company_id);
     }
 
     public function test_start_rejects_invalid_check_in_and_reports_none_without_one(): void

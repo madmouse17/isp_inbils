@@ -16,8 +16,18 @@ import {
 } from '@/Components/ui';
 import { formatDateTime, formatNumber } from '@/lib/format';
 import { formatBytes } from '@/lib/platform';
-import { ACTIVE_STATE, PLATFORM_TENANT_STATUS, TWO_FACTOR_STATE } from '@/lib/statuses';
-import type { PlatformCompanyShowProps, PlatformCompanyUser } from '@/types/platform';
+import {
+    ACTIVE_STATE,
+    INTEGRATION_PROVIDER,
+    INTEGRATION_STATE,
+    PLATFORM_TENANT_STATUS,
+    TWO_FACTOR_STATE,
+} from '@/lib/statuses';
+import type {
+    PlatformCompanyShowProps,
+    PlatformCompanyUser,
+    PlatformTenantIntegration,
+} from '@/types/platform';
 import { LifecycleActions } from './components/LifecycleActions';
 import { SubsidiariesSection } from './components/SubsidiariesSection';
 import { UsersSection } from './components/UsersSection';
@@ -34,6 +44,7 @@ export default function Show({
     recentAudit,
     failedJobs,
     failedWhatsApp,
+    integrations,
     exports,
     lifecycle,
 }: PlatformCompanyShowProps) {
@@ -80,6 +91,42 @@ export default function Show({
                     ) : (
                         <span className="text-muted-foreground">Belum pernah</span>
                     ),
+            },
+        ],
+        [],
+    );
+    const integrationColumns = useMemo<DataTableColumn<PlatformTenantIntegration>[]>(
+        () => [
+            {
+                key: 'company',
+                header: 'Perusahaan',
+                cell: (row) => (
+                    <div>
+                        <p className="font-medium">{row.company.code}</p>
+                        <p className="text-xs text-muted-foreground">{row.company.name}</p>
+                    </div>
+                ),
+            },
+            {
+                key: 'provider',
+                header: 'Layanan',
+                cell: (row) => INTEGRATION_PROVIDER[row.provider].label,
+            },
+            {
+                key: 'state',
+                header: 'Status',
+                cell: (row) => <EnumBadge map={INTEGRATION_STATE} value={row.state} />,
+            },
+            {
+                key: 'is_enabled',
+                header: 'Aktif',
+                cell: (row) => (row.is_enabled ? 'Ya' : 'Tidak'),
+            },
+            {
+                key: 'last_checked_at',
+                header: 'Terakhir diuji',
+                cell: (row) =>
+                    row.last_checked_at ? formatDateTime(row.last_checked_at) : 'Belum pernah',
             },
         ],
         [],
@@ -259,6 +306,24 @@ export default function Show({
                 </CardContent>
             </Card>
 
+            <Card>
+                <CardHeader>
+                    <CardTitle>Integrasi</CardTitle>
+                    <CardDescription>
+                        Akun layanan milik tiap perusahaan. Hanya status dan waktu uji yang tampil,
+                        tidak pernah isinya.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <DataTable
+                        columns={integrationColumns}
+                        rows={integrations}
+                        getRowId={(row) => `${row.company.id}:${row.provider}`}
+                        emptyTitle="Belum ada integrasi"
+                        itemLabel="integrasi"
+                    />
+                </CardContent>
+            </Card>
             <SubsidiariesSection tenant={tenant} admins={admins} subsidiaries={subsidiaries} />
             <UsersSection tenant={tenant} users={users} filters={userFilters} />
             <ActivitySections

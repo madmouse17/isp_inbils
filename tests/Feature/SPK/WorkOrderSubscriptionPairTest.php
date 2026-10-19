@@ -6,6 +6,7 @@ use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
+use App\Support\OptimisticLock;
 use App\Support\PublicId;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\SPK\Database\Factories\WorkOrderFactory;
@@ -106,7 +107,7 @@ class WorkOrderSubscriptionPairTest extends TestCase
         $workOrder = $this->workOrder($mine);
 
         $this->actingAs($this->user)
-            ->putJson(route('admin.spk.update', $workOrder), ['title' => 'Ganti', 'customer_id' => $mine->customer->public_id, 'subscription_id' => $theirs->public_id])
+            ->putJson(route('admin.spk.update', $workOrder), $this->save($workOrder, ['title' => 'Ganti', 'customer_id' => $mine->customer->public_id, 'subscription_id' => $theirs->public_id]))
             ->assertUnprocessable()
             ->assertJsonValidationErrors('subscription_id');
 
@@ -120,11 +121,11 @@ class WorkOrderSubscriptionPairTest extends TestCase
         $workOrder = $this->workOrder($mine);
 
         $this->actingAs($this->user)
-            ->putJson(route('admin.spk.update', $workOrder), ['title' => 'Ganti', 'subscription_id' => $theirs->public_id])
+            ->putJson(route('admin.spk.update', $workOrder), $this->save($workOrder, ['title' => 'Ganti', 'subscription_id' => $theirs->public_id]))
             ->assertUnprocessable()
             ->assertJsonValidationErrors('subscription_id');
 
-        $this->putJson(route('admin.spk.update', $workOrder), ['title' => 'Ganti', 'customer_id' => $theirs->customer->public_id])
+        $this->putJson(route('admin.spk.update', $workOrder), $this->save($workOrder, ['title' => 'Ganti', 'customer_id' => $theirs->customer->public_id]))
             ->assertUnprocessable()
             ->assertJsonValidationErrors('subscription_id');
 
@@ -139,11 +140,11 @@ class WorkOrderSubscriptionPairTest extends TestCase
         $workOrder = $this->workOrder($mine);
 
         $this->actingAs($this->user)
-            ->put(route('admin.spk.update', $workOrder), ['title' => 'Judul baru'])
+            ->put(route('admin.spk.update', $workOrder), $this->save($workOrder, ['title' => 'Judul baru']))
             ->assertRedirect(route('admin.spk.index'))
             ->assertSessionHasNoErrors();
 
-        $this->put(route('admin.spk.update', $workOrder), ['title' => 'Judul baru', 'customer_id' => $next->customer->public_id, 'subscription_id' => $next->public_id])
+        $this->put(route('admin.spk.update', $workOrder), $this->save($workOrder, ['title' => 'Judul baru', 'customer_id' => $next->customer->public_id, 'subscription_id' => $next->public_id]))
             ->assertRedirect(route('admin.spk.index'))
             ->assertSessionHasNoErrors();
 
@@ -160,7 +161,7 @@ class WorkOrderSubscriptionPairTest extends TestCase
         $answers = [];
         foreach (['foreign' => $foreign->public_id, 'unknown' => PublicId::new()] as $case => $subscriptionId) {
             $response = $this->actingAs($this->user)
-                ->putJson(route('admin.spk.update', $workOrder), ['title' => 'Ganti', 'customer_id' => $mine->customer->public_id, 'subscription_id' => $subscriptionId])
+                ->putJson(route('admin.spk.update', $workOrder), $this->save($workOrder, ['title' => 'Ganti', 'customer_id' => $mine->customer->public_id, 'subscription_id' => $subscriptionId]))
                 ->assertUnprocessable();
 
             $this->assertCount(1, $response->json('errors.subscription_id'));
@@ -174,6 +175,17 @@ class WorkOrderSubscriptionPairTest extends TestCase
     private function payload(string $type, ?Customer $customer, ?ServiceSubscription $subscription): array
     {
         return ['type' => $type, 'title' => 'Pekerjaan '.$type, 'customer_id' => $customer?->public_id, 'subscription_id' => $subscription?->public_id];
+    }
+
+    /**
+     * The fields of the edit form with the version the SPK was rendered with.
+     *
+     * @param  array<string, mixed>  $fields
+     * @return array<string, mixed>
+     */
+    private function save(WorkOrder $workOrder, array $fields): array
+    {
+        return [...$fields, OptimisticLock::FIELD => OptimisticLock::version($workOrder->fresh())];
     }
 
     private function workOrder(ServiceSubscription $subscription): WorkOrder

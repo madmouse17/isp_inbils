@@ -8,6 +8,7 @@ use App\Services\Core\NumberSequenceService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\Inventory\Models\Category;
+use Modules\Inventory\Models\Unit;
 
 class StoreProductRequest extends FormRequest
 {
@@ -46,7 +47,7 @@ class StoreProductRequest extends FormRequest
             'sku' => ['nullable', 'string', 'max:100', ...(NumberSequenceService::allowsManual('product') ? [] : ['prohibited']), Rule::unique('products')->where('company_id', $companyId)],
             'name' => ['required', 'string', 'max:255'],
             'category_id' => ['required', Rule::exists('categories', 'id')->where('company_id', $companyId)],
-            'unit_id' => ['required', Rule::exists('units', 'id')->where('company_id', $companyId)],
+            'unit_id' => ['required', Unit::assignableRule($companyId)],
             'description' => ['nullable', 'string'],
             'type' => ['nullable', 'string', 'in:consumable,asset,service'],
             'track_stock' => ['boolean'],
@@ -55,5 +56,11 @@ class StoreProductRequest extends FormRequest
             'min_stock' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['boolean'],
         ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return ['unit_id.exists' => 'Satuan kategori ini sudah tidak aktif. Ganti satuan kategori terlebih dahulu.'];
     }
 }

@@ -6,6 +6,7 @@ use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\Core\WhatsAppMessage;
 use App\Models\User;
+use App\Support\OptimisticLock;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
@@ -61,6 +62,7 @@ class WhatsAppConsentTest extends TestCase
             'email' => $customer->email,
             'phone' => $customer->phone,
             'is_active' => true,
+            OptimisticLock::FIELD => OptimisticLock::version($customer->fresh()),
             ...$overrides,
         ];
     }
@@ -185,7 +187,7 @@ class WhatsAppConsentTest extends TestCase
         $audit = $this->consentAudits($customer)->sole();
         $this->assertSame('opted_out', $audit->description);
         $this->assertSame($this->company->id, (int) $audit->company_id);
-        $this->assertEquals(['customer_id' => $customer->id, 'actor_id' => $this->admin->id, 'source' => 'staff', 'company_id' => $this->company->id], $audit->properties->toArray());
+        $this->assertEquals(['customer_id' => $customer->id, 'actor_id' => $this->admin->id, 'source' => 'staff'], $audit->properties->toArray());
         $this->assertStringNotContainsString('0812', $audit->properties->toJson());
         $this->assertSame($this->admin->id, (int) $audit->causer_id);
     }

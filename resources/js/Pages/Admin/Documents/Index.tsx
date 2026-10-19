@@ -6,16 +6,19 @@ import {
     DataTable,
     DataTableActions,
     PageHeader,
+    StatusFilter,
     type DataTableColumn,
 } from '@/Components/composite';
+import { UsageLine } from '@/Components/composite/UsageLine';
 import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { Button, Card, CardContent, EnumBadge, Input, Modal, Switch } from '@/Components/ui';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
-import { ACTIVE_STATE } from '@/lib/statuses';
+import { LIFECYCLE_STATE, lifecycleStateOf } from '@/lib/statuses';
 import type { Paginated } from '@/types';
+import type { LifecycleFields } from '@/types/models';
 
-interface DtRow {
+type DtRow = LifecycleFields & {
     id: string;
     name: string;
     code: string;
@@ -23,12 +26,18 @@ interface DtRow {
     is_required: boolean;
     expiry_days: number | null;
     is_active: boolean;
-}
+};
 
 interface IndexProps extends Record<string, unknown> {
     documentTypes: Paginated<DtRow>;
-    filters: { search?: string; sort?: string; direction?: string; per_page?: string | number };
-    can: { export: boolean };
+    filters: {
+        search?: string;
+        status?: string;
+        sort?: string;
+        direction?: string;
+        per_page?: string | number;
+    };
+    can: { export: boolean; update: boolean; delete: boolean };
 }
 
 interface DocumentTypeForm {
@@ -106,11 +115,24 @@ export default function Index({ documentTypes, filters, can }: IndexProps) {
         }
     };
 
-    const hasFilters = Boolean(params.search);
+    const hasFilters = Boolean(params.search || params.status);
 
     const columns: DataTableColumn<DtRow>[] = useMemo(
         () => [
-            { key: 'name', header: 'Nama', sortable: true, sortKey: 'name' },
+            {
+                key: 'name',
+                header: 'Nama',
+                sortable: true,
+                sortKey: 'name',
+                cell: (type) => (
+                    <div className="space-y-0.5">
+                        <p className={type.deleted_at ? 'text-muted-foreground' : undefined}>
+                            {type.name}
+                        </p>
+                        <UsageLine references={type.references} />
+                    </div>
+                ),
+            },
             {
                 key: 'code',
                 header: 'Kode',
@@ -131,24 +153,28 @@ export default function Index({ documentTypes, filters, can }: IndexProps) {
                 cell: (type) => (type.expiry_days ? `${type.expiry_days} hari` : '-'),
             },
             {
-                key: 'is_active',
+                key: 'status',
                 header: 'Status',
-                cell: (type) => <EnumBadge map={ACTIVE_STATE} value={type.is_active} />,
+                cell: (type) => <EnumBadge map={LIFECYCLE_STATE} value={lifecycleStateOf(type)} />,
             },
             {
                 key: 'actions',
                 header: 'Aksi',
                 cell: (type) => (
                     <DataTableActions
-                        onEdit={() => openEdit(type)}
-                        deleteHref={route('admin.documents.destroy', type.id)}
-                        deleteMessage={`Hapus ${type.name}?`}
-                        deleteDescription={`Jenis dokumen "${type.name}" akan dihapus dari daftar.`}
+                        onEdit={can.update ? () => openEdit(type) : undefined}
+                        lifecycle={{
+                            row: type,
+                            name: type.name,
+                            noun: 'Jenis dokumen',
+                            routeBase: 'admin.documents',
+                            can: { update: can.update, delete: can.delete },
+                        }}
                     />
                 ),
             },
         ],
-        [openEdit],
+        [openEdit, can.update, can.delete],
     );
 
     return (
@@ -176,12 +202,20 @@ export default function Index({ documentTypes, filters, can }: IndexProps) {
 
                 <Card>
                     <CardContent className="space-y-4 pt-6">
-                        <div className="max-w-md">
-                            <Input
-                                label="Cari"
-                                value={params.search ?? ''}
-                                onChange={(event) => set('search', event.target.value)}
-                                placeholder="Nama, kode, atau berlaku untuk"
+                        <div className="flex flex-wrap items-end gap-3">
+                            <div className="min-w-56 flex-1 sm:max-w-md">
+                                <Input
+                                    label="Cari"
+                                    value={params.search ?? ''}
+                                    onChange={(event) => set('search', event.target.value)}
+                                    placeholder="Nama, kode, atau berlaku untuk"
+                                />
+                            </div>
+                            <StatusFilter
+                                id="document-status"
+                                value={params.status ?? ''}
+                                onChange={(value) => set('status', value)}
+                                deactivatable
                             />
                         </div>
 
@@ -201,7 +235,7 @@ export default function Index({ documentTypes, filters, can }: IndexProps) {
                                 </Button>
                             }
                             hasFilters={hasFilters}
-                            onResetFilters={() => setMany({ search: '' })}
+                            onResetFilters={() => setMany({ search: '', status: '' })}
                             itemLabel="jenis dokumen"
                             loading={tableProcessing}
                         />

@@ -39,7 +39,7 @@ use Tests\Traits\InteractsWithRadius;
  *  - unknown NAS address not sent and reported        -> ProvisioningFlowTest::test_a_session_on_an_address_no_nas_of_the_company_owns_is_not_sent_and_not_retried
  *  - job of company A reads nothing of company B      -> ProvisioningFlowTest::test_a_job_for_company_a_never_touches_company_b, NetworkSyncTest::test_the_company_option_limits_the_sync_and_without_it_every_active_company_is_synced
  *  - speed profile edit rewrites only its groups      -> ProvisioningFlowTest::test_editing_a_speed_profile_rewrites_only_that_companys_speed_group_and_sends_nothing
- *  - switch off, single job and sync                  -> ProvisioningFlowTest::test_the_installation_switch_off_..., NetworkSyncTest::test_with_the_installation_switch_off_the_sync_does_nothing_at_all
+ *  - radius off for the company, single job and sync  -> ProvisioningFlowTest::test_a_company_without_an_enabled_radius_..., NetworkSyncTest::test_with_radius_not_configured_for_any_company_the_sync_does_nothing_at_all
  */
 class RadiusGapTest extends TestCase
 {
@@ -192,7 +192,7 @@ class RadiusGapTest extends TestCase
         $radius = $this->radiusConnection();
         $radius->flushQueryLog();
         $radius->enableQueryLog();
-        config(['services.radius.enabled' => false]);
+        $this->disableRadius();
         $this->fakeCoa = null;
         $this->coaAnswers($this->nasIp, 'ack');
         $bigger = $this->packageWithRadiusProfile($this->company, 'home-50m', 50, 25);
@@ -205,7 +205,7 @@ class RadiusGapTest extends TestCase
             ->post(route('admin.invoices.payments.store', $invoice), ['amount' => 100000, 'method' => 'cash'])
             ->assertRedirect();
         SubscriptionService::unblock($this->freshSubscription($this->subscription));
-        $this->freshSubscription($this->subscription)->update(['service_package_id' => $bigger->id]);
+        $this->freshSubscription($this->subscription)->update(['service_package_id' => $bigger->id, 'service_package_version_id' => $bigger->versions()->value('id')]);
         SpeedProfile::query()->findOrFail($bigger->speed_profile_id)->update(['download_max_mbps' => 60]);
         $this->artisan('network:sync')->assertSuccessful();
         SubscriptionService::terminate($this->freshSubscription($this->subscription), 'moved away');

@@ -5,6 +5,7 @@ namespace Tests\Feature\WhatsApp;
 use App\Models\Core\Company;
 use App\Models\Core\WhatsAppMessage;
 use App\Models\User;
+use App\Support\OptimisticLock;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
@@ -38,7 +39,10 @@ class WhatsAppCompanySettingsTest extends TestCase
     /** @param array<string, mixed> $settings */
     private function save(array $settings): TestResponse
     {
-        return $this->actingAs($this->admin)->put(route('admin.company.settings.update'), ['settings' => $settings]);
+        return $this->actingAs($this->admin)->put(route('admin.company.settings.update'), [
+            'settings' => $settings,
+            OptimisticLock::FIELD => OptimisticLock::version($this->company->fresh()),
+        ]);
     }
 
     public function test_a_company_that_never_saved_gets_the_off_by_default_settings(): void
@@ -88,6 +92,19 @@ class WhatsAppCompanySettingsTest extends TestCase
         foreach ([self::WA_TOKEN, self::WA_APP_SECRET, self::WA_VERIFY_TOKEN, self::WA_PHONE_NUMBER_ID, '102290129340398'] as $secret) {
             $this->assertStringNotContainsString($secret, $json);
         }
+    }
+
+    public function test_whether_whatsapp_is_configured_is_per_company(): void
+    {
+        $rival = Company::factory()->create(['is_active' => true]);
+        $rivalAdmin = User::factory()->create(['company_id' => $rival->id, 'email_verified_at' => now(), 'is_active' => true]);
+        $rivalAdmin->assignRole('admin');
+        $this->whatsAppIntegration($this->company); // only this company has an account
+
+        $this->actingAs($this->admin)->get(route('admin.company.settings.edit'))->assertInertia(fn (Assert $page) => $page
+            ->where('whatsapp.configured', true));
+        $this->actingAs($rivalAdmin)->get(route('admin.company.settings.edit'))->assertInertia(fn (Assert $page) => $page
+            ->where('whatsapp.configured', false));
     }
 
     public function test_usage_counts_this_months_rows_of_this_company_only(): void

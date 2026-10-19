@@ -36,6 +36,7 @@ import {
     Signal,
     LayoutGrid,
     Star,
+    Plug,
     Tag,
     Truck,
     Users,
@@ -370,6 +371,12 @@ export const navGroups: readonly NavGroup[] = [
                 href: '/admin/company/profile',
                 icon: Building2,
                 anyOf: ['company.manage'],
+            },
+            {
+                label: 'Integrasi',
+                href: '/admin/company/integrations',
+                icon: Plug,
+                anyOf: ['company.integrations.manage'],
             },
             {
                 label: 'Organisasi',

@@ -59,9 +59,10 @@ const copy: Record<number, ErrorCopy> = {
 
 /**
  * Rendered by the exception handler for 403, 404, 419, 429, 500 and 503. It stands alone: no AdminLayout,
- * and the shared auth props are read defensively, because a failed request may carry none.
+ * and the shared auth props are read defensively, because a failed request may carry none. `requestId` is the
+ * X-Request-Id of the failed request: a user quotes it to support, who look the request up in the logs.
  */
-export default function ErrorPage({ status }: { status: number }) {
+export default function ErrorPage({ status, requestId = null }: { status: number; requestId?: string | null }) {
     const { title, description, retry } = copy[status] ?? {
         title: `Kesalahan ${status}`,
         description: 'Terjadi kesalahan saat memproses permintaan Anda.',
@@ -92,6 +93,11 @@ export default function ErrorPage({ status }: { status: number }) {
                     </EmptyTitle>
                     <EmptyDescription>{description}</EmptyDescription>
                     <p className="text-sm text-muted-foreground">Kode galat {status}</p>
+                    {requestId ? (
+                        <p className="text-xs text-muted-foreground">
+                            ID permintaan: <span className="font-mono select-all">{requestId}</span>
+                        </p>
+                    ) : null}
                 </EmptyHeader>
                 <EmptyContent>
                     {retry ? (

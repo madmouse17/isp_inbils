@@ -24,7 +24,7 @@ class AccessMatrixTest extends TestCase
 
     public function test_the_walk_covers_every_registered_route(): void
     {
-        $this->assertCount(60, $this->apiRoutes(), 'a route was added or removed: extend the owner fixtures in BuildsMatrixWorld::realIds');
+        $this->assertCount(61, $this->apiRoutes(), 'a route was added or removed: extend the owner fixtures in BuildsMatrixWorld::realIds');
     }
 
     public function test_a_call_without_a_token_is_a_401_everywhere_but_on_the_public_auth_endpoints(): void

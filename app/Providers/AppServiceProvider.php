@@ -16,6 +16,7 @@ use App\Models\Core\OrganizationUnit;
 use App\Models\Core\ServiceSubscription;
 use App\Models\Core\Vehicle;
 use App\Models\User;
+use App\Notifications\Channels\CompanyMailChannel;
 use App\Policies\CompanyPolicy;
 use App\Policies\CustomerPolicy;
 use App\Policies\DocumentTypePolicy;
@@ -30,6 +31,7 @@ use App\Policies\UserPolicy;
 use App\Policies\VehiclePolicy;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
+use App\Services\Platform\ActiveImpersonation;
 use App\Services\WhatsApp\WhatsAppCloudClient;
 use App\Support\NumberSequences\NumberSequenceDefinition;
 use App\Support\NumberSequences\NumberSequenceRegistry;
@@ -46,9 +48,14 @@ use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Cache\RateLimiting\Unlimited;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Http\Request;
+use Illuminate\Notifications\Channels\MailChannel;
+use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
@@ -97,18 +104,28 @@ use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Policies\TicketCategoryPolicy;
 use Modules\Ticketing\Policies\TicketPolicy;
+use Psr\Http\Message\RequestInterface;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Spatie\Permission\Models\Role;
 
 class AppServiceProvider extends ServiceProvider
 {
+    /** A query slower than this many milliseconds leaves a `db.slow_query` log line. */
+    private const SLOW_QUERY_MS = 500;
+
+    /** The log names an incident review reads: only their rows keep the user agent. */
+    private const AGENT_LOGS = ['security', 'platform', 'support'];
+
     /**
      * Register any application services.
      */
     public function register(): void
     {
         $this->app->singleton(NumberSequenceRegistry::class);
+
+        // Every notification's mail goes through the company's own SMTP account when it has one (CompanyMailChannel).
+        $this->app->bind(MailChannel::class, CompanyMailChannel::class);
     }
 
     /**
@@ -161,6 +178,7 @@ class AppServiceProvider extends ServiceProvider
         $this->registerNumberSequences();
         $this->registerApiRateLimiters();
         $this->configureApiDocumentation();
+        $this->registerRequestCorrelation();
 
         Activity::saving(function (Activity $activity) {
             $subject = $activity->relationLoaded('subject')
@@ -181,20 +199,15 @@ class AppServiceProvider extends ServiceProvider
                 $resolvedCompanyId = CompanyService::idFor($causer);
             }
 
-            if ($resolvedCompanyId !== null) {
-                $activity->setAttribute('company_id', $resolvedCompanyId);
-                if ($activity->properties) {
-                    $props = $activity->properties->toArray();
-                    $props['company_id'] = $resolvedCompanyId;
-                    $activity->properties = collect($props);
-                }
-            } else {
-                $activity->setAttribute('company_id', null);
-                if ($activity->properties && isset($activity->properties['company_id'])) {
-                    $props = $activity->properties->toArray();
-                    unset($props['company_id']);
-                    $activity->properties = collect($props);
-                }
+            // The company lives in its column only: a copy in the properties could go stale or name another tenant.
+            $activity->setAttribute('company_id', $resolvedCompanyId);
+
+            if ($activity->properties?->has('company_id')) {
+                $activity->properties = $activity->properties->except('company_id');
+            }
+
+            if (! $activity->exists) {
+                self::stampRequestContext($activity);
             }
         });
 
@@ -207,6 +220,56 @@ class AppServiceProvider extends ServiceProvider
 
         if (! $this->app->environment('e2e')) {
             Vite::prefetch(concurrency: 3);
+        }
+    }
+
+    /**
+     * One id ties a client's report to the log lines, the queued jobs and the vendor calls of its request: the Context
+     * carries it into log lines and jobs, an outbound call carries it as a header, and a slow query leaves a line.
+     */
+    private function registerRequestCorrelation(): void
+    {
+        Event::listen(QueryExecuted::class, static function (QueryExecuted $query): void {
+            if ($query->time > self::SLOW_QUERY_MS) {
+                // No bindings: they can hold personal data.
+                Log::warning('db.slow_query', ['ms' => $query->time, 'sql' => $query->sql, 'connection' => $query->connectionName]);
+            }
+        });
+
+        Http::globalRequestMiddleware(fn (RequestInterface $request): RequestInterface => is_string($id = Context::get('request_id'))
+            ? $request->withHeader('X-Request-Id', $id)
+            : $request);
+    }
+
+    /**
+     * What request wrote a new activity row. The request id comes from the Context wherever there is one (a queued job
+     * inherits it); the client address only inside a web request (a worker or a command has none); the user agent only
+     * for the logs an incident review reads. A support session also names the user it acts as, by public id: an
+     * integer id never leaves the server.
+     */
+    private static function stampRequestContext(Activity $activity): void
+    {
+        $request = request();
+        $stamp = ['request_id' => Context::get('request_id')];
+
+        if ($request->attributes->has('request_id')) {
+            $stamp['ip_address'] = $request->ip();
+
+            if (in_array($activity->log_name, self::AGENT_LOGS, true) && $request->userAgent() !== null) {
+                $stamp['user_agent'] = mb_substr($request->userAgent(), 0, 255);
+            }
+
+            $impersonation = $request->attributes->get('impersonation');
+
+            if ($impersonation instanceof ActiveImpersonation) {
+                $activity->properties = collect($activity->properties)->put('impersonated_user_id', $impersonation->user->public_id);
+            }
+        }
+
+        foreach ($stamp as $column => $value) {
+            if ($value !== null && $activity->getAttribute($column) === null) {
+                $activity->setAttribute($column, $value);
+            }
         }
     }
 
@@ -259,11 +322,12 @@ class AppServiceProvider extends ServiceProvider
                 // Relative, so the export does not change with APP_URL.
                 $openApi->servers = [Server::make('/api/v1')];
 
-                // Scramble documents Laravel's {message, errors} shape; RenderApiError adds a stable code to every error.
+                // Scramble documents Laravel's {message, errors} shape; RenderApiError adds a stable code and the request id to every error.
                 foreach ($openApi->components->responses as $response) {
                     $response->getContent('application/json')->type
                         ->addProperty('code', (new StringType())->setDescription('Stable error code; see the API description.'))
-                        ->addRequired(['code']);
+                        ->addProperty('request_id', (new StringType())->setDescription('Equals the X-Request-Id response header; quote it when reporting a problem.'))
+                        ->addRequired(['code', 'request_id']);
                 }
             })
             ->withOperationTransformers(function (Operation $operation, RouteInfo $routeInfo): void {
@@ -300,5 +364,6 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api-receipt', fn (Request $request): Limit => Limit::perMinute(6)->by($perUser($request)));
         RateLimiter::for('api-upload', fn (Request $request): Limit => Limit::perMinute(30)->by($perUser($request)));
         RateLimiter::for('api-promo-tap', fn (Request $request): Limit => Limit::perMinute(30)->by($perUser($request)));
+        RateLimiter::for('api-push-test', fn (Request $request): Limit => Limit::perMinute(3)->by($perUser($request)));
     }
 }

@@ -31,4 +31,9 @@ class UnitPolicy
     {
         return $user->can('inventory.delete');
     }
+
+    public function restore(User $user, Unit $unit): bool
+    {
+        return $this->delete($user, $unit);
+    }
 }

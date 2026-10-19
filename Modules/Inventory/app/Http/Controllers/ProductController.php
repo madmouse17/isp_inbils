@@ -4,15 +4,19 @@ namespace Modules\Inventory\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
+use App\Services\Core\LifecycleService;
 use App\Services\Core\NumberSequenceService;
 use App\Support\ExportQuery;
+use App\Support\OptimisticLock;
 use App\Support\PublicId;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Modules\Inventory\Http\Requests\StoreProductRequest;
@@ -21,6 +25,7 @@ use Modules\Inventory\Http\Resources\CategoryResource;
 use Modules\Inventory\Http\Resources\ProductResource;
 use Modules\Inventory\Models\Category;
 use Modules\Inventory\Models\Product;
+use Modules\Inventory\Models\Unit;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProductController extends Controller
@@ -34,16 +39,19 @@ class ProductController extends Controller
         Gate::authorize('viewAny', Product::class);
 
         $products = $this->filteredQuery($request)
+            ->withReferenceCounts()
             ->paginate($this->perPage($request))
             ->withQueryString();
 
         return Inertia::render('Admin/Inventory/Products/Index', [
             'products' => ProductResource::collection($products),
             'categories' => CategoryResource::collection(Category::query()->with('unit')->where('is_active', true)->orderBy('name')->get()),
-            'filters' => $request->only(['category_id', 'is_active', 'search', 'sort', 'direction', 'per_page']),
+            'filters' => $request->only(['category_id', 'status', 'search', 'sort', 'direction', 'per_page']),
             'can' => [
                 'create' => $request->user()?->can('inventory.create') ?? false,
                 'export' => $request->user()?->can('inventory.export') ?? false,
+                'update' => $request->user()?->can('inventory.update') ?? false,
+                'delete' => $request->user()?->can('inventory.delete') ?? false,
             ],
         ]);
     }
@@ -53,7 +61,7 @@ class ProductController extends Controller
         Gate::authorize('create', Product::class);
 
         return Inertia::render('Admin/Inventory/Products/Create', [
-            'categories' => CategoryResource::collection(Category::query()->with('unit')->where('is_active', true)->orderBy('name')->get()),
+            'categories' => CategoryResource::collection($this->categoryOptions()),
             'codeSequence' => $this->codeSequence(),
         ]);
     }
@@ -87,7 +95,7 @@ class ProductController extends Controller
 
         return Inertia::render('Admin/Inventory/Products/Edit', [
             'product' => new ProductResource($product),
-            'categories' => CategoryResource::collection(Category::query()->with('unit')->where('is_active', true)->orderBy('name')->get()),
+            'categories' => CategoryResource::collection($this->categoryOptions($product)),
             'codeSequence' => $this->codeSequence(),
         ]);
     }
@@ -95,7 +103,11 @@ class ProductController extends Controller
     public function update(UpdateProductRequest $request, Product $product): RedirectResponse
     {
         Gate::authorize('update', $product);
-        $product->update($request->validated());
+        DB::transaction(function () use ($request, $product): void {
+            $locked = Product::query()->lockForUpdate()->findOrFail($product->id);
+            OptimisticLock::assert($locked, $request->string(OptimisticLock::FIELD)->toString());
+            $locked->update($request->safe()->except(OptimisticLock::FIELD));
+        });
 
         return redirect()->route('admin.products.index')->with('success', 'Barang berhasil diubah.');
     }
@@ -104,13 +116,13 @@ class ProductController extends Controller
     {
         Gate::authorize('delete', $product);
 
-        if ($product->stocks()->where('quantity', '>', 0)->exists()) {
-            return back()->withErrors(['product' => 'Barang tidak dapat dihapus karena masih memiliki stok.']);
-        }
+        LifecycleService::destroyIfUnreferenced($product, function () use ($product): void {
+            if ($product->stocks()->where('quantity', '>', 0)->exists()) {
+                throw ValidationException::withMessages(['lifecycle' => 'Barang masih punya stok.']);
+            }
+        });
 
-        $product->delete();
-
-        return back()->with('success', 'Barang berhasil dihapus.');
+        return back()->with('success', 'Barang dihapus permanen.');
     }
 
     /** @return array{manual: bool, preview: string} */
@@ -120,6 +132,25 @@ class ProductController extends Controller
             'manual' => NumberSequenceService::allowsManual('product'),
             'preview' => NumberSequenceService::peek('product'),
         ];
+    }
+
+    /**
+     * The categories a product may be filed under: the active ones whose unit is active, because a product takes the
+     * unit of its category, plus the category the product already has.
+     *
+     * @return Collection<int, Category>
+     */
+    private function categoryOptions(?Product $product = null): Collection
+    {
+        return Category::query()
+            ->with('unit')
+            ->where(fn (Builder $query) => $query
+                ->where(fn (Builder $open) => $open
+                    ->where('is_active', true)
+                    ->whereIn('unit_id', Unit::query()->where('is_active', true)->select('id')))
+                ->orWhere('id', $product?->category_id))
+            ->orderBy('name')
+            ->get();
     }
 
     public function export(Request $request): Response|StreamedResponse
@@ -168,7 +199,7 @@ class ProductController extends Controller
         $query = Product::query()
             ->with(['category', 'unit'])
             ->when($request->input('category_id'), fn (Builder $q, $v) => $q->where('category_id', PublicId::resolveOne(Category::class, $v) ?? 0))
-            ->when($request->filled('is_active'), fn (Builder $q) => $q->where('is_active', $request->boolean('is_active')))
+            ->lifecycleStatus($request->input('status'))
             ->when($request->input('search'), function (Builder $q, string $v): void {
                 $term = trim($v);
                 if ($term === '') {

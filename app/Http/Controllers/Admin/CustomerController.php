@@ -18,9 +18,11 @@ use App\Queries\Admin\CustomerAcquirerQuery;
 use App\Queries\Admin\CustomerHistoryQuery;
 use App\Services\Core\CompanyService;
 use App\Services\Core\IndonesiaRegionService;
+use App\Services\Core\LifecycleService;
 use App\Services\Core\NumberSequenceService;
 use App\Services\Core\OpenStreetMapGeocoder;
 use App\Support\ExportQuery;
+use App\Support\OptimisticLock;
 use App\Support\PublicId;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -53,6 +55,7 @@ class CustomerController extends Controller
 
         $canViewAcquirer = $this->canViewAcquirer($request);
         $customers = $this->filteredQuery($request)
+            ->withReferenceCounts()
             ->paginate($this->perPage($request))
             ->withQueryString();
 
@@ -202,7 +205,10 @@ class CustomerController extends Controller
         Gate::authorize('update', $customer);
 
         DB::transaction(function () use ($request, $customer): void {
-            $customer->update($request->safe()->only([
+            $locked = Customer::query()->lockForUpdate()->findOrFail($customer->id);
+            OptimisticLock::assert($locked, $request->string(OptimisticLock::FIELD)->toString());
+
+            $locked->update($request->safe()->only([
                 'code',
                 'name',
                 'type',
@@ -216,13 +222,13 @@ class CustomerController extends Controller
             ]));
 
             AssignCustomerAcquirerAction::onUpdate(
-                $customer,
+                $locked,
                 $request->user(),
                 $request->safe()->only(['acquired_by_user_id', 'acquirer_correction_reason']),
             );
 
             if ($request->safe()->has('whatsapp_opt_in')) {
-                SetCustomerWhatsAppConsentAction::execute($customer, $request->boolean('whatsapp_opt_in'), $request->user());
+                SetCustomerWhatsAppConsentAction::execute($locked, $request->boolean('whatsapp_opt_in'), $request->user());
             }
         });
 
@@ -259,14 +265,9 @@ class CustomerController extends Controller
         $customer = $this->findForCompany($request, $customer);
         Gate::authorize('delete', $customer);
 
-        if ($customer->subscriptions()->whereNotIn('status', ['terminated'])->exists()) {
-            return back()->withErrors(['customer' => 'Pelanggan yang masih punya langganan belum berhenti tidak bisa dihapus.']);
-        }
+        LifecycleService::destroyIfUnreferenced($customer);
 
-        $customer->delete();
-
-        return redirect()->route('admin.customers.index')
-            ->with('success', 'Pelanggan dihapus.');
+        return back()->with('success', 'Pelanggan dihapus permanen.');
     }
 
     public function export(Request $request): Response|StreamedResponse
@@ -320,17 +321,7 @@ class CustomerController extends Controller
         $query = Customer::query()
             ->withCount(['addresses', 'subscriptions'])
             ->when($request->input('type'), fn (Builder $query, mixed $value) => is_string($value) ? $query->where('type', $value) : $query)
-            ->when($request->input('status'), function (Builder $query, mixed $value): void {
-                if (! is_string($value)) {
-                    return;
-                }
-
-                $normalized = strtolower(trim($value));
-
-                if (in_array($normalized, Customer::STATUSES, true)) {
-                    $query->where('customer_status', $normalized);
-                }
-            })
+            ->lifecycleStatus($request->input('status'))
             ->when($request->input('account'), function (Builder $query, mixed $value): void {
                 if (! is_string($value)) {
                     return;

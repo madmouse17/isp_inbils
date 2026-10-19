@@ -64,7 +64,8 @@ class SendInvoiceWhatsAppReminders extends Command
                 ->with('customer')
                 ->chunkById(200, function ($invoices) use ($companyId, $dryRun, $stage, &$counts): void {
                     foreach ($invoices as $invoice) {
-                        if ($invoice->customer === null || $this->bellRung($invoice->customer, $invoice, $stage)) {
+                        // The relation still returns a deleted customer, for the history pages: nobody reminds one.
+                        if ($invoice->customer === null || $invoice->customer->trashed() || $this->bellRung($invoice->customer, $invoice, $stage)) {
                             continue;
                         }
 

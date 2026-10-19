@@ -150,7 +150,7 @@ class NetworkAccountService
     }
 
     /**
-     * The subscription may still be served, has a RADIUS profile name, and the company has a realm.
+     * The subscription may still be served, its sold version has a RADIUS profile name, and the company has a realm.
      *
      * @return string the full username
      */
@@ -158,7 +158,7 @@ class NetworkAccountService
     {
         abort_unless((int) $subscription->company_id === CompanyService::currentId(), 404);
         abort_if($subscription->status === 'terminated', 422, 'Langganan yang sudah berhenti tidak dapat punya akun jaringan.');
-        abort_if(blank($subscription->servicePackage?->speedProfile?->getAttribute('radius_profile_name')), 422, 'Profil kecepatan paket ini belum punya nama profil RADIUS.');
+        abort_if(blank($subscription->packageVersion?->speedProfile?->getAttribute('radius_profile_name')), 422, 'Profil kecepatan paket ini belum punya nama profil RADIUS.');
         abort_if(Realm::forCompany((int) $subscription->company_id) === null, 422, 'Kode perusahaan tidak dapat dipakai sebagai realm RADIUS.');
         abort_unless(preg_match(self::LOCAL_PART_PATTERN, $localPart) === 1, 422, 'Gunakan 3 sampai 40 huruf kecil, angka, titik, tanda hubung, atau garis bawah.');
 

@@ -5,8 +5,10 @@ namespace App\Services\Core;
 use App\Models\Core\Company;
 use App\Models\Core\Setting;
 use App\Models\User;
+use App\Support\OptimisticLock;
 use Closure;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Laravolt\Indonesia\Models\City;
 
 /**
@@ -215,11 +217,24 @@ class CompanyService
         return self::$cachedCompany;
     }
 
-    public static function updateSettings(array $settings): Company
+    /**
+     * Merges into the settings of the row read under lock, so a concurrent writer's keys survive. With a version, a row
+     * changed since the form was rendered is refused (OptimisticLock); callers without a form (seeders, tests) skip it.
+     */
+    public static function updateSettings(array $settings, ?string $expectedUpdatedAt = null): Company
     {
-        $company = self::current() ?? Company::query()->findOrFail(self::currentId());
-        $company->settings = array_merge($company->settings ?? [], $settings);
-        $company->save();
+        $company = DB::transaction(function () use ($settings, $expectedUpdatedAt): Company {
+            $locked = Company::query()->lockForUpdate()->findOrFail(self::currentId());
+
+            if ($expectedUpdatedAt !== null) {
+                OptimisticLock::assert($locked, $expectedUpdatedAt);
+            }
+
+            $locked->settings = array_merge($locked->settings ?? [], $settings);
+            $locked->save();
+
+            return $locked;
+        });
         self::$cachedCompany = $company->refresh();
 
         return self::$cachedCompany;

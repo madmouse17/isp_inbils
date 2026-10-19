@@ -1,5 +1,6 @@
 <?php
 
+use App\Support\Observability\RedactLogContext;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -45,6 +46,10 @@ return [
     | utilizes the Monolog PHP logging library, which includes a variety
     | of powerful log handlers and formatters that you're free to use.
     |
+    | Every channel that writes somewhere carries the RedactLogContext tap, which masks secret keys in the context
+    | of each record; a stack takes the processors of its channels. A new channel needs the same tap
+    | (ExceptionHandlingTest fails without it).
+    |
     | Available drivers: "single", "daily", "slack", "syslog",
     |                    "errorlog", "monolog", "custom", "stack"
     |
@@ -63,6 +68,7 @@ return [
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,
+            'tap' => [RedactLogContext::class],
         ],
 
         'daily' => [
@@ -71,6 +77,7 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'days' => env('LOG_DAILY_DAYS', 14),
             'replace_placeholders' => true,
+            'tap' => [RedactLogContext::class],
         ],
 
         'slack' => [
@@ -80,6 +87,7 @@ return [
             'emoji' => env('LOG_SLACK_EMOJI', ':boom:'),
             'level' => env('LOG_LEVEL', 'critical'),
             'replace_placeholders' => true,
+            'tap' => [RedactLogContext::class],
         ],
 
         'papertrail' => [
@@ -92,6 +100,7 @@ return [
                 'connectionString' => 'tls://'.env('PAPERTRAIL_URL').':'.env('PAPERTRAIL_PORT'),
             ],
             'processors' => [PsrLogMessageProcessor::class],
+            'tap' => [RedactLogContext::class],
         ],
 
         'stderr' => [
@@ -103,6 +112,7 @@ return [
             ],
             'formatter' => env('LOG_STDERR_FORMATTER'),
             'processors' => [PsrLogMessageProcessor::class],
+            'tap' => [RedactLogContext::class],
         ],
 
         'syslog' => [
@@ -110,12 +120,14 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'facility' => env('LOG_SYSLOG_FACILITY', LOG_USER),
             'replace_placeholders' => true,
+            'tap' => [RedactLogContext::class],
         ],
 
         'errorlog' => [
             'driver' => 'errorlog',
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,
+            'tap' => [RedactLogContext::class],
         ],
 
         'null' => [

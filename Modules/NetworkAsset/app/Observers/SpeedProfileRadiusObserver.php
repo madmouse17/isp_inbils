@@ -2,6 +2,7 @@
 
 namespace Modules\NetworkAsset\Observers;
 
+use App\Services\Core\IntegrationConfig;
 use Illuminate\Support\Facades\DB;
 use Modules\NetworkAsset\Services\NetworkAccountProvisioner;
 use Modules\NetworkAsset\Services\Radius\RadiusException;
@@ -16,7 +17,7 @@ class SpeedProfileRadiusObserver
 {
     public function updated(SpeedProfile $profile): void
     {
-        if (! config('services.radius.enabled') || ! $profile->wasChanged(['radius_profile_name', 'download_max_mbps', 'upload_max_mbps'])) {
+        if (! $profile->wasChanged(['radius_profile_name', 'download_max_mbps', 'upload_max_mbps']) || ! app(IntegrationConfig::class)->isEnabled('radius')) {
             return;
         }
 

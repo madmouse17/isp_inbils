@@ -7,6 +7,7 @@ use App\Models\Core\Customer;
 use App\Models\Core\Location;
 use App\Models\User;
 use App\Services\Core\CustomerService;
+use App\Support\OptimisticLock;
 use App\Support\PublicId;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -497,6 +498,7 @@ class CustomerSalesAttributionTest extends TestCase
             'name' => $customer->name,
             'type' => $customer->type,
             'is_active' => true,
+            OptimisticLock::FIELD => OptimisticLock::version($customer->fresh()),
             ...$overrides,
         ];
     }

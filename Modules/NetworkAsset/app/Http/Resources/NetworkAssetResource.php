@@ -8,7 +8,9 @@ use App\Http\Resources\SubscriptionResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\Inventory\Http\Resources\ProductResource;
+use Modules\NetworkAsset\Models\NetworkAsset;
 
+/** @mixin NetworkAsset */
 class NetworkAssetResource extends JsonResource
 {
     /** @return array<string, mixed> */
@@ -42,6 +44,7 @@ class NetworkAssetResource extends JsonResource
             'customer' => new CustomerResource($this->whenLoaded('customer')),
             'subscription' => new SubscriptionResource($this->whenLoaded('subscription')),
             'installations' => NetworkAssetInstallationResource::collection($this->whenLoaded('installations')),
+            ...$this->lifecycleAttributes(),
         ];
     }
 }

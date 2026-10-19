@@ -17,13 +17,17 @@ use Modules\Ticketing\Models\Ticket;
  * A person gets the records the SPK and ticket lists would show them: nothing without the view permission, and only
  * their own assignments for a technician or handler who cannot assign. The same rule is written in
  * `WorkOrderController` and `TicketController`; a `visibleTo()` scope on both models would let the three share it.
+ * A completed or cancelled SPK is not offered: its approval already counted the material it used.
  */
 final class InventoryRequestSources
 {
+    /** SPK statuses that take no more material, and whose requests cannot be handed over. */
+    public const CLOSED_WORK_ORDER_STATUSES = ['completed', 'cancelled'];
+
     /** @return Builder<WorkOrder> */
     public static function workOrderBase(User $user): Builder
     {
-        $base = WorkOrder::query();
+        $base = WorkOrder::query()->whereNotIn('status', self::CLOSED_WORK_ORDER_STATUSES);
 
         if (! $user->can('spk.view')) {
             return $base->whereKey([]);

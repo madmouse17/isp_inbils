@@ -188,7 +188,7 @@ class IpAssetWriteThroughTest extends TestCase
 
         $this->deleteJson(route('admin.network-assets.destroy', $asset))->assertRedirect();
 
-        $this->assertSoftDeleted('network_assets', ['id' => $asset->id]);
+        $this->assertDatabaseMissing('network_assets', ['id' => $asset->id]);
         $this->assertDatabaseCount('ip_addresses', 0);
         $second = $this->makeAsset($this->company, 'switch', null, ['ip_address' => '10.80.8.1']);
         IpAssignmentService::syncAssetAddresses($second);

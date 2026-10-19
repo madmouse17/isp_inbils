@@ -33,9 +33,15 @@ class StoreCategoryRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', 'max:100', Rule::unique('categories')->where('company_id', $companyId)],
             'parent_id' => ['nullable', Rule::exists('categories', 'id')->where('company_id', $companyId)],
-            'unit_id' => ['required', Rule::exists('units', 'id')->where('company_id', $companyId)],
+            'unit_id' => ['required', Unit::assignableRule($companyId)],
             'description' => ['nullable', 'string'],
             'is_active' => ['boolean'],
         ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return ['unit_id.exists' => 'Satuan yang dipilih tidak aktif atau tidak ditemukan.'];
     }
 }

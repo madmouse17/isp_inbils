@@ -38,7 +38,7 @@ class IdempotencyMatrixTest extends TestCase
     private function mutatingRoutes(): array
     {
         $routes = array_values(array_filter($this->apiRoutes(), fn ($route): bool => $this->needsIdempotencyKey($route)));
-        $this->assertCount(28, $routes, 'a mutating route was added or removed: the matrix must see it');
+        $this->assertCount(29, $routes, 'a mutating route was added or removed: the matrix must see it');
 
         return $routes;
     }

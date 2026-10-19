@@ -4,6 +4,7 @@ namespace App\Services\Core;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class OpenStreetMapGeocoder
@@ -46,7 +47,10 @@ class OpenStreetMapGeocoder
                     })
                     ->values()
                     ->all();
-            } catch (Throwable) {
+            } catch (Throwable $e) {
+                // Class only: a connection error's message holds the URL, and the URL holds the address that was searched.
+                Log::warning('geocode.failed', ['error' => $e::class]);
+
                 return [];
             }
         });

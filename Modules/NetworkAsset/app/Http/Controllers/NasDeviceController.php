@@ -5,6 +5,7 @@ namespace Modules\NetworkAsset\Http\Controllers;
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
 use App\Services\Core\CompanyService;
+use App\Services\Core\IntegrationConfig;
 use App\Support\SearchOptions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -23,6 +24,7 @@ use Modules\NetworkAsset\Services\NasDeviceService;
 use Modules\NetworkAsset\Services\Radius\RadiusDirectory;
 use Modules\NetworkAsset\Services\Radius\RadiusException;
 use Modules\NetworkAsset\Services\Radius\Realm;
+use Modules\NetworkAsset\Support\AssetPanelProps;
 
 class NasDeviceController extends Controller
 {
@@ -89,8 +91,9 @@ class NasDeviceController extends Controller
             'nasDevice' => (new NasDeviceResource($nasDevice))->resolve(),
             'sessions' => $this->sessions($radius, $nasDevice),
             'isolirUrl' => route('isolir.show', CompanyService::current()?->code),
-            'radiusEnabled' => (bool) config('services.radius.enabled'),
+            'radiusEnabled' => app(IntegrationConfig::class)->isEnabled('radius'),
             'can' => ['update' => $request->user()?->can('network_asset.nas.manage') ?? false],
+            ...($nasDevice->networkAsset === null ? [] : AssetPanelProps::for($request, $nasDevice->networkAsset)),
         ]);
     }
 

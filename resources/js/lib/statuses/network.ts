@@ -67,3 +67,14 @@ export const NETWORK_ONLINE_STATE = {
     true: { label: 'Online', tone: 'success' },
     false: { label: 'Offline', tone: 'neutral' },
 } satisfies StatusMap;
+
+/** What a panel port shows; derived from `PortState`, not stored. Order = colour priority, highest first. */
+export const PORT_STATE = {
+    unregistered: { label: 'Belum terdaftar', tone: 'neutral' },
+    admin_down: { label: 'Dinonaktifkan', tone: 'danger' },
+    isolir: { label: 'Diisolir', tone: 'warning' },
+    online: { label: 'Online', tone: 'success' },
+    offline: { label: 'Offline', tone: 'neutral' },
+    occupied: { label: 'Terpakai', tone: 'info' },
+    free: { label: 'Kosong', tone: 'neutral' },
+} satisfies StatusMap;

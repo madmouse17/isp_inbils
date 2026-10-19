@@ -18,6 +18,9 @@ use App\Http\Middleware\RequireHasCompany;
 use App\Http\Middleware\RequireNoCompany;
 use App\Http\Middleware\ResolveActiveCompany;
 use App\Http\Middleware\TrustConfiguredProxies;
+use App\Services\Core\CompanyService;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -25,6 +28,7 @@ use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\SubstituteBindings;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Sanctum\Http\Middleware\CheckAbilities;
@@ -47,7 +51,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->append(AssignRequestId::class);
+        // First in the stack, so the answer of the host check or of maintenance mode carries a request id too.
+        $middleware->prepend(AssignRequestId::class);
 
         // TRUSTED_PROXIES (config/security.php) is read per request: .env is not loaded yet while this closure runs,
         // so `trustProxies(at: env(...))` here would ignore a value that is set only in .env.
@@ -117,6 +122,22 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // The same instance caught and reported by two layers is logged once. One failure site (an exception class at
+        // a file and line; a query exception by its statement, whose line is always the framework's) is reported at
+        // most five times a minute: a flood must not bury the log, and a failing dependency fills it fastest.
+        $exceptions->dontReportDuplicates();
+        $exceptions->throttle(fn (Throwable $e) => Limit::perMinute(5)->by(
+            $e instanceof QueryException ? 'sql:'.$e->getSql() : $e::class.'@'.$e->getFile().':'.$e->getLine(),
+        ));
+        // Who and where, on every report. The handler does not guard context callbacks (Handler::exceptionContext), and
+        // the company lookup may be the very database that just failed: a broken context must not lose the report.
+        $exceptions->context(fn (): array => rescue(fn (): array => array_filter([
+            'company_id' => CompanyService::currentId(),
+            'route' => request()->route()?->getName(),
+            'platform_admin_id' => Auth::guard('platform')->id(),
+            'impersonation_id' => request()->attributes->get('impersonation')?->id,
+        ]), rescue: [], report: false));
+
         // The RADIUS shared secret is a secret that Laravel's default list does not know: a failed form must not
         // flash it into the session as old input.
         $exceptions->dontFlash(['radius_secret']);
@@ -168,7 +189,9 @@ return Application::configure(basePath: dirname(__DIR__))
                 return $response;
             }
 
-            $page = Inertia::render('Error', ['status' => $status])->toResponse($request)->setStatusCode($status);
+            $page = Inertia::render('Error', ['status' => $status, 'requestId' => $request->attributes->get('request_id')])
+                ->toResponse($request)
+                ->setStatusCode($status);
 
             if ($response->headers->has('Retry-After')) {
                 $page->headers->set('Retry-After', (string) $response->headers->get('Retry-After'));

@@ -4,8 +4,10 @@ namespace Modules\Service\Http\Requests;
 
 use App\Http\Requests\Concerns\ResolvesPublicIds;
 use App\Services\Core\CompanyService;
+use App\Support\OptimisticLock;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Exists;
 use Modules\Service\Models\BandwidthProfile;
 use Modules\Service\Models\ServicePackage;
 use Modules\Service\Models\ServicePackageCategory;
@@ -36,18 +38,17 @@ class UpdateServicePackageRequest extends FormRequest
     public function rules(): array
     {
         $companyId = CompanyService::currentId();
-        $package = $this->route('service_package');
-        $id = $package instanceof ServicePackage ? $package->id : null;
+        $route = $this->route('service_package');
+        $package = $route instanceof ServicePackage ? $route : null;
 
         return [
-            'code' => ['required', 'string', 'max:255', Rule::unique('service_packages')->where('company_id', $companyId)->ignore($id)],
+            OptimisticLock::FIELD => OptimisticLock::rules(),
+            'code' => ['required', 'string', 'max:255', Rule::unique('service_packages')->where('company_id', $companyId)->ignore($package?->id)],
             'name' => ['required', 'string', 'max:255'],
-            'bandwidth_profile_id' => ['required', 'integer', Rule::exists('bandwidth_profiles', 'id')->where('company_id', $companyId)],
-            'speed_profile_id' => ['required', 'integer', Rule::exists('speed_profiles', 'id')->where('company_id', $companyId)],
-            'sla_tier_id' => ['required', 'integer', Rule::exists('sla_tiers', 'id')->where('company_id', $companyId)],
-            'service_package_category_id' => ['required', 'integer', Rule::exists('service_package_categories', 'id')->where(fn ($query) => $query
-                ->where('company_id', $companyId)
-                ->where(fn ($active) => $active->where('is_active', true)->orWhere('id', $package instanceof ServicePackage ? $package->service_package_category_id : null)))],
+            'bandwidth_profile_id' => ['required', 'integer', $this->activeOrHeld('bandwidth_profiles', $package?->bandwidth_profile_id)],
+            'speed_profile_id' => ['required', 'integer', $this->activeOrHeld('speed_profiles', $package?->speed_profile_id)],
+            'sla_tier_id' => ['required', 'integer', $this->activeOrHeld('sla_tiers', $package?->sla_tier_id)],
+            'service_package_category_id' => ['required', 'integer', $this->activeOrHeld('service_package_categories', $package?->service_package_category_id)],
             'price_mrc' => ['required', 'numeric', 'min:0'],
             'price_otc' => ['sometimes', 'numeric', 'min:0'],
             'contract_min_months' => ['sometimes', 'integer', 'min:0'],
@@ -68,5 +69,16 @@ class UpdateServicePackageRequest extends FormRequest
             'price_otc' => 'harga pemasangan',
             'contract_min_months' => 'masa kontrak minimum',
         ];
+    }
+
+    /**
+     * A row of the company that is active, or the one the package already holds: a retired profile cannot be picked
+     * again, yet the package that uses it stays editable. A deleted row never gets here, its public id does not resolve.
+     */
+    private function activeOrHeld(string $table, ?int $heldId): Exists
+    {
+        return Rule::exists($table, 'id')->where(fn ($query) => $query
+            ->where('company_id', CompanyService::currentId())
+            ->where(fn ($active) => $active->where('is_active', true)->orWhere('id', $heldId)));
     }
 }

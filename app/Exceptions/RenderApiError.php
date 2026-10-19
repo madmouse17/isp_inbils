@@ -6,13 +6,14 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Context;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 /**
- * The one renderer of every exception under api/*: {message, code, errors?} and nothing of the exception
+ * The one renderer of every exception under api/*: {message, code, errors?, request_id} and nothing of the exception
  * itself (no class, SQL or trace) whatever APP_DEBUG says. Registered ahead of the web renderers in
  * bootstrap/app.php, so a 409 or an InsufficientStockException never answers an app with a redirect.
  *
@@ -90,7 +91,10 @@ final class RenderApiError
     private function json(int $status, string $code, string $message, array $errors = [], array $headers = []): JsonResponse
     {
         return response()->json(
-            ['message' => $message, 'code' => $code] + ($errors === [] ? [] : ['errors' => $errors]),
+            ['message' => $message, 'code' => $code]
+                + ($errors === [] ? [] : ['errors' => $errors])
+                // The id of the X-Request-Id response header: what a client quotes and a log line is found by.
+                + (is_string($id = Context::get('request_id')) ? ['request_id' => $id] : []),
             $status,
             $headers,
         );

@@ -1,8 +1,14 @@
 import type { FormEvent } from 'react';
-import { Link, router, useForm } from '@inertiajs/react';
+import { useEffect } from 'react';
+import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { PageHeader, SequenceCodeField, type CodeSequence } from '@/Components/composite';
+import {
+    ConflictBanner,
+    PageHeader,
+    SequenceCodeField,
+    type CodeSequence,
+} from '@/Components/composite';
 import {
     Button,
     Card,
@@ -14,10 +20,11 @@ import {
     Switch,
     Textarea,
 } from '@/Components/ui';
+import type { PageProps } from '@/types';
 import type { Category, Product } from '@/types/inventory';
 
 interface EditProps extends Record<string, unknown> {
-    product: { data: Product };
+    product: { data: Product & { updated_at: string } };
     categories: { data: Category[] };
     codeSequence: CodeSequence;
 }
@@ -34,7 +41,14 @@ export default function Edit({ product, categories, codeSequence }: EditProps) {
         min_stock: String(p.min_stock ?? ''),
         track_stock: p.track_stock,
         is_active: p.is_active,
+        expected_updated_at: p.updated_at,
     });
+    const conflict = usePage<PageProps>().props.errors.conflict;
+    // A conflict reply carries the newer row: keeping the old version makes the retry conflict again until the page is reloaded.
+    useEffect(() => {
+        if (!conflict) setData('expected_updated_at', p.updated_at);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [p.updated_at]);
 
     const categoryChoices = categories.data.map((c) => ({
         value: String(c.id),
@@ -74,6 +88,7 @@ export default function Edit({ product, categories, codeSequence }: EditProps) {
                         </Button>
                     }
                 />
+                <ConflictBanner />
 
                 <form onSubmit={submit} className="space-y-6">
                     <Card>

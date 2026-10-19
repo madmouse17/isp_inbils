@@ -38,7 +38,8 @@ class SendInvoiceWhatsAppMessages
             CompanyService::runAs($companyId, function () use ($invoiceId, $notification): void {
                 $customer = Invoice::query()->with('customer')->find($invoiceId)?->customer;
 
-                if ($customer !== null) {
+                // The relation still returns a deleted customer, for the history pages: nobody is messaged once deleted.
+                if ($customer !== null && ! $customer->trashed()) {
                     Notification::send($customer, $notification);
                 }
             });

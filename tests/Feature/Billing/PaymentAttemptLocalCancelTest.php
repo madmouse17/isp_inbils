@@ -518,6 +518,8 @@ class PaymentAttemptLocalCancelTest extends TestCase
                 ['company_id' => $invoice->company_id, 'role' => 'online', 'attempt_id' => $page->id, 'payload' => $payload],
             ], <<<'PHP'
                 config(['logging.default' => 'null']);
+                // The company's Midtrans row is committed with the fixture and the cancel job runs inline here: nothing may reach the real Midtrans.
+                Illuminate\Support\Facades\Http::fake();
 
                 try {
                     if ($args['role'] === 'cash') {

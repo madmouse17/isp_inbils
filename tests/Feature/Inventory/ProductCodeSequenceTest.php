@@ -4,6 +4,7 @@ namespace Tests\Feature\Inventory;
 
 use App\Models\Core\Company;
 use App\Models\User;
+use App\Support\OptimisticLock;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -79,7 +80,7 @@ class ProductCodeSequenceTest extends TestCase
         $product = Product::factory()->create(['company_id' => $this->company->id, 'category_id' => $this->category->id, 'unit_id' => $this->category->unit_id, 'sku' => 'KEEP-1']);
         $this->setManualCodes($this->company->id, false, 'product');
 
-        $this->actingAs($this->admin)->put(route('admin.products.update', $product), $this->payload(['sku' => 'CHANGED-1', 'name' => 'Renamed']))
+        $this->actingAs($this->admin)->put(route('admin.products.update', $product), $this->payload(['sku' => 'CHANGED-1', 'name' => 'Renamed', OptimisticLock::FIELD => OptimisticLock::version($product->fresh())]))
             ->assertRedirect(route('admin.products.index'));
 
         $product->refresh();
@@ -91,7 +92,7 @@ class ProductCodeSequenceTest extends TestCase
     {
         $product = Product::factory()->create(['company_id' => $this->company->id, 'category_id' => $this->category->id, 'unit_id' => $this->category->unit_id, 'sku' => 'OLD-1']);
 
-        $this->actingAs($this->admin)->put(route('admin.products.update', $product), $this->payload(['sku' => 'NEW-1']))
+        $this->actingAs($this->admin)->put(route('admin.products.update', $product), $this->payload(['sku' => 'NEW-1', OptimisticLock::FIELD => OptimisticLock::version($product->fresh())]))
             ->assertRedirect(route('admin.products.index'));
 
         $this->assertSame('NEW-1', $product->fresh()->sku);
@@ -105,7 +106,7 @@ class ProductCodeSequenceTest extends TestCase
         $this->assertSame('0.00', $product->min_stock);
 
         $product->update(['min_stock' => 5]);
-        $this->actingAs($this->admin)->put(route('admin.products.update', $product), $this->payload(['sku' => $product->sku, 'min_stock' => '']))
+        $this->actingAs($this->admin)->put(route('admin.products.update', $product), $this->payload(['sku' => $product->sku, 'min_stock' => '', OptimisticLock::FIELD => OptimisticLock::version($product->fresh())]))
             ->assertRedirect(route('admin.products.index'));
         $this->assertSame('0.00', $product->fresh()->min_stock);
     }

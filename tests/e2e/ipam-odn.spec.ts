@@ -125,6 +125,8 @@ test('@ipam-odn manager registers a /29 static pool, gives a subscription a stat
         await newPrefix.click();
         await dialog.getByLabel('CIDR').fill(cidr);
         await dialog.getByLabel('Peruntukan').selectOption('customer_static');
+        // A different body: the double-submit guard answers an identical write before validation runs.
+        await dialog.getByLabel('Keterangan').fill('Duplikat');
         await dialog.getByRole('button', { name: 'Daftarkan prefiks' }).click();
         await expect(dialog.getByText(`${cidr} sudah terdaftar.`)).toBeVisible();
         await expect(dialog.getByLabel('CIDR')).toHaveValue(cidr);

@@ -84,6 +84,12 @@ class TicketPolicy
         return $this->sameCompany($user, $ticket) ? $user->can('ticket.delete') : Response::denyAsNotFound();
     }
 
+    /** D2: whoever may delete a ticket may bring it back. */
+    public function restore(User $user, Ticket $ticket): Response|bool
+    {
+        return $this->delete($user, $ticket);
+    }
+
     public function assign(User $user, Ticket $ticket): Response|bool
     {
         if (! $this->sameCompany($user, $ticket)) {

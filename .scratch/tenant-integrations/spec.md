@@ -1,6 +1,6 @@
 # Per-ISP integrations: Midtrans, WhatsApp, mail, RADIUS configured per company; FCM test from the apps
 
-Status: ready-for-agent
+Status: done
 Ledger: `docs/plans/INBILS_OMP_BACKLOG.md` → "ISP roadmap lanes (2026-10-12)" row `tenant-integrations`
 Source: owner 2026-10-17: "bisa tidak untuk seperti midtrans atau yang lain bisa terpisah dan ada config sendiri? … akan digunakan bukan hanya 1 perusahaan saja" → "ya, dan pada android kasih fitur untuk test FCM/notifikasi". Evidence: flow-audit F5-D10/F5-D18 (one merchant FHTS for every tenant), F12-D10 (platform mail sender), `.env.example` keys `MIDTRANS_*`, `WHATSAPP_*`, `MAIL_*`, `RADIUS_*`, `FIREBASE_CREDENTIALS`.
 

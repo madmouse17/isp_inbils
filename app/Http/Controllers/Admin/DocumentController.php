@@ -8,6 +8,7 @@ use App\Http\Resources\DocumentTypeResource;
 use App\Models\Core\DocumentType;
 use App\Services\Core\CompanyService;
 use App\Services\Core\DocumentService;
+use App\Services\Core\LifecycleService;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -29,12 +30,16 @@ class DocumentController extends Controller
     public function index(Request $request): InertiaResponse
     {
         Gate::authorize('viewAny', DocumentType::class);
-        $types = $this->filteredQuery($request)->paginate($this->perPage($request))->withQueryString();
+        $types = $this->filteredQuery($request)->withReferenceCounts()->paginate($this->perPage($request))->withQueryString();
 
         return Inertia::render('Admin/Documents/Index', [
             'documentTypes' => DocumentTypeResource::collection($types),
-            'filters' => $request->only(['search', 'sort', 'direction', 'per_page']),
-            'can' => ['export' => (bool) ($request->user()?->can('system.document.export'))],
+            'filters' => $request->only(['status', 'search', 'sort', 'direction', 'per_page']),
+            'can' => [
+                'update' => (bool) $request->user()?->can('system.setting'),
+                'delete' => (bool) $request->user()?->can('system.setting'),
+                'export' => (bool) $request->user()?->can('system.document.export'),
+            ],
         ]);
     }
 
@@ -73,9 +78,9 @@ class DocumentController extends Controller
     public function destroy(DocumentType $document_type): RedirectResponse
     {
         Gate::authorize('delete', $document_type);
-        $document_type->delete();
+        LifecycleService::destroyIfUnreferenced($document_type);
 
-        return back()->with('success', 'Jenis dokumen dihapus.');
+        return back()->with('success', 'Jenis dokumen dihapus permanen.');
     }
 
     public function export(Request $request): HttpResponse|StreamedResponse
@@ -148,6 +153,7 @@ class DocumentController extends Controller
     private function filteredQuery(Request $request): Builder
     {
         $query = DocumentType::query()
+            ->lifecycleStatus($request->input('status'))
             ->when(trim((string) $request->input('search')) !== '', function (Builder $query) use ($request): void {
                 $term = '%'.trim((string) $request->input('search')).'%';
                 $query->where(function (Builder $sub) use ($term): void {

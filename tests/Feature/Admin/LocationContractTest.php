@@ -98,7 +98,7 @@ class LocationContractTest extends TestCase
             ->get(route('admin.locations.index', [
                 'search' => 'Jakarta',
                 'type' => 'pop',
-                'status' => 'active',
+                'status' => 'aktif',
                 'sort' => 'code',
                 'direction' => 'asc',
                 'per_page' => 10,
@@ -113,7 +113,7 @@ class LocationContractTest extends TestCase
                 ->where('locations.meta.total', 1)
                 ->where('filters.search', 'Jakarta')
                 ->where('filters.type', 'pop')
-                ->where('filters.status', 'active')
+                ->where('filters.status', 'aktif')
                 ->where('can.create', true)
                 ->where('can.update', true)
                 ->where('can.move', true)
@@ -538,8 +538,6 @@ class LocationContractTest extends TestCase
 
     public function test_delete_activity_records_actor_and_server_authoritative_location_scope(): void
     {
-        config(['activitylog.subject_returns_soft_deleted_models' => true]);
-
         $location = $this->location([
             'code' => 'AUDIT-DELETE',
             'type' => 'region',
@@ -557,15 +555,20 @@ class LocationContractTest extends TestCase
             ->latest('id')
             ->first();
 
+        // The row is gone for good: the entries keep the actor and the company, and have no subject left to read them from.
         $this->assertNotNull($activity);
         $this->assertSame($this->admin->id, $activity->causer_id);
-        $this->assertSame('deleted', $activity->description);
-        $this->assertNotNull($activity->subject);
-        $this->assertSame(
-            (int) $activity->subject->company_id,
-            (int) $activity->company_id
-        );
-        $this->assertSame((int) $this->company->id, (int) $activity->subject->company_id);
+        $this->assertSame((int) $this->company->id, (int) $activity->company_id);
+        $this->assertNull($activity->subject);
+
+        $audit = Activity::query()
+            ->where('description', 'force_deleted')
+            ->where('properties->id', $location->public_id)
+            ->first();
+
+        $this->assertNotNull($audit);
+        $this->assertSame($this->admin->id, $audit->causer_id);
+        $this->assertSame((int) $this->company->id, (int) $audit->company_id);
     }
 
     public function test_noop_update_does_not_create_activity_event(): void
@@ -1223,7 +1226,7 @@ class LocationContractTest extends TestCase
 
         $this->deleteJson(route('admin.locations.destroy', $region))
             ->assertStatus(422)
-            ->assertJsonValidationErrors(['location' => 'Lokasi masih punya lokasi turunan.']);
+            ->assertJsonValidationErrors(['lifecycle' => 'Lokasi masih dipakai 1 lokasi turunan. Nonaktifkan saja.']);
         $this->postJson(route('admin.locations.move', $pop), ['new_parent_id' => $region->public_id])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['new_parent_id' => 'Lokasi POP harus punya induk Area.']);
@@ -1234,7 +1237,7 @@ class LocationContractTest extends TestCase
             ->assertStatus(422)
             ->assertJsonValidationErrors(['type' => 'Lokasi POP tidak dapat punya induk Rak.']);
 
-        $this->delete(route('admin.locations.destroy', $pop))->assertSessionHas('success', 'Lokasi dihapus.');
+        $this->delete(route('admin.locations.destroy', $pop))->assertSessionHas('success', 'Lokasi dihapus permanen.');
         $this->post(route('admin.locations.move', $area), ['new_parent_id' => $region->public_id])->assertSessionHas('success', 'Lokasi dipindahkan.');
         $this->put(route('admin.locations.update', $area), ['code' => 'AREA-1', 'name' => 'Area baru', 'type' => 'area'])->assertSessionHas('success', 'Lokasi diperbarui.');
     }

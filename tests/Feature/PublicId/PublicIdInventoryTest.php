@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\PublicId;
 
+use App\Models\Core\CompanyIntegration;
 use App\Models\User;
 use App\Traits\BelongsToCompany;
 use App\Traits\HasPublicId;
@@ -18,10 +19,13 @@ use Tests\TestCase;
  * payload names its rows; it leaves it only with the spec's say-so. Not on the list, and why:
  * - permissions: addressed by name everywhere (the role editor posts names), so no id leaves the server for them;
  * - notifications: the primary key already is a UUID; failed_jobs: Laravel's own `uuid` column serves;
- * - pivots and the company_user membership table: no surrogate id; settings: keyed by name;
+ * - pivots and the company_user membership table: no surrogate id; settings: keyed by name; port_templates: the
+ *   catalogue of device faces, shared by every company and addressed by its `key`;
  * - sessions, jobs, cache, migrations and the region tables: framework or reference data;
  * - service_package_versions: append-only rows reached through their package or subscription. The payload carries the
  *   version number, which names the version inside its package, so no id leaves the server for them.
+ * - company_integrations: one row per company and provider, addressed by the provider name in the URL; no page or payload
+ *   carries an id for a row, and the platform panel shows the states of a tenant without naming a row.
  */
 class PublicIdInventoryTest extends TestCase
 {
@@ -43,6 +47,8 @@ class PublicIdInventoryTest extends TestCase
         ],
         'ipam' => ['ip_addresses', 'ip_prefixes', 'vlans'],
         'network_asset' => ['nas_devices', 'network_accounts', 'network_asset_installations', 'network_assets', 'odn_ports', 'odn_splitters'],
+        // Its own group: asset_ports is created with its public_id (2026_10_24_110200), so the 2026_10_22 migration above does not touch it.
+        'hardware_panel' => ['asset_ports'],
         'service' => ['announcements', 'promo_banners', 'bandwidth_profiles', 'service_package_categories', 'service_packages', 'sla_tiers', 'speed_profiles'],
         'spk' => ['work_orders', 'work_order_assignments', 'work_order_items'],
         'ticketing' => ['tickets', 'ticket_categories', 'ticket_comments'],
@@ -52,7 +58,7 @@ class PublicIdInventoryTest extends TestCase
     private const PACKAGE_TABLES = ['roles', 'media', 'activity_log', 'personal_access_tokens'];
 
     /** Tenant models that carry no `public_id`, and why: see the class comment. */
-    private const WITHOUT_PUBLIC_ID = [ServicePackageVersion::class];
+    private const WITHOUT_PUBLIC_ID = [ServicePackageVersion::class, CompanyIntegration::class];
 
     /** @return list<string> */
     private function listed(): array

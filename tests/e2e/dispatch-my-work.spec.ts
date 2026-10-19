@@ -315,9 +315,18 @@ test.describe('@lifecycle dispatch-my-work', () => {
         const title = 'E2E Dispatch Ticket';
         const row = page.getByRole('row').filter({ hasText: title }).first();
         await expect(row).toBeVisible();
-        await row.getByRole('button', { name: 'Ganti petugas' }).click();
-
         const dialog = page.getByRole('dialog');
+
+        // The previous test already sent "Demo Technician over Demo Technician" for this ticket, and the
+        // double-submit guard refuses an identical write for 10 s. Park the ticket on another handler
+        // first, so the submit under test carries a different expected_assigned_to.
+        await row.getByRole('button', { name: 'Ganti petugas' }).click();
+        await expect(dialog).toBeVisible();
+        await selectSearchOption(page, 'Pilih petugas tiket', 'Demo Admin');
+        await dialog.getByRole('button', { name: 'Simpan penugasan' }).click();
+        await expect(dialog).toBeHidden();
+
+        await row.getByRole('button', { name: 'Ganti petugas' }).click();
         await expect(dialog).toBeVisible();
         await selectSearchOption(page, 'Pilih petugas tiket', 'Demo Technician');
 

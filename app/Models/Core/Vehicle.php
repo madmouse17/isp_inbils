@@ -3,6 +3,7 @@
 namespace App\Models\Core;
 
 use App\Traits\BelongsToCompany;
+use App\Traits\HasLifecycle;
 use App\Traits\HasPublicId;
 use Database\Factories\VehicleFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -16,6 +17,7 @@ class Vehicle extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasLifecycle;
     use HasPublicId;
     use LogsActivity;
     use SoftDeletes;
@@ -37,6 +39,22 @@ class Vehicle extends Model
         'is_active' => 'boolean',
         'purchase_date' => 'date',
     ];
+
+    public static function lifecycleNoun(): string
+    {
+        return 'Kendaraan';
+    }
+
+    public static function lifecycleFilters(): array
+    {
+        return self::ACTIVE_FILTERS;
+    }
+
+    /** Deleting a vehicle would only clear `employee_profiles.vehicle_id` (SET NULL), so a driver, deleted or not, keeps it. */
+    public static function lifecycleReferences(): ?array
+    {
+        return ['karyawan' => ['employee_profiles.vehicle_id']];
+    }
 
     public function employees(): HasMany
     {

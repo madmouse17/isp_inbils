@@ -1,6 +1,6 @@
 # Master data lifecycle: deactivate instead of delete, restore, frozen history
 
-Status: ready-for-agent
+Status: done
 Ledger: `docs/plans/INBILS_OMP_BACKLOG.md` → "ISP roadmap lanes (2026-10-12)" row `master-lifecycle`
 Source: owner 2026-10-17 (flow-audit follow-up): "riwayat tidak boleh hilang karena data perusahaan … kalau diupdate semua data paket layanan lama ikut berubah harusnya tidak boleh, itu berlaku semua data penting yang untuk report … jadikan soft delete dan harus dimunculkan biar bisa diaktifkan lagi, dan usahakan ada filternya kalau ada aktif maupun nonaktif dan status lainnya kasih filter". Evidence: `local://delete-matrix.md` (45 entities) and flow-audit finding F2-D04.
 

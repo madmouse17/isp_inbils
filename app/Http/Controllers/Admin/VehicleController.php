@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\StoreVehicleRequest;
 use App\Http\Requests\Admin\UpdateVehicleRequest;
 use App\Http\Resources\VehicleResource;
 use App\Models\Core\Vehicle;
+use App\Services\Core\LifecycleService;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -28,19 +29,22 @@ class VehicleController extends Controller
     {
         Gate::authorize('viewAny', Vehicle::class);
 
-        $vehicles = $this->filteredQuery($request);
+        $vehicles = $this->filteredQuery($request)->withReferenceCounts();
 
         if (! $request->filled('sort') && ! $request->filled('sort_by')) {
             $vehicles->reorder()->latest();
         }
 
         $vehicles = $vehicles->paginate($this->perPage($request))->withQueryString();
+        $canManage = $request->user()?->can('vehicle.manage') ?? false;
 
         return Inertia::render('Admin/Vehicles/Index', [
             'vehicles' => VehicleResource::collection($vehicles),
-            'filters' => $request->only(['search', 'sort', 'direction', 'per_page']),
+            'filters' => $request->only(['status', 'search', 'sort', 'direction', 'per_page']),
             'can' => [
-                'create' => $request->user()?->can('vehicle.manage') ?? false,
+                'create' => $canManage,
+                'update' => $canManage,
+                'delete' => $canManage,
                 'export' => $request->user()?->can('vehicle.export') ?? false,
             ],
         ]);
@@ -65,9 +69,9 @@ class VehicleController extends Controller
     public function destroy(Vehicle $vehicle): RedirectResponse
     {
         Gate::authorize('delete', $vehicle);
-        $vehicle->delete();
+        LifecycleService::destroyIfUnreferenced($vehicle);
 
-        return back()->with('success', 'Kendaraan dihapus.');
+        return back()->with('success', 'Kendaraan dihapus permanen.');
     }
 
     public function export(Request $request): Response|StreamedResponse
@@ -109,6 +113,7 @@ class VehicleController extends Controller
     private function filteredQuery(Request $request): Builder
     {
         $query = Vehicle::query()
+            ->lifecycleStatus($request->input('status'))
             ->when($request->input('search'), function (Builder $q, string $v): void {
                 $term = trim($v);
                 if ($term === '') {

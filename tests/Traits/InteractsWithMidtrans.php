@@ -2,14 +2,17 @@
 
 namespace Tests\Traits;
 
+use App\Models\Core\Company;
+use App\Models\Core\CompanyIntegration;
 use Closure;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Modules\Billing\Models\PaymentAttempt;
 
 /**
- * Fake gateway credentials and Midtrans-shaped payloads for tests. The key below is not a real key; the
- * real one lives only in .env and is never read by a test.
+ * Each company's own Midtrans account (a `company_integrations` row), fake credentials and Midtrans-shaped payloads for
+ * tests. The keys below are not real keys; a real one lives only in the integration row of a real install and is never
+ * read by a test.
  */
 trait InteractsWithMidtrans
 {
@@ -24,20 +27,75 @@ trait InteractsWithMidtrans
     /** @var (Closure(Request): mixed)|null answers POST /v2/{order_id}/cancel; null = Midtrans cancelled the transaction */
     protected ?Closure $midtransCancelReply = null;
 
+    /** Whether a company created from now on gets an enabled row, see enableMidtrans(). */
+    protected bool $midtransForNewCompanies = false;
+
+    protected bool $midtransListening = false;
+
+    /** @var array<string, mixed> what an enabled row says about the account; midtransSettings() changes it */
+    protected array $midtransAccount = ['is_production' => false];
+
+    /**
+     * Every company, the ones that exist and the ones a test creates later, gets an enabled Midtrans row with the fake
+     * key, so the order in which a test builds its world does not matter.
+     */
     protected function enableMidtrans(): void
     {
-        config([
-            'services.midtrans.server_key' => self::FAKE_SERVER_KEY,
-            'services.midtrans.client_key' => 'SB-Mid-client-FAKE',
-            'services.midtrans.merchant_id' => 'G000000000',
-            'services.midtrans.is_production' => false,
-            'services.midtrans.base_url' => null,
-        ]);
+        $this->midtransForNewCompanies = true;
+
+        if (! $this->midtransListening) {
+            // A model listener cannot be removed on its own (flushEventListeners would also drop the app's own hooks), so
+            // disableMidtrans() switches this one off.
+            Company::created(function (Company $company): void {
+                if ($this->midtransForNewCompanies) {
+                    $this->midtransIntegration($company);
+                }
+            });
+            $this->midtransListening = true;
+        }
+
+        foreach (Company::query()->get() as $company) {
+            $this->midtransIntegration($company);
+        }
     }
 
+    /** Every company's row is switched off, key kept, and a company created later gets none. */
     protected function disableMidtrans(): void
     {
-        config(['services.midtrans.server_key' => null]);
+        $this->midtransForNewCompanies = false;
+
+        foreach (CompanyIntegration::withoutCompany()->where('provider', 'midtrans')->get() as $row) {
+            $row->update(['is_enabled' => false]);
+        }
+    }
+
+    /**
+     * What the Midtrans rows say about the account (`is_production`, `base_url`, `allow_sandbox_in_production`), for the
+     * rows there are and for the companies created later. Saved through the model, so a row read before is forgotten.
+     *
+     * @param  array<string, mixed>  $settings
+     */
+    protected function midtransSettings(array $settings): void
+    {
+        $this->midtransAccount = [...$this->midtransAccount, ...$settings];
+
+        foreach (CompanyIntegration::withoutCompany()->where('provider', 'midtrans')->get() as $row) {
+            $row->update(['settings' => [...($row->settings ?? []), ...$settings]]);
+        }
+    }
+
+    /**
+     * The company's own Midtrans account: enabled, on a sandbox account, with the fake key unless the test gives another
+     * (an empty key is a row without a key).
+     *
+     * @param  array<string, mixed>|null  $settings  null: what midtransSettings() left
+     */
+    protected function midtransIntegration(Company $company, string $serverKey = self::FAKE_SERVER_KEY, bool $enabled = true, ?array $settings = null): CompanyIntegration
+    {
+        return CompanyIntegration::withoutCompany()->updateOrCreate(
+            ['company_id' => $company->id, 'provider' => 'midtrans'],
+            ['credentials' => ['server_key' => $serverKey], 'settings' => $settings ?? $this->midtransAccount, 'is_enabled' => $enabled],
+        );
     }
 
     /**
@@ -72,12 +130,12 @@ trait InteractsWithMidtrans
     }
 
     /**
-     * A Status API answer / notification for the attempt, signed with the fake key.
+     * A Status API answer / notification for the attempt, signed with the fake key unless the company has its own.
      *
      * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>
      */
-    protected function midtransPayload(PaymentAttempt $attempt, array $overrides = []): array
+    protected function midtransPayload(PaymentAttempt $attempt, array $overrides = [], string $key = self::FAKE_SERVER_KEY): array
     {
         $payload = array_merge([
             'transaction_time' => '2026-10-12 10:00:00',
@@ -94,7 +152,7 @@ trait InteractsWithMidtrans
             'currency' => 'IDR',
         ], $overrides);
 
-        return $this->signMidtransPayload($payload);
+        return $this->signMidtransPayload($payload, $key);
     }
 
     /**

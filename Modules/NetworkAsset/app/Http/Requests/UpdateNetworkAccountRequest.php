@@ -58,7 +58,7 @@ class UpdateNetworkAccountRequest extends FormRequest
                 $validator->errors()->add('realm', 'Kode perusahaan tidak dapat dipakai sebagai realm RADIUS: gunakan 1 sampai 24 huruf, angka, atau tanda hubung.');
             } elseif ($subscription->status === 'terminated') {
                 $validator->errors()->add('subscription', 'Langganan yang sudah berhenti tidak dapat punya akun jaringan.');
-            } elseif (blank($subscription->servicePackage?->speedProfile?->getAttribute('radius_profile_name'))) {
+            } elseif (blank($subscription->packageVersion?->speedProfile?->getAttribute('radius_profile_name'))) {
                 $validator->errors()->add('subscription', 'Profil kecepatan paket ini belum punya nama profil RADIUS.');
             }
         }];

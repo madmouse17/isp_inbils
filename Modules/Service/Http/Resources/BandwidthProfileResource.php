@@ -4,7 +4,9 @@ namespace Modules\Service\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Modules\Service\Models\BandwidthProfile;
 
+/** @mixin BandwidthProfile */
 class BandwidthProfileResource extends JsonResource
 {
     /** @return array<string, mixed> */
@@ -19,6 +21,7 @@ class BandwidthProfileResource extends JsonResource
             'contention_ratio' => $this->contention_ratio,
             'is_active' => $this->is_active,
             'created_at' => $this->created_at,
+            ...$this->lifecycleAttributes(),
         ];
     }
 }

@@ -272,12 +272,12 @@ class MidtransReconcileCommandTest extends TestCase
         $this->assertCount(0, Payment::withoutCompany()->get());
     }
 
-    public function test_without_a_server_key_it_exits_cleanly_and_does_nothing(): void
+    public function test_with_no_company_taking_midtrans_it_exits_cleanly_and_does_nothing(): void
     {
         $this->attemptFor();
         $this->disableMidtrans();
 
-        $this->artisan('midtrans:reconcile')->expectsOutputToContain('not configured')->assertExitCode(0);
+        $this->artisan('midtrans:reconcile')->expectsOutputToContain('Midtrans is not configured; nothing to reconcile.')->assertExitCode(0);
 
         Http::assertNothingSent();
     }

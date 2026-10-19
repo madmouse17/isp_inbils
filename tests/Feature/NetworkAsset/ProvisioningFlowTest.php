@@ -269,7 +269,7 @@ class ProvisioningFlowTest extends TestCase
         $this->provisioned();
         $bigger = $this->packageWithRadiusProfile($this->company, 'home-50m', 50, 25);
 
-        $this->subscription->update(['service_package_id' => $bigger->id]);
+        $this->subscription->update(['service_package_id' => $bigger->id, 'service_package_version_id' => $bigger->versions()->value('id')]);
 
         $this->assertSame("{$this->realm}/home-50m", $this->group());
         $this->assertSame('25M/50M', $this->replies("{$this->realm}/home-50m")['Mikrotik-Rate-Limit']);
@@ -557,15 +557,15 @@ class ProvisioningFlowTest extends TestCase
         Queue::assertNotPushed(ApplyNetworkAccountJob::class);
     }
 
-    public function test_the_installation_switch_off_writes_nothing_sends_nothing_and_leaves_the_account_pending_with_the_reason(): void
+    public function test_a_company_without_an_enabled_radius_writes_nothing_sends_nothing_and_leaves_the_account_pending_with_the_reason(): void
     {
-        config(['services.radius.enabled' => false]);
+        $this->disableRadius();
 
         $this->applyAccount($this->account);
 
         $account = $this->account->fresh();
         $this->assertSame('pending', $account->sync_status);
-        $this->assertSame('RADIUS is switched off.', $account->last_error);
+        $this->assertSame('RADIUS belum dikonfigurasi untuk perusahaan ini (Pengaturan → Integrasi).', $account->last_error);
         $this->assertSame([], $this->radiusRows('radcheck'));
         $this->assertSame([], $this->disconnectsSent());
         $this->assertNull($account->provisioned_group);
@@ -650,7 +650,8 @@ class ProvisioningFlowTest extends TestCase
 
     public function test_a_package_without_a_radius_profile_name_fails_the_account_without_touching_radius(): void
     {
-        $this->subscription->forceFill(['service_package_id' => $this->packageWithRadiusProfile($this->company, null)->id])->saveQuietly();
+        $nameless = $this->packageWithRadiusProfile($this->company, null);
+        $this->subscription->forceFill(['service_package_id' => $nameless->id, 'service_package_version_id' => $nameless->versions()->value('id')])->saveQuietly();
 
         $this->applyAccount($this->account);
 

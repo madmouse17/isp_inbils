@@ -30,8 +30,8 @@ use Tests\Traits\InteractsWithRadius;
 
 /**
  * Matrix rows the other network suites leave open: the account service on its own against another company's
- * records, a mass isolir while RADIUS is down, a package without a RADIUS profile name changed through the HTTP
- * route, and the three secrets in every place a RADIUS answer or a failure can leave a trace.
+ * records, a mass isolir while RADIUS is down, a subscription moved to a package without a RADIUS profile name, and
+ * the three secrets in every place a RADIUS answer or a failure can leave a trace.
  */
 class NetworkAccessGapTest extends TestCase
 {
@@ -86,6 +86,12 @@ class NetworkAccessGapTest extends TestCase
     private function package(Company $company, ?string $profile = 'home-20m'): ServicePackage
     {
         return $this->packageWithRadiusProfile($company, $profile);
+    }
+
+    /** A package change as the web action leaves it: the package and its version move together, and the observer sees it. */
+    private function moveToPackage(ServiceSubscription $subscription, ServicePackage $package): void
+    {
+        $subscription->update(['service_package_id' => $package->id, 'service_package_version_id' => $package->versions()->value('id')]);
     }
 
     // --- tenant: the service on its own ---------------------------------------------------------------------------
@@ -151,9 +157,9 @@ class NetworkAccessGapTest extends TestCase
         $this->assertSame(self::SUBSCRIBERS, $this->radiusConnection()->table('radusergroup')->where('groupname', "{$this->realm}/isolir")->count());
     }
 
-    // --- observer path of SubscriptionController::update ----------------------------------------------------------
+    // --- observer path of a package move (the web action that moves it is SubscriptionController::changePackage) ------
 
-    public function test_a_package_without_a_radius_profile_name_chosen_on_the_update_route_fails_only_the_account_and_a_good_package_heals_it(): void
+    public function test_a_package_without_a_radius_profile_name_fails_only_the_account_and_a_good_package_heals_it(): void
     {
         $subscription = $this->subscriptionIn($this->company, 'active', null, $this->package($this->company));
         $account = $this->networkAccountFor($subscription, ['username' => "carol@{$this->realm}"]);
@@ -161,7 +167,7 @@ class NetworkAccessGapTest extends TestCase
         $this->seedRadiusSession(['username' => "carol@{$this->realm}", 'nasipaddress' => $this->nasIp]);
         $nameless = $this->package($this->company, null);
 
-        $this->put(route('admin.subscriptions.update', $subscription), ['service_package_id' => $nameless->public_id])->assertRedirect();
+        $this->moveToPackage($subscription, $nameless);
 
         $this->assertSame($nameless->id, $subscription->fresh()->service_package_id, 'business first: the package change itself succeeds');
         $account = $account->fresh();
@@ -172,7 +178,7 @@ class NetworkAccessGapTest extends TestCase
         $this->assertSame('rejected', Activity::query()->where('description', 'provision_failed')->sole()->properties['error_kind']);
 
         $good = $this->package($this->company, 'home-50m');
-        $this->put(route('admin.subscriptions.update', $subscription), ['service_package_id' => $good->public_id])->assertRedirect();
+        $this->moveToPackage($subscription, $good);
 
         $account = $account->fresh();
         $this->assertSame('synced', $account->sync_status);
@@ -211,7 +217,7 @@ class NetworkAccessGapTest extends TestCase
         $this->nas->forceFill(['radius_secret' => $nasSecret])->save();
         match ($state) {
             'down' => Schema::connection('radius')->drop('radcheck'),
-            'off' => config(['services.radius.enabled' => false]),
+            'off' => $this->disableRadius(),
             default => null,
         };
         $subscription = $this->subscriptionIn($this->company, 'active', null, $this->package($this->company));

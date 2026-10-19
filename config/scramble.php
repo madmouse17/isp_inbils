@@ -67,9 +67,10 @@ A user with confirmed two-factor authentication gets `202` from `POST auth/login
 
 ## Errors
 
-Every error under `api/v1` is JSON: `{"message": string, "code": string, "errors"?: {field: [string]}}`.
+Every error under `api/v1` is JSON: `{"message": string, "code": string, "errors"?: {field: [string]}, "request_id": string}`.
 `message` is for developers and may be English or Indonesian; show your own text per `code`. `errors` appears only
-with `validation_failed`. A 429 carries `Retry-After` (seconds).
+with `validation_failed`. `request_id` equals the `X-Request-Id` response header: quote it when you report a problem,
+and the server log can be searched by it. A 429 carries `Retry-After` (seconds).
 
 | Status | `code` |
 |---|---|
@@ -79,13 +80,14 @@ with `validation_failed`. A 429 carries `Retry-After` (seconds).
 | 404 | `not_found` (also another customer's or company's record), `payment_unavailable` (online payment is off) |
 | 405 | `method_not_allowed` |
 | 408 | `request_timeout` |
-| 409 | `conflict`, `idempotency_in_progress` |
+| 409 | `conflict`, `idempotency_in_progress`, `push_token_not_registered` (this install's push token is not registered for this sign-in) |
 | 413 | `payload_too_large` |
 | 415 | `unsupported_media_type` |
 | 422 | `validation_failed`, `unprocessable` (a well-formed request the business rules refuse), `idempotency_conflict`, `invoice_not_payable`, `challenge_expired` |
 | 428 | `precondition_required`, `idempotency_key_required` |
 | 429 | `too_many_requests` |
 | 500 | `server_error` |
+| 503 | `push_unavailable` (push notifications are off on the server) |
 | other 4xx | `client_error` |
 
 ## Idempotency
@@ -114,7 +116,7 @@ at most 50. One record is `{data}`.
 ## Rate limits
 
 120 requests a minute per token, 20 sign-ins a minute per IP, 6 password-reset requests a minute per IP, 6 payment
-starts, 30 uploads and 30 promo banner taps a minute per user.
+starts, 30 uploads and 30 promo banner taps a minute per user, 3 push tests a minute per user.
 MD,
     ],
 

@@ -48,7 +48,6 @@ class StoreWorkOrderItemRequest extends FormRequest
                 Rule::exists('network_assets', 'id')->where('company_id', $companyId)->where('status', 'available'),
                 new MatchesParentAttribute(NetworkAsset::class, 'product_id', 'product_id'),
             ],
-            'quantity_reserved' => ['nullable', 'numeric', 'min:0'],
             'quantity_used' => ['nullable', 'numeric', 'min:0'],
             'note' => ['nullable', 'string', 'max:500'],
         ];

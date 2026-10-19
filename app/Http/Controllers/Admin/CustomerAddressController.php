@@ -11,10 +11,12 @@ use App\Models\Core\Customer;
 use App\Models\Core\CustomerAddress;
 use App\Services\Core\CompanyService;
 use App\Services\Core\IndonesiaRegionService;
+use App\Services\Core\LifecycleService;
 use App\Services\Core\OpenStreetMapGeocoder;
 use App\Support\ExportQuery;
 use App\Support\RecordNotFound;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -39,9 +41,13 @@ class CustomerAddressController extends Controller
 
         return Inertia::render('Admin/CustomerAddresses/Index', [
             'customer' => ['id' => $customer->public_id, 'code' => $customer->code, 'name' => $customer->name],
-            'addresses' => CustomerAddressResource::collection($this->filteredQuery($customer, $request)->paginate(10)->withQueryString()),
-            'filters' => $request->only(['search', 'sort', 'direction']),
-            'can' => ['export' => $request->user()?->can('customer.address.export') ?? false],
+            'addresses' => CustomerAddressResource::collection($this->filteredQuery($customer, $request)->withReferenceCounts()->paginate(10)->withQueryString()),
+            'filters' => $request->only(['status', 'search', 'sort', 'direction']),
+            'can' => [
+                'update' => $request->user()?->can('customer.address.manage') ?? false,
+                'delete' => $request->user()?->can('customer.address.manage') ?? false,
+                'export' => $request->user()?->can('customer.address.export') ?? false,
+            ],
             'regions' => fn () => IndonesiaRegionService::options(
                 $request->input('region_provinces', []),
                 $request->input('region_cities', []),
@@ -174,33 +180,30 @@ class CustomerAddressController extends Controller
         RecordNotFound::abortUnless($address->customer_id === $customer->id);
         Gate::authorize('customer.address.manage');
 
-        if ($address->subscriptions()->exists()) {
-            return back()->withErrors(['address' => 'Alamat yang dipakai langganan tidak bisa dihapus.']);
-        }
-
-        DB::transaction(function () use ($customer, $address) {
+        DB::transaction(function () use ($customer, $address): void {
+            // The same lock order as store and update: the customer's whole address set before any single row.
             $customer->addresses()->lockForUpdate()->get();
 
-            $wasPrimary = $address->is_primary;
-            $wasInstallationPoint = $address->is_installation_point;
+            LifecycleService::destroyIfUnreferenced($address, function (Model $locked) use ($customer): void {
+                /** @var CustomerAddress $locked */
+                // Invariant A: promote the earliest remaining row to keep exactly
+                // one primary / installation-point marker in a non-empty collection.
+                $remaining = $customer->addresses()->whereKeyNot($locked->getKey())->orderBy('id')->get();
 
-            $address->delete();
+                if ($remaining->isEmpty()) {
+                    return;
+                }
 
-            // Invariant A: promote the earliest remaining row to keep exactly
-            // one primary / installation-point marker in a non-empty collection.
-            $remaining = $customer->addresses()->orderBy('id')->get();
-
-            if ($remaining->isNotEmpty()) {
-                if ($wasPrimary && $remaining->where('is_primary', true)->isEmpty()) {
+                if ($locked->is_primary && $remaining->where('is_primary', true)->isEmpty()) {
                     $customer->addresses()->whereKey($remaining->first()->id)->update(['is_primary' => true]);
                 }
-                if ($wasInstallationPoint && $remaining->where('is_installation_point', true)->isEmpty()) {
+                if ($locked->is_installation_point && $remaining->where('is_installation_point', true)->isEmpty()) {
                     $customer->addresses()->whereKey($remaining->first()->id)->update(['is_installation_point' => true]);
                 }
-            }
+            });
         });
 
-        return back()->with('success', 'Alamat dihapus.');
+        return back()->with('success', 'Alamat dihapus permanen.');
     }
 
     private function ensureSameCompany(Customer $customer): void
@@ -214,6 +217,7 @@ class CustomerAddressController extends Controller
         $query = $customer->addresses()
             ->getQuery()
             ->with(['province', 'regionCity', 'district', 'village'])
+            ->lifecycleStatus($request->input('status'))
             ->when(trim((string) $request->input('search')) !== '', function (Builder $query) use ($request): void {
                 $term = '%'.trim((string) $request->input('search')).'%';
                 $query->where(function (Builder $sub) use ($term): void {

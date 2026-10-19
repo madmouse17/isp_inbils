@@ -41,4 +41,9 @@ class EmployeeEvaluationPolicy
     {
         return $user->can('evaluation.delete');
     }
+
+    public function restore(User $user, EmployeeEvaluation $eval): bool
+    {
+        return $this->delete($user, $eval);
+    }
 }

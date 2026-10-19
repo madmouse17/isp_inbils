@@ -10,6 +10,7 @@ use App\Services\Core\CompanyLogoService;
 use App\Services\Core\CompanyService;
 use App\Services\WhatsApp\WhatsAppCloudClient;
 use App\Services\WhatsApp\WhatsAppSettings;
+use App\Support\OptimisticLock;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -69,6 +70,7 @@ class CompanyController extends Controller
                 'map_zoom' => null,
                 ...WhatsAppSettings::defaults(),
             ], $company->settings ?? []),
+            'version' => OptimisticLock::version($company),
             'cities' => $this->cities(),
             // Whether credentials exist, never their values; the usage counts this company's current month.
             'whatsapp' => [
@@ -90,7 +92,7 @@ class CompanyController extends Controller
         $company = CompanyService::current();
         Gate::authorize('updateSettings', $company);
 
-        CompanyService::updateSettings($request->validated('settings'));
+        CompanyService::updateSettings($request->validated('settings'), $request->validated(OptimisticLock::FIELD));
 
         return back()->with('success', 'Pengaturan perusahaan diperbarui.');
     }

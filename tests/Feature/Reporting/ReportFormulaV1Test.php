@@ -470,6 +470,25 @@ class ReportFormulaV1Test extends TestCase
         $this->assertMetrics(ReportType::Sla, ['by_category' => $expected], SlaComplianceQuery::execute(categoryId: $categories['idle']->id), 'the category of an open ticket');
     }
 
+    public function test_sla_by_category_names_a_closed_ticket_by_the_category_it_closed_under(): void
+    {
+        $a = $this->companyA;
+        $support = $this->category($a, 'Support', 'SUP');
+        $renamed = $this->category($a, 'Layanan Baru', 'NEW');
+
+        // Columns: category, created_at, first_response_at, resolved_at, sla_deadline.
+        $this->ticket($a, $support, '2026-01-10 08:00:00', null, '2026-01-10 10:00:00', '2026-01-10 10:00:00');                  // S1 still named Support, on time
+        $closed = $this->ticket($a, $renamed, '2026-01-11 08:00:00', null, '2026-01-11 10:00:00', '2026-01-11 12:00:00', 'closed'); // S2 closed while its category was still "Support", on time
+        $closed->forceFill(['category_name_snapshot' => 'Support'])->save();
+        $this->ticket($a, $renamed, '2026-01-12 08:00:00', null, '2026-01-12 13:00:00', '2026-01-12 12:00:00');                  // S3 resolved but not closed: the live name, late
+
+        // The label is the name a ticket closed under, the live name until then; equal labels merge into one row.
+        $this->assertMetrics(ReportType::Sla, ['by_category' => [
+            ['name' => 'Layanan Baru', 'total' => 1, 'compliant' => 0, 'rate' => 0.0],
+            ['name' => 'Support', 'total' => 2, 'compliant' => 2, 'rate' => 100.0],
+        ]], SlaComplianceQuery::execute());
+    }
+
     public function test_sla_without_resolved_tickets_in_the_period_has_a_zero_rate_and_empty_averages(): void
     {
         $this->seedTickets();

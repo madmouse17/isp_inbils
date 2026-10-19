@@ -10,6 +10,7 @@ use App\Queries\Admin\CustomerAcquirerQuery;
 use App\Rules\IsEligibleCustomerAcquirer;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
+use App\Support\OptimisticLock;
 use App\Support\PublicId;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -50,6 +51,7 @@ class UpdateCustomerRequest extends FormRequest
             'notes' => ['nullable', 'string'],
             'is_active' => ['boolean'],
             'whatsapp_opt_in' => ['sometimes', 'boolean'],
+            OptimisticLock::FIELD => OptimisticLock::rules(),
             ...$this->acquirerRules($customerId),
         ];
     }

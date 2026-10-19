@@ -3,8 +3,8 @@
  *
  * Two describes in one file, picked by E2E_RADIUS_LAB:
  *
- * 1. CI (default, RADIUS_ENABLED off in .env.e2e): every server-side RADIUS call is skipped, so the pages show
- *    the honest state ("Menunggu ditulis", accounts "Menunggu" with the switch as the reason). The engine
+ * 1. CI (default, DEMO has no RADIUS integration row): every server-side RADIUS call is skipped, so the pages show
+ *    the honest state ("Menunggu ditulis", accounts "Menunggu" with the missing integration as the reason). The engine
  *    against a fake RADIUS database is covered by tests/Feature/NetworkAsset; this drives the UI.
  *    Flow: register NAS (secret never shown again) -> router page -> edit keeps the stored secret -> account
  *    with realm suffix and one-time secret -> reveal -> Block/Unblock on Subscriptions/Show -> Block/Unblock
@@ -18,10 +18,11 @@
  *    Preconditions:
  *      - lab up: `docker compose ps` in ~/labs/freeradius shows radlab-freeradius, radlab-db, radlab-nas-sim healthy;
  *      - light reset from the lab README (and no leftover `e2e-lab@demo` rows in the lab database);
- *      - the served app needs RADIUS_ENABLED=true and RADIUS_DB_HOST/PORT/DATABASE/USERNAME/PASSWORD of the lab (host
- *        127.0.0.1, port 13306) plus QUEUE_CONNECTION=sync (already in .env.e2e). The runner below exports them from
- *        ~/labs/freeradius/.env, never printing them; scripts/e2e-server-env.mjs forwards them only while
- *        E2E_RADIUS_LAB=1. The local .env.e2e needs no RADIUS lines (without them the NAS page says "Gagal ditulis");
+ *      - DEMO needs an enabled RADIUS integration row that points at the lab. tests/e2e/setup.php writes it with
+ *        `inbils:integrations:import-env` from RADIUS_ENABLED=true and RADIUS_DB_HOST/PORT/DATABASE/USERNAME/PASSWORD of
+ *        the lab (host 127.0.0.1, port 13306); the served app reads the row, never those variables. QUEUE_CONNECTION=sync
+ *        is already in .env.e2e. The runner below exports the variables from ~/labs/freeradius/.env, never printing
+ *        them. The local .env.e2e needs no RADIUS lines (without the row the NAS page says "Gagal ditulis");
  *      - `E2E_RADIUS_LAB=1` (set by the runner; the server env builder also allowlists LAB_RADIUS_SECRET and
  *        LAB_USER_SECRET) or the same line in .env.e2e;
  *      - LAB_RADIUS_SECRET (shared secret) and LAB_USER_SECRET (secret of the lab users) are read at run time from the
@@ -65,7 +66,7 @@ const REGISTERED_ROUTER_ASSET = 'E2E-ROUTER-002';
 const SUBSCRIPTION = 'E2E-LINKED-SUB';
 const CUSTOMER = 'E2E Linked Customer';
 const REALM = 'demo';
-const SWITCH_OFF_REASON = 'RADIUS is switched off.';
+const SWITCH_OFF_REASON = 'RADIUS belum dikonfigurasi untuk perusahaan ini (Pengaturan → Integrasi).';
 const ORIGIN = 'http://127.0.0.1:8010';
 const FAKE_NAS_SECRET = 'e2e-fake-nas-secret';
 
@@ -143,7 +144,7 @@ async function submitBlockModal(page: Page, title: string, text: string, submit:
 }
 
 test.describe('@lifecycle radius provisioning (switch off)', () => {
-    test.skip(LAB, 'The lab run has RADIUS_ENABLED on; see the lab describe below.');
+    test.skip(LAB, 'The lab run gives DEMO a RADIUS integration; see the lab describe below.');
     test.describe.configure({ mode: 'serial' });
 
     test('admin registers the unregistered router asset as a NAS router with a secret that is never shown again', async ({
@@ -232,8 +233,12 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await expect(detail(page, 'Secret RADIUS')).toHaveText('Tersimpan');
         await expect(
             page.getByText(
-                'RADIUS dimatikan untuk instalasi ini. Tidak ada yang ditulis ke FreeRADIUS dan tidak ada sesi yang ditampilkan.',
+                'RADIUS belum dikonfigurasi untuk perusahaan ini. Perubahan disimpan tetapi tidak dikirim ke FreeRADIUS.',
             ),
+        ).toBeVisible();
+        // The admin holds company.integrations.manage, so the alert points to the page that fixes it.
+        await expect(
+            page.getByRole('link', { name: 'Atur di Pengaturan → Integrasi' }),
         ).toBeVisible();
         await expect(
             page.getByText(/Mulai ulang FreeRADIUS setelah menambah NAS ini/),
@@ -295,7 +300,7 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await expect(page.getByText(`Langganan ${SUBSCRIPTION}`).first()).toBeVisible();
         await expect(
             page.getByText(
-                'RADIUS dimatikan untuk instalasi ini. Perubahan disimpan tetapi tidak dikirim ke FreeRADIUS, dan status online serta pemakaian tidak tersedia.',
+                'RADIUS belum dikonfigurasi untuk perusahaan ini. Perubahan disimpan tetapi tidak dikirim ke FreeRADIUS.',
             ),
         ).toBeVisible();
         await expect(detail(page, 'Status yang diharapkan')).toContainText('Aktif');
@@ -504,7 +509,14 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
 
         // Unblock from the same row while the subscription is still active.
         await row.getByRole('button', { name: `Buka blokir ${SUBSCRIPTION}` }).click();
-        await submitBlockModal(page, `Buka blokir internet ${SUBSCRIPTION}?`, '', 'Buka blokir');
+        // The unblocks of this test carry a note: the previous test sent a note-less one seconds ago, and the
+        // duplicate-submit guard refuses an identical write (same body) inside 10 seconds.
+        await submitBlockModal(
+            page,
+            `Buka blokir internet ${SUBSCRIPTION}?`,
+            'E2E fraud check cleared',
+            'Buka blokir',
+        );
         await expect(row.getByRole('button', { name: `Blokir ${SUBSCRIPTION}` })).toBeVisible();
         await expect(row.getByText('Diblokir', { exact: true })).toHaveCount(0);
 
@@ -543,7 +555,12 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await expect(page.getByRole('dialog')).toContainText(
             'Langganan sedang ditangguhkan, jadi layanan tetap diisolir sampai diaktifkan kembali.',
         );
-        await submitBlockModal(page, `Buka blokir internet ${SUBSCRIPTION}?`, '', 'Buka blokir');
+        await submitBlockModal(
+            page,
+            `Buka blokir internet ${SUBSCRIPTION}?`,
+            'E2E unblocked while suspended',
+            'Buka blokir',
+        );
 
         await page.goto(`/admin/subscriptions/${state.subscriptionId}/network-account`);
         await expect(detail(page, 'Status yang diharapkan')).toContainText(
@@ -654,6 +671,13 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
             await expect(page.getByRole('button', { name })).toHaveCount(0);
             await expect(page.getByRole('link', { name, exact: true })).toHaveCount(0);
         }
+        // The alert is for everyone who reads the page; the link only for who may open the integrations page.
+        await expect(
+            page.getByText('RADIUS belum dikonfigurasi untuk perusahaan ini.'),
+        ).toBeVisible();
+        await expect(
+            page.getByRole('link', { name: 'Atur di Pengaturan → Integrasi' }),
+        ).toHaveCount(0);
         // Managing is refused by the server, not just hidden.
         expect((await page.request.get('/admin/nas-devices/create')).status()).toBe(403);
         expect((await page.request.get(`/admin/nas-devices/${state.routerId}/edit`)).status()).toBe(
@@ -903,7 +927,9 @@ test.describe('@lifecycle radius provisioning (FreeRADIUS lab)', () => {
         expect(await page.locator('body').innerText()).not.toContain(
             labSecret('LAB_RADIUS_SECRET'),
         );
-        await expect(page.getByText('RADIUS dimatikan untuk instalasi ini.')).toHaveCount(0);
+        await expect(
+            page.getByText('RADIUS belum dikonfigurasi untuk perusahaan ini.'),
+        ).toHaveCount(0);
 
         // FreeRADIUS reads the `nas` table when it starts; a HUP answers "No files changed. Ignoring" and leaves the
         // clients as they were, so a new NAS needs a restart of the server (proven in the lab, see the ticket).

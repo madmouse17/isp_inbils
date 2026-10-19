@@ -91,6 +91,18 @@ Skema: `docs/DATABASE.md` Section 11 (Billing).
 - Check: `type IN ('one_time','recurring')`, `source IN ('spk',
   'subscription','manual')`, `status IN ('draft','sent','partial','paid',
   'overdue','cancelled')`.
+- Kolom beku (nullable): `customer_name_snapshot` varchar(255),
+  `customer_address_snapshot` text, `customer_tax_id_snapshot` varchar(255),
+  `package_name_snapshot` varchar(255). Diisi saat invoice keluar dari draf
+  (lihat "Pihak tagihan beku").
+- `active_recurring_period` date, generated STORED: `billing_period_start`
+  bila `type='recurring'`, `status<>'cancelled'`, dan `deleted_at` kosong;
+  selain itu NULL. Unique `invoices_active_recurring_period_unique`
+  `(company_id, subscription_id, active_recurring_period)`: dua invoice
+  recurring aktif untuk satu langganan dan periode ditolak, sedangkan invoice
+  batal, terhapus, manual, dan sekali bayar (NULL) tidak bentrok. Migrasi
+  berhenti sebelum mengubah apa pun bila sudah ada dua invoice aktif untuk
+  periode yang sama.
 
 ### invoice_items
 - id, company_id FK NOT NULL, invoice_id FK NOT NULL (cascade),
@@ -135,25 +147,117 @@ Lihat `docs/WORKFLOW.md` Section 7 (Billing). Ringkas state machine:
 [draft] ──cancel──→ [cancelled]
 ```
 
-### Recurring MRC generation (job bulanan)
-- `GenerateRecurringInvoicesJob` (schedule: daily, run for subscriptions
-  with `next_invoice_date <= today`):
-  - Query active `service_subscriptions` (status=active, next_invoice_date
-    <= today).
-  - Dedup: cek invoice existing untuk (subscription_id, billing_period).
-    Skip jika sudah ada.
-  - Create Invoice type=recurring, source=subscription, customer_id,
-    subscription_id, issue_date=today, due_date=today+default_due_days,
-    billing_period = next_invoice_date month span.
-  - InvoiceItem: description "MRC {package.name} {period}", quantity=1,
-    unit_price=subscription.mrc_amount, tax_rate=Setting.
-    line_total=mrc_amount.
-  - subtotal + tax + total computed.
-  - Status=draft (atau sent langsung jika Setting `billing.auto_send`).
-  - Advance subscription.next_invoice_date += 1 month.
-  - AuditLog.
-- Run daily (bukan bulanan) untuk catch subscriptions dengan billing_day
-  berbeda.
+### Recurring MRC generation (harian)
+- `billing:generate {--period=YYYY-MM} {--dry-run} {--company=}` dijadwalkan
+  harian 02:00 (`withoutOverlapping(120)`). Tanpa `--period` memakai bulan
+  sebelumnya. Staf dengan `billing.create` menjalankan periode pilihan dari
+  jendela **Buat tagihan bulanan** (pratinjau dulu). Keduanya memanggil
+  `BillingService::generateForPeriod`.
+- Sasaran: langganan `active` atau `terminated` yang `activation_date`-nya
+  tidak lewat dari akhir periode dan, bila sudah berhenti, belum berhenti
+  sebelum awal periode. Langganan `pending` dan `suspended` tidak ditagih.
+- Satu invoice per langganan per periode. Dedup:
+  - Periode dianggap sudah diterbitkan bila langganan itu punya invoice
+    `recurring` untuk periode itu dalam status apa pun, **termasuk
+    `cancelled`**. Jadwal tidak menerbitkan ulang periode yang dibatalkan
+    orang, baik dari job harian maupun dari tombol manual. Periode yang
+    disengketakan ditagih manual sebagai invoice sekali bayar.
+  - Cek diulang di bawah kunci baris langganan sebelum invoice dibuat, sehingga
+    dua proses yang berlomba menghasilkan satu invoice.
+  - Backstop database: kolom `invoices.active_recurring_period` (lihat Entity
+    Fields) unik per `(company_id, subscription_id, periode)` untuk invoice
+    recurring yang tidak batal dan tidak dihapus. Pelanggaran unique key
+    dihitung sebagai dilewati.
+  - Langganan yang nominalnya 0 (misalnya sudah berhenti sebelum periode)
+    dilewati.
+- Isi invoice: type=recurring, source=subscription, customer_id,
+  subscription_id, issue_date=hari ini, due_date=hari ini + `invoice_due_days`
+  perusahaan (bawaan 14), periode awal dan akhir bulan, status `sent` langsung
+  (dengan `sent_at`), `created_by` kosong. Satu item: "MRC {nama paket} {awal}
+  s/d {akhir}", ditambah " (prorata {hari aktif}/{hari dalam bulan} hari)" bila
+  prorata. Harga = `mrc_amount` langganan, dikali hari aktif per hari dalam
+  bulan untuk prorata. PPN memakai tarif perusahaan (lihat Tax).
+- Pihak tagihan dibekukan saat invoice dibuat (lihat "Pihak tagihan beku").
+  Audit `recurring_generated`. Event `InvoiceIssued` memicu WhatsApp.
+- Satu langganan yang gagal dilaporkan (`report()`) dan dihitung di `failed`;
+  langganan lain tetap ditagih. Hasilnya `{created, skipped, failed}`. Toast
+  tombol manual: "Tagihan {periode}: {n} dibuat, {n} dilewati" dan ", {n}
+  gagal" bila ada. Command mengembalikan `FAILURE` bila ada yang gagal, dan
+  hanya admin perusahaan itu yang diberi tahu.
+- Run harian, bukan bulanan, supaya periode yang terlewat tersusul.
+
+### Versi paket dan Ganti paket
+- Paket menyimpan harga dan profil terkini. Perubahan harga bulanan, harga
+  pemasangan, profil bandwidth, profil kecepatan, tingkat SLA, atau kategori
+  menambah satu baris `service_package_versions` (hanya tambah, tidak bisa
+  diubah). Mengubah kode, nama, deskripsi, masa kontrak minimum, atau status
+  aktif tidak membuat versi. Langganan menunjuk versi yang dijualnya
+  (`service_subscriptions.service_package_version_id`) dan tetap di sana saat
+  paket berubah.
+- Penagihan tidak berubah: invoice membaca `service_subscriptions.mrc_amount`,
+  bukan harga paket. Mengedit paket tidak mengubah tagihan langganan yang ada.
+- **Ganti paket** (`POST /admin/subscriptions/{subscription}/change-package`,
+  izin `customer.subscription.manage`, tombol di kartu **Paket** pada detail
+  langganan) memindahkan langganan ke versi terbaru paket yang dipilih,
+  `SubscriptionService::changePackage` di dalam satu transaksi dengan kunci
+  pelanggan dan langganan:
+  - `service_package_id` dan versi diganti.
+  - `mrc_amount` menjadi harga bulanan versi itu, atau nilai yang diisi di
+    **Biaya bulanan**.
+  - `otc_installation_fee` mengikuti harga pemasangan versi itu hanya saat
+    langganan `pending`.
+  - Audit `package_changed` mencatat paket, versi, biaya bulanan, dan biaya
+    pemasangan sebelum dan sesudah.
+  - Ditolak: langganan `terminated` ("Langganan yang sudah berhenti tidak bisa
+    pindah paket."), langganan yang sudah di versi terbaru paket itu
+    ("Langganan sudah memakai versi terbaru paket ini."), dan paket yang
+    tidak aktif atau dihapus ("Pilih paket layanan yang masih aktif."). Paket
+    perusahaan lain menjawab 404.
+  - Tidak ada prorata. Invoice yang sudah terbit tidak berubah. Periode yang
+    belum ditagih memakai `mrc_amount` yang berlaku saat invoice periode itu
+    dibuat. Biaya pemasangan SPK (`CreateInvoiceFromSpkAction`) membaca
+    `otc_installation_fee` langganan dan tidak berubah.
+- Ganti paket adalah satu-satunya cara memindahkan langganan ke paket lain:
+  formulir ubah langganan tidak lagi memuat paket.
+- Yang ikut versi, bukan paket hidup: profil kecepatan RADIUS, tingkat SLA
+  tiket, kategori paket pada filter laporan, dan syarat paket di API
+  langganan pelanggan.
+- Paket hanya bisa dihapus permanen bila tidak ada langganan yang pernah
+  memakainya (termasuk yang berhenti); selain itu hanya dinonaktifkan.
+
+### Pihak tagihan beku (nama, alamat, NPWP, paket)
+- `Modules\Billing\Support\InvoiceParty`. Invoice draf mencetak pelanggan dan
+  paket yang berlaku saat ini. Saat invoice keluar dari draf, empat kolom
+  snapshot diisi sekali: `customer_name_snapshot`,
+  `customer_address_snapshot`, `customer_tax_id_snapshot` (NPWP), dan
+  `package_name_snapshot`. Titik pengisiannya:
+  - `BillingService::send` (draf menjadi terkirim);
+  - `BillingService::generateForPeriod` (invoice berulang langsung terkirim);
+  - `BillingService::cancel`: draf yang dibatalkan juga membeku. Invoice yang
+    sudah terbit punya snapshot dan tidak ditimpa.
+- Alamat = alamat pemasangan langganan, kalau tidak ada alamat utama
+  pelanggan (alamat yang sudah dihapus tetap dipakai bila itu satu-satunya),
+  ditulis `AddressLine::of`: alamat, kelurahan, kecamatan, kota, provinsi,
+  kode pos, dipisah koma, bagian kosong dilewati. Paket = nama paket
+  langganan; kosong bila invoice tanpa langganan.
+- Mengganti nama pelanggan, memindahkan alamat, atau mengganti nama paket
+  sesudahnya tidak mengubah invoice yang sudah terbit. Pembaca membaca lewat
+  `InvoiceParty::of` (snapshot bila ada, selain itu data hidup):
+  - PDF staf dan kwitansi PDF pelanggan;
+  - detail invoice staf: blok **Detail** (Pelanggan, Alamat, NPWP, Paket) dan
+    tulisan "(saat terbit)" di samping nama bila nama pelanggan sekarang
+    berbeda; `InvoiceResource` mengirim keempat kolom snapshot mentah;
+  - API pelanggan (`PortalInvoiceResource`): `customer_name`,
+    `customer_address`, dan `package_name`;
+  - **Tunggakan**: nama pelanggan diambil dari invoice terbuka terbaru
+    pelanggan itu.
+- NPWP tidak pernah dikirim ke aplikasi pelanggan: `PortalInvoiceResource` tidak
+  punya `customer_tax_id`, dan kwitansi PDF pelanggan tidak mencetak NPWP. PDF
+  staf mencetak "NPWP: ..." bila ada.
+- Label item MRC memakai `package_name_snapshot` saat invoice dibuat.
+- Invoice non-draf yang sudah ada sebelum fitur ini diisi sekali oleh migrasi
+  `2026_10_23_100200_add_snapshot_columns_to_invoices_table` dengan data hidup
+  saat migrasi berjalan, hanya baris yang snapshot-nya masih kosong.
 
 ### One-time OTC from SPK
 - `CreateInvoiceFromSpkAction` (dipanggil CompleteSpkAction saat approve,
@@ -176,6 +280,9 @@ Lihat `docs/WORKFLOW.md` Section 7 (Billing). Ringkas state machine:
   - 0 < amount < sisa → status=partial.
   - amount > sisa → 422 (overpay validation).
 - Payment immutable. Cancel = reverse (cancel_reason) + new payment.
+- Pembayaran apa pun yang dicatat, dan pembatalan invoice, menutup halaman
+  pembayaran online yang masih terbuka (lihat "Halaman pembayaran yang ditutup
+  Inbils").
 
 ### Overdue + auto-suspend (isolir otomatis)
 - `billing:check-overdue` (harian 03:00): invoice `sent|partial` dengan
@@ -239,8 +346,13 @@ Lihat `docs/WORKFLOW.md` Section 7 (Billing). Ringkas state machine:
 
 ### PDF
 - Route `GET /admin/invoices/{invoice}/pdf`. View
-  `resources/views/billing/invoice/pdf.blade.php` (A4, logo, period,
-  items table, total). Policy `viewPdf`.
+  `resources/views/pdf/invoice.blade.php` (A4, logo, period, items table,
+  total). Policy `view`. Blok "Kepada" mencetak `InvoiceParty::of($invoice)`:
+  nama pelanggan, alamat, "NPWP: ..." bila ada, dan "{kode langganan} - {nama
+  paket}" (lihat "Pihak tagihan beku").
+- Kwitansi untuk aplikasi pelanggan: `GET /api/v1/customer/invoices/{id}/receipt`,
+  hanya invoice `paid` milik pelanggan itu, memakai view yang sama. NPWP tidak
+  pernah sampai ke aplikasi pelanggan, jadi kwitansi tidak mencetak NPWP.
 
 ## Permission
 
@@ -268,6 +380,7 @@ Lihat `docs/API.md` Section 7 (Billing group). Ringkas:
 - `GET    /admin/invoices/{inv}` (detail + items + payments + linked subscription/spk)
 - `PUT    /admin/invoices/{inv}` (update draft only)
 - `DELETE /admin/invoices/{inv}` (soft delete draft only)
+- `POST   /admin/invoices/{inv}/restore` (pulihkan draf yang dihapus; izin sama dengan hapus)
 - `POST   /admin/invoices/{inv}/items` (add line)
 - `PUT    /admin/invoices/{inv}/items/{item}` (update line, draft only)
 - `DELETE /admin/invoices/{inv}/items/{item}` (remove line, draft only)
@@ -278,25 +391,35 @@ Lihat `docs/API.md` Section 7 (Billing group). Ringkas:
 - `POST   /admin/invoices/{inv}/create-from-spk` (manual trigger OTC from SPK, if not auto)
 - `POST   /admin/subscriptions/{sub}/suspend` (body: reason, `source` opsional `manual|overdue`, default `manual`)
 - `POST   /admin/subscriptions/{sub}/reactivate` (manual)
+- `POST   /admin/subscriptions/{sub}/change-package` (body: `service_package_id`, `mrc_amount` opsional; izin `customer.subscription.manage`; lihat "Versi paket dan Ganti paket")
 - `GET    /admin/invoices/export`
 - `GET /portal/payments/return` (role customer, route `portal.payments.return`; target Midtrans untuk pembayaran lama) dan `GET /pembayaran/selesai` (publik). Halaman web `/portal/invoices*` dan `/portal/password*` dihapus: pelanggan memakai aplikasi (`/api/v1/customer/*`); login teknisi/pelanggan murni di web diarahkan ke `/app-only`.
-- `POST   /webhooks/midtrans` (publik, bertanda tangan Midtrans; lihat "Pembayaran online")
+- `POST   /webhooks/midtrans/{company public_id}` (publik, bertanda tangan Midtrans dengan server key company itu; lihat "Pembayaran online") dan `POST /webhooks/midtrans` (URL lama untuk masa peralihan: company dibaca dari `order_id` percobaan bayar)
 
-## Pembayaran online (Midtrans Snap, pilot sandbox)
+## Pembayaran online (Midtrans Snap, satu akun per company)
 
 Keputusan owner 2026-10-11 (`.scratch/midtrans-payment/spec.md`): **pilot
-sandbox** (`MIDTRANS_IS_PRODUCTION=false`). Go-live produksi butuh persetujuan
+sandbox**. Go-live produksi butuh persetujuan
 terpisah: merchant asli, URL HTTPS publik untuk notifikasi, kunci produksi
-hanya di host, dan security review yang ditandatangani. Satu merchant untuk
-seluruh instalasi (kunci dari `.env`, dibaca hanya lewat
-`config/services.php` blok `midtrans`).
+hanya di host, dan security review yang ditandatangani. Keputusan owner 2026-10-17
+(`.scratch/tenant-integrations/spec.md`): tiap company memakai akun Midtrans sendiri.
+Server key dan mode (`is_production`) disimpan terenkripsi di `company_integrations` (provider
+`midtrans`), diisi admin di Pengaturan → Integrasi (izin `company.integrations.manage`) dan dibaca lewat
+`IntegrationConfig`. Blok `midtrans` di `config/services.php` dan `MIDTRANS_*` di `.env`
+hanya sumber impor untuk `php artisan inbils:integrations:import-env --company=<kode>`. Company tanpa baris integrasi
+aktif tidak punya pembayaran online: Pay 404, webhook 404, dan `payment.enabled=false` di aplikasi pelanggan.
 
 Pengaman lingkungan: kunci sandbox hanya untuk host non-produksi. Pada host
-`APP_ENV=production` dengan `MIDTRANS_IS_PRODUCTION=false` gateway **mati**
-(Pay 404, webhook 404) kecuali owner menyetujui eksplisit lewat
-`MIDTRANS_ALLOW_SANDBOX_IN_PRODUCTION=true` (sandbox di data produksi: pembayaran
-uji tercatat sebagai pembayaran sungguhan pada invoice). `MIDTRANS_BASE_URL`
-(mock E2E) hanya dihormati saat `APP_ENV` = `local`, `testing`, atau `e2e`.
+`APP_ENV=production` dengan baris `is_production=false` gateway company itu **mati**
+(Pay 404, webhook 404) kecuali baris diimpor dengan `allow_sandbox_in_production`
+(dari `MIDTRANS_ALLOW_SANDBOX_IN_PRODUCTION=true` yang disetujui owner; formulir web tidak menulisnya) (sandbox di data produksi: pembayaran
+uji tercatat sebagai pembayaran sungguhan pada invoice). `base_url` baris (dari `MIDTRANS_BASE_URL`, mock E2E)
+hanya dihormati saat `APP_ENV` = `local`, `testing`, atau `e2e` dan `is_production=false`. Formulir web menolak pasangan kunci dan mode
+yang tidak cocok (`SB-Mid-server-` hanya dengan mode sandbox).
+
+URL notifikasi per company: `https://<host>/webhooks/midtrans/<company public_id>`, ditandatangani dengan server key company
+itu. Setiap order Snap membawa header `X-Override-Notification` berisi URL itu bila `APP_URL` memakai HTTPS, jadi dashboard Midtrans tidak perlu
+diubah. URL lama `/webhooks/midtrans` tetap hidup selama masa peralihan; tanggal pencabutannya belum ditetapkan.
 
 ### Alur
 1. Pelanggan (role `customer` yang tertaut ke `customers.user_id`, permission
@@ -329,7 +452,7 @@ uji tercatat sebagai pembayaran sungguhan pada invoice). `MIDTRANS_BASE_URL`
 `company_id`, `invoice_id`, `order_id` (unik global, ≤ 50 karakter,
 `INB-{ULID}`, tanpa id company atau invoice; attempt lama tetap memakai
 `{company_id}-{invoice_id}-{12 acak}` dan dicari lewat `order_id` yang sama), `amount`, `status`
-(`pending|paid|failed|expired|exception`), `status_reason`, `snap_token` dan
+(`pending|paid|failed|expired|exception|cancelled_locally`; label **Ditutup** untuk yang terakhir), `status_reason`, `snap_token` dan
 `redirect_url` (tidak pernah diserialisasi/ditampilkan), `transaction_id`,
 `payment_type`, `last_notification` (JSON tanpa `signature_key`),
 `expires_at` (24 jam), `settled_at`, `payment_id` (nullable, unik). Kolom
@@ -368,10 +491,47 @@ ditanyakan ke Status API per perusahaan aktif; jawabannya melewati
 kedaluwarsa → `expired`. Gagal jaringan satu attempt tidak menghentikan
 yang lain. Tanpa server key: keluar 0, tidak melakukan apa pun.
 
+### Halaman pembayaran yang ditutup Inbils
+Status attempt `cancelled_locally` (label **Ditutup**, netral) berarti Inbils sendiri menutup halaman Snap karena tagihannya
+dibayar atau dibatalkan saat halaman masih terbuka.
+- `BillingService::recordPayment` (manual maupun gateway) dan `BillingService::cancel` memanggil
+  `PaymentAttemptService::closeOpenFor` di dalam transaksi yang memegang kunci invoice, setelah invoice berubah. Semua attempt
+  `pending` invoice itu menjadi `cancelled_locally` dengan alasan "Tagihan dibayar atau dibatalkan saat halaman pembayaran
+  masih terbuka.", kecuali attempt yang sedang dilunasi (order_id sama dengan referensi pembayaran `midtrans`). Pembayaran
+  sebagian pun menutup semua halaman terbuka, karena nominal halaman (sisa saat dibuat) tidak lagi sama dengan sisa. Pelanggan
+  menekan **Bayar** lagi untuk halaman baru. Audit: event `cancelled_locally`.
+- Pembatalan di Midtrans berjalan dari antrean, bukan dari permintaan web: `CancelMidtransTransactionJob(companyId, attemptId)`,
+  dikirim setelah commit, 3 percobaan (jeda 10, 60, 300 detik), timeout 30 detik. Job memanggil `POST /v2/{order_id}/cancel`
+  lewat `MidtransGateway::cancelTransaction`. Jawaban 404 atau kode 412 (tidak ada transaksi, atau sudah lunas, kedaluwarsa,
+  atau batal) bukan galat. Job berhenti diam-diam bila attempt bukan lagi `cancelled_locally` atau gateway mati. Bila gagal,
+  log `midtrans.cancel_failed` (hanya order id), halaman tetap Ditutup, dan pembayaran tunai yang sudah dicatat tetap sah.
+- Notifikasi Midtrans untuk halaman Ditutup: lunas diproses seperti biasa (dibukukan bila invoice masih menerima pembayaran,
+  selain itu menjadi `exception`), `refund`/`chargeback` menjadi `exception`, sedangkan gagal, kedaluwarsa, pending, dan
+  challenge hanya menyimpan isi notifikasi dan halaman tetap Ditutup. Pending mengantre pembatalan lagi, karena pelanggan
+  sempat memilih metode bayar setelah pembatalan pertama.
+- `midtrans:reconcile` juga menanyakan halaman Ditutup sampai 1 hari setelah `expires_at`, supaya webhook terlambat yang hilang
+  tetap berakhir sebagai `exception` dan peringatan. Halaman Ditutup yang tidak dikenal Midtrans tetap Ditutup (tidak pernah
+  `expired`).
+
+### Pembayaran online yang perlu dicek (exception)
+- Setiap attempt yang pindah ke `exception` (invoice tidak lagi menerima pembayaran, nominal berbeda, referensi ganda,
+  `refund`/`chargeback`, atau pembalikan setelah lunas) mengirim `PaymentAttemptExceptionNotification` setelah commit ke
+  pengguna aktif perusahaan itu yang punya izin `billing.payment.record`: bel dan, bila ada token, push. Satu pemberitahuan
+  per perubahan, bukan per notifikasi Midtrans yang diulang.
+- Judul bel: "Pembayaran online perlu dicek". Pesan: "Pembayaran {order_id} sebesar Rp {jumlah} untuk tagihan {nomor} tidak bisa
+  dibukukan otomatis. Periksa di menu Tunggakan."
+- Halaman **Tunggakan** menerima `paymentExceptions {count, items}` dari `PaymentAttemptService::openExceptions()` (10 terbaru).
+  Bila `count` di atas 0, kotak merah "{n} pembayaran online perlu dicek" menulis tautan invoice, jumlah, order id, dan alasan,
+  disusul "Catat pembayarannya dengan referensi order ID tersebut, atau refund di Midtrans."
+- Exception terbuka (yang dihitung badge) adalah attempt `exception` dengan salah satu keadaan: (a) belum ada `payment_id`,
+  tidak ada pembayaran aktif yang memakai order id sebagai referensi, dan status transaksi terakhir bukan `refund` atau
+  `chargeback` (uang masuk belum dibukukan; ditutup dengan mencatat pembayaran berreferensi order id, atau refund penuh di
+  Midtrans); atau (b) `payment_id` terisi dan pembayaran itu belum dibatalkan (uang dibukukan lalu dikembalikan; ditutup dengan
+  membatalkan pembayarannya). Exception yang sudah selesai tidak dihitung.
+
 ### Panel staf
-Halaman invoice menampilkan panel read-only "Online payments" (status,
-jumlah, transaction id, jenis pembayaran, alasan exception). Tidak ada aksi
-yang bisa menandai attempt lunas.
+Halaman invoice menampilkan panel read-only "Online payments" (status, jumlah, transaction id, jenis pembayaran, alasan
+exception; status `cancelled_locally` tampil **Ditutup**). Tidak ada aksi yang bisa menandai attempt lunas.
 
 ### Deploy dan rollback
 - `php artisan migrate`; `php artisan db:seed --class=RolePermissionSeeder --force`;
@@ -379,14 +539,13 @@ yang bisa menandai attempt lunas.
   `--dry-run`** (sekali: mematikan password nomor telepon akun lama dan
   mengantrekan link atur kata sandi; butuh mail dan queue worker berjalan; aman
   diulang, hanya akun yang belum menyelesaikan reset yang diproses lagi dan
-  dikirimi link baru); isi `MIDTRANS_MERCHANT_ID`, `MIDTRANS_CLIENT_KEY`,
-  `MIDTRANS_SERVER_KEY`, `MIDTRANS_IS_PRODUCTION=false` hanya di host
-  non-produksi (host `APP_ENV=production` butuh kunci produksi, atau
-  `MIDTRANS_ALLOW_SANDBOX_IN_PRODUCTION=true` yang disetujui owner); set
-  "Payment Notification URL" di dashboard Midtrans ke
-  `https://<host>/webhooks/midtrans`, **atau** isi `MIDTRANS_NOTIFICATION_URL`
-  dengan URL HTTPS itu (dikirim sebagai header `X-Override-Notification` di tiap
-  order Snap, menimpa setelan dashboard; URL non-HTTPS diabaikan); pastikan
+  dikirimi link baru); sesudah `migrate`, jalankan per company
+  `php artisan inbils:integrations:import-env --company=<kode>` (sekali; membaca `MIDTRANS_SERVER_KEY`,
+  `MIDTRANS_IS_PRODUCTION`, `MIDTRANS_ALLOW_SANDBOX_IN_PRODUCTION`, `MIDTRANS_BASE_URL` dari `.env`; sampai itu atau admin
+  mengisi Pengaturan → Integrasi, Midtrans mati untuk company itu). Sandbox hanya di host non-produksi (host `APP_ENV=production`
+  butuh kunci produksi, atau `MIDTRANS_ALLOW_SANDBOX_IN_PRODUCTION=true` yang disetujui owner). Dashboard Midtrans tidak perlu diubah
+  (header `X-Override-Notification` membawa URL per company bila `APP_URL` HTTPS); atau isi "Payment Notification URL" dengan
+  `https://<host>/webhooks/midtrans/<company public_id>`; pastikan
   scheduler jalan.
 - Rollback migrasi: `payment_attempts` bisa dihapus; `payments.method`
   kembali ke empat nilai dan `payments.received_by` kembali NOT NULL **hanya
@@ -396,15 +555,18 @@ yang bisa menandai attempt lunas.
 ## Testing Scenario
 
 ### Recurring MRC generation
-1. Subscription active, billing_day=5, next_invoice_date=2026-07-05,
-   mrc_amount=250000.
-2. Run GenerateRecurringInvoicesJob (2026-07-05): create invoice
-   type=recurring, source=subscription, billing_period=2026-07-01 to
-   2026-07-31, line MRC 250000, tax 11% (27500), total 277500. Status
-   draft. next_invoice_date=2026-08-05.
-3. Run again same day → dedup (invoice exists for subscription+period)
-   → skip. No duplicate.
-4. Subscription suspended → job skip (status != active).
+1. Subscription active, activation_date=2026-06-05, mrc_amount=250000, PPN 11%.
+2. `billing:generate --period=2026-07`: satu invoice recurring, source=subscription,
+   periode 2026-07-01 s/d 2026-07-31, item MRC 250000, tax 27500, total 277500,
+   status `sent`, `customer_name_snapshot` terisi.
+3. Jalankan lagi periode yang sama: dilewati (invoice recurring periode itu
+   sudah ada). Tidak ada invoice ganda.
+4. Batalkan invoice itu, jalankan lagi: tetap dilewati. Periode yang dibatalkan
+   tidak diterbitkan ulang. Insert langsung invoice recurring aktif kedua untuk
+   periode yang sama ditolak unique key `active_recurring_period`, sedangkan satu
+   invoice batal dan satu aktif boleh berdampingan.
+5. Subscription suspended: tidak ditagih (hanya `active` dan `terminated`).
+6. Ganti nama pelanggan lalu cetak PDF invoice terbit: nama lama tetap tercetak.
 
 ### One-time OTC from SPK
 1. SPK installation completed. CompleteSpkAction (if auto_invoice) OR
@@ -511,6 +673,8 @@ hanya bila `whatsapp_enabled` company aktif, eventnya dicentang, dan customer se
   ini−1; "hari ini" dihitung di timezone company (run 17:30 UTC sudah hari berikutnya di WIB). `--company=ID` membatasi,
   `--dry-run` hanya menghitung. Satu company gagal tidak menghentikan company lain; admin diberi tahu lewat
   `BillingScheduleFailedNotification`. Invoice lunas/dibatalkan antara penjadwalan dan pengiriman tidak dikirimi (tanpa baris log).
+- **Bel dan push**: pengingat yang sama juga masuk ke bel dan push aplikasi pelanggan (tipe tampilan `invoice_due_soon` untuk H-3 dan H-1, `invoice_overdue` untuk H+1). Menjalankan ulang `billing:whatsapp-reminders` di hari yang sama tidak membunyikan bel atau push dua kali: invoice dan tahap yang sudah punya baris bel `InvoiceDueReminderNotification` (`data.invoice_id` dan `data.stage`) dilewati. Pelanggan tanpa baris bel tetap dijaga kunci dedupe WhatsApp di atas. Batas: baris bel ditulis oleh antrean, jadi menjalankan ulang sebelum worker menulis baris pertama masih bisa mengirim dua kali.
+- **Kegagalan per perusahaan**: perintah ini, seperti `billing:generate`, `billing:check-overdue`, dan `billing:suspend-overdue`, menangkap kegagalan per perusahaan, melaporkannya, melanjutkan ke perusahaan berikutnya, dan memberi tahu hanya admin aktif perusahaan yang gagal (`BillingScheduleFailedNotification`). Perintah mengembalikan `FAILURE` di akhir bila ada yang gagal.
 - **Idempotensi**: kunci dedupe per invoice/tahap/jatuh tempo; menjalankan ulang perintah atau job tidak mengirim dua kali. Ubah
   jatuh tempo = pengingat baru.
 - Pesan WhatsApp adalah efek samping: kegagalan mengantrekannya dilaporkan (`report()`), tidak menggagalkan generate invoice atau

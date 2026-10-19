@@ -9,6 +9,7 @@ use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
 use App\Support\FieldCheckIn;
+use App\Support\OptimisticLock;
 use App\Support\RecordNotFound;
 use Carbon\CarbonInterface;
 use Illuminate\Http\UploadedFile;
@@ -35,25 +36,78 @@ use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class SpkService
 {
+    /** The statuses in which the header fields of an SPK may be saved. */
+    public const EDITABLE_STATUSES = ['draft', 'generated'];
+
+    /** The statuses in which its item lines may be added, changed and deleted: until it goes to review. */
+    public const ITEM_EDITABLE_STATUSES = ['draft', 'generated', 'assigned', 'in_progress', 'rejected'];
+
     private const MISSING_EXPECTED_ASSIGNED_TO = '__missing_expected_assigned_to__';
 
     private const MISSING_EXPECTED_UPDATED_AT = '__missing_expected_updated_at__';
 
+    /**
+     * Saves the header fields of an SPK that is still being planned. The SPK is read again under its lock: one that moved
+     * on since the form was rendered is refused with that reason (422) and nothing is written, and so is a save made from
+     * a copy somebody else has saved over (409).
+     *
+     * @param  array<string, mixed>  $data  the validated fields, without the version
+     */
+    public static function update(WorkOrder $wo, array $data, string $expectedUpdatedAt): void
+    {
+        DB::transaction(function () use ($wo, $data, $expectedUpdatedAt): void {
+            $wo = self::lockedWorkOrder($wo->id);
+            self::assertCompany($wo);
+            abort_unless(in_array($wo->status, self::EDITABLE_STATUSES, true), 422, 'SPK hanya bisa diubah saat berstatus draf atau menunggu penugasan.');
+            OptimisticLock::assert($wo, $expectedUpdatedAt);
+
+            $wo->update($data);
+        }, 3);
+    }
+
+    /** Deletes a draft or cancelled SPK. The status is read again under the lock: an SPK that moved on since the request bound it stays. */
+    public static function destroy(WorkOrder $wo): void
+    {
+        DB::transaction(function () use ($wo): void {
+            $wo = self::lockedWorkOrder($wo->id);
+            self::assertCompany($wo);
+            abort_unless(in_array($wo->status, ['draft', 'cancelled'], true), 422, 'SPK hanya bisa dihapus saat berstatus draf atau dibatalkan.');
+
+            $wo->delete();
+        }, 3);
+    }
+
     public static function addItem(WorkOrder $wo, array $data): WorkOrderItem
     {
-        $data['quantity_reserved'] ??= 0;
         $data['quantity_used'] ??= 0;
 
         return DB::transaction(function () use ($wo, $data) {
             $wo = self::lockedWorkOrder($wo->id);
             self::assertCompany($wo);
+            self::assertItemsEditable($wo);
             self::assertItemReferences($wo, $data);
 
             return WorkOrderItem::updateOrCreate(
                 ['work_order_id' => $wo->id, 'product_id' => $data['product_id']],
                 $data
             );
-        });
+        }, 3);
+    }
+
+    /** Deletes one line of the SPK, under the SPK's lock like every other write to its lines. */
+    public static function removeItem(WorkOrder $wo, WorkOrderItem $item): void
+    {
+        DB::transaction(function () use ($wo, $item): void {
+            $wo = self::lockedWorkOrder($wo->id);
+            self::assertCompany($wo);
+            self::assertItemsEditable($wo);
+            $item = WorkOrderItem::query()->where('work_order_id', $wo->id)->find($item->id);
+            RecordNotFound::abortUnless($item instanceof WorkOrderItem);
+
+            $item->delete();
+
+            AuditService::log('work_order', 'item_removed', ['product_id' => $item->product_id, 'removed_by' => Auth::id()], $wo);
+        }, 3);
     }
 
     public static function generate(WorkOrder $wo): WorkOrder
@@ -71,7 +125,7 @@ class SpkService
             AuditService::log('work_order', 'generated', ['code' => $wo->code], $wo);
 
             return $wo->fresh();
-        });
+        }, 3);
     }
 
     public static function assign(WorkOrder $wo, int $technicianId, int $assignedBy, mixed $expectedAssignedTo = self::MISSING_EXPECTED_ASSIGNED_TO, mixed $expectedUpdatedAt = self::MISSING_EXPECTED_UPDATED_AT): WorkOrder
@@ -162,7 +216,7 @@ class SpkService
             self::notifyScheduled($wo, $technician, $previousTechnicianId);
 
             return $wo->fresh();
-        });
+        }, 3);
     }
 
     /**
@@ -221,7 +275,7 @@ class SpkService
             self::notifyEnRoute($wo, $leftAt);
 
             return $wo->fresh();
-        });
+        }, 3);
     }
 
     /**
@@ -231,7 +285,7 @@ class SpkService
      */
     private static function notifyEnRoute(WorkOrder $wo, CarbonInterface $leftAt): void
     {
-        $customer = $wo->subscription?->customer;
+        $customer = self::notifiableCustomer($wo);
         $firstName = $wo->technicianFirstName();
 
         if ($customer === null || $customer->user_id === null || $firstName === null) {
@@ -245,6 +299,18 @@ class SpkService
         }
 
         DB::afterCommit(fn () => self::notifySafely($customer, $notification));
+    }
+
+    /**
+     * Whoever the SPK's subscription belongs to, unless the subscription or the customer is deleted: the relations
+     * still return them for the history pages, and nobody is messaged once deleted.
+     */
+    private static function notifiableCustomer(WorkOrder $wo): ?Customer
+    {
+        $subscription = $wo->subscription;
+        $customer = $subscription?->customer;
+
+        return $subscription === null || $subscription->trashed() || $customer === null || $customer->trashed() ? null : $customer;
     }
 
     /** @param array<string, mixed>|null $checkIn */
@@ -274,7 +340,7 @@ class SpkService
             }
 
             return $wo->fresh();
-        });
+        }, 3);
     }
 
     /**
@@ -315,6 +381,9 @@ class SpkService
                 ->withCustomProperties($properties)
                 ->toMediaCollection('evidence');
 
+            // The rollback takes the row and leaves the file: the one thing this transaction cannot undo.
+            DB::afterRollBack(fn () => $media->delete());
+
             AuditService::log('work_order', 'evidence_uploaded', ['media_id' => $media->id, 'uploaded_by' => $actor->id], $wo);
 
             return $media;
@@ -333,7 +402,7 @@ class SpkService
             $media->delete();
 
             AuditService::log('work_order', 'evidence_removed', ['media_id' => $media->id, 'removed_by' => $actor->id], $wo);
-        });
+        }, 3);
     }
 
     /**
@@ -358,7 +427,7 @@ class SpkService
             AuditService::log('work_order', 'item_recorded', ['product_id' => $item->product_id, 'quantity_used' => $item->quantity_used, 'recorded_by' => $actor->id], $wo);
 
             return $item;
-        });
+        }, 3);
     }
 
     /**
@@ -390,7 +459,7 @@ class SpkService
             $item->delete();
 
             AuditService::log('work_order', 'item_removed', ['product_id' => $item->product_id, 'removed_by' => $actor->id], $wo);
-        });
+        }, 3);
     }
 
     public static function submitForReview(WorkOrder $wo): WorkOrder
@@ -417,7 +486,7 @@ class SpkService
             AuditService::log('work_order', 'submitted_for_review', ['code' => $wo->code], $wo);
 
             return $wo->fresh();
-        });
+        }, 3);
     }
 
     public static function approve(WorkOrder $wo): WorkOrder
@@ -434,11 +503,16 @@ class SpkService
             abort_if(Auth::id() === $wo->created_by, 422, 'Pembuat SPK tidak boleh menyetujui SPK sendiri.');
             abort_if(Auth::id() === $wo->assigned_to, 422, 'Teknisi yang ditugaskan tidak boleh menyetujui SPK sendiri.');
             self::assertMaterialReturnReconciledOrResolved($wo);
+            // A completed SPK keeps the technician, the location code and the technician's unit as they are now (spec master-lifecycle D4).
+            $wo->loadMissing(['assignee', 'location']);
             $wo->update([
                 'status' => 'completed',
                 'completed_at' => now(),
                 'approved_by' => Auth::id(),
                 'approved_at' => now(),
+                'technician_name_snapshot' => $wo->assignee?->name,
+                'location_code_snapshot' => $wo->location?->code,
+                'organization_unit_id' => EmployeeProfile::withTrashed()->where('user_id', $wo->assigned_to)->value('organization_id'),
             ]);
 
             CompleteSpkAction::execute($wo);
@@ -447,7 +521,7 @@ class SpkService
             self::notifyApproved($wo);
 
             return $wo->fresh();
-        });
+        }, 3);
     }
 
     public static function reject(WorkOrder $wo, string $reason): WorkOrder
@@ -462,7 +536,6 @@ class SpkService
             self::assertCapability('spk.reject');
             abort_if(Auth::id() === $wo->created_by, 422, 'Pembuat SPK tidak boleh menolak SPK sendiri.');
             abort_if(Auth::id() === $wo->assigned_to, 422, 'Teknisi yang ditugaskan tidak boleh menolak SPK sendiri.');
-            CompleteSpkAction::releaseReservedStock($wo);
 
             $wo->update([
                 'status' => 'rejected',
@@ -477,7 +550,7 @@ class SpkService
             self::notifyRejected($wo, $reason);
 
             return $wo->fresh();
-        });
+        }, 3);
     }
 
     /**
@@ -488,7 +561,7 @@ class SpkService
     {
         $wo->loadMissing(['assignee', 'subscription.customer']);
         $technician = $wo->assignee;
-        $customer = $wo->subscription?->customer;
+        $customer = self::notifiableCustomer($wo);
 
         DB::afterCommit(function () use ($wo, $technician, $customer): void {
             self::notifySafely($technician, new WorkOrderApprovedNotification($wo->company_id, $wo->id, $wo->code));
@@ -525,7 +598,6 @@ class SpkService
             self::assertCompany($wo);
             self::assertCapability('spk.cancel');
             abort_if(in_array($wo->status, ['completed', 'cancelled']), 422, 'SPK sudah selesai atau dibatalkan.');
-            CompleteSpkAction::releaseReservedStock($wo);
 
             $wo->update(['status' => 'cancelled']);
 
@@ -534,7 +606,7 @@ class SpkService
             ], $wo);
 
             return $wo->fresh();
-        });
+        }, 3);
     }
 
     /** @param array<string, mixed> $data */
@@ -651,6 +723,11 @@ class SpkService
     private static function assertCompany(WorkOrder $wo): void
     {
         RecordNotFound::abortUnless($wo->company_id === self::companyId());
+    }
+
+    private static function assertItemsEditable(WorkOrder $wo): void
+    {
+        abort_unless(in_array($wo->status, self::ITEM_EDITABLE_STATUSES, true), 422, 'Item SPK tidak bisa diubah saat SPK menunggu review, selesai, atau dibatalkan.');
     }
 
     private static function assertCanonicalExpectedUpdatedAt(mixed $expectedUpdatedAt): void

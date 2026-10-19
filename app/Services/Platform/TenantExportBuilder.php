@@ -28,6 +28,10 @@ class TenantExportBuilder
     private const EXTRA_OMISSIONS = [
         'network_accounts' => ['provisioned_password_hash'],
         'payment_attempts' => ['redirect_url', 'last_notification'],
+        'company_integrations' => ['credentials'],
+        // A row written in a web request keeps the address and the agent of the client: on a `support` row that is the
+        // platform operator's, which the platform keeps and a tenant never receives.
+        'activity_log' => ['ip_address', 'user_agent'],
     ];
 
     public function __construct(private readonly TenantTableRegistry $registry) {}

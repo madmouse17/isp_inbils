@@ -52,6 +52,11 @@ class LocationPolicy
             && $this->sameCompany($user, $location);
     }
 
+    public function restore(User $user, Location $location): bool
+    {
+        return $this->delete($user, $location);
+    }
+
     private function sameCompany(User $user, Location $location): bool
     {
         $userCompanyId = CompanyService::idFor($user);

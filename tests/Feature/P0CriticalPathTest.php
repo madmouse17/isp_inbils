@@ -142,7 +142,6 @@ class P0CriticalPathTest extends TestCase
             'work_order_id' => $workOrder->id,
             'product_id' => $product->id,
             'network_asset_id' => $asset->id,
-            'quantity_reserved' => 2,
             'quantity_used' => 2,
         ]);
         $workOrder->addMediaFromString('test')
@@ -153,7 +152,6 @@ class P0CriticalPathTest extends TestCase
                 'uploaded_by' => $admin->id,
             ])
             ->toMediaCollection('evidence', 'public');
-        Stock::where('product_id', $product->id)->where('location_id', $location->id)->update(['reserved_quantity' => 2]);
 
         $technician = $this->user('technician', $company);
         EmployeeProfile::factory()->create([
@@ -396,21 +394,21 @@ class P0CriticalPathTest extends TestCase
         $this->actingAs($admin)
             ->post(route('admin.spk.items.store', $workOrder), [
                 'product_id' => $inactiveProduct->public_id,
-                'quantity_reserved' => 1,
+                'quantity_used' => 1,
             ])
             ->assertSessionHasErrors('product_id');
 
         $this->post(route('admin.spk.items.store', $workOrder), [
             'product_id' => $product->public_id,
-            'quantity_reserved' => 2,
+            'quantity_used' => 2,
             'note' => 'Router installation',
         ])->assertRedirect();
 
         $this->assertDatabaseHas('work_order_items', [
             'work_order_id' => $workOrder->id,
             'product_id' => $product->id,
-            'quantity_reserved' => 2,
-            'quantity_used' => 0,
+            'quantity_reserved' => 0,
+            'quantity_used' => 2,
             'note' => 'Router installation',
         ]);
     }
@@ -458,14 +456,13 @@ class P0CriticalPathTest extends TestCase
             ->post(route('admin.spk.items.store', $workOrder), [
                 'product_id' => $product->public_id,
                 'network_asset_id' => $wrongAsset->public_id,
-                'quantity_reserved' => 1,
+                'quantity_used' => 1,
             ])
             ->assertSessionHasErrors('network_asset_id');
 
         $this->post(route('admin.spk.items.store', $workOrder), [
             'product_id' => $product->public_id,
             'network_asset_id' => $asset->public_id,
-            'quantity_reserved' => 1,
             'quantity_used' => 1,
         ])->assertRedirect();
 

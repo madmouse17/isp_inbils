@@ -4,7 +4,9 @@ namespace App\Models\Core;
 
 use App\Models\User;
 use App\Services\Core\CompanyService;
+use App\Support\AuditProperties;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasLifecycle;
 use App\Traits\HasPublicId;
 use Database\Factories\CustomerFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Activitylog\Contracts\Activity as ActivityContract;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\MediaLibrary\HasMedia;
@@ -20,8 +23,11 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 
 class Customer extends Model implements HasMedia
 {
-    use BelongsToCompany;
+    use BelongsToCompany {
+        tapActivity as private stampCompany;
+    }
     use HasFactory;
+    use HasLifecycle;
     use HasPublicId;
     use InteractsWithMedia;
     use LogsActivity;
@@ -57,6 +63,30 @@ class Customer extends Model implements HasMedia
         'whatsapp_opt_in_at' => 'datetime',
         'whatsapp_opt_out_at' => 'datetime',
     ];
+
+    public static function lifecycleNoun(): string
+    {
+        return 'Pelanggan';
+    }
+
+    /** The derived status values stay filters of the index next to the active flag. */
+    public static function lifecycleFilters(): array
+    {
+        return self::ACTIVE_FILTERS + self::statusFilters('customer_status', self::STATUSES);
+    }
+
+    /** Addresses and contacts belong to the customer (cascade); everything the customer was billed, served or visited for keeps it. */
+    public static function lifecycleReferences(): ?array
+    {
+        return [
+            'langganan' => ['service_subscriptions.customer_id'],
+            'tagihan' => ['invoices.customer_id'],
+            'SPK' => ['work_orders.customer_id'],
+            'tiket' => ['tickets.customer_id'],
+            'aset jaringan' => ['network_assets.customer_id'],
+            'riwayat pemasangan' => ['network_asset_installations.customer_id'],
+        ];
+    }
 
     /**
      * Consent to business-initiated WhatsApp messages: recorded by staff and not withdrawn since. The
@@ -105,9 +135,10 @@ class Customer extends Model implements HasMedia
         return $companyId === null ? $relation : $relation->where('users.company_id', $companyId);
     }
 
+    /** @return BelongsTo<Location, $this> */
     public function areaCoverage(): BelongsTo
     {
-        return $this->belongsTo(Location::class, 'area_coverage_id');
+        return $this->belongsTo(Location::class, 'area_coverage_id')->withTrashed();
     }
 
     public function getActivitylogOptions(): LogOptions
@@ -117,5 +148,13 @@ class Customer extends Model implements HasMedia
             ->logFillable()
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
+    }
+
+    /** The diff of a customer says which personal field changed, never what it held. */
+    public function tapActivity(ActivityContract $activity, string $eventName): void
+    {
+        $this->stampCompany($activity, $eventName);
+
+        AuditProperties::maskValues($activity, ['email', 'phone', 'tax_id', 'contact_person', 'notes']);
     }
 }

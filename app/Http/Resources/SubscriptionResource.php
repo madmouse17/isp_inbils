@@ -2,10 +2,13 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Core\ServiceSubscription;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\Service\Http\Resources\ServicePackageResource;
+use Modules\Service\Http\Resources\ServicePackageVersionResource;
 
+/** @mixin ServiceSubscription */
 class SubscriptionResource extends JsonResource
 {
     /** @return array<string, mixed> */
@@ -34,6 +37,12 @@ class SubscriptionResource extends JsonResource
             'block_reason' => $this->block_reason,
             'blocked_by' => $this->whenLoaded('blockedBy', fn () => $this->blockedBy ? ['id' => $this->blockedBy->public_id, 'name' => $this->blockedBy->name] : null),
             'package' => new ServicePackageResource($this->whenLoaded('servicePackage')),
+            'package_version' => new ServicePackageVersionResource($this->whenLoaded('packageVersion')),
+            // Whether the version the subscription was sold under is the newest one of its package: only where both are loaded.
+            'package_version_is_latest' => $this->when(
+                $this->relationLoaded('servicePackage') && $this->servicePackage?->relationLoaded('latestVersion'),
+                fn (): bool => (int) $this->servicePackage->latestVersion?->id === (int) $this->service_package_version_id,
+            ),
             'customer' => new CustomerResource($this->whenLoaded('customer')),
             'installation_address' => new CustomerAddressResource($this->whenLoaded('installationAddress')),
             'serving_pop' => new LocationResource($this->whenLoaded('servingPop')),

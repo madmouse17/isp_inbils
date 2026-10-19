@@ -54,7 +54,7 @@ class OdnPort extends Model
     /** @return BelongsTo<NetworkAsset, $this> */
     public function asset(): BelongsTo
     {
-        return $this->belongsTo(NetworkAsset::class, 'network_asset_id');
+        return $this->belongsTo(NetworkAsset::class, 'network_asset_id')->withTrashed();
     }
 
     /** @return BelongsTo<OdnSplitter, $this> */
@@ -66,7 +66,7 @@ class OdnPort extends Model
     /** @return BelongsTo<ServiceSubscription, $this> */
     public function subscription(): BelongsTo
     {
-        return $this->belongsTo(ServiceSubscription::class);
+        return $this->belongsTo(ServiceSubscription::class)->withTrashed();
     }
 
     /**

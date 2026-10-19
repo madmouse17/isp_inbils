@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Support\OptimisticLock;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -32,6 +33,7 @@ class UpdateCompanySettingsRequest extends FormRequest
             'settings.map_lat' => ['nullable', 'required_with:settings.map_lng', 'numeric', 'between:-11,6'],
             'settings.map_lng' => ['nullable', 'required_with:settings.map_lat', 'numeric', 'between:94,142'],
             'settings.map_zoom' => ['sometimes', 'nullable', 'integer', 'between:3,18'],
+            OptimisticLock::FIELD => OptimisticLock::rules(),
         ];
     }
 

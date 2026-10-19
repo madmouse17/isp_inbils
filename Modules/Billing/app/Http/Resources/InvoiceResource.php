@@ -6,7 +6,9 @@ use App\Http\Resources\CustomerResource;
 use App\Http\Resources\SubscriptionResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Modules\Billing\Models\Invoice;
 
+/** @mixin Invoice */
 class InvoiceResource extends JsonResource
 {
     /** @return array<string, mixed> */
@@ -37,6 +39,12 @@ class InvoiceResource extends JsonResource
             'cancel_reason' => $this->cancel_reason,
             'cancelled_by' => $this->canceller?->public_id,
             'created_at' => $this->created_at,
+            // The party as printed when the invoice left draft; null for a draft, whose page shows the live customer.
+            'customer_name_snapshot' => $this->customer_name_snapshot,
+            'customer_address_snapshot' => $this->customer_address_snapshot,
+            'customer_tax_id_snapshot' => $this->customer_tax_id_snapshot,
+            'package_name_snapshot' => $this->package_name_snapshot,
+            ...$this->lifecycleAttributes(),
             'customer' => new CustomerResource($this->whenLoaded('customer')),
             'subscription' => new SubscriptionResource($this->whenLoaded('subscription')),
             'items' => InvoiceItemResource::collection($this->whenLoaded('items')),

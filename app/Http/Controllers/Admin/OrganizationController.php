@@ -10,10 +10,10 @@ use App\Http\Requests\Admin\UpdateOrganizationRequest;
 use App\Http\Resources\OrganizationResource;
 use App\Models\Core\OrganizationUnit;
 use App\Services\Core\CompanyService;
+use App\Services\Core\LifecycleService;
 use App\Services\Core\OrganizationService;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -41,8 +41,10 @@ class OrganizationController extends Controller
     {
         Gate::authorize('viewAny', OrganizationUnit::class);
         $units = $this->filteredQuery($request)
+            ->withReferenceCounts()
             ->paginate($this->perPage($request))
             ->withQueryString();
+        $canManage = (bool) $request->user()?->can('organization.manage');
 
         $parentOptions = OrganizationUnit::query()
             ->select(['id', 'public_id', 'code', 'name', 'type', 'path'])
@@ -54,8 +56,10 @@ class OrganizationController extends Controller
         return Inertia::render('Admin/Organizations/Index', [
             'organizations' => OrganizationResource::collection($units),
             'parentOptions' => OrganizationResource::collection($parentOptions),
-            'filters' => $request->only(['search', 'sort', 'direction', 'per_page']),
+            'filters' => $request->only(['status', 'search', 'sort', 'direction', 'per_page']),
             'can' => [
+                'update' => $canManage,
+                'delete' => $canManage,
                 'export' => (bool) ($request->user()?->can('organization.export')),
             ],
         ]);
@@ -90,9 +94,9 @@ class OrganizationController extends Controller
     public function destroy(OrganizationUnit $organization_unit): RedirectResponse
     {
         Gate::authorize('delete', $organization_unit);
-        OrganizationService::delete($organization_unit);
+        LifecycleService::destroyIfUnreferenced($organization_unit);
 
-        return back()->with('success', 'Unit organisasi dihapus.');
+        return back()->with('success', 'Unit organisasi dihapus permanen.');
     }
 
     public function export(Request $request): HttpResponse|StreamedResponse
@@ -129,11 +133,12 @@ class OrganizationController extends Controller
             : $export->streamCsv($columns, $map, $filename.'.csv');
     }
 
-    /** @return Builder<Model> */
+    /** @return Builder<OrganizationUnit> */
     private function filteredQuery(Request $request): Builder
     {
         $query = OrganizationUnit::query()
             ->withCount('children')
+            ->lifecycleStatus($request->input('status'))
             ->when(trim((string) $request->input('search')) !== '', function (Builder $query) use ($request): void {
                 $term = '%'.trim((string) $request->input('search')).'%';
                 $query->where(function (Builder $sub) use ($term): void {
@@ -141,9 +146,6 @@ class OrganizationController extends Controller
                 });
             });
 
-        /** @var Builder<Model> $sortableQuery */
-        $sortableQuery = $query;
-
-        return $this->applySort($sortableQuery, $request, 'code');
+        return $this->applySort($query, $request, 'code');
     }
 }

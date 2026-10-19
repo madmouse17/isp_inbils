@@ -199,8 +199,8 @@ test('@datatable-actions-delete error: dialog stays open and re-enables on failu
     }
 });
 
-// A customer with subscriptions makes the user type its code; the test never submits the delete.
-test('@datatable-actions-delete customer with subscriptions stays undeletable until its code is typed', async ({
+// A customer with subscriptions is used by other records, so it can only be deactivated; the test never submits.
+test('@datatable-actions-delete customer with subscriptions offers Nonaktifkan and never a delete', async ({
     page,
 }) => {
     await loginAs(page, 'admin');
@@ -211,16 +211,13 @@ test('@datatable-actions-delete customer with subscriptions stays undeletable un
     });
 
     const row = page.getByRole('row').filter({ hasText: 'E2E Linked Customer' }).first();
+    await expect(row.getByText(/^Dipakai .*langganan/)).toBeVisible();
     await row.getByRole('button', { name: 'Aksi lainnya' }).click();
-    await page.getByRole('menuitem', { name: 'Hapus' }).click();
-    const dialog = page.getByRole('alertdialog');
-    const prompt = await dialog.getByText(/^Ketik \S+ untuk menghapus/).innerText();
-    const code = /^Ketik (\S+) untuk/.exec(prompt)![1];
+    await expect(page.getByRole('menuitem', { name: 'Hapus' })).toHaveCount(0);
+    await page.getByRole('menuitem', { name: 'Nonaktifkan' }).click();
 
-    const confirm = dialog.getByRole('button', { name: 'Hapus', exact: true });
-    await expect(confirm).toBeDisabled();
-    await dialog.getByLabel(/^Ketik .* untuk menghapus/).fill(code);
-    await expect(confirm).toBeEnabled();
+    const dialog = page.getByRole('alertdialog');
+    await expect(dialog.getByText(/jadi tidak bisa dihapus permanen/)).toBeVisible();
 
     await dialog.getByRole('button', { name: 'Batal' }).click();
     await expect(dialog).not.toBeVisible();

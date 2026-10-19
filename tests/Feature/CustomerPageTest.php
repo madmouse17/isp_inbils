@@ -9,6 +9,7 @@ use App\Models\Core\CustomerAddress;
 use App\Models\Core\CustomerContact;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
+use App\Support\OptimisticLock;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
@@ -194,6 +195,7 @@ class CustomerPageTest extends TestCase
                 'contacts' => [['id' => $contact->public_id, 'name' => 'HACKED']],
                 'company_id' => $otherCompany->id,
                 'user_id' => $this->admin->id + 1000,
+                OptimisticLock::FIELD => OptimisticLock::version($customer->fresh()),
             ])
             ->assertRedirect()
             ->assertSessionHasNoErrors();
@@ -245,6 +247,7 @@ class CustomerPageTest extends TestCase
                 'name' => 'Hacked Name',
                 'type' => 'Individual',
                 'is_active' => false,
+                OptimisticLock::FIELD => OptimisticLock::version($foreign->fresh()),
             ])
             ->assertNotFound();
 
@@ -320,6 +323,7 @@ class CustomerPageTest extends TestCase
                 'type' => $customer->type,
                 'phone' => '+62(81)2345-6789',
                 'is_active' => true,
+                OptimisticLock::FIELD => OptimisticLock::version($customer->fresh()),
             ])
             ->assertRedirect()
             ->assertSessionHasNoErrors();
@@ -340,6 +344,7 @@ class CustomerPageTest extends TestCase
                 'type' => $customer->type,
                 'phone' => '+62 0812-3456 ext. 90',
                 'is_active' => true,
+                OptimisticLock::FIELD => OptimisticLock::version($customer->fresh()),
             ])
             ->assertSessionHasErrors(['phone'])
             ->assertRedirect();

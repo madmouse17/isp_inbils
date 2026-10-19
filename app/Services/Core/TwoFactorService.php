@@ -140,6 +140,8 @@ class TwoFactorService
             $this->audit('challenge_failed', $account, ['method' => $method]);
         } elseif ($method === 'recovery_code') {
             $this->audit('recovery_code_used', $account, ['remaining' => count($account->two_factor_recovery_codes ?? [])]);
+        } else {
+            $this->audit('challenge_passed', $account, ['method' => $method]);
         }
 
         return $passed;

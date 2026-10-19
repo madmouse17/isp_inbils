@@ -3,6 +3,7 @@
 namespace Tests\Traits;
 
 use App\Models\Core\Company;
+use App\Models\Core\CompanyIntegration;
 use App\Models\Core\Customer;
 use App\Models\Core\EmployeeProfile;
 use App\Models\Core\Location;
@@ -17,8 +18,9 @@ use Illuminate\Support\Str;
 use Modules\Service\Database\Factories\ServicePackageFactory;
 
 /**
- * Fake Cloud API credentials, a fake Graph endpoint and Meta-shaped webhook payloads for tests. None of the
- * values below is real; the real ones live only in the host .env and are never read by a test.
+ * Each company's own WhatsApp account (a `company_integrations` row), fake Cloud API credentials, a fake Graph endpoint
+ * and Meta-shaped webhook payloads for tests. None of the values below is real; a real one lives only in the
+ * integration row of a real install and is never read by a test.
  */
 trait InteractsWithWhatsApp
 {
@@ -33,21 +35,63 @@ trait InteractsWithWhatsApp
     /** @var (Closure(Request): mixed)|null answers the Graph send call; null = accepted with a fresh wamid */
     protected ?Closure $whatsAppReply = null;
 
+    /** Whether a company created from now on gets an enabled row, see enableWhatsApp(). */
+    protected bool $whatsAppForNewCompanies = false;
+
+    protected bool $whatsAppListening = false;
+
+    /**
+     * Every company, the ones that exist and the ones a test creates later, gets an enabled WhatsApp row with the fake
+     * credentials on one shared number (as companies on one Meta app have), so the order in which a test builds its
+     * world does not matter. A test that needs another number or token writes the row with whatsAppIntegration().
+     */
     protected function enableWhatsApp(): void
     {
-        config([
-            'services.whatsapp.access_token' => self::WA_TOKEN,
-            'services.whatsapp.phone_number_id' => self::WA_PHONE_NUMBER_ID,
-            'services.whatsapp.business_account_id' => '102290129340398',
-            'services.whatsapp.app_secret' => self::WA_APP_SECRET,
-            'services.whatsapp.webhook_verify_token' => self::WA_VERIFY_TOKEN,
-            'services.whatsapp.graph_version' => 'v25.0',
-        ]);
+        config(['services.whatsapp.graph_version' => 'v25.0']);
+        $this->whatsAppForNewCompanies = true;
+
+        if (! $this->whatsAppListening) {
+            // A model listener cannot be removed on its own (flushEventListeners would also drop the app's own hooks), so
+            // disableWhatsApp() switches this one off.
+            Company::created(function (Company $company): void {
+                if ($this->whatsAppForNewCompanies) {
+                    $this->whatsAppIntegration($company);
+                }
+            });
+            $this->whatsAppListening = true;
+        }
+
+        foreach (Company::query()->get() as $company) {
+            $this->whatsAppIntegration($company);
+        }
     }
 
+    /** Every company's row is switched off, credentials kept, and a company created later gets none. */
     protected function disableWhatsApp(): void
     {
-        config(['services.whatsapp.access_token' => null, 'services.whatsapp.phone_number_id' => null]);
+        $this->whatsAppForNewCompanies = false;
+
+        foreach (CompanyIntegration::withoutCompany()->where('provider', 'whatsapp')->get() as $row) {
+            $row->update(['is_enabled' => false]);
+        }
+    }
+
+    /**
+     * The company's own WhatsApp account: enabled, on the shared fake number, with the fake credentials unless the test
+     * gives others. Saved through the model, so a row read before is forgotten.
+     *
+     * @param  array<string, string>  $credentials  access_token, app_secret and webhook_verify_token to use in place of the fakes
+     */
+    protected function whatsAppIntegration(Company|int $company, string $phoneNumberId = self::WA_PHONE_NUMBER_ID, array $credentials = [], bool $enabled = true): CompanyIntegration
+    {
+        return CompanyIntegration::withoutCompany()->updateOrCreate(
+            ['company_id' => $company instanceof Company ? $company->id : $company, 'provider' => 'whatsapp'],
+            [
+                'credentials' => $credentials + ['access_token' => self::WA_TOKEN, 'app_secret' => self::WA_APP_SECRET, 'webhook_verify_token' => self::WA_VERIFY_TOKEN],
+                'external_id' => $phoneNumberId,
+                'is_enabled' => $enabled,
+            ],
+        );
     }
 
     /**
@@ -175,21 +219,23 @@ trait InteractsWithWhatsApp
     }
 
     /**
+     * Delivery statuses as they arrive on the number `$phoneNumberId` (the shared fake number unless a test says another).
+     *
      * @param  list<array<string, mixed>>  $statuses
      * @return array<string, mixed>
      */
-    protected function statusWebhook(array $statuses): array
+    protected function statusWebhook(array $statuses, string $phoneNumberId = self::WA_PHONE_NUMBER_ID): array
     {
-        return $this->webhookEnvelope(['statuses' => $statuses]);
+        return $this->webhookEnvelope(['statuses' => $statuses], $phoneNumberId);
     }
 
     /**
-     * An inbound text message the way Meta delivers it. The id and the unix time default to a fresh wamid and now,
-     * and are given explicitly to replay or to age a message.
+     * An inbound text message the way Meta delivers it, to the number `$phoneNumberId`. The id and the unix time default
+     * to a fresh wamid and now, and are given explicitly to replay or to age a message.
      *
      * @return array<string, mixed>
      */
-    protected function textWebhook(string $from, string $body, ?string $id = null, ?int $timestamp = null): array
+    protected function textWebhook(string $from, string $body, ?string $id = null, ?int $timestamp = null, string $phoneNumberId = self::WA_PHONE_NUMBER_ID): array
     {
         return $this->webhookEnvelope([
             'contacts' => [['profile' => ['name' => 'Someone'], 'wa_id' => $from]],
@@ -200,21 +246,21 @@ trait InteractsWithWhatsApp
                 'type' => 'text',
                 'text' => ['body' => $body],
             ]],
-        ]);
+        ], $phoneNumberId);
     }
 
     /**
      * @param  array<string, mixed>  $value
      * @return array<string, mixed>
      */
-    private function webhookEnvelope(array $value): array
+    private function webhookEnvelope(array $value, string $phoneNumberId): array
     {
         return [
             'object' => 'whatsapp_business_account',
             'entry' => [[
                 'id' => '102290129340398',
                 'changes' => [[
-                    'value' => ['messaging_product' => 'whatsapp', 'metadata' => ['display_phone_number' => '15550783881', 'phone_number_id' => self::WA_PHONE_NUMBER_ID]] + $value,
+                    'value' => ['messaging_product' => 'whatsapp', 'metadata' => ['display_phone_number' => '15550783881', 'phone_number_id' => $phoneNumberId]] + $value,
                     'field' => 'messages',
                 ]],
             ]],

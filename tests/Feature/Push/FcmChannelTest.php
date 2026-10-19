@@ -9,6 +9,7 @@ use App\Models\Core\EmployeeProfile;
 use App\Models\User;
 use App\Notifications\Channels\FcmChannel;
 use App\Services\Push\FcmSender;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
@@ -272,6 +273,42 @@ class FcmChannelTest extends TestCase
         $this->install($technician, 'technician', 'registered-meanwhile');
         app()->call([$job, 'handle']);
         $this->assertSame(['registered-meanwhile'], $this->pushedTokens());
+    }
+
+    public function test_an_outage_while_checking_access_keeps_every_token_and_lets_the_queue_retry(): void
+    {
+        $technician = $this->technicianLogin();
+        $this->install($technician, 'technician', 'tech-token-1');
+        Queue::fake();
+        $technician->notify(new ProbePushNotification(self::TICKET));
+        $job = Queue::pushed(SendPushNotification::class)->sole();
+        DB::listen(static fn (QueryExecuted $query) => str_contains($query->sql, 'from `companies`') ? throw new RuntimeException('database is gone') : null);
+
+        try {
+            app()->call([$job, 'handle']);
+            $this->fail('the job should fail so the queue retries it');
+        } catch (RuntimeException $e) {
+            $this->assertSame('database is gone', $e->getMessage());
+        }
+
+        $this->assertSame(1, DeviceToken::query()->count(), 'an outage says nothing about the installs');
+        $this->assertSame([], $this->multicasts);
+    }
+
+    public function test_a_user_who_may_no_longer_use_the_app_loses_the_installs_of_that_app_only(): void
+    {
+        $technician = $this->technicianLogin();
+        $this->install($technician, 'technician', 'tech-token-1');
+        $this->install($technician, 'customer', 'customer-token-1');
+        Queue::fake();
+        $technician->notify(new ProbePushNotification(self::TICKET));
+        $job = Queue::pushed(SendPushNotification::class)->sole();
+        $technician->forceFill(['email_verified_at' => null])->save();
+
+        app()->call([$job, 'handle']);
+
+        $this->assertSame(['customer-token-1'], DeviceToken::query()->pluck('token')->all());
+        $this->assertSame([], $this->multicasts);
     }
 
     public function test_a_failing_push_never_takes_the_notification_down_with_it(): void

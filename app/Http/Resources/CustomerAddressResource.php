@@ -2,9 +2,11 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Core\CustomerAddress;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin CustomerAddress */
 class CustomerAddressResource extends JsonResource
 {
     /** @return array<string, mixed> */
@@ -30,6 +32,7 @@ class CustomerAddressResource extends JsonResource
             'is_installation_point' => $this->is_installation_point,
             'is_primary' => $this->is_primary,
             'notes' => $this->notes,
+            ...$this->lifecycleAttributes(),
         ];
     }
 }

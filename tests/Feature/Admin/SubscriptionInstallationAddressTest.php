@@ -7,6 +7,7 @@ use App\Models\Core\Customer;
 use App\Models\Core\CustomerAddress;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
+use App\Support\OptimisticLock;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Modules\Service\Database\Factories\ServicePackageFactory;
@@ -42,7 +43,7 @@ class SubscriptionInstallationAddressTest extends TestCase
     private function update(ServiceSubscription $subscription, string $addressId): TestResponse
     {
         return $this->actingAs($this->admin)
-            ->put(route('admin.subscriptions.update', $subscription), ['installation_address_id' => $addressId]);
+            ->put(route('admin.subscriptions.update', $subscription), ['installation_address_id' => $addressId, OptimisticLock::FIELD => OptimisticLock::version($subscription->fresh())]);
     }
 
     private function store(Customer $customer, string $addressId): TestResponse
@@ -134,11 +135,11 @@ class SubscriptionInstallationAddressTest extends TestCase
         $before = $subscription->installation_address_id;
 
         $this->actingAs($this->admin)
-            ->put(route('admin.subscriptions.update', $subscription), ['installation_address_id' => null])
+            ->put(route('admin.subscriptions.update', $subscription), ['installation_address_id' => null, OptimisticLock::FIELD => OptimisticLock::version($subscription->fresh())])
             ->assertSessionHasErrors('installation_address_id');
 
         $this->actingAs($this->admin)
-            ->put(route('admin.subscriptions.update', $subscription), ['notes' => 'Alamat tidak diubah'])
+            ->put(route('admin.subscriptions.update', $subscription), ['notes' => 'Alamat tidak diubah', OptimisticLock::FIELD => OptimisticLock::version($subscription->fresh())])
             ->assertSessionHasNoErrors();
 
         $this->assertSame($before, $this->freshSubscription($subscription)->installation_address_id);

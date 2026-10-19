@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react';
-import { useMemo } from 'react';
-import { Link, useForm } from '@inertiajs/react';
+import { useEffect, useMemo } from 'react';
+import { Link, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
     Alert,
@@ -17,10 +17,12 @@ import {
     Textarea,
     TimeInput,
 } from '@/Components/ui';
-import { PageHeader } from '@/Components/composite';
+import { ConflictBanner, PageHeader } from '@/Components/composite';
+import { usePermission } from '@/hooks/usePermission';
 import { LatLngMapPicker } from '@/Components/composite/LatLngMapPicker';
 import { useMapDefault } from '@/hooks/useMapDefault';
 import { formatNumber } from '@/lib/format';
+import type { PageProps } from '@/types';
 import type { CompanyWhatsApp } from '@/types/whatsapp';
 
 type SettingValue = string | number | boolean | string[] | null;
@@ -35,6 +37,8 @@ interface CityOption {
 
 interface SettingsProps {
     settings: Record<string, SettingValue>;
+    /** Row version of the company; sent back as expected_updated_at so a save never overwrites a newer one. */
+    version: string;
     whatsapp: CompanyWhatsApp;
     cities: CityOption[];
     can: { update: boolean };
@@ -168,10 +172,18 @@ function withRoundedPoint(settings: Record<string, SettingValue>): Record<string
     return next;
 }
 
-export default function Settings({ settings, whatsapp, cities, can }: SettingsProps) {
+export default function Settings({ settings, version, whatsapp, cities, can }: SettingsProps) {
     const { data, setData, put, transform, processing, errors } = useForm({
         settings: withRoundedPoint(settings),
+        expected_updated_at: version,
     });
+    const canManageIntegrations = usePermission().can('company.integrations.manage');
+    const conflict = usePage<PageProps>().props.errors.conflict;
+    // The save redirects back to this page, so the new version must replace the old one or the next save conflicts with the user's own. After a conflict the old version stays, so a retry conflicts until the page is reloaded.
+    useEffect(() => {
+        if (!conflict) setData('expected_updated_at', version);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [version]);
     const settingErrors = errors as Record<string, string | undefined>;
     const eventsError = Object.entries(settingErrors).find(([key]) =>
         key.startsWith('settings.whatsapp_events'),
@@ -191,7 +203,7 @@ export default function Settings({ settings, whatsapp, cities, can }: SettingsPr
                 }
             }
 
-            return { settings: next };
+            return { settings: next, expected_updated_at: form.expected_updated_at };
         });
         put(route('admin.company.settings.update'));
     };
@@ -326,6 +338,7 @@ export default function Settings({ settings, whatsapp, cities, can }: SettingsPr
                         </Button>
                     }
                 />
+                <ConflictBanner />
 
                 <form onSubmit={submit} className="space-y-6">
                     {SETTING_SECTIONS.map((section) => {
@@ -428,8 +441,17 @@ export default function Settings({ settings, whatsapp, cities, can }: SettingsPr
                             {!whatsapp.configured && (
                                 <Alert variant="warning">
                                     <AlertDescription>
-                                        Notifikasi tidak akan terkirim sampai kredensial diatur di
-                                        server.
+                                        WhatsApp belum dikonfigurasi untuk perusahaan ini.{' '}
+                                        {canManageIntegrations ? (
+                                            <Link
+                                                href={route('admin.company.integrations.edit')}
+                                                className="font-medium underline underline-offset-2"
+                                            >
+                                                Atur di Pengaturan → Integrasi
+                                            </Link>
+                                        ) : (
+                                            'Minta admin mengisinya di Pengaturan → Integrasi.'
+                                        )}
                                     </AlertDescription>
                                 </Alert>
                             )}

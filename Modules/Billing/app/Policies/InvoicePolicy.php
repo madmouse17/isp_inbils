@@ -41,4 +41,10 @@ class InvoicePolicy
     {
         return $user->can('billing.delete');
     }
+
+    /** D2: whoever may delete a draft may bring it back. */
+    public function restore(User $user, Invoice $invoice): bool
+    {
+        return $this->delete($user, $invoice);
+    }
 }

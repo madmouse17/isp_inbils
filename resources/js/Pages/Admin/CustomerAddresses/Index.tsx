@@ -4,48 +4,69 @@ import { Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
+    DataTable,
     DataTableActions,
     IndonesiaRegionFields,
     PageHeader,
+    StatusFilter,
+    type DataTableColumn,
     type IndonesiaRegionOptions,
     type IndonesiaRegionValue,
 } from '@/Components/composite';
+import { UsageLine } from '@/Components/composite/UsageLine';
 import {
     Button,
     Card,
     CardContent,
     EmptyCell,
+    EnumBadge,
     Input,
     MapPicker,
     Switch,
     Textarea,
-    Table,
-    TBody,
-    TD,
-    TH,
-    THead,
-    TR,
     Modal,
-    Pagination,
     type GeocodeResult,
 } from '@/Components/ui';
+import { useServerTable } from '@/hooks/useServerTable';
+import { toPagination } from '@/lib/pagination';
+import { LIFECYCLE_STATE } from '@/lib/statuses';
 import type { Paginated } from '@/types';
-import type { CustomerAddress } from '@/types/models';
+import type { CustomerAddress, LifecycleFields } from '@/types/models';
 import { useMapDefault } from '@/hooks/useMapDefault';
+
+type AddressRow = CustomerAddress & LifecycleFields;
 
 interface AddressProps {
     customer: { id: string; code: string; name: string };
-    addresses: Paginated<CustomerAddress>;
+    addresses: Paginated<AddressRow>;
+    filters: { status?: string };
+    can: { update: boolean; delete: boolean };
     regions: IndonesiaRegionOptions;
     geocodeResults?: GeocodeResult[];
 }
 
-export default function Index({ customer, addresses, regions, geocodeResults = [] }: AddressProps) {
+export default function Index({
+    customer,
+    addresses,
+    filters,
+    can,
+    regions,
+    geocodeResults = [],
+}: AddressProps) {
     const mapDefault = useMapDefault();
     const [modalOpen, setModalOpen] = useState(false);
     const [editId, setEditId] = useState<string | null>(null);
     const [geocodeSearching, setGeocodeSearching] = useState(false);
-    const addrList = addresses.data;
+    const {
+        params,
+        set,
+        setMany,
+        processing: tableProcessing,
+    } = useServerTable({
+        url: route('admin.customers.addresses.index', customer.id),
+        filters,
+        only: ['addresses', 'filters', 'can'],
+    });
     const { data, setData, post, put, processing, errors, reset } = useForm({
         label: '',
         address: '',
@@ -158,6 +179,75 @@ export default function Index({ customer, addresses, regions, geocodeResults = [
         }
     };
 
+    const columns: DataTableColumn<AddressRow>[] = [
+        {
+            key: 'label',
+            header: 'Label',
+            cell: (a) => (
+                <div className="space-y-0.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        <span
+                            className={
+                                a.deleted_at ? 'font-medium text-muted-foreground' : 'font-medium'
+                            }
+                        >
+                            {a.label}
+                        </span>
+                        {a.deleted_at ? <EnumBadge map={LIFECYCLE_STATE} value="dihapus" /> : null}
+                    </div>
+                    <UsageLine references={a.references} />
+                </div>
+            ),
+        },
+        { key: 'address', header: 'Alamat' },
+        { key: 'city', header: 'Kota' },
+        { key: 'postal_code', header: 'Kode pos' },
+        {
+            key: 'is_installation_point',
+            header: 'Pemasangan',
+            cell: (a) => (a.is_installation_point ? 'Ya' : <EmptyCell />),
+        },
+        {
+            key: 'is_primary',
+            header: 'Utama',
+            cell: (a) => (a.is_primary ? 'Ya' : <EmptyCell />),
+        },
+        {
+            key: 'actions',
+            header: 'Aksi',
+            cell: (a) => {
+                const label = a.label ?? 'alamat';
+                const unused = (a.references ?? []).every((reference) => reference.count === 0);
+
+                // The restore route takes the address alone; the delete route needs its customer too, so a live
+                // row keeps the plain delete and offers it only while no subscription uses the address.
+                return (
+                    <DataTableActions
+                        onEdit={can.update ? () => openEdit(a) : undefined}
+                        deleteHref={
+                            can.delete && unused
+                                ? route('admin.customers.addresses.destroy', [customer.id, a.id])
+                                : undefined
+                        }
+                        deleteMessage={`Hapus permanen ${label}?`}
+                        deleteDescription={`Alamat "${label}" belum pernah dipakai langganan. Penghapusan permanen tidak bisa dibatalkan.`}
+                        lifecycle={
+                            a.deleted_at
+                                ? {
+                                      row: a,
+                                      name: label,
+                                      noun: 'Alamat',
+                                      routeBase: 'admin.customers.addresses',
+                                      can: { update: can.update, delete: can.delete },
+                                  }
+                                : undefined
+                        }
+                    />
+                );
+            },
+        },
+    ];
+
     return (
         <AdminLayout title="Alamat Pelanggan">
             <div className="space-y-6">
@@ -185,65 +275,24 @@ export default function Index({ customer, addresses, regions, geocodeResults = [
 
                 <Card>
                     <CardContent className="space-y-4 pt-6">
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Label</TH>
-                                    <TH>Alamat</TH>
-                                    <TH>Kota</TH>
-                                    <TH>Kode pos</TH>
-                                    <TH>Pemasangan</TH>
-                                    <TH>Utama</TH>
-                                    <TH>Aksi</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {addrList.length === 0 ? (
-                                    <TR>
-                                        <TD
-                                            colSpan={7}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            Belum ada alamat. Pakai tombol Tambah alamat untuk
-                                            mencatat yang pertama.
-                                        </TD>
-                                    </TR>
-                                ) : (
-                                    addrList.map((a) => (
-                                        <TR key={a.id}>
-                                            <TD className="font-medium">{a.label}</TD>
-                                            <TD>{a.address}</TD>
-                                            <TD>{a.city || <EmptyCell />}</TD>
-                                            <TD>{a.postal_code || <EmptyCell />}</TD>
-                                            <TD>
-                                                {a.is_installation_point ? 'Ya' : <EmptyCell />}
-                                            </TD>
-                                            <TD>{a.is_primary ? 'Ya' : <EmptyCell />}</TD>
-                                            <TD>
-                                                <DataTableActions
-                                                    onEdit={() => openEdit(a)}
-                                                    deleteHref={route(
-                                                        'admin.customers.addresses.destroy',
-                                                        [customer.id, a.id],
-                                                    )}
-                                                    deleteMessage={`Hapus ${a.label}?`}
-                                                    deleteDescription={`Alamat "${a.label}" akan dihapus permanen dari pelanggan.`}
-                                                />
-                                            </TD>
-                                        </TR>
-                                    ))
-                                )}
-                            </TBody>
-                        </Table>
-                        <Pagination
-                            meta={addresses.meta}
-                            onPageChange={(page) =>
-                                router.get(
-                                    route('admin.customers.addresses.index', customer.id),
-                                    { page },
-                                    { preserveScroll: true },
-                                )
-                            }
+                        <div className="flex flex-wrap items-end gap-3">
+                            <StatusFilter
+                                id="address-status"
+                                value={params.status ?? ''}
+                                onChange={(value) => set('status', value)}
+                            />
+                        </div>
+                        <DataTable
+                            columns={columns}
+                            data={addresses.data}
+                            pagination={toPagination(addresses)}
+                            onPageChange={(page) => set('page', page)}
+                            loading={tableProcessing}
+                            itemLabel="alamat"
+                            hasFilters={Boolean(params.status)}
+                            onResetFilters={() => setMany({ status: '' })}
+                            emptyTitle="Belum ada alamat"
+                            emptyDescription="Pakai tombol Tambah alamat untuk mencatat yang pertama."
                         />
                     </CardContent>
                 </Card>

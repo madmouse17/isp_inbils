@@ -153,27 +153,6 @@ class OrganizationTest extends TestCase
         $this->assertSame(null, $child->fresh()->parent_id);
     }
 
-    public function test_delete_unit_with_children_fails(): void
-    {
-        $this->actingAs($this->admin);
-        $parent = OrganizationService::create([
-            'company_id' => $this->admin->company_id,
-            'code' => 'P2', 'name' => 'P2', 'type' => 'branch', 'is_active' => true,
-        ]);
-        OrganizationService::create([
-            'company_id' => $this->admin->company_id,
-            'code' => 'C2', 'name' => 'C2', 'type' => 'area',
-            'parent_id' => $parent->id, 'is_active' => true,
-        ]);
-
-        try {
-            OrganizationService::delete($parent);
-            $this->fail('Should have thrown validation exception');
-        } catch (ValidationException $e) {
-            $this->assertArrayHasKey('organization', $e->errors());
-        }
-    }
-
     public function test_delete_organization_unit(): void
     {
         $unit = OrganizationUnit::factory()->create([
@@ -183,10 +162,11 @@ class OrganizationTest extends TestCase
             'type' => 'branch',
         ]);
 
-        $response = $this->actingAs($this->admin)->delete(route('admin.organizations.destroy', $unit));
+        $this->actingAs($this->admin)->delete(route('admin.organizations.destroy', $unit))
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Unit organisasi dihapus permanen.');
 
-        $response->assertRedirect();
-        $this->assertSoftDeleted($unit);
+        $this->assertDatabaseMissing('organization_units', ['id' => $unit->id]);
     }
 
     public function test_delete_is_refused_while_employees_belong_to_the_unit(): void
@@ -201,7 +181,7 @@ class OrganizationTest extends TestCase
         $this->actingAs($this->admin)
             ->deleteJson(route('admin.organizations.destroy', $unit))
             ->assertUnprocessable()
-            ->assertJsonPath('errors.organization.0', 'Unit masih punya karyawan. Pindahkan karyawannya ke unit lain dulu.');
+            ->assertJsonPath('errors.lifecycle.0', 'Unit organisasi masih dipakai 1 karyawan. Nonaktifkan saja.');
 
         $this->assertNotSoftDeleted($unit);
         $this->assertSame($unit->id, $employee->fresh()->organization_id);
@@ -219,7 +199,7 @@ class OrganizationTest extends TestCase
 
         $this->actingAs($this->admin)->delete(route('admin.organizations.destroy', $unit))->assertRedirect();
 
-        $this->assertSoftDeleted($unit);
+        $this->assertDatabaseMissing('organization_units', ['id' => $unit->id]);
     }
 
     public function test_delete_is_refused_while_the_unit_has_children_with_an_indonesian_message(): void
@@ -230,7 +210,20 @@ class OrganizationTest extends TestCase
         $this->actingAs($this->admin)
             ->deleteJson(route('admin.organizations.destroy', $parent))
             ->assertUnprocessable()
-            ->assertJsonPath('errors.organization.0', 'Unit masih punya sub-unit. Pindahkan atau hapus sub-unitnya dulu.');
+            ->assertJsonPath('errors.lifecycle.0', 'Unit organisasi masih dipakai 1 sub-unit. Nonaktifkan saja.');
+
+        $this->assertNotSoftDeleted($parent);
+    }
+
+    public function test_the_code_of_a_deleted_unit_stays_taken(): void
+    {
+        OrganizationUnit::factory()->create(['company_id' => $this->admin->company_id, 'code' => 'OLD', 'type' => 'branch'])->delete();
+
+        $this->actingAs($this->admin)->post(route('admin.organizations.store'), [
+            'code' => 'OLD',
+            'name' => 'Baru',
+            'type' => 'branch',
+        ])->assertSessionHasErrors(['code' => 'kode sudah digunakan.']);
     }
 
     public function test_type_must_be_one_of_the_known_types(): void

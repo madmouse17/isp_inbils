@@ -1,9 +1,10 @@
 import type { FormEvent, ReactNode } from 'react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
+    Badge,
     Button,
     Card,
     CardContent,
@@ -13,6 +14,7 @@ import {
     EnumBadge,
     Input,
     Modal,
+    SearchSelect,
 } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
 import { ConfirmDialog } from '@/Components/composite/ConfirmDialog';
@@ -25,15 +27,47 @@ import { SubscriptionNetworkPanels } from '@/Components/composite/SubscriptionNe
 import type { DropPort, DropPortOption, StaticPool, SubscriptionIpAddress } from '@/types/ipam-odn';
 import { usePermission } from '@/hooks/usePermission';
 
+/** The terms of the package version the subscription was sold on (`ServicePackageVersionResource`). */
+interface PackageVersion {
+    version: number;
+    valid_from: string;
+    price_mrc: string;
+    price_otc: string;
+    bandwidth_profile?: { name: string; download_mbps: number; upload_mbps: number } | null;
+    speed_profile?: { name: string; download_max_mbps: number; upload_max_mbps: number } | null;
+    sla_tier?: {
+        name: string;
+        response_time_hours: number;
+        resolution_time_hours: number;
+    } | null;
+    category?: { name: string } | null;
+}
+
+type SubscriptionDetail = ServiceSubscription & {
+    package_version?: PackageVersion | null;
+    /** False when the package has a newer version than the one this subscription holds. */
+    package_version_is_latest?: boolean;
+};
+
+/** An active package a subscription can move to; `price_mrc` is its latest version's monthly price. */
+interface PackageOption {
+    id: string;
+    code: string;
+    name: string;
+    price_mrc: string;
+}
+
 interface ShowProps extends Record<string, unknown> {
-    subscription: { data: ServiceSubscription };
+    subscription: { data: SubscriptionDetail };
     ipAddresses: SubscriptionIpAddress[];
     /** Present only for holders of ipam.assign. */
     staticPools?: StaticPool[];
     dropPort: DropPort | null;
     /** Free ODP ports, found by typing an ODP code; odn.assign only. */
     dropPortOptions?: DropPortOption[];
-    can: { assignIp: boolean; assignDrop: boolean; block: boolean };
+    /** Active packages, loaded when the Ganti paket dialog opens; only for holders of customer.subscription.manage. */
+    packageOptions?: PackageOption[];
+    can: { assignIp: boolean; assignDrop: boolean; block: boolean; changePackage: boolean };
 }
 
 function DetailRow({ label, children }: { label: string; children: ReactNode }) {
@@ -45,17 +79,162 @@ function DetailRow({ label, children }: { label: string; children: ReactNode }) 
     );
 }
 
+interface ChangePackageModalProps {
+    subscription: SubscriptionDetail;
+    /** `undefined` until the dialog has asked for it. */
+    packageOptions: PackageOption[] | undefined;
+    onClose: () => void;
+}
+
+/**
+ * Moves the subscription to the latest version of a package, the one place a subscription changes
+ * package. It mounts only while open, so each opening starts from the current package and no error.
+ */
+function ChangePackageModal({ subscription, packageOptions, onClose }: ChangePackageModalProps) {
+    const currentId = subscription.service_package_id ?? '';
+    const currentName = subscription.package?.name;
+    const [packageId, setPackageId] = useState(currentId);
+    // null until an amount is typed: the field then follows the price of the chosen package.
+    const [typedAmount, setTypedAmount] = useState<string | null>(null);
+    const [errors, setErrors] = useState<Record<string, string>>({});
+    const [processing, setProcessing] = useState(false);
+    const [loadingOptions, setLoadingOptions] = useState(packageOptions === undefined);
+
+    useEffect(() => {
+        if (packageOptions !== undefined) return;
+
+        router.reload({ only: ['packageOptions'], onFinish: () => setLoadingOptions(false) });
+    }, [packageOptions]);
+
+    const options = useMemo(
+        () =>
+            (packageOptions ?? []).map((option) => ({
+                value: option.id,
+                label: option.name,
+                description: `${option.code} · ${formatMoney(option.price_mrc)}/bln`,
+            })),
+        [packageOptions],
+    );
+
+    const chosen = packageOptions?.find((option) => option.id === packageId);
+    const amount = typedAmount ?? (chosen ? String(Number(chosen.price_mrc)) : '');
+    const amountNumber = amount.trim() === '' ? null : Number(amount);
+    // The server refuses a move to the version the subscription already holds, so the button waits for another choice.
+    const alreadyLatest =
+        packageId === currentId && subscription.package_version_is_latest === true;
+
+    const submit = (event: FormEvent) => {
+        event.preventDefault();
+
+        router.post(
+            route('admin.subscriptions.change-package', subscription.id),
+            {
+                service_package_id: packageId,
+                mrc_amount: amount.trim() === '' ? null : amount.trim(),
+            },
+            {
+                preserveScroll: true,
+                onStart: () => {
+                    setProcessing(true);
+                    setErrors({});
+                },
+                onSuccess: onClose,
+                onError: setErrors,
+                onFinish: () => setProcessing(false),
+            },
+        );
+    };
+
+    return (
+        <Modal
+            open
+            onClose={() => {
+                if (!processing) onClose();
+            }}
+            title="Ganti paket"
+        >
+            <form onSubmit={submit} className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                    Langganan pindah ke versi terbaru paket ini. Tagihan berikutnya memakai biaya
+                    bulanan ini. Biaya pemasangan berubah hanya bila langganan masih menunggu.
+                </p>
+                <SearchSelect
+                    id="change-package"
+                    label="Paket"
+                    value={packageId}
+                    onChange={(value) => {
+                        setPackageId(value);
+                        setTypedAmount(null);
+                        setErrors({});
+                    }}
+                    options={options}
+                    selected={
+                        currentId
+                            ? { value: currentId, label: currentName ?? 'Paket saat ini' }
+                            : null
+                    }
+                    loading={loadingOptions}
+                    placeholder="Cari paket"
+                    emptyText="Tidak ada paket aktif yang cocok."
+                    error={errors.service_package_id}
+                    hint={
+                        alreadyLatest
+                            ? 'Langganan sudah memakai versi terbaru paket ini. Pilih paket lain untuk memindahkannya.'
+                            : undefined
+                    }
+                    required
+                />
+                <Input
+                    id="change-package-mrc"
+                    label="Biaya bulanan"
+                    inputMode="decimal"
+                    value={amount}
+                    onChange={(event) => setTypedAmount(event.target.value)}
+                    placeholder="Otomatis dari harga paket"
+                    error={errors.mrc_amount}
+                    hint={
+                        amountNumber !== null && Number.isFinite(amountNumber)
+                            ? formatMoney(amountNumber)
+                            : undefined
+                    }
+                />
+                <div className="flex justify-end gap-2">
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={onClose}
+                        disabled={processing}
+                    >
+                        Batal
+                    </Button>
+                    <Button
+                        type="submit"
+                        variant="primary"
+                        loading={processing}
+                        disabled={packageId === '' || alreadyLatest}
+                    >
+                        Pindahkan
+                    </Button>
+                </div>
+            </form>
+        </Modal>
+    );
+}
+
 export default function Show({
     subscription,
     ipAddresses,
     staticPools,
     dropPort,
     dropPortOptions,
-    can: { block: canBlock, ...assignable },
+    packageOptions,
+    can: { block: canBlock, changePackage: canChangePackage, ...assignable },
 }: ShowProps) {
     const s = subscription.data;
+    const version = s.package_version;
     const can = usePermission();
     const [actionModal, setActionModal] = useState<'suspend' | null>(null);
+    const [changeOpen, setChangeOpen] = useState(false);
     const [pending, setPending] = useState<'activate' | 'reactivate' | 'terminate' | null>(null);
     const [sending, setSending] = useState(false);
     const [refusal, setRefusal] = useState<Record<string, string>>({});
@@ -114,12 +293,6 @@ export default function Show({
                         </CardHeader>
                         <CardContent>
                             <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-3 text-sm">
-                                <DetailRow label="Paket">
-                                    {s.package?.name ?? `#${s.service_package_id}`}
-                                </DetailRow>
-                                <DetailRow label="Kategori paket">
-                                    {s.package?.category?.name ?? <EmptyCell />}
-                                </DetailRow>
                                 <DetailRow label="Pelanggan">
                                     {s.customer?.name ?? `#${s.customer_id}`}
                                 </DetailRow>
@@ -187,6 +360,76 @@ export default function Show({
                                     <DetailRow label="Alasan berhenti">
                                         {s.terminated_reason}
                                     </DetailRow>
+                                ) : null}
+                            </dl>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="space-y-0 flex-row flex-wrap items-center justify-between">
+                            <CardTitle>Paket</CardTitle>
+                            {canChangePackage && s.status !== 'terminated' ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setChangeOpen(true)}
+                                >
+                                    Ganti paket
+                                </Button>
+                            ) : null}
+                        </CardHeader>
+                        <CardContent>
+                            <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-3 text-sm">
+                                <DetailRow label="Nama paket">
+                                    <div className="space-y-0.5">
+                                        <p className="flex flex-wrap items-center gap-2">
+                                            <span>
+                                                {s.package?.name ?? `#${s.service_package_id}`}
+                                            </span>
+                                            {s.package_version_is_latest === false ? (
+                                                <Badge variant="info">Versi terbaru tersedia</Badge>
+                                            ) : null}
+                                        </p>
+                                        {version ? (
+                                            <p className="text-muted-foreground">
+                                                {`Versi ${version.version} sejak ${formatDate(version.valid_from)}`}
+                                            </p>
+                                        ) : null}
+                                    </div>
+                                </DetailRow>
+                                {version ? (
+                                    <>
+                                        <DetailRow label="Kategori">
+                                            {version.category?.name ?? <EmptyCell />}
+                                        </DetailRow>
+                                        <DetailRow label="Harga bulanan">
+                                            {formatMoney(version.price_mrc)}
+                                        </DetailRow>
+                                        <DetailRow label="Harga pemasangan">
+                                            {formatMoney(version.price_otc)}
+                                        </DetailRow>
+                                        <DetailRow label="Profil bandwidth">
+                                            {version.bandwidth_profile ? (
+                                                `${version.bandwidth_profile.name} (${version.bandwidth_profile.download_mbps} / ${version.bandwidth_profile.upload_mbps} Mbps)`
+                                            ) : (
+                                                <EmptyCell />
+                                            )}
+                                        </DetailRow>
+                                        <DetailRow label="Profil kecepatan">
+                                            {version.speed_profile ? (
+                                                `${version.speed_profile.name} (${version.speed_profile.download_max_mbps} / ${version.speed_profile.upload_max_mbps} Mbps)`
+                                            ) : (
+                                                <EmptyCell />
+                                            )}
+                                        </DetailRow>
+                                        <DetailRow label="Tingkat SLA">
+                                            {version.sla_tier ? (
+                                                `${version.sla_tier.name} (respons ${version.sla_tier.response_time_hours} jam, selesai ${version.sla_tier.resolution_time_hours} jam)`
+                                            ) : (
+                                                <EmptyCell />
+                                            )}
+                                        </DetailRow>
+                                    </>
                                 ) : null}
                             </dl>
                         </CardContent>
@@ -342,6 +585,14 @@ export default function Show({
                         </div>
                     </form>
                 </Modal>
+
+                {changeOpen ? (
+                    <ChangePackageModal
+                        subscription={s}
+                        packageOptions={packageOptions}
+                        onClose={() => setChangeOpen(false)}
+                    />
+                ) : null}
             </div>
         </AdminLayout>
     );

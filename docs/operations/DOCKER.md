@@ -235,6 +235,13 @@ Connect remotely with `mysql -h 192.168.1.10 -P 3307 -u inbils -p inbils`.
 - Replace all example credentials and generate a unique `APP_KEY`; never commit `.env.docker`.
 - Do not publish Redis. It is intentionally reachable only on the Compose network.
 
+## Logs
+
+- Every service in `compose.yaml` (`app`, `queue`, `platform-queue`, `scheduler`, `mysql`, `redis`) shares one `logging` block: driver `json-file`, `max-size: "10m"`, `max-file: "5"`. A container keeps at most 50 MB of output; Docker drops the oldest file. A new service needs the same line (`logging: *logging`), and `tests/Feature/Operations/OperationsArtifactsTest.php` fails without it.
+- The cap is read when a container is created. After a pull that changes it, `docker compose --env-file .env.docker up -d` recreates the services whose definition changed. `restart` does not apply it.
+- The app writes to the same output through its own channels: with `LOG_STACK=stderr,daily` and `LOG_STDERR_FORMATTER=Monolog\Formatter\JsonFormatter` (the `.env.docker.example` values), `docker compose --env-file .env.docker logs app` shows one JSON object per line, each with `extra.request_id`. The files `storage/logs/laravel-YYYY-MM-DD.log` live in the `inbils_app_storage` volume, 14 days (`LOG_DAILY_DAYS`). Set these keys in the real `.env.docker`: a copy made before this release still has `LOG_STACK=single`, whose `laravel.log` has no limit and is not pruned. See [OBSERVABILITY.md](./OBSERVABILITY.md) and [DEPLOYMENT.md](./DEPLOYMENT.md).
+- Search one request: `docker compose --env-file .env.docker logs --since 1h app queue | grep <request id>`. The queue worker logs a job with the id of the request that dispatched it.
+
 ## Rebuild and update without deleting volumes
 
 Implementation changes must rebuild/recreate affected services and verify health:

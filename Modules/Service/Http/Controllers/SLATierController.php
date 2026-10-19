@@ -4,6 +4,7 @@ namespace Modules\Service\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
+use App\Services\Core\LifecycleService;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -29,15 +30,17 @@ class SLATierController extends Controller
     {
         Gate::authorize('viewAny', SLATier::class);
 
-        $slaTiers = $this->filteredQuery($request)->paginate($this->perPage($request))->withQueryString();
+        $slaTiers = $this->filteredQuery($request)->withReferenceCounts()->paginate($this->perPage($request))->withQueryString();
         $results = $compliance->forTiers($slaTiers->getCollection()->pluck('id')->all());
         $slaTiers->getCollection()->each(fn (SLATier $tier) => $tier->forceFill($results[$tier->id]));
 
         return Inertia::render('Admin/Service/SLATiers/Index', [
             'slaTiers' => SLATierResource::collection($slaTiers),
-            'filters' => $request->only(['search', 'sort', 'direction', 'per_page']),
+            'filters' => $request->only(['status', 'search', 'sort', 'direction', 'per_page']),
             'can' => [
                 'create' => (bool) ($request->user()?->can('service.create') || $request->user()?->can('service.manage')),
+                'update' => (bool) ($request->user()?->can('service.update') || $request->user()?->can('service.manage')),
+                'delete' => (bool) ($request->user()?->can('service.delete') || $request->user()?->can('service.manage')),
                 'export' => (bool) $request->user()?->can('service.export'),
             ],
         ]);
@@ -76,9 +79,9 @@ class SLATierController extends Controller
     public function destroy(SLATier $slaTier): RedirectResponse
     {
         Gate::authorize('delete', $slaTier);
-        $slaTier->delete();
+        LifecycleService::destroyIfUnreferenced($slaTier);
 
-        return back()->with('success', 'Tingkat SLA dihapus.');
+        return back()->with('success', 'Tingkat SLA dihapus permanen.');
     }
 
     public function export(Request $request): HttpResponse|StreamedResponse
@@ -115,6 +118,7 @@ class SLATierController extends Controller
     private function filteredQuery(Request $request): Builder
     {
         return SLATier::query()
+            ->lifecycleStatus($request->input('status'))
             ->when(trim((string) $request->input('search')) !== '', function (Builder $query) use ($request): void {
                 $term = '%'.trim((string) $request->input('search')).'%';
                 $query->where(function (Builder $sub) use ($term): void {

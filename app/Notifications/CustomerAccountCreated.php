@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Core\Customer;
 use App\Notifications\Channels\WhatsAppChannel;
+use App\Notifications\Contracts\SentByPlatform;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Password;
@@ -14,8 +15,10 @@ use Illuminate\Support\Str;
  * that the link is in their e-mail, never by the link itself: Laravel keeps one reset token per user and every
  * mint deletes the previous one, so a second channel minting its own would break the e-mailed link, and a number
  * on file can belong to someone else by now. The notice goes out only with the customer's WhatsApp consent.
+ *
+ * Platform mailer only (SentByPlatform): nothing stops the CLI (`inbils:company:grant-membership`) from giving this user a second company.
  */
-class CustomerAccountCreated extends WhatsAppNotification
+class CustomerAccountCreated extends WhatsAppNotification implements SentByPlatform
 {
     /** The hour of the notice's key, fixed when it is queued: a retry in a later hour takes over its first attempt's row. */
     private readonly string $hour;

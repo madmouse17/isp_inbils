@@ -3,7 +3,6 @@
 namespace Modules\Ticketing\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HasIndexQuery;
-use App\Http\Controllers\Concerns\UploadsMedia;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\LocationResource;
 use App\Models\Core\Customer;
@@ -13,6 +12,7 @@ use App\Models\User;
 use App\Queries\Admin\DispatchQueueQuery;
 use App\Services\Core\CompanyService;
 use App\Support\ExportQuery;
+use App\Support\OptimisticLock;
 use App\Support\PublicId;
 use App\Support\RecordNotFound;
 use App\Support\SearchOptions;
@@ -41,7 +41,6 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 class TicketController extends Controller
 {
     use HasIndexQuery;
-    use UploadsMedia;
 
     private const SORTABLE = ['code', 'title', 'source', 'status', 'priority', 'sla_deadline', 'created_at'];
 
@@ -58,6 +57,8 @@ class TicketController extends Controller
             'filters' => $request->only(['search', 'priority', 'status', 'source', 'category_id', 'assigned_to', 'sla_breached', 'sort_by', 'sort_dir', 'per_page']),
             'can' => [
                 'create' => $request->user()?->can('ticket.create') ?? false,
+                'update' => $request->user()?->can('ticket.update') ?? false,
+                'delete' => $request->user()?->can('ticket.delete') ?? false,
                 'export' => $request->user()?->can('ticket.export') ?? false,
             ],
         ]);
@@ -111,7 +112,7 @@ class TicketController extends Controller
         $query = Ticket::query()
             ->with(['category', 'customer', 'assignee'])
             ->when($request->input('priority'), fn (Builder $q, string $v) => $q->where('priority', $v))
-            ->when($request->input('status'), fn (Builder $q, string $v) => $q->where('status', $v))
+            ->lifecycleStatus($request->input('status'))
             ->when($request->input('source'), fn (Builder $q, string $v) => $q->where('source', $v))
             ->when($request->input('category_id'), fn (Builder $q, string $v) => $q->where('category_id', PublicId::resolveOne(TicketCategory::class, $v) ?? 0))
             ->when($request->input('assigned_to'), fn (Builder $q, string $v) => $q->where('assigned_to', PublicId::resolveOne(User::class, $v) ?? 0))
@@ -247,9 +248,8 @@ class TicketController extends Controller
     {
         $this->ensureSameCompany($ticket);
         Gate::authorize('update', $ticket);
-        abort_if($ticket->status !== 'open', 422, 'Tiket hanya bisa diubah saat berstatus terbuka.');
 
-        $ticket->update($request->validated());
+        TicketService::update($ticket, $request->safe()->except(OptimisticLock::FIELD), $request->validated(OptimisticLock::FIELD));
 
         return redirect()->route('admin.tickets.index')->with('success', 'Tiket berhasil diubah.');
     }
@@ -258,9 +258,8 @@ class TicketController extends Controller
     {
         $this->ensureSameCompany($ticket);
         Gate::authorize('delete', $ticket);
-        abort_if($ticket->status !== 'closed', 422, 'Tiket hanya bisa dihapus saat berstatus ditutup.');
 
-        $ticket->delete();
+        TicketService::destroy($ticket);
 
         return back()->with('success', 'Tiket berhasil dihapus.');
     }
@@ -377,10 +376,13 @@ class TicketController extends Controller
         Gate::authorize('attach', $ticket);
 
         $file = $request->file('file');
-        $this->storeMedia($ticket, $file, 'attachments', [
-            'company_id' => $ticket->company_id,
-            'uploaded_by' => $request->user()->id,
-        ]);
+        TicketService::addAttachment(
+            $ticket,
+            $request->user(),
+            ['file' => $file],
+            // The same file twice on one ticket is one attachment, however far apart the two posts are.
+            hash('sha256', (string) hash_file('sha256', $file->getRealPath())),
+        );
 
         return back()->with('success', 'Lampiran berhasil diunggah.');
     }

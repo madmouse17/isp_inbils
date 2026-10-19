@@ -16,6 +16,7 @@ use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
 use App\Support\ExportQuery;
 use App\Support\FieldCheckIn;
+use App\Support\OptimisticLock;
 use App\Support\PublicId;
 use App\Support\RecordNotFound;
 use App\Support\SearchOptions;
@@ -60,7 +61,12 @@ class WorkOrderController extends Controller
         return Inertia::render('Admin/SPK/Index', [
             'workOrders' => WorkOrderResource::collection($workOrders),
             'filters' => $request->only(['type', 'status', 'assigned_to', 'search', 'sort_by', 'sort_dir', 'per_page']),
-            'can' => ['create' => $request->user()?->can('spk.create') ?? false, 'export' => $request->user()?->can('spk.export') ?? false],
+            'can' => [
+                'create' => $request->user()?->can('spk.create') ?? false,
+                'export' => $request->user()?->can('spk.export') ?? false,
+                'update' => $request->user()?->can('spk.update') ?? false,
+                'delete' => $request->user()?->can('spk.delete') ?? false,
+            ],
         ]);
     }
 
@@ -92,7 +98,7 @@ class WorkOrderController extends Controller
             'status' => $wo->status,
             'priority' => $wo->priority,
             'customer' => data_get($wo, 'customer.name', ''),
-            'assignee' => data_get($wo, 'assignee.name', ''),
+            'assignee' => $wo->technician_name_snapshot ?? data_get($wo, 'assignee.name', ''),
         ];
 
         if ($format === 'pdf') {
@@ -108,7 +114,7 @@ class WorkOrderController extends Controller
         $query = WorkOrder::query()
             ->with(['customer', 'subscription', 'location', 'assignee'])
             ->when($request->input('type'), fn ($q, $v) => $q->where('type', $v))
-            ->when($request->input('status'), fn ($q, $v) => $q->where('status', $v))
+            ->lifecycleStatus($request->input('status'))
             ->when($request->input('assigned_to'), fn ($q, $v) => $q->where('assigned_to', PublicId::resolveOne(User::class, $v) ?? 0))
             ->when($request->input('search'), fn ($q, $v) => $q->where(fn ($sq) => $sq
                 ->where('code', 'like', "%{$v}%")
@@ -203,7 +209,7 @@ class WorkOrderController extends Controller
     {
         $this->ensureSameCompany($wo);
         Gate::authorize('edit', $wo);
-        abort_if(! in_array($wo->status, ['draft', 'generated']), 422, 'SPK hanya bisa diubah saat berstatus draf atau menunggu penugasan.');
+        abort_if(! in_array($wo->status, SpkService::EDITABLE_STATUSES, true), 422, 'SPK hanya bisa diubah saat berstatus draf atau menunggu penugasan.');
 
         $wo->load(['customer', 'subscription', 'location', 'assignee']);
 
@@ -220,9 +226,8 @@ class WorkOrderController extends Controller
     {
         $this->ensureSameCompany($wo);
         Gate::authorize('update', $wo);
-        abort_if(! in_array($wo->status, ['draft', 'generated']), 422, 'SPK hanya bisa diubah saat berstatus draf atau menunggu penugasan.');
 
-        $wo->update($request->validated());
+        SpkService::update($wo, $request->safe()->except(OptimisticLock::FIELD), $request->validated(OptimisticLock::FIELD));
 
         return redirect()->route('admin.spk.index')->with('success', 'SPK berhasil diubah.');
     }
@@ -231,9 +236,8 @@ class WorkOrderController extends Controller
     {
         $this->ensureSameCompany($wo);
         Gate::authorize('delete', $wo);
-        abort_if(! in_array($wo->status, ['draft', 'cancelled']), 422, 'SPK hanya bisa dihapus saat berstatus draf atau dibatalkan.');
 
-        $wo->delete();
+        SpkService::destroy($wo);
 
         return back()->with('success', 'SPK berhasil dihapus.');
     }
@@ -365,10 +369,9 @@ class WorkOrderController extends Controller
     public function removeItem(WorkOrder $wo, WorkOrderItem $item): RedirectResponse
     {
         $this->ensureSameCompany($wo);
-        RecordNotFound::abortUnless($item->work_order_id === $wo->id);
         Gate::authorize('spk.update');
 
-        $item->delete();
+        SpkService::removeItem($wo, $item);
 
         return back()->with('success', 'Item berhasil dihapus.');
     }
@@ -376,7 +379,7 @@ class WorkOrderController extends Controller
     public function uploadEvidence(StoreWorkOrderEvidenceRequest $request, WorkOrder $wo): RedirectResponse
     {
         $this->ensureSameCompany($wo);
-        SpkService::addEvidence($wo, $request->user(), $request->evidenceAttributes());
+        SpkService::addEvidence($wo, $request->user(), $request->evidenceAttributes(), $request->idempotencyKey());
 
         return back()->with('success', 'Bukti berhasil diunggah.');
     }

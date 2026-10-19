@@ -8,12 +8,12 @@ use App\Models\Core\Customer;
 use App\Services\Core\AuditService;
 use App\Services\Core\SettingService;
 use App\Services\Core\SubscriptionService;
+use App\Support\Money;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Modules\Inventory\Models\MaterialReturnCase;
 use Modules\Inventory\Models\MaterialReturnLine;
 use Modules\Inventory\Models\Product;
-use Modules\Inventory\Models\Stock;
 use Modules\Inventory\Services\StockService;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\NetworkAsset\Services\NetworkAssetService;
@@ -46,39 +46,7 @@ class CompleteSpkAction
             ], $workOrder);
 
             return $workOrder->fresh(['items', 'subscription']);
-        });
-    }
-
-    public static function releaseReservedStock(WorkOrder $workOrder): void
-    {
-        DB::transaction(function () use ($workOrder) {
-            $workOrder = WorkOrder::with('items')
-                ->lockForUpdate()
-                ->findOrFail($workOrder->id);
-
-            foreach ($workOrder->items as $item) {
-                $reserved = (float) $item->quantity_reserved;
-
-                if ($reserved <= 0 || ! $workOrder->location_id) {
-                    continue;
-                }
-
-                StockService::release(
-                    $item->product_id,
-                    $workOrder->location_id,
-                    $reserved,
-                    WorkOrderItem::class,
-                    $item->id
-                );
-
-                $item->update(['quantity_reserved' => 0]);
-
-                AuditService::log('work_order', 'reserved_stock_released', [
-                    'product_id' => $item->product_id,
-                    'quantity' => $reserved,
-                ], $workOrder);
-            }
-        });
+        }, 3);
     }
 
     public static function reconcileUsedQuantitiesFromMaterialReturns(WorkOrder $workOrder): void
@@ -130,7 +98,6 @@ class CompleteSpkAction
                         'work_order_id' => $workOrder->id,
                         'product_id' => $productId,
                         'quantity_used' => $totalActualUsed,
-                        'quantity_reserved' => 0,
                     ]);
                 }
 
@@ -164,81 +131,94 @@ class CompleteSpkAction
 
     private static function consumeStock(WorkOrder $workOrder): void
     {
-        // Check if this work order was backed by issued Inventory Request(s).
-        $issuedIrCoverage = DB::table('inventory_requests')
-            ->join('inventory_request_items', 'inventory_requests.id', '=', 'inventory_request_items.inventory_request_id')
-            ->where('inventory_requests.company_id', $workOrder->company_id)
-            ->where('inventory_requests.source_type', 'work_order')
-            ->where('inventory_requests.source_id', $workOrder->id)
-            ->where('inventory_requests.status', 'issued')
-            ->where('inventory_request_items.quantity_issued', '>', 0)
-            ->groupBy('inventory_request_items.product_id')
-            ->select('inventory_request_items.product_id', DB::raw('SUM(inventory_request_items.quantity_issued) as total_issued'))
-            ->pluck('total_issued', 'product_id')
-            ->map(fn ($qty) => (float) $qty)
-            ->all();
-
-        $remainingIrCoverage = $issuedIrCoverage;
+        $coverage = self::issuedCoverage($workOrder);
 
         foreach ($workOrder->items as $item) {
-            $reserved = (float) $item->quantity_reserved;
-            if ($reserved > 0 && $workOrder->location_id) {
-                $stock = Stock::where('product_id', $item->product_id)
-                    ->where('location_id', $workOrder->location_id)
-                    ->first();
-                $availableReserved = $stock ? (float) $stock->reserved_quantity : 0.0;
-                $releaseQty = min($reserved, $availableReserved);
+            $productId = (int) $item->product_id;
+            // A product the SPK was handed over comes out of the warehouse its request left, not out of the SPK's own location.
+            $locationId = $coverage[$productId]['location_id'] ?? $workOrder->location_id;
+            $used = (string) $item->quantity_used;
 
-                if ($releaseQty > 0) {
-                    StockService::release(
-                        $item->product_id,
-                        $workOrder->location_id,
-                        $releaseQty,
-                        WorkOrderItem::class,
-                        $item->id
-                    );
-                }
-                $item->update(['quantity_reserved' => 0]);
-            }
-
-            $used = (float) $item->quantity_used;
-            if ($used <= 0 || ! $workOrder->location_id) {
+            if (! Money::gt($used, '0') || ! $locationId) {
                 continue;
             }
 
-            $productId = (int) $item->product_id;
-            $availableIr = $remainingIrCoverage[$productId] ?? 0.0;
-            $coveredByIr = min($used, $availableIr);
-            $uncoveredQuantity = max(0.0, $used - $coveredByIr);
+            $available = $coverage[$productId]['quantity'] ?? '0';
+            $covered = Money::compare($used, $available) < 0 ? $used : $available;
+            $uncovered = Money::sub($used, $covered);
+            $isCovered = Money::gt($covered, '0');
 
-            if ($coveredByIr > 0) {
-                $remainingIrCoverage[$productId] = max(0.0, $availableIr - $coveredByIr);
+            if ($isCovered) {
+                $coverage[$productId]['quantity'] = Money::sub($available, $covered);
                 AuditService::log('work_order', 'stock_consumption_skipped_ir_backed', [
                     'code' => $workOrder->code,
                     'work_order_id' => $workOrder->id,
                     'work_order_item_id' => $item->id,
                     'product_id' => $item->product_id,
-                    'quantity_covered' => $coveredByIr,
-                    'quantity_uncovered' => $uncoveredQuantity,
+                    'quantity_covered' => (float) $covered,
+                    'quantity_uncovered' => (float) $uncovered,
                 ], $workOrder);
             }
 
-            if ($uncoveredQuantity > 0) {
+            if (Money::gt($uncovered, '0')) {
                 StockService::issue(
-                    $item->product_id,
-                    $workOrder->location_id,
-                    $uncoveredQuantity,
-                    'SPK '.$workOrder->code.($coveredByIr > 0 ? " (partial IR covered {$coveredByIr})" : ''),
+                    $productId,
+                    $locationId,
+                    (float) $uncovered,
+                    'SPK '.$workOrder->code.($isCovered ? ' (partial IR covered '.(float) $covered.')' : ''),
                     WorkOrderItem::class,
                     $item->id
                 );
 
                 AuditService::log('work_order', 'stock_consumed', [
                     'product_id' => $item->product_id,
-                    'quantity' => $uncoveredQuantity,
+                    'quantity' => (float) $uncovered,
                 ], $workOrder);
             }
         }
+    }
+
+    /**
+     * What the handed-over inventory requests of this SPK already took out of stock, per product: the quantity, and the
+     * location it left (the item's source, else the request's warehouse; of several items of a product, the last one's).
+     * Both reads lock, in the order the lane keeps (SPK, requests, items): a handover that commits between a plain read
+     * and the issues below would otherwise be missed and taken out of stock a second time.
+     *
+     * @return array<int, array{quantity: string, location_id: ?int}>
+     */
+    private static function issuedCoverage(WorkOrder $workOrder): array
+    {
+        $warehouses = DB::table('inventory_requests')
+            ->where('company_id', $workOrder->company_id)
+            ->where('source_type', 'work_order')
+            ->where('source_id', $workOrder->id)
+            ->where('status', 'issued')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->pluck('warehouse_location_id', 'id');
+
+        if ($warehouses->isEmpty()) {
+            return [];
+        }
+
+        $coverage = [];
+
+        $items = DB::table('inventory_request_items')
+            ->whereIn('inventory_request_id', $warehouses->keys())
+            ->where('quantity_issued', '>', 0)
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get(['inventory_request_id', 'product_id', 'source_location_id', 'quantity_issued']);
+
+        foreach ($items as $row) {
+            $productId = (int) $row->product_id;
+            $coverage[$productId] = [
+                'quantity' => Money::add($coverage[$productId]['quantity'] ?? '0', $row->quantity_issued),
+                'location_id' => $row->source_location_id ?? $warehouses[$row->inventory_request_id],
+            ];
+        }
+
+        return $coverage;
     }
 
     private static function installAsset(WorkOrder $workOrder): void
@@ -247,7 +227,12 @@ class CompleteSpkAction
             return;
         }
 
-        abort_unless($workOrder->subscription && $workOrder->customer, 422, 'SPK instalasi wajib memiliki pelanggan dan langganan.');
+        // The relations keep a deleted parent for the history pages; an installation needs both of them alive.
+        abort_unless(
+            $workOrder->subscription && ! $workOrder->subscription->trashed() && $workOrder->customer && ! $workOrder->customer->trashed(),
+            422,
+            'SPK instalasi wajib memiliki pelanggan dan langganan.'
+        );
         /** @var Customer|null $subCustomer */
         $subCustomer = $workOrder->subscription->customer;
         abort_unless($subCustomer && $subCustomer->company_id === $workOrder->company_id, 422, 'Langganan harus milik perusahaan yang sama dengan SPK.');
@@ -290,11 +275,13 @@ class CompleteSpkAction
 
     private static function activateSubscription(WorkOrder $workOrder): void
     {
-        if ($workOrder->subscription?->status !== 'pending') {
+        $subscription = $workOrder->subscription;
+
+        if ($subscription === null || $subscription->trashed() || $subscription->status !== 'pending') {
             return;
         }
 
-        SubscriptionService::activate($workOrder->subscription);
+        SubscriptionService::activate($subscription);
     }
 
     private static function createInvoice(WorkOrder $workOrder): void

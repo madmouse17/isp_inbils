@@ -99,12 +99,12 @@ class MaterialReturnCase extends Model
 
     public function workOrder(): BelongsTo
     {
-        return $this->belongsTo(WorkOrder::class, 'work_order_id');
+        return $this->belongsTo(WorkOrder::class, 'work_order_id')->withTrashed();
     }
 
     public function warehouseLocation(): BelongsTo
     {
-        return $this->belongsTo(Location::class, 'warehouse_location_id');
+        return $this->belongsTo(Location::class, 'warehouse_location_id')->withTrashed();
     }
 
     public function technician(): BelongsTo

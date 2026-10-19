@@ -3,6 +3,7 @@
 namespace Modules\Inventory\Models;
 
 use App\Traits\BelongsToCompany;
+use App\Traits\HasLifecycle;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -32,6 +33,7 @@ class Product extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasLifecycle;
     use HasPublicId;
     use LogsActivity;
     use SoftDeletes;
@@ -58,14 +60,41 @@ class Product extends Model
         'min_stock' => 'decimal:2',
     ];
 
+    public static function lifecycleNoun(): string
+    {
+        return 'Barang';
+    }
+
+    public static function lifecycleFilters(): array
+    {
+        return self::ACTIVE_FILTERS;
+    }
+
+    /**
+     * The stock balances cascade with the product and are not counted: ProductController::destroy refuses a product
+     * that still holds quantity.
+     */
+    public static function lifecycleReferences(): ?array
+    {
+        return [
+            'mutasi stok' => ['stock_movements.product_id'],
+            'permintaan barang' => ['inventory_request_items.product_id'],
+            'retur material' => ['material_return_lines.product_id'],
+            'penyesuaian stok' => ['stock_adjustment_requests.product_id'],
+            'item SPK' => ['work_order_items.product_id'],
+            'aset jaringan' => ['network_assets.product_id'],
+            'item tagihan' => ['invoice_items.product_id'],
+        ];
+    }
+
     public function category(): BelongsTo
     {
-        return $this->belongsTo(Category::class);
+        return $this->belongsTo(Category::class)->withTrashed();
     }
 
     public function unit(): BelongsTo
     {
-        return $this->belongsTo(Unit::class);
+        return $this->belongsTo(Unit::class)->withTrashed();
     }
 
     public function stocks(): HasMany

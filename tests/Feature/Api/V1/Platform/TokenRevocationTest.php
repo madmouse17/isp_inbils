@@ -188,8 +188,9 @@ class TokenRevocationTest extends TestCase
         $audit = Activity::query()->where('description', 'api.tokens_revoked')->sole();
         $this->assertSame('security', $audit->log_name);
         $this->assertSame($this->user->id, $audit->subject_id);
+        $this->assertSame($this->company->id, (int) $audit->company_id, 'the company lives in its column, not in the properties');
         $this->assertEqualsCanonicalizing(
-            ['user_id' => $this->user->id, 'reason' => 'password_changed', 'count' => 2, 'company_id' => $this->company->id],
+            ['user_id' => $this->user->id, 'reason' => 'password_changed', 'count' => 2],
             $audit->properties->all(),
         );
         $this->assertSame(2, Activity::query()->where('description', 'api.token_issued')->where('subject_id', $this->user->id)->count());

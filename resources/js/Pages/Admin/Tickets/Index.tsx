@@ -2,7 +2,7 @@ import { Link } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { Plus } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { DataTable, PageHeader } from '@/Components/composite';
+import { DataTable, DataTableActions, PageHeader, StatusFilter } from '@/Components/composite';
 import type { DataTableColumn } from '@/Components/composite';
 import { Button, EnumBadge, ExportMenu, Input, NativeSelect } from '@/Components/ui';
 import { useCan } from '@/hooks/useCan';
@@ -10,7 +10,7 @@ import { useCompany } from '@/hooks/useCompany';
 import { useTableQuery } from '@/hooks/useTableQuery';
 import { formatDateTime } from '@/lib/format';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
-import { optionsOf, PRIORITY, TICKET_STATUS } from '@/lib/statuses';
+import { LIFECYCLE_STATE, optionsOf, PRIORITY, TICKET_STATUS } from '@/lib/statuses';
 
 type Row = {
     id: string;
@@ -21,6 +21,7 @@ type Row = {
     created_at: string | null;
     customer?: { id: string; name: string } | null;
     assignee?: { id: string; name: string } | null;
+    deleted_at?: string | null;
 };
 
 type Props = {
@@ -59,14 +60,17 @@ export default function TicketsIndex({ tickets, filters }: Props) {
                 header: 'Nomor',
                 sortable: true,
                 sortKey: 'code',
-                cell: (row) => (
-                    <Link
-                        href={route('admin.tickets.show', row.id)}
-                        className="font-medium text-primary-text hover:underline"
-                    >
-                        {row.code}
-                    </Link>
-                ),
+                cell: (row) =>
+                    row.deleted_at ? (
+                        <span className="font-medium text-muted-foreground">{row.code}</span>
+                    ) : (
+                        <Link
+                            href={route('admin.tickets.show', row.id)}
+                            className="font-medium text-primary-text hover:underline"
+                        >
+                            {row.code}
+                        </Link>
+                    ),
             },
             {
                 key: 'title',
@@ -87,7 +91,12 @@ export default function TicketsIndex({ tickets, filters }: Props) {
                 header: 'Status',
                 sortable: true,
                 sortKey: 'status',
-                cell: (row) => <EnumBadge map={TICKET_STATUS} value={row.status} />,
+                cell: (row) =>
+                    row.deleted_at ? (
+                        <EnumBadge map={LIFECYCLE_STATE} value="dihapus" />
+                    ) : (
+                        <EnumBadge map={TICKET_STATUS} value={row.status} />
+                    ),
             },
             {
                 key: 'customer',
@@ -101,8 +110,23 @@ export default function TicketsIndex({ tickets, filters }: Props) {
                 sortKey: 'created_at',
                 cell: (row) => formatDateTime(row.created_at, company),
             },
+            {
+                key: 'actions',
+                header: 'Aksi',
+                cell: (row) => (
+                    <DataTableActions
+                        lifecycle={{
+                            row,
+                            name: row.code,
+                            noun: 'Tiket',
+                            routeBase: 'admin.tickets',
+                            can: { delete: can('ticket.delete') },
+                        }}
+                    />
+                ),
+            },
         ],
-        [company],
+        [company, can],
     );
 
     const hasFilters = Boolean(params.search || params.priority || params.status);
@@ -157,16 +181,12 @@ export default function TicketsIndex({ tickets, filters }: Props) {
                         onChange={(e) => set('priority', e.target.value)}
                         options={[{ value: '', label: 'Semua prioritas' }, ...optionsOf(PRIORITY)]}
                     />
-                    <NativeSelect
+                    <StatusFilter
                         id="tk-status"
-                        label="Status"
-                        wrapperClassName="w-full sm:w-48"
                         value={params.status ?? ''}
-                        onChange={(e) => set('status', e.target.value)}
-                        options={[
-                            { value: '', label: 'Semua status' },
-                            ...optionsOf(TICKET_STATUS),
-                        ]}
+                        onChange={(value) => set('status', value)}
+                        statuses={TICKET_STATUS}
+                        wrapperClassName="w-full sm:w-52"
                     />
                 </div>
 

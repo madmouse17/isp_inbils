@@ -7,6 +7,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 /**
  * Drops a switched-into company the user may no longer act in (membership revoked, company
@@ -17,6 +18,12 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class ResolveActiveCompany
 {
+    public const HEADER = 'X-Inbils-Company';
+
+    public const MOVED_MESSAGE = 'Perusahaan aktif berubah di tab lain.';
+
+    private const TOKEN_EXEMPT = ['logout', 'admin.company.switch'];
+
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
@@ -44,6 +51,15 @@ class ResolveActiveCompany
 
                 $request->session()->put(CompanyService::SESSION_KEY, $fallback);
                 CompanyService::forgetResolution();
+            }
+
+            // A write from a tab opened before another tab switched company would land in the new company: refuse it.
+            // No header (classic posts, tests, non-Inertia clients) passes.
+            $claimed = $request->header(self::HEADER);
+
+            if (is_string($claimed) && ! $request->isMethodSafe() && ! $request->routeIs(...self::TOKEN_EXEMPT)
+                && $claimed !== CompanyService::current()?->public_id) {
+                throw new ConflictHttpException(self::MOVED_MESSAGE);
             }
         }
 

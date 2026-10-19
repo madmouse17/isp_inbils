@@ -24,13 +24,16 @@ class CustomerTicketResource extends JsonResource
     /** @return array<string, mixed> */
     protected function summary(): array
     {
+        // A closed ticket keeps the names it closed with; the rest follow the live records.
+        $handler = $this->assignee_name_snapshot ?? $this->assignee?->name;
+
         return [
             'id' => $this->public_id,
             'code' => $this->code,
             'title' => $this->title,
             'status' => $this->status,
             'priority' => $this->priority,
-            'category' => $this->category ? ['id' => $this->category->public_id, 'name' => $this->category->name] : null,
+            'category' => $this->category ? ['id' => $this->category->public_id, 'name' => $this->category_name_snapshot ?? $this->category->name] : null,
             'subscription' => $this->subscription ? ['id' => $this->subscription->public_id, 'code' => $this->subscription->code] : null,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
@@ -39,7 +42,7 @@ class CustomerTicketResource extends JsonResource
             'response_deadline' => $this->response_deadline,
             'sla_deadline' => $this->sla_deadline,
             /** First name of the staff member handling the ticket; null while unassigned. The rest of the profile stays internal. */
-            'handler_first_name' => $this->assignee === null ? null : Str::of($this->assignee->name)->trim()->before(' ')->toString(),
+            'handler_first_name' => $handler === null ? null : Str::of($handler)->trim()->before(' ')->toString(),
         ];
     }
 }

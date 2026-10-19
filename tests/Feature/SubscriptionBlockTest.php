@@ -75,7 +75,8 @@ class SubscriptionBlockTest extends TestCase
         $this->assertSame('service_subscription', $audit->log_name);
         $this->assertSame($this->admin->id, $audit->causer_id);
         $this->assertSame('abuse report', $audit->properties['reason']);
-        $this->assertEqualsCanonicalizing(['code', 'company_id', 'reason'], $audit->properties->keys()->all());
+        $this->assertSame($this->company->id, (int) $audit->company_id, 'the company lives in its column, not in the properties');
+        $this->assertEqualsCanonicalizing(['code', 'reason'], $audit->properties->keys()->all());
 
         $this->unblock($subscription, 'resolved')->assertRedirect()->assertSessionHas('success');
 
@@ -87,7 +88,7 @@ class SubscriptionBlockTest extends TestCase
         $audit = Activity::query()->where('description', 'unblocked')->where('subject_id', $subscription->id)->sole();
         $this->assertSame($this->admin->id, $audit->causer_id);
         $this->assertSame('resolved', $audit->properties['note']);
-        $this->assertEqualsCanonicalizing(['code', 'company_id', 'note'], $audit->properties->keys()->all());
+        $this->assertEqualsCanonicalizing(['code', 'note'], $audit->properties->keys()->all());
     }
 
     public function test_block_works_on_pending_active_and_suspended_and_leaves_the_status_alone(): void

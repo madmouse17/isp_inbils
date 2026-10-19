@@ -38,7 +38,7 @@ class StoreSubscriptionRequest extends FormRequest
 
         return [
             'customer_id' => ['required', Rule::exists('customers', 'id')->where('company_id', $companyId)],
-            'service_package_id' => ['required', Rule::exists('service_packages', 'id')->where('company_id', $companyId)],
+            'service_package_id' => ['required', Rule::exists('service_packages', 'id')->where('company_id', $companyId)->where('is_active', true)->whereNull('deleted_at')],
             'installation_address_id' => ['required', 'integer', Rule::exists('customer_addresses', 'id')->where(fn ($query) => $query
                 ->where('company_id', $companyId)
                 ->where('customer_id', $this->input('customer_id'))
@@ -68,6 +68,7 @@ class StoreSubscriptionRequest extends FormRequest
     {
         return [
             'installation_address_id.exists' => 'Pilih salah satu alamat milik pelanggan ini.',
+            'service_package_id.exists' => 'Pilih paket layanan yang masih aktif.',
         ];
     }
 }

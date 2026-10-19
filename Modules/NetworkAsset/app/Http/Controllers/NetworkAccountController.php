@@ -5,6 +5,7 @@ namespace Modules\NetworkAsset\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\CompanyService;
+use App\Services\Core\IntegrationConfig;
 use App\Support\RecordNotFound;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\RedirectResponse;
@@ -44,9 +45,9 @@ class NetworkAccountController extends Controller
 
         $this->unsealSecretFlash($request);
 
-        $subscription->load(['customer:id,public_id,name,code', 'servicePackage.speedProfile', 'servingPop:id,public_id,name']);
+        $subscription->load(['customer:id,public_id,name,code', 'packageVersion.speedProfile', 'servingPop:id,public_id,name']);
         $account = NetworkAccount::query()->where('subscription_id', $subscription->id)->first();
-        $speedProfile = $subscription->servicePackage?->speedProfile;
+        $speedProfile = $subscription->packageVersion?->speedProfile;
         [$session, $usage] = $account === null ? [null, null] : $this->liveState($radius, $account);
 
         return Inertia::render('Admin/NetworkAccounts/Show', [
@@ -65,7 +66,7 @@ class NetworkAccountController extends Controller
             'usage' => $usage,
             'desiredState' => $provisioner->stateOf($subscription),
             'isolatedBecause' => $provisioner->isolatedBecause($subscription),
-            'radiusEnabled' => (bool) config('services.radius.enabled'),
+            'radiusEnabled' => app(IntegrationConfig::class)->isEnabled('radius'),
             'can' => [
                 'manage' => $request->user()?->can('network_asset.account.manage') ?? false,
                 'reveal' => $request->user()?->can('network_asset.account.reveal') ?? false,

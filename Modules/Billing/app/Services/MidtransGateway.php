@@ -2,8 +2,12 @@
 
 namespace Modules\Billing\Services;
 
+use App\Models\Core\Company;
+use App\Models\Core\CompanyIntegration;
+use App\Services\Core\IntegrationConfig;
 use Illuminate\Http\Client\HttpClientException;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -12,24 +16,21 @@ use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\PaymentAttempt;
 
 /**
- * The only code that talks to Midtrans (Snap token, Status API, cancel) or reads its server key.
+ * The only code that talks to Midtrans (Snap token, Status API, cancel) or reads a server key. Every company has its
+ * own merchant: the key, the mode and the notification URL come from the Midtrans row of the company in scope
+ * (`company_integrations`), so a caller without an ambient company names one with CompanyService::runAs().
  * The key is never logged, returned or put in an exception message.
  */
 class MidtransGateway
 {
     /**
-     * The gateway is off until a server key is configured, and a production host never runs on sandbox keys by
-     * accident: that would book test payments as real ones. The owner can opt in explicitly for a pilot.
+     * The company's gateway is off until its row is switched on and holds a server key, and a production host never runs
+     * on sandbox keys by accident: that would book test payments as real ones. The owner can opt in explicitly for a
+     * pilot (`allow_sandbox_in_production`, written by the import only).
      */
     public function isEnabled(): bool
     {
-        if (! filled(config('services.midtrans.server_key'))) {
-            return false;
-        }
-
-        return ! app()->isProduction()
-            || (bool) config('services.midtrans.is_production')
-            || (bool) config('services.midtrans.allow_sandbox_in_production');
+        return $this->usableRow() !== null;
     }
 
     /**
@@ -41,14 +42,15 @@ class MidtransGateway
      */
     public function createSnapTransaction(PaymentAttempt $attempt, Invoice $invoice, string $finishUrl): array
     {
+        $row = $this->enabledRow();
         $gross = $attempt->grossAmount();
         $customer = $invoice->customer;
-        $endpoint = $this->url('app', '/snap/v1/transactions');
-        $notificationUrl = (string) config('services.midtrans.notification_url');
+        $endpoint = $this->endpoint($row, 'app', '/snap/v1/transactions');
+        // The company's own webhook, so its notifications reach this install without editing the Midtrans dashboard.
+        $notificationUrl = route('webhooks.midtrans.company', Company::query()->whereKey($attempt->company_id)->value('public_id'));
 
         try {
-            $response = $this->client()
-                // Lets an install point notifications at its own webhook without editing the Midtrans dashboard.
+            $response = $this->request($row)
                 ->when(str_starts_with($notificationUrl, 'https://'), fn ($request) => $request->withHeaders(['X-Override-Notification' => $notificationUrl]))
                 ->post($endpoint, [
                     'transaction_details' => ['order_id' => $attempt->order_id, 'gross_amount' => $gross],
@@ -102,8 +104,10 @@ class MidtransGateway
      */
     public function transactionStatus(string $orderId): ?array
     {
+        $row = $this->enabledRow();
+
         try {
-            $response = $this->client()->get($this->url('api', '/v2/'.rawurlencode($orderId).'/status'));
+            $response = $this->request($row)->get($this->endpoint($row, 'api', '/v2/'.rawurlencode($orderId).'/status'));
         } catch (HttpClientException $e) {
             throw new MidtransGatewayException('Midtrans status request failed: '.class_basename($e), previous: $e);
         }
@@ -139,8 +143,10 @@ class MidtransGateway
      */
     public function cancelTransaction(PaymentAttempt $attempt): void
     {
+        $row = $this->enabledRow();
+
         try {
-            $response = $this->client()->post($this->url('api', '/v2/'.rawurlencode($attempt->order_id).'/cancel'));
+            $response = $this->request($row)->post($this->endpoint($row, 'api', '/v2/'.rawurlencode($attempt->order_id).'/cancel'));
         } catch (HttpClientException $e) {
             throw new MidtransGatewayException('Midtrans cancel request failed: '.class_basename($e), previous: $e);
         }
@@ -160,13 +166,14 @@ class MidtransGateway
 
     /**
      * SHA512(order_id + status_code + gross_amount + server key), compared in constant time. Works on
-     * both notifications and Status API responses.
+     * both notifications and Status API responses. The key is the one of the company in scope, switched on or not: what
+     * a notification is signed with does not depend on whether the company currently takes payments.
      *
      * @param  array<string, mixed>  $payload
      */
     public function isValidSignature(array $payload): bool
     {
-        $serverKey = (string) config('services.midtrans.server_key');
+        $serverKey = (string) app(IntegrationConfig::class)->current('midtrans')?->secret('server_key');
 
         // An empty key would let anyone compute a "valid" signature from public fields.
         if ($serverKey === '') {
@@ -182,25 +189,89 @@ class MidtransGateway
         return hash_equals(hash('sha512', $payload['order_id'].$payload['status_code'].$payload['gross_amount'].$serverKey), $payload['signature_key']);
     }
 
-    private function client(): PendingRequest
+    /**
+     * "Uji koneksi": ask Midtrans about an order that cannot exist. A key it accepts answers "not found", a key it refuses
+     * answers 401. Nothing is created and nothing is booked, and a row can be tested before it is switched on.
+     *
+     * @return string|null the Indonesian reason the check failed (never the key, never a response body), null when it passed
+     */
+    public function check(CompanyIntegration $integration): ?string
     {
-        if (! $this->isEnabled()) {
-            throw new MidtransGatewayException('Midtrans is not configured.');
+        if ($integration->secret('server_key') === null) {
+            return 'Server key Midtrans belum diisi.';
         }
 
+        try {
+            $response = $this->request($integration)->timeout(5)->connectTimeout(3)
+                ->get($this->endpoint($integration, 'api', '/v2/INB-PING-'.Str::ulid().'/status'));
+        } catch (HttpClientException) {
+            return 'Midtrans tidak dapat dihubungi dalam 5 detik.';
+        }
+
+        $status = $response->status();
+        $code = $response->json('status_code');
+        $code = is_scalar($code) ? (string) $code : null;
+
+        return match (true) {
+            $status === 401 || $code === '401' => 'Server key ditolak Midtrans. Periksa key dan mode: sandbox memakai awalan SB-Mid-server-, produksi Mid-server-.',
+            $status === 404 || ($status === 200 && $code === '404') => null,
+            $status >= 500 => "Midtrans sedang bermasalah (HTTP {$status}). Coba lagi nanti.",
+            default => "Jawaban Midtrans tidak terduga (HTTP {$status}).",
+        };
+    }
+
+    /**
+     * The company a Midtrans notification is for: the one named in the URL (`webhooks.midtrans.company`, subsidiaries
+     * included), else, on the legacy URL, the one that owns the order. Null when neither is known. Webhook routes have no
+     * route-model binding, so the parameter is the public id as sent.
+     */
+    public static function companyIdForNotification(Request $request): ?int
+    {
+        if ($request->route()?->hasParameter('company')) {
+            $publicId = $request->route('company');
+            $id = is_string($publicId) ? Company::query()->wherePublicId($publicId)->value('id') : null;
+        } else {
+            $orderId = $request->json('order_id');
+            $id = is_string($orderId) ? PaymentAttempt::withoutCompany()->where('order_id', $orderId)->value('company_id') : null;
+        }
+
+        return $id === null ? null : (int) $id;
+    }
+
+    /** The row of the company in scope, when it may take payments. */
+    private function usableRow(): ?CompanyIntegration
+    {
+        $row = app(IntegrationConfig::class)->current('midtrans');
+
+        if ($row?->is_enabled !== true || $row->secret('server_key') === null) {
+            return null;
+        }
+
+        return ! app()->isProduction() || (bool) $row->setting('is_production') || (bool) $row->setting('allow_sandbox_in_production')
+            ? $row
+            : null;
+    }
+
+    private function enabledRow(): CompanyIntegration
+    {
+        return $this->usableRow() ?? throw new MidtransGatewayException('Midtrans is not configured.');
+    }
+
+    private function request(CompanyIntegration $row): PendingRequest
+    {
         return Http::acceptJson()
             ->asJson()
-            ->withBasicAuth((string) config('services.midtrans.server_key'), '')
+            ->withBasicAuth((string) $row->secret('server_key'), '')
             ->timeout(10)
             ->connectTimeout(5);
     }
 
     /** `$host` is Midtrans' `app` (Snap) or `api` (Core API) subdomain. */
-    private function url(string $host, string $path): string
+    private function endpoint(CompanyIntegration $row, string $host, string $path): string
     {
-        $production = (bool) config('services.midtrans.is_production');
+        $production = (bool) $row->setting('is_production');
         // A local mock may stand in for Midtrans, but only where no real money can flow.
-        $override = ! $production && app()->environment(['local', 'testing', 'e2e']) ? config('services.midtrans.base_url') : null;
+        $override = ! $production && app()->environment(['local', 'testing', 'e2e']) ? $row->setting('base_url') : null;
 
         return rtrim($override ?: 'https://'.$host.($production ? '' : '.sandbox').'.midtrans.com', '/').$path;
     }

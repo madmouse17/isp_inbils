@@ -7,14 +7,18 @@ use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 use Modules\Ipam\Services\IpAssignmentService;
 use Modules\Ipam\Services\IpPrefixService;
 use Modules\NetworkAsset\Jobs\ApplyNetworkAccountJob;
+use Modules\NetworkAsset\Jobs\SyncCompanyNetworkJob;
 use Modules\NetworkAsset\Models\NasDevice;
 use Modules\NetworkAsset\Models\NetworkAccount;
+use Modules\NetworkAsset\Services\NetworkAccountProvisioner;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 use Tests\Traits\BuildsNetworkFixtures;
@@ -66,6 +70,14 @@ class NetworkSyncTest extends TestCase
     private function auditCount(string $log, string $event): int
     {
         return Activity::query()->where('log_name', $log)->where('description', $event)->count();
+    }
+
+    /** The subscription moves to a package (and its first version) whose speed profile has no RADIUS name, so it cannot be applied. */
+    private function moveToAPackageWithoutRadiusName(): void
+    {
+        $nameless = $this->packageWithRadiusProfile($this->company, null);
+
+        $this->subscription->forceFill(['service_package_id' => $nameless->id, 'service_package_version_id' => $nameless->versions()->value('id')])->saveQuietly();
     }
 
     public function test_an_unsynced_nas_is_written_as_a_radius_client_with_the_company_realm(): void
@@ -188,7 +200,7 @@ class NetworkSyncTest extends TestCase
     public function test_an_account_that_matches_radius_is_not_queued_again(): void
     {
         $this->applyAccount($this->account);
-        Queue::fake();
+        Queue::fake([ApplyNetworkAccountJob::class]);
 
         $this->sync();
 
@@ -201,7 +213,7 @@ class NetworkSyncTest extends TestCase
         $pool = IpPrefixService::create(['cidr' => '10.70.0.0/24', 'usage' => 'customer_static']);
         IpAssignmentService::assignToSubscription($this->subscription, $pool, '10.70.0.9');
         $this->applyAccount($this->account);
-        Queue::fake();
+        Queue::fake([ApplyNetworkAccountJob::class]);
 
         $this->sync();
         Queue::assertNotPushed(ApplyNetworkAccountJob::class);
@@ -215,7 +227,7 @@ class NetworkSyncTest extends TestCase
     {
         $this->applyAccount($this->account);
         $this->account->forceFill(['pending_disconnect_at' => now()])->save();
-        Queue::fake();
+        Queue::fake([ApplyNetworkAccountJob::class]);
 
         $this->sync();
 
@@ -224,9 +236,9 @@ class NetworkSyncTest extends TestCase
 
     public function test_a_failed_account_is_requeued_at_most_once_per_hour(): void
     {
-        $this->subscription->forceFill(['service_package_id' => $this->packageWithRadiusProfile($this->company, null)->id])->saveQuietly();
+        $this->moveToAPackageWithoutRadiusName();
         $this->account->forceFill(['sync_status' => 'failed', 'last_error' => 'earlier failure', 'last_attempt_at' => now()->subMinutes(30)])->save();
-        Queue::fake();
+        Queue::fake([ApplyNetworkAccountJob::class]);
 
         $this->sync();
         Queue::assertNotPushed(ApplyNetworkAccountJob::class);
@@ -239,9 +251,9 @@ class NetworkSyncTest extends TestCase
     public function test_an_account_that_cannot_be_applied_is_not_drift(): void
     {
         $this->applyAccount($this->account);
-        $this->subscription->forceFill(['service_package_id' => $this->packageWithRadiusProfile($this->company, null)->id])->saveQuietly();
+        $this->moveToAPackageWithoutRadiusName();
         $this->account->forceFill(['sync_status' => 'failed', 'last_attempt_at' => now()])->save();
-        Queue::fake();
+        Queue::fake([ApplyNetworkAccountJob::class]);
 
         $this->sync();
 
@@ -262,19 +274,19 @@ class NetworkSyncTest extends TestCase
     public function test_with_radius_down_pending_accounts_are_still_queued_and_the_command_does_not_fail(): void
     {
         Schema::connection('radius')->drop('radcheck');
-        Queue::fake();
+        Queue::fake([ApplyNetworkAccountJob::class]);
 
         $this->sync();
 
         Queue::assertPushed(ApplyNetworkAccountJob::class, 1);
     }
 
-    public function test_with_the_installation_switch_off_the_sync_does_nothing_at_all(): void
+    public function test_with_radius_not_configured_for_any_company_the_sync_does_nothing_at_all(): void
     {
-        config(['services.radius.enabled' => false]);
+        $this->disableRadius();
         Queue::fake();
 
-        $this->artisan('network:sync')->expectsOutputToContain('switched off')->assertSuccessful();
+        $this->artisan('network:sync')->expectsOutput('RADIUS is not configured for any company; nothing to sync.')->assertSuccessful();
 
         Queue::assertNothingPushed();
         $this->assertNull($this->nas->fresh()->radius_synced_at);
@@ -299,6 +311,71 @@ class NetworkSyncTest extends TestCase
         $this->assertNotNull($theirNas->fresh()->radius_synced_at);
         $this->assertSame('synced', $theirs->fresh()->sync_status);
         $this->assertNull($inactiveNas->fresh()->radius_synced_at);
+    }
+
+    public function test_the_command_queues_one_job_per_company_with_radius_and_does_no_radius_work_itself(): void
+    {
+        $other = Company::factory()->create(['is_active' => true]);
+        $theirNas = $this->nasClient($other);
+        $switchedOff = Company::factory()->create(['is_active' => true]);
+        $this->radiusIntegration($switchedOff, enabled: false);
+        Company::factory()->create(['is_active' => false]);
+        Queue::fake([SyncCompanyNetworkJob::class]);
+
+        $this->artisan('network:sync')->expectsOutput('Network sync queued for 2 companies.')->assertSuccessful();
+
+        Queue::assertPushed(SyncCompanyNetworkJob::class, 2);
+        foreach ([$this->company, $other] as $company) {
+            Queue::assertPushed(SyncCompanyNetworkJob::class, fn (SyncCompanyNetworkJob $job): bool => $job->companyId === (int) $company->id);
+        }
+        $this->assertSame([], $this->radiusRows('nas'), 'the command wrote nothing: the sweeps wait in the queue');
+        $this->assertNull($this->nas->fresh()->radius_synced_at);
+        $this->assertNull($theirNas->fresh()->radius_synced_at);
+        $this->assertSame([], array_values(array_filter(array_keys(DB::getConnections()), fn (string $name): bool => str_starts_with($name, 'radius_'))), 'and opened no link to any company\'s RADIUS');
+    }
+
+    public function test_the_company_option_queues_that_company_only(): void
+    {
+        $other = Company::factory()->create(['is_active' => true]);
+        Queue::fake([SyncCompanyNetworkJob::class]);
+
+        $this->artisan('network:sync', ['--company' => $other->id])->expectsOutput('Network sync queued for 1 company.')->assertSuccessful();
+
+        Queue::assertPushed(SyncCompanyNetworkJob::class, 1);
+        Queue::assertPushed(SyncCompanyNetworkJob::class, fn (SyncCompanyNetworkJob $job): bool => $job->companyId === (int) $other->id);
+    }
+
+    public function test_the_sweep_of_one_company_does_not_wait_for_the_sweep_of_another(): void
+    {
+        $other = Company::factory()->create(['is_active' => true]);
+        $theirNas = $this->nasClient($other);
+        Queue::fake([SyncCompanyNetworkJob::class]);
+        $this->artisan('network:sync')->assertSuccessful();
+
+        // The sweep of company A is still waiting for a worker, or hangs on its own RADIUS server in one: B's runs all the same.
+        Queue::pushed(SyncCompanyNetworkJob::class, fn (SyncCompanyNetworkJob $job): bool => $job->companyId === (int) $other->id)
+            ->sole()
+            ->handle(app(NetworkAccountProvisioner::class));
+
+        $this->assertNotNull($theirNas->fresh()->radius_synced_at);
+        $this->assertNull($this->nas->fresh()->radius_synced_at, 'the sweep of A did not run');
+    }
+
+    public function test_the_sweep_job_is_unique_per_company_and_ends_at_its_timeout_for_good(): void
+    {
+        Queue::fake([SyncCompanyNetworkJob::class]);
+
+        SyncCompanyNetworkJob::dispatch(7);
+        SyncCompanyNetworkJob::dispatch(7);
+        SyncCompanyNetworkJob::dispatch(8);
+
+        Queue::assertPushed(SyncCompanyNetworkJob::class, 2);
+        $job = new SyncCompanyNetworkJob(7);
+        $this->assertInstanceOf(ShouldBeUnique::class, $job);
+        $this->assertNotSame($job->uniqueId(), (new SyncCompanyNetworkJob(8))->uniqueId());
+        $this->assertSame(120, $job->timeout);
+        $this->assertTrue($job->failOnTimeout, 'a worker that kills the job fails it, it does not run it a second time');
+        $this->assertSame(1, $job->tries);
     }
 
     public function test_the_sync_is_scheduled_every_fifteen_minutes_without_overlapping(): void

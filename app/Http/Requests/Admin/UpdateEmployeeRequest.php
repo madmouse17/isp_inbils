@@ -8,6 +8,7 @@ use App\Models\Core\Vehicle;
 use App\Models\User;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
+use App\Support\OptimisticLock;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -28,7 +29,8 @@ class UpdateEmployeeRequest extends FormRequest
 
     public function rules(): array
     {
-        $profileId = $this->route('employee')?->id ?? $this->route('employee_profile')?->id;
+        $profile = $this->route('employee') ?? $this->route('employee_profile');
+        $profileId = $profile?->id;
         $companyId = CompanyService::currentId();
 
         return [
@@ -39,8 +41,8 @@ class UpdateEmployeeRequest extends FormRequest
                 Rule::exists('users', 'id')->where(StoreEmployeeRequest::usersOf($companyId)),
                 Rule::unique('employee_profiles', 'user_id')->ignore($profileId),
             ],
-            'organization_id' => ['nullable', Rule::exists('organization_units', 'id')->where('company_id', $companyId)],
-            'vehicle_id' => ['nullable', Rule::exists('vehicles', 'id')->where('company_id', $companyId)],
+            'organization_id' => ['nullable', Rule::exists('organization_units', 'id')->where(StoreEmployeeRequest::assignable($companyId, $profile?->organization_id))],
+            'vehicle_id' => ['nullable', Rule::exists('vehicles', 'id')->where(StoreEmployeeRequest::assignable($companyId, $profile?->vehicle_id))],
             'employee_number' => NumberSequenceService::allowsManual('employee')
                 ? ['required', 'string', 'max:50', Rule::unique('employee_profiles')->where('company_id', $companyId)->ignore($profileId)]
                 : ['exclude'],
@@ -50,6 +52,7 @@ class UpdateEmployeeRequest extends FormRequest
             'skills' => ['nullable', 'array'],
             'skills.*' => ['string', 'max:50'],
             'notes' => ['nullable', 'string'],
+            OptimisticLock::FIELD => OptimisticLock::rules(),
         ];
     }
 

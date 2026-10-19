@@ -4,20 +4,25 @@ namespace Modules\Service\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
+use App\Services\Core\LifecycleService;
 use App\Support\ExportQuery;
+use App\Support\OptimisticLock;
 use App\Support\PublicId;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Modules\Service\Http\Requests\StoreServicePackageRequest;
 use Modules\Service\Http\Requests\UpdateServicePackageRequest;
 use Modules\Service\Http\Resources\BandwidthProfileResource;
 use Modules\Service\Http\Resources\ServicePackageResource;
+use Modules\Service\Http\Resources\ServicePackageVersionResource;
 use Modules\Service\Http\Resources\SLATierResource;
 use Modules\Service\Http\Resources\SpeedProfileResource;
 use Modules\Service\Models\BandwidthProfile;
@@ -37,15 +42,17 @@ class ServicePackageController extends Controller
     {
         Gate::authorize('viewAny', ServicePackage::class);
 
-        $packages = $this->filteredQuery($request)->paginate($this->perPage($request))->withQueryString();
+        $packages = $this->filteredQuery($request)->withReferenceCounts()->paginate($this->perPage($request))->withQueryString();
 
         return Inertia::render('Admin/Service/Packages/Index', [
             'servicePackages' => ServicePackageResource::collection($packages),
             'slaTiers' => SLATierResource::collection(SLATier::query()->orderBy('name')->get()),
             'packageCategories' => $this->categoryOptions(ServicePackageCategory::query()),
-            'filters' => $request->only(['is_active', 'sla_tier_id', 'service_package_category_id', 'search', 'sort', 'direction', 'per_page']),
+            'filters' => $request->only(['status', 'sla_tier_id', 'service_package_category_id', 'search', 'sort', 'direction', 'per_page']),
             'can' => [
                 'create' => (bool) ($request->user()?->can('service.create') || $request->user()?->can('service.manage')),
+                'update' => (bool) ($request->user()?->can('service.update') || $request->user()?->can('service.manage')),
+                'delete' => (bool) ($request->user()?->can('service.delete') || $request->user()?->can('service.manage')),
                 'export' => (bool) $request->user()?->can('service.export'),
             ],
         ]);
@@ -61,7 +68,7 @@ class ServicePackageController extends Controller
     public function store(StoreServicePackageRequest $request): RedirectResponse
     {
         Gate::authorize('store', ServicePackage::class);
-        ServicePackage::query()->create($request->validated());
+        DB::transaction(fn () => ServicePackage::query()->create($request->validated()));
 
         return redirect()->route('admin.service-packages.index')->with('success', 'Paket layanan dibuat.');
     }
@@ -72,6 +79,9 @@ class ServicePackageController extends Controller
 
         return Inertia::render('Admin/Service/Packages/Show', [
             'servicePackage' => new ServicePackageResource($servicePackage->load(['bandwidthProfile', 'speedProfile', 'slaTier', 'category'])),
+            'versions' => ServicePackageVersionResource::collection(
+                $servicePackage->versions()->reorder('version', 'desc')->with(['bandwidthProfile', 'speedProfile', 'slaTier', 'category'])->withCount('subscriptions')->get(),
+            ),
         ]);
     }
 
@@ -88,7 +98,11 @@ class ServicePackageController extends Controller
     public function update(UpdateServicePackageRequest $request, ServicePackage $servicePackage): RedirectResponse
     {
         Gate::authorize('update', $servicePackage);
-        $servicePackage->update($request->validated());
+        DB::transaction(function () use ($request, $servicePackage): void {
+            $locked = ServicePackage::query()->lockForUpdate()->findOrFail($servicePackage->id);
+            OptimisticLock::assert($locked, $request->string(OptimisticLock::FIELD)->toString());
+            $locked->update($request->safe()->except(OptimisticLock::FIELD));
+        });
 
         return redirect()->route('admin.service-packages.index')->with('success', 'Paket layanan diperbarui.');
     }
@@ -96,22 +110,9 @@ class ServicePackageController extends Controller
     public function destroy(ServicePackage $servicePackage): RedirectResponse
     {
         Gate::authorize('delete', $servicePackage);
+        LifecycleService::destroyIfUnreferenced($servicePackage);
 
-        if ($this->hasActiveSubscriptions($servicePackage)) {
-            return back()->withErrors(['service_package' => 'Paket masih dipakai langganan menunggu atau aktif. Nonaktifkan saja.']);
-        }
-
-        $servicePackage->delete();
-
-        return back()->with('success', 'Paket layanan dihapus.');
-    }
-
-    public function deactivate(ServicePackage $pkg): RedirectResponse
-    {
-        Gate::authorize('update', $pkg);
-        $pkg->update(['is_active' => false]);
-
-        return back()->with('success', 'Paket layanan dinonaktifkan.');
+        return back()->with('success', 'Paket layanan dihapus permanen.');
     }
 
     public function export(Request $request): HttpResponse|StreamedResponse
@@ -160,13 +161,20 @@ class ServicePackageController extends Controller
     private function formOptions(?ServicePackage $package = null): array
     {
         return [
-            'bandwidthProfiles' => BandwidthProfileResource::collection(BandwidthProfile::query()->where('is_active', true)->orderBy('name')->get()),
-            'speedProfiles' => SpeedProfileResource::collection(SpeedProfile::query()->where('is_active', true)->orderBy('name')->get()),
-            'slaTiers' => SLATierResource::collection(SLATier::query()->where('is_active', true)->orderBy('name')->get()),
+            // A profile or tier that was deactivated stays selectable only for the package that already holds it.
+            'bandwidthProfiles' => BandwidthProfileResource::collection($this->activeOrHeld(BandwidthProfile::query(), $package?->bandwidth_profile_id)),
+            'speedProfiles' => SpeedProfileResource::collection($this->activeOrHeld(SpeedProfile::query(), $package?->speed_profile_id)),
+            'slaTiers' => SLATierResource::collection($this->activeOrHeld(SLATier::query(), $package?->sla_tier_id)),
             // An inactive category stays selectable only for the package that already has it.
             'packageCategories' => $this->categoryOptions(ServicePackageCategory::query()
                 ->where(fn (Builder $query) => $query->where('is_active', true)->orWhere('id', $package?->service_package_category_id))),
         ];
+    }
+
+    /** @return Collection<int, Model> */
+    private function activeOrHeld(Builder $query, ?int $heldId): Collection
+    {
+        return $query->where(fn (Builder $active) => $active->where('is_active', true)->orWhere('id', $heldId))->orderBy('name')->get();
     }
 
     /**
@@ -189,7 +197,7 @@ class ServicePackageController extends Controller
     {
         return ServicePackage::query()
             ->with(['bandwidthProfile', 'speedProfile', 'slaTier', 'category'])
-            ->when($request->filled('is_active'), fn (Builder $query) => $query->where('is_active', $request->boolean('is_active')))
+            ->lifecycleStatus($request->input('status'))
             ->when($request->filled('sla_tier_id'), fn (Builder $query) => $query->where('sla_tier_id', PublicId::resolveOne(SLATier::class, $request->input('sla_tier_id')) ?? 0))
             ->when($request->filled('service_package_category_id'), fn (Builder $query) => $query->where('service_package_category_id', PublicId::resolveOne(ServicePackageCategory::class, $request->input('service_package_category_id')) ?? 0))
             ->when(trim((string) $request->input('search')) !== '', function (Builder $query) use ($request): void {
@@ -199,14 +207,5 @@ class ServicePackageController extends Controller
                 });
             })
             ->tap(fn (Builder $query) => $this->applySort($query, $request, 'name'));
-    }
-
-    private function hasActiveSubscriptions(ServicePackage $servicePackage): bool
-    {
-        if (! Schema::hasTable('service_subscriptions')) {
-            return false;
-        }
-
-        return $servicePackage->subscriptions()->whereIn('status', ['active', 'pending'])->exists();
     }
 }

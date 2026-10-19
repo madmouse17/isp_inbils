@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Models\Core\Customer;
 use App\Services\WhatsApp\PhoneNumber;
+use App\Support\OptimisticLock;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -27,12 +28,14 @@ class CustomerResource extends JsonResource
             'notes' => $this->notes,
             'is_active' => $this->is_active,
             'customer_status' => $this->customer_status,
+            ...$this->lifecycleAttributes(),
             'addresses_count' => $this->whenCounted('addresses'),
             'subscriptions_count' => $this->whenCounted('subscriptions'),
             'addresses' => CustomerAddressResource::collection($this->whenLoaded('addresses')),
             'contacts' => CustomerContactResource::collection($this->whenLoaded('contacts')),
             'subscriptions' => SubscriptionResource::collection($this->whenLoaded('subscriptions')),
             'created_at' => $this->created_at,
+            'updated_at' => OptimisticLock::version($this->resource),
             // Consent and reachability only; the number itself is already the `phone` above.
             'whatsapp' => [
                 'opted_in' => $this->hasWhatsAppConsent(),

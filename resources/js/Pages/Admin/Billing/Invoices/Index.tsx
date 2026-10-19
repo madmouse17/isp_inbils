@@ -5,7 +5,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite/PageHeader';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
 import { DataTableActions } from '@/Components/composite/DataTableActions';
-import { NativeSelect } from '@/Components/composite/NativeSelect';
+import { StatusFilter } from '@/Components/composite/StatusFilter';
 import { RemoteSearchSelect, type RemoteOption } from '@/Components/composite/RemoteSearchSelect';
 import { Button } from '@/Components/ui/Button';
 import { DateRangePicker, EmptyCell, EnumBadge, ExportMenu, Input } from '@/Components/ui';
@@ -15,7 +15,7 @@ import { useCompany } from '@/hooks/useCompany';
 import { useTableQuery } from '@/hooks/useTableQuery';
 import { formatDate, formatRupiah } from '@/lib/format';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
-import { INVOICE_STATUS, optionsOf } from '@/lib/statuses';
+import { INVOICE_STATUS, LIFECYCLE_STATE } from '@/lib/statuses';
 
 type InvoiceRow = {
     id: string;
@@ -27,6 +27,7 @@ type InvoiceRow = {
     paid_amount: string | number;
     sisa: string | number;
     customer?: { id: string; name: string; code: string } | null;
+    deleted_at?: string | null;
 };
 
 type Props = {
@@ -44,8 +45,6 @@ type Props = {
     customerOptions?: RemoteOption[];
     selectedCustomer: RemoteOption | null;
 };
-
-const STATUS_OPTIONS = [{ value: '', label: 'Semua status' }, ...optionsOf(INVOICE_STATUS)];
 
 export default function InvoicesIndex({
     invoices,
@@ -82,14 +81,17 @@ export default function InvoicesIndex({
                 header: 'Nomor tagihan',
                 sortable: true,
                 sortKey: 'number',
-                cell: (row) => (
-                    <Link
-                        href={route('admin.invoices.show', row.id)}
-                        className="font-medium text-primary-text hover:underline"
-                    >
-                        {row.number}
-                    </Link>
-                ),
+                cell: (row) =>
+                    row.deleted_at ? (
+                        <span className="font-medium text-muted-foreground">{row.number}</span>
+                    ) : (
+                        <Link
+                            href={route('admin.invoices.show', row.id)}
+                            className="font-medium text-primary-text hover:underline"
+                        >
+                            {row.number}
+                        </Link>
+                    ),
             },
             {
                 key: 'customer',
@@ -109,7 +111,12 @@ export default function InvoicesIndex({
                 header: 'Status',
                 sortable: true,
                 sortKey: 'status',
-                cell: (row) => <EnumBadge map={INVOICE_STATUS} value={row.status} />,
+                cell: (row) =>
+                    row.deleted_at ? (
+                        <EnumBadge map={LIFECYCLE_STATE} value="dihapus" />
+                    ) : (
+                        <EnumBadge map={INVOICE_STATUS} value={row.status} />
+                    ),
             },
             {
                 key: 'issue_date',
@@ -142,10 +149,21 @@ export default function InvoicesIndex({
             {
                 key: 'actions',
                 header: 'Aksi',
-                cell: (row) => <DataTableActions showHref={route('admin.invoices.show', row.id)} />,
+                cell: (row) => (
+                    <DataTableActions
+                        showHref={route('admin.invoices.show', row.id)}
+                        lifecycle={{
+                            row,
+                            name: row.number,
+                            noun: 'Tagihan',
+                            routeBase: 'admin.invoices',
+                            can: { delete: can('billing.delete') },
+                        }}
+                    />
+                ),
             },
         ],
-        [company],
+        [company, can],
     );
 
     return (
@@ -194,13 +212,12 @@ export default function InvoicesIndex({
                             placeholder="Nomor tagihan atau pelanggan"
                         />
                     </div>
-                    <NativeSelect
+                    <StatusFilter
                         id="inv-status"
-                        label="Status"
                         value={params.status ?? ''}
-                        onChange={(e) => set('status', e.target.value)}
-                        options={STATUS_OPTIONS}
-                        wrapperClassName="md:w-44"
+                        onChange={(value) => set('status', value)}
+                        statuses={INVOICE_STATUS}
+                        wrapperClassName="md:w-52"
                     />
                     <div className="w-full md:w-64">
                         <RemoteSearchSelect

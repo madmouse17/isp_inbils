@@ -17,6 +17,7 @@ export * from './odn';
 export * from './ipam';
 export * from './location';
 export * from './whatsapp';
+export * from './integration';
 export * from './audit';
 export * from './announcement';
 export * from './platform';

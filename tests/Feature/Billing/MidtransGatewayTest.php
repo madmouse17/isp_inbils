@@ -6,6 +6,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\URL;
 use Modules\Billing\Database\Factories\InvoiceFactory;
 use Modules\Billing\Database\Factories\PaymentAttemptFactory;
 use Modules\Billing\Exceptions\MidtransGatewayException;
@@ -48,10 +49,21 @@ class MidtransGatewayTest extends TestCase
         return ['token' => '66e4fa55-fdac-4ef9-91b5-733b97d1b862', 'redirect_url' => 'https://app.sandbox.midtrans.com/snap/v3/redirection/66e4fa55-fdac-4ef9-91b5-733b97d1b862'];
     }
 
-    public function test_gateway_is_disabled_without_a_server_key_and_cannot_send_anything(): void
+    /** @return array<string, array{string}> */
+    public static function gatewaysThatAreOff(): array
+    {
+        return ['no row' => ['none'], 'a row switched off' => ['off'], 'an enabled row without a key' => ['keyless']];
+    }
+
+    #[DataProvider('gatewaysThatAreOff')]
+    public function test_gateway_is_disabled_without_a_usable_row_and_cannot_send_anything(string $case): void
     {
         $attempt = $this->attempt();
-        $this->disableMidtrans();
+        match ($case) {
+            'off' => $this->midtransIntegration($attempt->company, enabled: false),
+            'keyless' => $this->midtransIntegration($attempt->company, ''),
+            default => null,
+        };
         Http::fake();
 
         $this->assertFalse($this->gateway->isEnabled());
@@ -97,23 +109,32 @@ class MidtransGatewayTest extends TestCase
         });
     }
 
-    public function test_an_https_notification_url_overrides_the_dashboard_for_each_order(): void
+    public function test_an_https_install_sends_the_company_webhook_as_the_notification_url_for_each_order(): void
     {
         $attempt = $this->attempt();
         $this->enableMidtrans();
+        URL::forceRootUrl('https://billing.example.com');
+        URL::forceScheme('https');
         Http::fake([self::SNAP_URL => Http::response($this->snapReply(), 201)]);
 
-        config(['services.midtrans.notification_url' => 'https://billing.example.com/webhooks/midtrans']);
         $this->gateway->createSnapTransaction($attempt, $attempt->invoice, self::FINISH_URL);
-        Http::assertSent(fn (Request $request): bool => $request->header('X-Override-Notification') === ['https://billing.example.com/webhooks/midtrans']);
 
-        // A plain-http or empty value is never sent: Midtrans would post the notification unencrypted.
-        foreach (['http://billing.example.com/webhooks/midtrans', ''] as $unsafe) {
-            Http::fake([self::SNAP_URL => Http::response($this->snapReply(), 201)]);
-            config(['services.midtrans.notification_url' => $unsafe]);
-            $this->gateway->createSnapTransaction($attempt, $attempt->invoice, self::FINISH_URL);
-            Http::assertNotSent(fn (Request $request): bool => $request->hasHeader('X-Override-Notification'));
-        }
+        Http::assertSent(fn (Request $request): bool => $request->header('X-Override-Notification') === ['https://billing.example.com/webhooks/midtrans/'.$attempt->company->public_id]);
+    }
+
+    public function test_a_plain_http_install_sends_no_notification_url(): void
+    {
+        $attempt = $this->attempt();
+        $this->enableMidtrans();
+        // Midtrans would post the notification unencrypted: the dashboard setting applies instead.
+        URL::forceRootUrl('http://billing.example.com');
+        URL::forceScheme('http');
+        Http::fake([self::SNAP_URL => Http::response($this->snapReply(), 201)]);
+
+        $this->gateway->createSnapTransaction($attempt, $attempt->invoice, self::FINISH_URL);
+
+        Http::assertSentCount(1);
+        Http::assertNotSent(fn (Request $request): bool => $request->hasHeader('X-Override-Notification'));
     }
 
     public function test_a_redirect_url_on_another_host_is_refused(): void
@@ -157,7 +178,7 @@ class MidtransGatewayTest extends TestCase
     {
         $attempt = $this->attempt();
         $this->enableMidtrans();
-        config(['services.midtrans.is_production' => true, 'services.midtrans.base_url' => 'http://evil.test']);
+        $this->midtransSettings(['is_production' => true, 'base_url' => 'http://evil.test']);
         Http::fake(['app.midtrans.com/*' => Http::response(['token' => 't', 'redirect_url' => 'https://app.midtrans.com/snap/v4/redirection/t'], 201)]);
 
         $this->gateway->createSnapTransaction($attempt, $attempt->invoice, self::FINISH_URL);
@@ -181,10 +202,10 @@ class MidtransGatewayTest extends TestCase
         }
         Http::assertNothingSent();
 
-        config(['services.midtrans.allow_sandbox_in_production' => true]);
+        $this->midtransSettings(['allow_sandbox_in_production' => true]);
         $this->assertTrue($this->gateway->isEnabled(), 'the explicit opt-in turns the sandbox pilot on');
 
-        config(['services.midtrans.allow_sandbox_in_production' => false, 'services.midtrans.is_production' => true]);
+        $this->midtransSettings(['allow_sandbox_in_production' => false, 'is_production' => true]);
         $this->assertTrue($this->gateway->isEnabled(), 'production keys on a production host');
     }
 
@@ -205,7 +226,7 @@ class MidtransGatewayTest extends TestCase
     {
         $attempt = $this->attempt();
         $this->enableMidtrans();
-        config(['services.midtrans.base_url' => 'http://127.0.0.1:18911', 'services.midtrans.allow_sandbox_in_production' => true]);
+        $this->midtransSettings(['base_url' => 'http://127.0.0.1:18911', 'allow_sandbox_in_production' => true]);
         $this->app['env'] = $environment;
         $host = parse_url($expectedUrl, PHP_URL_HOST);
         Http::fake(['*' => Http::response(['token' => 't', 'redirect_url' => "https://{$host}/snap/v4/redirection/t"], 201)]);
@@ -219,7 +240,7 @@ class MidtransGatewayTest extends TestCase
     {
         $this->actingAs($this->createCompanyUser());
         $this->enableMidtrans();
-        config(['services.midtrans.base_url' => 'http://127.0.0.1:18911/']);
+        $this->midtransSettings(['base_url' => 'http://127.0.0.1:18911/']);
         Http::fake(['127.0.0.1:18911/*' => Http::response(['status_code' => '404', 'status_message' => 'Transaction doesn\'t exist.'], 404)]);
 
         $this->assertNull($this->gateway->transactionStatus('ORDER-101'));
@@ -229,6 +250,7 @@ class MidtransGatewayTest extends TestCase
 
     public function test_signature_matches_an_independently_computed_sha512(): void
     {
+        $this->createCompanyUser();
         $this->enableMidtrans();
 
         // sha512("ORDER-101" . "200" . "10000.00" . fake key), computed with `sha512sum`, not with the code under test.
@@ -244,6 +266,7 @@ class MidtransGatewayTest extends TestCase
 
     public function test_signature_rejects_any_altered_field(): void
     {
+        $this->createCompanyUser();
         $this->enableMidtrans();
         $valid = $this->signMidtransPayload(['order_id' => 'ORDER-101', 'status_code' => '200', 'gross_amount' => '10000.00']);
 
@@ -257,6 +280,7 @@ class MidtransGatewayTest extends TestCase
 
     public function test_signature_rejects_missing_or_non_string_fields(): void
     {
+        $this->createCompanyUser();
         $this->enableMidtrans();
         $valid = $this->signMidtransPayload(['order_id' => 'ORDER-101', 'status_code' => '200', 'gross_amount' => '10000.00']);
 
@@ -270,12 +294,27 @@ class MidtransGatewayTest extends TestCase
         $this->assertFalse($this->gateway->isValidSignature([...$valid, 'order_id' => ['ORDER-101']]));
     }
 
-    public function test_signature_is_never_valid_while_the_gateway_has_no_key(): void
+    public function test_signature_is_never_valid_while_the_company_has_no_key(): void
     {
+        $company = $this->createCompanyUser()->company;
         $forged = $this->signMidtransPayload(['order_id' => 'ORDER-101', 'status_code' => '200', 'gross_amount' => '10000.00'], '');
+
+        $this->assertFalse($this->gateway->isValidSignature($forged), 'no row');
+
+        $this->midtransIntegration($company, '');
+
+        $this->assertFalse($this->gateway->isValidSignature($forged), 'a row without a key');
+    }
+
+    public function test_a_switched_off_row_still_verifies_signatures_with_its_key(): void
+    {
+        $this->createCompanyUser();
+        $this->enableMidtrans();
+        $valid = $this->signMidtransPayload(['order_id' => 'ORDER-101', 'status_code' => '200', 'gross_amount' => '10000.00']);
         $this->disableMidtrans();
 
-        $this->assertFalse($this->gateway->isValidSignature($forged));
+        $this->assertFalse($this->gateway->isEnabled());
+        $this->assertTrue($this->gateway->isValidSignature($valid), 'what a notification is signed with does not depend on the switch');
     }
 
     public function test_status_lookup_returns_the_signed_midtrans_record(): void
@@ -301,6 +340,7 @@ class MidtransGatewayTest extends TestCase
     #[DataProvider('notFoundShapes')]
     public function test_status_lookup_treats_both_not_found_shapes_as_no_transaction(int $httpStatus): void
     {
+        $this->createCompanyUser();
         $this->enableMidtrans();
         $notFound = ['status_code' => '404', 'status_message' => 'The requested resource is not found', 'id' => '788e20d7-8fe7-4068-98a8-9bc4139bcd87'];
         Http::fake(['api.sandbox.midtrans.com/*' => Http::response($notFound, $httpStatus)]);
@@ -310,6 +350,7 @@ class MidtransGatewayTest extends TestCase
 
     public function test_status_lookup_raises_on_a_server_error(): void
     {
+        $this->createCompanyUser();
         $this->enableMidtrans();
         Http::fake(['api.sandbox.midtrans.com/*' => Http::response(['status_message' => 'oops'], 500)]);
 

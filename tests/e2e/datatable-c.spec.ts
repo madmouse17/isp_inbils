@@ -257,7 +257,7 @@ const cases: TableCase[] = [
             await expect
                 .poll(() => new URL(page.url()).searchParams.get('category_id'))
                 .toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/i);
-            await selectFilter(page, 'Status', 'Aktif', 'is_active', 'Filter');
+            await selectFilter(page, 'Status', 'Aktif', 'status');
         },
     },
     {

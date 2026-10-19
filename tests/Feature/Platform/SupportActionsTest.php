@@ -203,7 +203,7 @@ class SupportActionsTest extends TestCase
         $support = Activity::query()->where('log_name', 'support')->where('description', 'user.two_factor_reset')->sole();
         $this->assertSame([User::class, $user->id], [$support->subject_type, (int) $support->subject_id]);
         $this->assertSame($this->alpha['root']->id, (int) $support->company_id);
-        $this->assertSame(['user_id' => $user->id, 'company_id' => $this->alpha['root']->id], $support->properties->all(), 'ids only');
+        $this->assertSame(['user_id' => $user->id], $support->properties->all(), 'ids only: the company lives in its column');
         $this->assertStringNotContainsString($this->operator->email, json_encode($support->properties));
     }
 
@@ -270,7 +270,7 @@ class SupportActionsTest extends TestCase
 
         $support = Activity::query()->where('log_name', 'support')->where('description', 'user.invitation_resent')->sole();
         $this->assertSame($this->alpha['root']->id, (int) $support->company_id);
-        $this->assertSame(['user_id' => $invitee->id, 'company_id' => $this->alpha['root']->id], $support->properties->all());
+        $this->assertSame(['user_id' => $invitee->id], $support->properties->all());
     }
 
     public function test_only_an_active_admin_who_never_signed_in_is_invited(): void
@@ -340,7 +340,9 @@ class SupportActionsTest extends TestCase
 
         $platform = Activity::query()->where('log_name', 'platform')->where('description', 'user.login_unlocked')->sole();
         $this->assertSame([$this->operator::class, $this->operator->id], [$platform->causer_type, (int) $platform->causer_id]);
-        $this->assertSame(['user_id' => $user->id, 'company_id' => $this->alpha['root']->id], Activity::query()->where('log_name', 'support')->where('description', 'user.login_unlocked')->sole()->properties->all());
+        $support = Activity::query()->where('log_name', 'support')->where('description', 'user.login_unlocked')->sole();
+        $this->assertSame($this->alpha['root']->id, (int) $support->company_id);
+        $this->assertSame(['user_id' => $user->id], $support->properties->all());
     }
 
     public function test_after_an_unlock_the_real_login_challenge_accepts_the_users_code_again(): void

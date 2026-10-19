@@ -37,8 +37,19 @@ class NetworkAssetPolicy
         return $this->update($user, $asset);
     }
 
+    /** The device panel: apply a model, label and link ports, mount in a rack. */
+    public function updatePanel(User $user, NetworkAsset $asset): bool
+    {
+        return $user->can('network_asset.update');
+    }
+
     public function delete(User $user, NetworkAsset $asset): bool
     {
         return $user->can('network_asset.delete');
+    }
+
+    public function restore(User $user, NetworkAsset $asset): bool
+    {
+        return $this->delete($user, $asset);
     }
 }

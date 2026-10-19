@@ -198,7 +198,7 @@ class DemoDataSeederTest extends TestCase
 
     private function assertNasAndAccountsAreInertAndExist(): void
     {
-        $this->assertFalse((bool) config('services.radius.enabled'), 'The RADIUS switch must stay off for the demo.');
+        $this->assertSame(0, $this->forCompany('company_integrations')->where('provider', 'radius')->count(), 'The demo company must have no RADIUS integration.');
         $this->assertSame(0, $this->forCompany('nas_devices')->whereNotNull('radius_synced_at')->count(), 'A demo NAS reached RADIUS.');
         $this->assertSame(0, $this->forCompany('nas_devices')->whereNull('nasname')->count(), 'A demo NAS has no RADIUS address.');
         $this->assertSame($this->forCompany('network_accounts')->count(), $this->forCompany('network_accounts')->where('sync_status', 'pending')->count(), 'Nothing may have reached RADIUS.');

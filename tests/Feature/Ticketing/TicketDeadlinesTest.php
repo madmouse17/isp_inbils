@@ -120,7 +120,7 @@ class TicketDeadlinesTest extends TestCase
         $this->assertSame('2026-03-02 11:00:00', $deadlines['response']->toDateTimeString());
     }
 
-    public function test_an_inactive_tier_falls_back_to_the_category(): void
+    public function test_a_deactivated_tier_still_sets_the_targets_of_the_subscriptions_sold_under_it(): void
     {
         $user = $this->createCompanyUser();
         $this->actingAs($user);
@@ -131,8 +131,8 @@ class TicketDeadlinesTest extends TestCase
             new Ticket(['category_id' => $category->id, 'subscription_id' => $subscription->id, 'priority' => 'medium'])
         );
 
-        $this->assertSame('2026-03-02 17:00:00', $deadlines['resolution']->toDateTimeString());
-        $this->assertSame('2026-03-02 12:00:00', $deadlines['response']->toDateTimeString());
+        $this->assertSame('2026-03-02 15:00:00', $deadlines['resolution']->toDateTimeString());
+        $this->assertSame('2026-03-02 11:00:00', $deadlines['response']->toDateTimeString());
     }
 
     public function test_the_subscription_of_another_company_never_lends_its_tier(): void
@@ -163,7 +163,8 @@ class TicketDeadlinesTest extends TestCase
             'resolution_time_hours' => 2,
         ]));
         $subscription = $this->subscriptionOnTier($user->company_id, responseHours: 5, resolutionHours: 10);
-        $subscription->servicePackage->update(['sla_tier_id' => $foreignTier->id]);
+        // A version is immutable through the model, so the foreign tier is planted on the row the subscription holds.
+        DB::table('service_package_versions')->where('id', $subscription->service_package_version_id)->update(['sla_tier_id' => $foreignTier->id]);
 
         $deadlines = TicketService::computeDeadlines(
             new Ticket(['category_id' => $category->id, 'subscription_id' => $subscription->id, 'priority' => 'medium'])
@@ -186,7 +187,7 @@ class TicketDeadlinesTest extends TestCase
             TicketService::deadlineSource(new Ticket(['category_id' => $category->id, 'subscription_id' => $gold->id])),
         );
         $this->assertSame(
-            ['type' => 'category', 'name' => 'Gangguan'],
+            ['type' => 'tier', 'name' => 'Lama'],
             TicketService::deadlineSource(new Ticket(['category_id' => $category->id, 'subscription_id' => $retired->id])),
         );
         $this->assertSame(

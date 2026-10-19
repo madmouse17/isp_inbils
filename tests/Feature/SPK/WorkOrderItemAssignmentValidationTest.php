@@ -113,7 +113,7 @@ class WorkOrderItemAssignmentValidationTest extends TestCase
             ->postJson(route('admin.spk.items.store', $workOrder), [
                 'product_id' => $product->public_id,
                 'network_asset_id' => $wrongAsset->public_id,
-                'quantity_reserved' => 1,
+                'quantity_used' => 1,
             ])
             ->assertStatus(422)
             ->assertJsonValidationErrors('network_asset_id');
@@ -130,7 +130,7 @@ class WorkOrderItemAssignmentValidationTest extends TestCase
         $this->actingAs($admin);
 
         try {
-            SpkService::addItem($workOrder, ['product_id' => $foreignProduct->id, 'quantity_reserved' => 1]);
+            SpkService::addItem($workOrder, ['product_id' => $foreignProduct->id, 'quantity_used' => 1]);
             $this->fail('Foreign product must be rejected by SPK service.');
         } catch (ModelNotFoundException|HttpException $e) {
             if ($e instanceof HttpException) {
@@ -160,7 +160,7 @@ class WorkOrderItemAssignmentValidationTest extends TestCase
             SpkService::addItem($workOrder, [
                 'product_id' => $product->id,
                 'network_asset_id' => $wrongAsset->id,
-                'quantity_reserved' => 1,
+                'quantity_used' => 1,
             ]);
             $this->fail('Mismatched network asset must be rejected by SPK service.');
         } catch (ModelNotFoundException|HttpException $e) {

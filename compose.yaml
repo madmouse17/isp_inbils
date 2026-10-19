@@ -1,5 +1,13 @@
 name: inbils
 
+# Docker's json-file driver keeps every line until the disk is full. Ten files of 10 MB bound what one container can
+# take; the app's own files (LOG_STACK in .env.docker) rotate on their own.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 x-app: &app
   image: inbils-app:local
   build:
@@ -12,6 +20,7 @@ x-app: &app
       required: true
     - path: .env.docker
       required: false
+  logging: *logging
   restart: unless-stopped
   depends_on:
     mysql:
@@ -80,6 +89,7 @@ services:
   mysql:
     image: mysql:8.4
     container_name: inbils-mysql
+    logging: *logging
     restart: unless-stopped
     environment:
       MYSQL_DATABASE: ${DOCKER_DB_DATABASE:-inbils}
@@ -104,6 +114,7 @@ services:
     image: redis:7.4-alpine
     container_name: inbils-redis
     restart: unless-stopped
+    logging: *logging
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_data:/data

@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
+use App\Support\OptimisticLock;
 use App\Support\RecordNotFound;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
@@ -69,7 +70,45 @@ class TicketService
     }
 
     /**
-     * When the ticket must get its first response and its resolution, counted in calendar hours from now.
+     * Saves the fields of the edit form on an open ticket. The status and the version are read from the row under its lock,
+     * so a request that waited for an assignment, or a form rendered before another save, changes nothing.
+     * A new priority moves both deadlines the way creation sets them.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public static function update(Ticket $ticket, array $data, string $expectedUpdatedAt): Ticket
+    {
+        return DB::transaction(function () use ($ticket, $data, $expectedUpdatedAt): Ticket {
+            $ticket = self::lockedTicket($ticket->id);
+            self::assertCompany($ticket);
+            abort_if($ticket->status !== 'open', 422, 'Tiket hanya bisa diubah saat berstatus terbuka.');
+            OptimisticLock::assert($ticket, $expectedUpdatedAt);
+
+            $ticket->fill($data);
+            if ($ticket->isDirty('priority')) {
+                $deadlines = self::computeDeadlines($ticket);
+                $ticket->fill(['sla_deadline' => $deadlines['resolution'], 'response_deadline' => $deadlines['response']]);
+            }
+            $ticket->save();
+
+            return $ticket;
+        });
+    }
+
+    public static function destroy(Ticket $ticket): void
+    {
+        DB::transaction(function () use ($ticket): void {
+            $ticket = self::lockedTicket($ticket->id);
+            self::assertCompany($ticket);
+            abort_if($ticket->status !== 'closed', 422, 'Tiket hanya bisa dihapus saat berstatus ditutup.');
+
+            $ticket->delete();
+        });
+    }
+
+    /**
+     * When the ticket must get its first response and its resolution, counted in calendar hours from its creation
+     * (from now while it is not saved yet).
      * Priority urgent halves both targets, rounded up.
      *
      * @return array{response: ?CarbonImmutable, resolution: CarbonImmutable}
@@ -78,7 +117,7 @@ class TicketService
     {
         $target = self::slaTarget($ticket);
         $urgent = ($ticket->priority ?? $ticket->category->default_priority) === 'urgent';
-        $from = now()->toImmutable();
+        $from = ($ticket->created_at ?? now())->toImmutable();
         $within = static fn (int $hours): CarbonImmutable => $from->addHours($urgent ? (int) ceil($hours / 2) : $hours);
 
         return [
@@ -100,17 +139,19 @@ class TicketService
     }
 
     /**
-     * The targets a ticket is held to: those of the active SLA tier of its subscription's package, else those of its
-     * category. Tiers and subscriptions of another company never load, so they never lend their targets.
+     * The targets a ticket is held to: those of the SLA tier of the package version its subscription was sold under,
+     * else those of its category. The version keeps its tier after the package moves on and after the tier is
+     * deactivated, since deactivating only stops new sales. Tiers and subscriptions of another company never load,
+     * so they never lend their targets.
      *
      * @return array{type: 'tier'|'category', name: string, response_hours: ?int, resolution_hours: int}
      */
     private static function slaTarget(Ticket $ticket): array
     {
-        $ticket->loadMissing(['category', 'subscription.servicePackage.slaTier']);
-        $tier = $ticket->subscription?->servicePackage?->slaTier;
+        $ticket->loadMissing(['category', 'subscription.packageVersion.slaTier']);
+        $tier = $ticket->subscription?->packageVersion?->slaTier;
 
-        if ($tier?->is_active) {
+        if ($tier !== null) {
             return ['type' => 'tier', 'name' => $tier->name, 'response_hours' => $tier->response_time_hours, 'resolution_hours' => $tier->resolution_time_hours];
         }
 
@@ -299,6 +340,7 @@ class TicketService
             }
 
             $media = $ticket->addMedia($data['file'])->withCustomProperties($properties)->toMediaCollection('attachments');
+            DB::afterRollBack(fn () => $media->delete());
 
             AuditService::log('ticket', 'attachment_uploaded', ['media_id' => $media->id, 'uploaded_by' => $actor->id], $ticket);
 
@@ -359,7 +401,14 @@ class TicketService
             self::assertCloser($ticket);
             self::throwStatusConflictIfChanged($ticket, $expectedStatus, 'resolved', 'Konflik: status tiket sudah diubah oleh pengguna lain.');
             abort_if($ticket->status !== 'resolved', 422, 'Tiket harus berstatus diselesaikan untuk bisa ditutup.');
-            $ticket->update(['status' => 'closed', 'closed_at' => now()]);
+            // Read under the lock, with the status: a rename after this moment never reaches the closed ticket.
+            $ticket->loadMissing(['category', 'assignee']);
+            $ticket->update([
+                'status' => 'closed',
+                'closed_at' => now(),
+                'category_name_snapshot' => $ticket->category->name,
+                'assignee_name_snapshot' => $ticket->assignee?->name,
+            ]);
 
             AuditService::log('ticket', 'closed', ['code' => $ticket->code], $ticket);
 

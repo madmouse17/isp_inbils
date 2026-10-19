@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\Core\CompanyService;
 use App\Services\Core\CustomerStatusRecalculator;
 use App\Services\Core\SubscriptionService;
+use App\Support\OptimisticLock;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -163,6 +164,7 @@ class CustomerStatusRollupTest extends TestCase
             'name' => 'Renamed',
             'type' => 'Individual',
             'is_active' => true,
+            OptimisticLock::FIELD => OptimisticLock::version($customer->fresh()),
             'customer_status' => 'terminated',
         ])->assertRedirect();
 

@@ -21,6 +21,7 @@ use Modules\Billing\Events\PaymentRecorded;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\InvoiceItem;
 use Modules\Billing\Models\Payment;
+use Modules\Billing\Support\InvoiceParty;
 use Modules\Inventory\Models\Product;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Throwable;
@@ -61,7 +62,7 @@ class BillingService
         $periodEnd = $periodStart->endOfMonth()->startOfDay();
 
         $subscriptions = ServiceSubscription::withoutCompany()
-            ->with(['customer', 'servicePackage'])
+            ->with(['customer', 'servicePackage', 'installationAddress.province', 'installationAddress.regionCity', 'installationAddress.district', 'installationAddress.village'])
             ->where('company_id', $companyId)
             ->whereIn('status', ['active', 'terminated'])
             ->whereDate('activation_date', '<=', $periodEnd)
@@ -151,7 +152,7 @@ class BillingService
                 return false;
             }
 
-            $invoice = Invoice::create([
+            $invoice = new Invoice([
                 'company_id' => $subscription->company_id,
                 'number' => NumberSequenceService::generate('invoice', $subscription->company_id),
                 'type' => 'recurring',
@@ -166,8 +167,12 @@ class BillingService
                 'sent_at' => now(),
                 'created_by' => null, // ponytail: batch job, no human actor
             ]);
+            // The batch loaded the party with the subscription, so freezing it costs no query per invoice.
+            $invoice->setRelation('customer', $sub->customer)->setRelation('subscription', $sub);
+            InvoiceParty::freeze($invoice);
+            $invoice->save();
 
-            $label = 'MRC '.($subscription->servicePackage?->name ?? 'Subscription')
+            $label = 'MRC '.($invoice->package_name_snapshot ?? 'Subscription')
                 .' '.$periodStart->toDateString().' s/d '.$periodEnd->toDateString();
             if ($activeDays < $daysInPeriod) {
                 $label .= " (prorata {$activeDays}/{$daysInPeriod} hari)";
@@ -225,6 +230,7 @@ class BillingService
             self::assertCompanyId($invoice->company_id);
             abort_if($invoice->status !== 'draft', 422, 'Hanya tagihan draf yang bisa dikirim.');
 
+            InvoiceParty::freeze($invoice);
             $invoice->update(['status' => 'sent', 'sent_at' => now()]);
 
             AuditService::log('invoice', 'sent', ['number' => $invoice->number], $invoice);
@@ -295,6 +301,8 @@ class BillingService
             abort_if($invoice->payments()->whereNull('cancelled_at')->exists(), 422, 'Tagihan yang punya pembayaran aktif tidak bisa dibatalkan. Batalkan pembayarannya dulu.');
             abort_if($invoice->created_by && (int) Auth::id() === (int) $invoice->created_by, 422, 'Tagihan yang Anda buat sendiri tidak bisa Anda batalkan.');
 
+            // A draft that is cancelled leaves draft too; an issued invoice already has its snapshot, which freeze() keeps.
+            InvoiceParty::freeze($invoice);
             $invoice->update([
                 'status' => 'cancelled',
                 'cancelled_at' => now(),
@@ -501,6 +509,9 @@ class BillingService
             ->where('company_id', $companyId)
             ->whereIn('status', ['sent', 'partial', 'overdue'])
             ->whereColumn('paid_amount', '<', 'total')
+            // Newest first: the first invoice of a customer names it as it was printed.
+            ->orderByDesc('issue_date')
+            ->orderByDesc('id')
             ->get();
 
         $subsByCustomer = ServiceSubscription::query()
@@ -536,7 +547,7 @@ class BillingService
 
                 return [
                     'customer_id' => $first->customer?->public_id,
-                    'customer' => $first->customer?->name ?? '-',
+                    'customer' => $first->customer_name_snapshot ?? $first->customer?->name ?? '-',
                     ...$buckets,
                     'total' => Money::round($total),
                     'invoice_count' => $group->count(),

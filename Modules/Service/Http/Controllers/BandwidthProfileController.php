@@ -4,6 +4,7 @@ namespace Modules\Service\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
+use App\Services\Core\LifecycleService;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -28,13 +29,15 @@ class BandwidthProfileController extends Controller
     {
         Gate::authorize('viewAny', BandwidthProfile::class);
 
-        $bandwidthProfiles = $this->filteredQuery($request)->paginate($this->perPage($request))->withQueryString();
+        $bandwidthProfiles = $this->filteredQuery($request)->withReferenceCounts()->paginate($this->perPage($request))->withQueryString();
 
         return Inertia::render('Admin/Service/BandwidthProfiles/Index', [
             'bandwidthProfiles' => BandwidthProfileResource::collection($bandwidthProfiles),
-            'filters' => $request->only(['search', 'sort', 'direction', 'per_page']),
+            'filters' => $request->only(['status', 'search', 'sort', 'direction', 'per_page']),
             'can' => [
                 'create' => (bool) ($request->user()?->can('service.create') || $request->user()?->can('service.manage')),
+                'update' => (bool) ($request->user()?->can('service.update') || $request->user()?->can('service.manage')),
+                'delete' => (bool) ($request->user()?->can('service.delete') || $request->user()?->can('service.manage')),
                 'export' => (bool) $request->user()?->can('service.export'),
             ],
         ]);
@@ -73,9 +76,9 @@ class BandwidthProfileController extends Controller
     public function destroy(BandwidthProfile $bandwidthProfile): RedirectResponse
     {
         Gate::authorize('delete', $bandwidthProfile);
-        $bandwidthProfile->delete();
+        LifecycleService::destroyIfUnreferenced($bandwidthProfile);
 
-        return back()->with('success', 'Profil bandwidth dihapus.');
+        return back()->with('success', 'Profil bandwidth dihapus permanen.');
     }
 
     public function export(Request $request): HttpResponse|StreamedResponse
@@ -116,6 +119,7 @@ class BandwidthProfileController extends Controller
     private function filteredQuery(Request $request): Builder
     {
         return BandwidthProfile::query()
+            ->lifecycleStatus($request->input('status'))
             ->when(trim((string) $request->input('search')) !== '', function (Builder $query) use ($request): void {
                 $term = '%'.trim((string) $request->input('search')).'%';
                 $query->where(function (Builder $sub) use ($term): void {

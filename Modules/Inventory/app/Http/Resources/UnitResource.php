@@ -14,6 +14,8 @@ class UnitResource extends JsonResource
             'id' => $this->public_id,
             'name' => $this->name,
             'symbol' => $this->symbol,
+            'is_active' => $this->is_active,
+            ...$this->lifecycleAttributes(),
         ];
     }
 }

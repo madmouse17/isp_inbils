@@ -12,6 +12,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use InvalidArgumentException;
 use Modules\Billing\Database\Factories\InvoiceFactory;
@@ -301,12 +302,14 @@ class MidtransWebhookTest extends TestCase
         $this->assertCount(0, $this->payments());
     }
 
-    public function test_an_unknown_order_is_not_found_once_the_signature_is_valid(): void
+    public function test_an_unknown_order_is_not_found_whatever_the_signature(): void
     {
         $attempt = $this->attemptFor();
         $notification = $this->midtransPayload($attempt, ['order_id' => '999-999-doesnotexist']);
 
+        // No order means no company, and without a company there is no key to check a signature against.
         $this->postJson('/webhooks/midtrans', $notification)->assertNotFound();
+        $this->postJson('/webhooks/midtrans', [...$notification, 'signature_key' => str_repeat('a', 128)])->assertNotFound();
 
         Http::assertNothingSent();
         $this->assertCount(0, $this->payments());
@@ -322,12 +325,22 @@ class MidtransWebhookTest extends TestCase
         $this->assertCount(0, $this->payments());
     }
 
-    public function test_the_route_takes_posts_only_and_needs_no_session_or_csrf_token(): void
+    /** @return array<string, array{string, string}> */
+    public static function webhookRoutes(): array
     {
-        $route = app('router')->getRoutes()->getByName('webhooks.midtrans');
+        return [
+            'the legacy route' => ['webhooks.midtrans', 'webhooks/midtrans'],
+            'the company route' => ['webhooks.midtrans.company', 'webhooks/midtrans/{company}'],
+        ];
+    }
 
-        $this->get('/webhooks/midtrans')->assertStatus(405);
-        $this->assertSame('webhooks/midtrans', $route->uri());
+    #[DataProvider('webhookRoutes')]
+    public function test_the_routes_take_posts_only_and_need_no_session_or_csrf_token(string $name, string $uri): void
+    {
+        $route = app('router')->getRoutes()->getByName($name);
+
+        $this->get(str_replace('{company}', (string) Str::ulid(), '/'.$uri))->assertStatus(405);
+        $this->assertSame($uri, $route->uri());
         $this->assertSame(['POST'], $route->methods());
         $this->assertNotContains('web', $route->gatherMiddleware());
         $this->assertNotContains('auth', $route->gatherMiddleware());

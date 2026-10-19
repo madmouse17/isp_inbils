@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
 use App\Models\Core\Customer;
 use App\Models\Core\Location;
+use App\Services\Core\LifecycleService;
 use App\Support\ExportQuery;
 use App\Support\PublicId;
 use App\Support\SearchOptions;
@@ -16,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\OptionalProp;
 use Inertia\Response as InertiaResponse;
@@ -26,7 +28,11 @@ use Modules\NetworkAsset\Http\Requests\StoreNetworkAssetRequest;
 use Modules\NetworkAsset\Http\Requests\UpdateNetworkAssetRequest;
 use Modules\NetworkAsset\Http\Resources\NetworkAssetResource;
 use Modules\NetworkAsset\Models\NetworkAsset;
+use Modules\NetworkAsset\Models\OdnPort;
+use Modules\NetworkAsset\Queries\AssetPanelQuery;
+use Modules\NetworkAsset\Services\AssetPanelService;
 use Modules\NetworkAsset\Services\NetworkAssetService;
+use Modules\NetworkAsset\Support\AssetPanelProps;
 use Spatie\Permission\Models\Permission;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -72,6 +78,8 @@ class NetworkAssetController extends Controller
             ],
             'can' => [
                 'create' => $request->user()?->can('network_asset.create') ?? false,
+                'update' => $request->user()?->can('network_asset.update') ?? false,
+                'delete' => $request->user()?->can('network_asset.delete') ?? false,
                 'export' => $request->user()?->can('network_asset.export')
                     ?? ($request->user()?->can('network_asset.view') ?? false),
             ],
@@ -137,7 +145,7 @@ class NetworkAssetController extends Controller
         $query = NetworkAsset::query()
             ->with(['location', 'customer', 'subscription'])
             ->when($request->input('asset_type'), fn (Builder $q, string $v) => $q->where('asset_type', $v))
-            ->when($request->input('status'), fn (Builder $q, string $v) => $q->where('status', $v))
+            ->lifecycleStatus($request->input('status'))
             ->when($request->input('location_id'), fn (Builder $q, string $v) => $q->where('location_id', PublicId::resolveOne(Location::class, $v, fn (Builder $location) => $location->withTrashed()) ?? 0))
             ->when($request->input('search'), function (Builder $q, string $v): void {
                 $term = trim($v);
@@ -194,6 +202,7 @@ class NetworkAssetController extends Controller
         return Inertia::render('Admin/NetworkAssets/Show', [
             'asset' => new NetworkAssetResource($asset),
             'locationOptions' => $this->locationOptions($request),
+            ...AssetPanelProps::for($request, $asset),
         ]);
     }
 
@@ -228,14 +237,19 @@ class NetworkAssetController extends Controller
     {
         Gate::authorize('delete', $asset);
 
-        abort_if(in_array($asset->status, ['installed', 'maintenance']), 422, 'Aset yang terpasang atau dalam perawatan tidak dapat dihapus. Lepas dulu.');
+        // First: the lifecycle check below refuses any port row and any mounted device, but only with a general message.
+        AssetPanelService::assertDeletable($asset);
 
-        DB::transaction(function () use ($asset): void {
+        LifecycleService::destroyIfUnreferenced($asset, function () use ($asset): void {
+            // Inside the row lock, so an install that committed a moment ago is seen.
+            if (in_array($asset->refresh()->status, ['installed', 'maintenance'], true)) {
+                throw ValidationException::withMessages(['lifecycle' => 'Aset yang terpasang atau dalam perawatan tidak dapat dihapus. Lepas dulu.']);
+            }
+
             IpAssignmentService::releaseForAsset($asset);
-            $asset->delete();
         });
 
-        return back()->with('success', 'Aset jaringan dihapus.');
+        return back()->with('success', 'Aset jaringan dihapus permanen.');
     }
 
     public function install(InstallNetworkAssetRequest $request, NetworkAsset $asset): RedirectResponse
@@ -342,10 +356,22 @@ class NetworkAssetController extends Controller
         }
 
         return Inertia::render('Admin/NetworkAssets/Trace', [
-            'results' => NetworkAssetResource::collection($results)->resolve(),
+            // resolve() keeps nested resources, which Inertia then wraps as {data: …}; the response resolves them flat.
+            'results' => NetworkAssetResource::collection($results)->response()->getData(true)['data'],
             'search' => $request->input('search', ''),
             'customer_id' => $request->input('customer_id', ''),
+            'tracePath' => fn (): ?array => $this->tracePath($request),
         ]);
+    }
+
+    /** The fibre path of `path_subscription`, for users who may see the ODN register. */
+    private function tracePath(Request $request): ?array
+    {
+        $subscription = $request->query('path_subscription');
+
+        return is_string($subscription) && $request->user()?->can('viewAny', OdnPort::class)
+            ? AssetPanelQuery::tracePath($subscription)
+            : null;
     }
 
     /** Active products, found by SKU or name; the current one stays in the list on an edit form. */

@@ -295,6 +295,13 @@ test('Hak Akses follows roles.manage, users.manage alone does not open it', () =
     assert.deepEqual(outline(view(['users.manage'])), [['Administrasi', ['Pengguna']]]);
 });
 
+test('Integrasi needs company.integrations.manage, company.manage alone does not open it', () => {
+    assert.deepEqual(outline(view(['company.integrations.manage'])), [
+        ['Administrasi', ['Integrasi']],
+    ]);
+    assert.deepEqual(outline(view(['company.manage'])), [['Administrasi', ['Perusahaan']]]);
+});
+
 test('Consolidated Metrics needs the permission and a Head company, which only the server knows', () => {
     const consolidate = ['report.consolidated.view'];
 

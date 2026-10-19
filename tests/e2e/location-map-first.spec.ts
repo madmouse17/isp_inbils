@@ -226,7 +226,15 @@ function flattenRows(rows: LocationRow[]): LocationRow[] {
     return rows.flatMap((row) => [row, ...flattenRows(row.children ?? [])]);
 }
 
-test('@ui-consistency the Tabel tab lists every location and keeps Hapus off while a location has locations under it', async ({
+/** A row of the `locations` prop with the usage counts the index sends for each master. */
+interface ListedLocation {
+    id: string;
+    code: string;
+    is_active: boolean;
+    references: Array<{ label: string; count: number }> | null;
+}
+
+test('@ui-consistency the Tabel tab lists every location, keeps a used one to Nonaktifkan and deletes an unused one', async ({
     page,
 }) => {
     // Regression: the table read `row.children.length` from rows that carry no children and crashed for anyone who may delete.
@@ -235,18 +243,16 @@ test('@ui-consistency the Tabel tab lists every location and keeps Hapus off whi
 
     await loginAs(page, 'admin');
     const props = (await inertiaProps(page, '/admin/locations?per_page=50')).props as {
-        tree: { data: LocationRow[] };
-        locations: { data: Array<{ id: string; code: string }> };
+        locations: { data: ListedLocation[] };
     };
-    const parentIds = new Set(
-        flattenRows(props.tree.data).flatMap((row) =>
-            row.parent_id === null ? [] : [row.parent_id],
-        ),
+    const parent = props.locations.data.find(
+        (row) =>
+            row.is_active &&
+            row.references?.some(
+                (reference) => reference.label === 'lokasi turunan' && reference.count > 0,
+            ),
     );
-    const parent = props.locations.data.find((row) => parentIds.has(row.id));
-    const leaf = props.locations.data.find((row) => !parentIds.has(row.id));
     expect(parent, 'the table lists a location with locations under it').toBeDefined();
-    expect(leaf, 'the table lists a location without any').toBeDefined();
 
     await page.goto('/admin/locations?per_page=50');
     await page.getByRole('tab', { name: 'Tabel' }).click();
@@ -254,8 +260,33 @@ test('@ui-consistency the Tabel tab lists every location and keeps Hapus off whi
     const rowOf = (code: string) =>
         page.getByRole('row').filter({ has: page.getByText(code, { exact: true }) });
     await expect(rowOf(parent!.code)).toBeVisible();
-    await expect(rowOf(parent!.code).getByRole('button', { name: 'Hapus' })).toBeDisabled();
-    await expect(rowOf(leaf!.code).getByRole('button', { name: 'Hapus' })).toBeEnabled();
+    await expect(rowOf(parent!.code)).toContainText('lokasi turunan');
+    await rowOf(parent!.code).getByRole('button', { name: 'Aksi lainnya' }).click();
+    await expect(page.getByRole('menuitem', { name: 'Nonaktifkan' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Hapus permanen' })).toHaveCount(0);
+    await page.keyboard.press('Escape');
+
+    // A location nothing points at is deleted for good.
+    const code = `E2E-DEL-${Date.now().toString(36).toUpperCase()}`;
+    await page.getByRole('button', { name: 'Buat Lokasi' }).click();
+    const create = page.getByRole('dialog', { name: 'Buat Lokasi' });
+    await create.getByLabel('Kode').fill(code);
+    await create.getByLabel('Nama').fill(`Lokasi uji ${code}`);
+    // The dialog's Tipe select shares the id "tipe" with the filter behind it (flow audit F2-D01), so its label does not reach it.
+    await create.locator('select').selectOption('region');
+    await create.getByRole('button', { name: 'Simpan' }).click();
+    await expect(create).toBeHidden({ timeout: 15_000 });
+
+    await page.getByLabel('Cari', { exact: true }).fill(code);
+    const spare = rowOf(code);
+    await expect(spare).toBeVisible({ timeout: 15_000 });
+    await spare.getByRole('button', { name: 'Aksi lainnya' }).click();
+    await page.getByRole('menuitem', { name: 'Hapus permanen' }).click();
+    await page
+        .getByRole('alertdialog')
+        .getByRole('button', { name: 'Hapus permanen', exact: true })
+        .click();
+    await expect(spare).toBeHidden({ timeout: 15_000 });
     expect(pageErrors).toEqual([]);
 });
 

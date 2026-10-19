@@ -10,7 +10,7 @@ use RuntimeException;
  */
 final class RadiusException extends RuntimeException
 {
-    /** `services.radius.enabled` is off: nothing was sent. */
+    /** The company in scope has no enabled RADIUS integration (Pengaturan → Integrasi): nothing was sent. */
     public const DISABLED = 'disabled';
 
     /** The connection or a query failed: retrying later may help. */
@@ -26,7 +26,7 @@ final class RadiusException extends RuntimeException
 
     public static function disabled(): self
     {
-        return new self(self::DISABLED, 'RADIUS is switched off.');
+        return new self(self::DISABLED, 'RADIUS belum dikonfigurasi untuk perusahaan ini (Pengaturan → Integrasi).');
     }
 
     public static function unavailable(): self

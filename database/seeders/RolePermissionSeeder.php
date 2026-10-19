@@ -16,6 +16,8 @@ class RolePermissionSeeder extends Seeder
             'roles.manage',
             'roles.export',
             'company.manage',
+            // Configure the company's own Midtrans, WhatsApp, e-mail and RADIUS accounts (admin only).
+            'company.integrations.manage',
             // Reset another user's two-factor authentication (admin only).
             'users.two_factor.reset',
             // Switch the active company: needs a membership of the target company on top (CompanyPolicy).

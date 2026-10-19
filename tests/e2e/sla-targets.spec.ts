@@ -222,6 +222,9 @@ test.describe('@sla-targets', () => {
             await expect(hint).toHaveValue('Mulai ulang modem, lalu tunggu dua menit.');
             await expect(dialog.getByText('41/500 karakter.')).toBeVisible();
         } finally {
+            // The restore body equals the previous test's restore (same state again); the double-submit
+            // guard refuses an identical write for 10 s, so let that window lapse.
+            await page.waitForTimeout(10_500);
             await hint.fill(original);
             await dialog.getByRole('button', { name: 'Simpan' }).click();
             await expect(dialog).toBeHidden();

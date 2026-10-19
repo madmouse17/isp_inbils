@@ -7,17 +7,29 @@ import {
     DataTableActions,
     type DataTableColumn,
     PageHeader,
+    StatusFilter,
 } from '@/Components/composite';
+import { UsageLine } from '@/Components/composite/UsageLine';
 import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { useServerTable } from '@/hooks/useServerTable';
 import { type PaginationLike, toPagination } from '@/lib/pagination';
-import { Button, Card, CardContent, Input, Modal } from '@/Components/ui';
+import { LIFECYCLE_STATE, lifecycleStateOf } from '@/lib/statuses';
+import { Button, Card, CardContent, EnumBadge, Input, Modal } from '@/Components/ui';
+import type { LifecycleFields } from '@/types/models';
 import type { Unit } from '@/types/inventory';
 
+type UnitRow = Unit & LifecycleFields;
+
 interface IndexProps extends Record<string, unknown> {
-    units: PaginationLike<Unit>;
-    filters: { search?: string; sort?: string; direction?: string; per_page?: string | number };
-    can: { create: boolean; export: boolean };
+    units: PaginationLike<UnitRow>;
+    filters: {
+        search?: string;
+        status?: string;
+        sort?: string;
+        direction?: string;
+        per_page?: string | number;
+    };
+    can: { create: boolean; export: boolean; update: boolean; delete: boolean };
 }
 
 export default function Index({ units, filters, can }: IndexProps) {
@@ -39,7 +51,7 @@ export default function Index({ units, filters, can }: IndexProps) {
         setModalOpen(true);
     };
 
-    const openEdit = (u: Unit) => {
+    const openEdit = (u: UnitRow) => {
         setEditing(u);
         setData({ name: u.name, symbol: u.symbol });
         setModalOpen(true);
@@ -64,8 +76,21 @@ export default function Index({ units, filters, can }: IndexProps) {
         }
     };
 
-    const columns: DataTableColumn<Unit>[] = [
-        { key: 'name', header: 'Nama', sortable: true, sortKey: 'name' },
+    const columns: DataTableColumn<UnitRow>[] = [
+        {
+            key: 'name',
+            header: 'Nama',
+            sortable: true,
+            sortKey: 'name',
+            cell: (u) => (
+                <div className="space-y-0.5">
+                    <span className={u.deleted_at ? 'text-muted-foreground' : undefined}>
+                        {u.name}
+                    </span>
+                    <UsageLine references={u.references} />
+                </div>
+            ),
+        },
         {
             key: 'symbol',
             header: 'Simbol',
@@ -74,14 +99,23 @@ export default function Index({ units, filters, can }: IndexProps) {
             cell: (u) => <span className="font-mono">{u.symbol}</span>,
         },
         {
+            key: 'status',
+            header: 'Status',
+            cell: (u) => <EnumBadge map={LIFECYCLE_STATE} value={lifecycleStateOf(u)} />,
+        },
+        {
             key: 'actions',
             header: 'Aksi',
             cell: (u) => (
                 <DataTableActions
                     onEdit={() => openEdit(u)}
-                    deleteHref={route('admin.units.destroy', u.id)}
-                    deleteMessage={`Hapus ${u.name}?`}
-                    deleteDescription={`Satuan "${u.name}" akan dihapus dari daftar. Satuan yang masih dipakai barang atau kategori tidak bisa dihapus.`}
+                    lifecycle={{
+                        row: u,
+                        name: u.name,
+                        noun: 'Satuan',
+                        routeBase: 'admin.units',
+                        can: { update: can.update, delete: can.delete },
+                    }}
                 />
             ),
         },
@@ -113,6 +147,12 @@ export default function Index({ units, filters, can }: IndexProps) {
                 />
                 <Card>
                     <CardContent className="space-y-4 pt-6">
+                        <StatusFilter
+                            id="unit-status"
+                            value={table.params.status ?? ''}
+                            onChange={(value) => table.set('status', value)}
+                            deactivatable
+                        />
                         <DataTable
                             columns={columns}
                             pagination={toPagination(units)}
@@ -125,6 +165,8 @@ export default function Index({ units, filters, can }: IndexProps) {
                             itemLabel="satuan"
                             emptyDescription="Buat satuan lebih dulu, lalu pakai satuan itu pada kategori barang."
                             emptyAction={createButton}
+                            hasFilters={Boolean(filters.status)}
+                            onResetFilters={() => table.visit({ status: '' })}
                         />
                     </CardContent>
                 </Card>

@@ -105,14 +105,21 @@ class PromoBannerService
         $banner->servicePackageCategories()->sync($banner->audience === 'targeted' ? ($data['service_package_category_ids'] ?? []) : []);
     }
 
+    /** Stores the new image first and removes the old one only after the commit; callers run this inside their transaction. */
     private function storeImage(PromoBanner $banner, mixed $image): void
     {
         if (! $image instanceof UploadedFile) {
             return;
         }
 
-        $banner->addMedia($image)
+        PromoBanner::query()->whereKey($banner->id)->lockForUpdate()->firstOrFail();
+        $old = $banner->media()->where('collection_name', 'promo_banner')->get();
+
+        $new = $banner->addMedia($image)
             ->withCustomProperties(['company_id' => (int) $banner->company_id])
             ->toMediaCollection('promo_banner');
+
+        DB::afterRollBack(fn () => $new->delete());
+        DB::afterCommit(fn () => $old->each->delete());
     }
 }

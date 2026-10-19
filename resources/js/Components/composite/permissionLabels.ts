@@ -47,6 +47,7 @@ export const PERMISSION_LABELS: Readonly<Record<string, string>> = {
     'billing.reactivate': 'Aktifkan kembali langganan menunggak',
 
     'company.manage': 'Kelola perusahaan',
+    'company.integrations.manage': 'Kelola integrasi',
     'company.switch': 'Ganti perusahaan',
 
     'customer.view': 'Lihat pelanggan',

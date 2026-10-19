@@ -7,6 +7,7 @@ use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use App\Support\Money;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasLifecycle;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -37,6 +38,10 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property string $paid_amount
  * @property Carbon $issue_date
  * @property Carbon $due_date
+ * @property string|null $customer_name_snapshot the party as printed when the invoice left draft; null while a draft
+ * @property string|null $customer_address_snapshot
+ * @property string|null $customer_tax_id_snapshot
+ * @property string|null $package_name_snapshot
  * @property Carbon|null $created_at
  * @property-read Collection<int, InvoiceItem> $items
  * @property-read Collection<int, Payment> $payments
@@ -45,9 +50,12 @@ class Invoice extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasLifecycle;
     use HasPublicId;
     use LogsActivity;
     use SoftDeletes;
+
+    public const STATUSES = ['draft', 'sent', 'partial', 'paid', 'overdue', 'cancelled'];
 
     public const CUSTOMER_VISIBLE_STATUSES = ['sent', 'partial', 'paid', 'overdue', 'cancelled'];
 
@@ -75,17 +83,19 @@ class Invoice extends Model
     /** @return BelongsTo<Customer, $this> */
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Customer::class)->withTrashed();
     }
 
+    /** @return BelongsTo<ServiceSubscription, $this> */
     public function subscription(): BelongsTo
     {
-        return $this->belongsTo(ServiceSubscription::class);
+        return $this->belongsTo(ServiceSubscription::class)->withTrashed();
     }
 
+    /** @return BelongsTo<WorkOrder, $this> */
     public function workOrder(): BelongsTo
     {
-        return $this->belongsTo(WorkOrder::class);
+        return $this->belongsTo(WorkOrder::class)->withTrashed();
     }
 
     public function creator(): BelongsTo
@@ -114,6 +124,22 @@ class Invoice extends Model
     public function paymentAttempts(): HasMany
     {
         return $this->hasMany(PaymentAttempt::class, 'invoice_id');
+    }
+
+    public static function lifecycleNoun(): string
+    {
+        return 'Tagihan';
+    }
+
+    public static function lifecycleFilters(): array
+    {
+        return self::statusFilters('status', self::STATUSES);
+    }
+
+    /** An invoice keeps its own soft-delete rule: only a draft is deleted, and it can be restored. */
+    public static function lifecycleReferences(): ?array
+    {
+        return null;
     }
 
     public function getSisaAttribute(): string

@@ -13,10 +13,12 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Notifications\TicketFirstResponseDueNotification;
 use Modules\Ticketing\Notifications\TicketSlaBreachedNotification;
+use Throwable;
 
 class CheckTicketSlaBreachesJob implements ShouldBeUnique, ShouldQueue
 {
@@ -82,6 +84,12 @@ class CheckTicketSlaBreachesJob implements ShouldBeUnique, ShouldQueue
         }
 
         $this->notifyResponseDue($companyIds);
+    }
+
+    /** The queue listener reports the exception itself; this line adds which company the check was for. */
+    public function failed(Throwable $e): void
+    {
+        Log::warning('tickets.sla_check_failed', ['company_id' => $this->companyId]);
     }
 
     /**

@@ -85,10 +85,9 @@ class AdminPermissionRoleTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Roles/Show', false)
                 ->where('role.data.permissions.0', 'billing.view')
-                ->where('permissions.data.0.name', 'billing.view')
-                ->where('permissions.data.0.group', 'billing')
-                ->where('permissions.data.1.name', 'inventory.view')
-                ->where('permissions.data.1.group', 'inventory'));
+                // Migrations seed permissions of their own (e.g. company.integrations.manage), so look the rows up by name.
+                ->where('permissions.data', fn ($rows): bool => collect($rows)->pluck('group', 'name')->only(['billing.view', 'inventory.view'])->all()
+                    === ['billing.view' => 'billing', 'inventory.view' => 'inventory']));
     }
 
     private function userWithPermissions(string ...$permissions): User

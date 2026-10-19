@@ -7,6 +7,7 @@ use App\Models\Core\Company;
 use App\Models\Core\EmployeeProfile;
 use App\Models\Core\OrganizationUnit;
 use App\Models\User;
+use App\Support\OptimisticLock;
 use Database\Seeders\RolePermissionSeeder;
 use Database\Seeders\SystemSettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -89,6 +90,7 @@ class EmployeeTest extends TestCase
         ]);
 
         $this->actingAs($this->admin)->put(route('admin.employees.update', $profile), [
+            OptimisticLock::FIELD => $this->version($profile),
             'employee_number' => 'EMP-CHANGED',
             'phone' => '08111111111',
             'status' => 'active',
@@ -109,6 +111,7 @@ class EmployeeTest extends TestCase
         ]);
 
         $this->actingAs($this->admin)->put(route('admin.employees.update', $profile), [
+            OptimisticLock::FIELD => $this->version($profile),
             'employee_number' => 'EMP-NEW',
             'status' => 'active',
         ])->assertRedirect()->assertSessionHasNoErrors();
@@ -172,6 +175,7 @@ class EmployeeTest extends TestCase
         ]);
 
         $this->actingAs($this->admin)->put(route('admin.employees.update', $profile), [
+            OptimisticLock::FIELD => $this->version($profile),
             'organization_id' => $org->public_id,
             'vehicle_id' => null,
             'phone' => '0812000111',
@@ -195,6 +199,7 @@ class EmployeeTest extends TestCase
         ]);
 
         $this->actingAs($this->admin)->put(route('admin.employees.update', $profile), [
+            OptimisticLock::FIELD => $this->version($profile),
             'user_id' => '',
             'status' => 'active',
         ])->assertSessionHasErrors(['user_id' => 'pengguna wajib diisi.']);
@@ -249,6 +254,7 @@ class EmployeeTest extends TestCase
         $before = $profile->user_id;
 
         $this->actingAs($this->admin)->putJson(route('admin.employees.update', $profile), [
+            OptimisticLock::FIELD => $this->version($profile),
             'user_id' => $owner->public_id,
             'status' => 'active',
         ])->assertUnprocessable()->assertJsonPath('errors.user_id.0', 'Pengguna ini sudah punya profil karyawan.');
@@ -262,6 +268,7 @@ class EmployeeTest extends TestCase
         $profile = EmployeeProfile::factory()->create(['company_id' => $this->admin->company_id, 'user_id' => $user->id]);
 
         $this->actingAs($this->admin)->put(route('admin.employees.update', $profile), [
+            OptimisticLock::FIELD => $this->version($profile),
             'user_id' => $user->public_id,
             'phone' => '0812999000',
             'status' => 'active',
@@ -314,5 +321,11 @@ class EmployeeTest extends TestCase
             ->assertJsonCount(1, 'props.userOptions')
             ->assertJsonPath('props.userOptions.0.value', $mine->public_id)
             ->assertJsonPath('props.userOptions.0.label', 'Qwerty Teknisi');
+    }
+
+    /** The version the edit dialog was rendered from. */
+    private function version(EmployeeProfile $profile): string
+    {
+        return OptimisticLock::version($profile->fresh());
     }
 }

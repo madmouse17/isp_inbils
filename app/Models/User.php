@@ -7,6 +7,8 @@ use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\Core\EmployeeProfile;
 use App\Services\Core\ApiTokenService;
+use App\Services\Core\AuditService;
+use App\Support\AuditProperties;
 use App\Traits\HasPublicId;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -17,6 +19,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Activitylog\Contracts\Activity as ActivityContract;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Permission\Traits\HasRoles;
@@ -39,11 +42,16 @@ class User extends Authenticatable
     /**
      * A lost phone must not outlive the credential or the account, so the app tokens go whenever the password
      * changes, the user is deactivated or deleted. The hook sits on the model so every writer is covered: the
-     * reset, the profile form, the admin form and anything that saves a User later.
+     * reset, the profile form, the admin form and anything that saves a User later. A changed password also
+     * leaves a security row (ids only, never the value), whoever wrote it.
      */
     protected static function booted(): void
     {
         static::updated(function (User $user): void {
+            if ($user->wasChanged('password')) {
+                AuditService::log('security', 'password.changed', ['user_id' => $user->id], $user);
+            }
+
             $reason = match (true) {
                 $user->wasChanged('password') => 'password_changed',
                 $user->wasChanged('is_active') && ! $user->is_active => 'deactivated',
@@ -121,6 +129,9 @@ class User extends Authenticatable
         return $this->belongsToMany(Company::class)->withPivot('is_default')->withTimestamps();
     }
 
+    /** Set by CustomerService for the account it creates, before the customer role exists. */
+    public bool $isCustomerAccount = false;
+
     public function employeeProfile(): HasOne
     {
         return $this->hasOne(EmployeeProfile::class);
@@ -157,5 +168,15 @@ class User extends Authenticatable
             ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
+    }
+
+    /**
+     * The diff of a user hides the address; a customer's name is the contact person, so it is hidden too. Staff names
+     * stay readable: the causer column answers who changed what. The role is granted after the first save, so
+     * CustomerService flags the account for its `created` row.
+     */
+    public function tapActivity(ActivityContract $activity, string $eventName): void
+    {
+        AuditProperties::maskValues($activity, $this->isCustomerAccount || $this->hasRole('customer') ? ['email', 'name'] : ['email']);
     }
 }

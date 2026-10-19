@@ -28,7 +28,7 @@ class NotificationResource extends JsonResource
         'billing_schedule_failed', 'payment_attempt_exception',
         'inventory_request_submitted', 'inventory_request_approved', 'inventory_request_ready', 'inventory_request_rejected',
         'material_return_declared', 'material_return_exception', 'material_return_rejected',
-        'announcement_published',
+        'announcement_published', 'push_test',
         'unknown',
     ];
 
@@ -51,7 +51,7 @@ class NotificationResource extends JsonResource
              * with `title` and `message` as they are. `invoice_reminder` is only on rows written before `invoice_due_soon`
              * and `invoice_overdue` replaced it.
              *
-             * @var 'invoice_issued'|'invoice_reminder'|'invoice_due_soon'|'invoice_overdue'|'payment_received'|'ticket_created'|'ticket_assigned'|'ticket_resolved'|'ticket_sla_breached'|'ticket_first_response_due'|'spk_scheduled'|'spk_scheduled_customer'|'spk_approved'|'spk_rejected'|'technician_en_route'|'visit_completed'|'billing_schedule_failed'|'payment_attempt_exception'|'inventory_request_submitted'|'inventory_request_approved'|'inventory_request_ready'|'inventory_request_rejected'|'material_return_declared'|'material_return_exception'|'material_return_rejected'|'announcement_published'|'unknown'
+             * @var 'invoice_issued'|'invoice_reminder'|'invoice_due_soon'|'invoice_overdue'|'payment_received'|'ticket_created'|'ticket_assigned'|'ticket_resolved'|'ticket_sla_breached'|'ticket_first_response_due'|'spk_scheduled'|'spk_scheduled_customer'|'spk_approved'|'spk_rejected'|'technician_en_route'|'visit_completed'|'billing_schedule_failed'|'payment_attempt_exception'|'inventory_request_submitted'|'inventory_request_approved'|'inventory_request_ready'|'inventory_request_rejected'|'material_return_declared'|'material_return_exception'|'material_return_rejected'|'announcement_published'|'push_test'|'unknown'
              */
             'type' => $type,
             'title' => $this->title($type, $customerNotification, $data),
@@ -93,6 +93,7 @@ class NotificationResource extends JsonResource
             'material_return_exception' => 'Pengembalian material bermasalah',
             'material_return_rejected' => 'Pengembalian material ditolak',
             'announcement_published' => 'Pengumuman baru',
+            'push_test' => 'Notifikasi uji',
             default => 'Notifikasi baru',
         };
     }
@@ -154,6 +155,9 @@ class NotificationResource extends JsonResource
             'announcement_published' => is_string($data['title'] ?? null)
                 ? (string) $data['title']
                 : 'Ada pengumuman baru untuk layanan Anda.',
+            'push_test' => is_string($data['company_name'] ?? null)
+                ? "Notifikasi uji dari {$data['company_name']}."
+                : 'Notifikasi uji dari server.',
             default => 'Notifikasi ini tersedia di kotak masuk Anda.',
         };
     }

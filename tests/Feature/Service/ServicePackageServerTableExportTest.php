@@ -108,7 +108,7 @@ class ServicePackageServerTableExportTest extends TestCase
             ServicePackage::factory()->create(array_merge($attributes, ['name' => 'Contract Distractor'], $overrides));
         }
         $filters = [
-            'search' => 'Contract', 'is_active' => '0', 'sla_tier_id' => $tier->public_id,
+            'search' => 'Contract', 'status' => 'nonaktif', 'sla_tier_id' => $tier->public_id,
             'sort' => 'code', 'direction' => 'desc', 'per_page' => 25,
         ];
 
@@ -120,7 +120,7 @@ class ServicePackageServerTableExportTest extends TestCase
             ->where('servicePackages.data.0.code', 'MATCH-26')
             ->where('servicePackages.data.24.code', 'MATCH-02')
             ->where('filters.per_page', '25')
-            ->where('filters.is_active', '0')
+            ->where('filters.status', 'nonaktif')
             ->where('filters.sla_tier_id', $tier->public_id)
             ->where('filters.search', 'Contract')
             ->where('filters.sort', 'code')

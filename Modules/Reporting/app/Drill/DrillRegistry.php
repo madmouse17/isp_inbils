@@ -140,7 +140,7 @@ final class DrillRegistry
                 Measure::Average),
             new DrillSource($sla, 'by_category', 'Tiket selesai per kategori', DrillKind::Ticket,
                 fn (ReportFilters $f) => SlaSources::resolvedByCategory($f->companyId)
-                    ->where('ticket_categories.name', (string) $f->group)->select('tickets.*'),
+                    ->whereRaw(SlaSources::CATEGORY_LABEL.' = ?', [(string) $f->group])->select('tickets.*'),
                 grouped: true),
 
             // Asset
@@ -175,7 +175,7 @@ final class DrillRegistry
                 grouped: true),
             new DrillSource($tech, 'tickets_by_category', 'Tiket diselesaikan per kategori', DrillKind::Ticket,
                 fn (ReportFilters $f) => TechnicianSources::resolvedTicketsByCategory($f->companyId, (int) $f->technicianId, $f->dateFrom, $f->dateTo)
-                    ->where('ticket_categories.name', (string) $f->group)->select('tickets.*'),
+                    ->whereRaw(SlaSources::CATEGORY_LABEL.' = ?', [(string) $f->group])->select('tickets.*'),
                 grouped: true),
             new DrillSource($tech, 'avg_spk_minutes', 'SPK yang dimulai (durasi)', DrillKind::WorkOrder,
                 fn (ReportFilters $f) => TechnicianSources::completedWorkOrders($f->companyId, (int) $f->technicianId, $f->dateFrom, $f->dateTo)

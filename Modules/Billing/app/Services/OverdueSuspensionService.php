@@ -86,6 +86,15 @@ class OverdueSuspensionService
         }
 
         return DB::transaction(function () use ($companyId, $subscriptionId, $settings): bool {
+            // reactivate() rolls the customer up under its lock: take it first, the order every writer of the two follows.
+            $customerId = ServiceSubscription::withoutCompany()->where('company_id', $companyId)->whereKey($subscriptionId)->value('customer_id');
+
+            if ($customerId === null) {
+                return false;
+            }
+
+            Customer::withoutCompany()->where('company_id', $companyId)->whereKey($customerId)->lockForUpdate()->value('id');
+
             $subscription = ServiceSubscription::withoutCompany()
                 ->where('company_id', $companyId)
                 ->whereKey($subscriptionId)

@@ -18,6 +18,28 @@ final class LogRedactor
         'nik',
         'phone',
         'email',
+        'bearer',
+        'cookie',
+        'session',
+        'server_key',
+        'signature',
+        'credential',
+        'private_key',
+        'private-key',
+        'api-key',
+    ];
+
+    /**
+     * Matched only as the whole key: as substrings they would hide error_code, postcode and shipping.
+     *
+     * @var list<string>
+     */
+    private const SENSITIVE_EXACT = [
+        'otp',
+        'pin',
+        'code',
+        'recovery_code',
+        'recovery_codes',
     ];
 
     /**
@@ -29,13 +51,12 @@ final class LogRedactor
         $out = [];
 
         foreach ($context as $key => $value) {
-            if (is_array($value)) {
-                $out[$key] = self::redact($value);
-
-                continue;
+            if (self::isSensitive((string) $key)) {
+                // The whole value goes: a list or an array under a secret key would leak through subkeys that look harmless.
+                $out[$key] = '[REDACTED]';
+            } else {
+                $out[$key] = is_array($value) ? self::redact($value) : $value;
             }
-
-            $out[$key] = self::isSensitive((string) $key) ? '[REDACTED]' : $value;
         }
 
         return $out;
@@ -44,6 +65,10 @@ final class LogRedactor
     private static function isSensitive(string $key): bool
     {
         $normalized = strtolower($key);
+
+        if (in_array($normalized, self::SENSITIVE_EXACT, true)) {
+            return true;
+        }
 
         foreach (self::SENSITIVE as $needle) {
             if ($normalized === $needle || str_contains($normalized, $needle)) {

@@ -9,6 +9,7 @@ use App\Http\Requests\Admin\StoreLocationRequest;
 use App\Http\Requests\Admin\UpdateLocationRequest;
 use App\Http\Resources\LocationResource;
 use App\Models\Core\Location;
+use App\Services\Core\LifecycleService;
 use App\Services\Core\LocationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -29,7 +30,7 @@ class LocationController extends Controller
 
         $query = $this->filteredQuery($request);
 
-        $locationsTable = (clone $query)->paginate($this->perPage($request))->withQueryString();
+        $locationsTable = (clone $query)->withReferenceCounts()->paginate($this->perPage($request))->withQueryString();
 
         $markers = (clone $query)
             ->whereNotNull('lat')
@@ -89,9 +90,9 @@ class LocationController extends Controller
     {
         Gate::authorize('delete', $location);
 
-        LocationService::delete($location);
+        LifecycleService::destroyIfUnreferenced($location);
 
-        return back()->with('success', 'Lokasi dihapus.');
+        return back()->with('success', 'Lokasi dihapus permanen.');
     }
 
     /**
@@ -100,6 +101,7 @@ class LocationController extends Controller
     private function filteredQuery(Request $request): Builder
     {
         $query = Location::query()
+            ->lifecycleStatus($this->status($request))
             ->when($this->scalarInput($request, 'search'), function (Builder $query, string $value): void {
                 $term = trim($value);
 
@@ -119,15 +121,6 @@ class LocationController extends Controller
                 if (in_array($value, ['region', 'area', 'pop', 'rack', 'site'], true)) {
                     $query->where('type', $value);
                 }
-            })
-            ->when($this->scalarInput($request, 'status'), function (Builder $query, string $value): void {
-                $status = strtolower(trim($value));
-
-                if ($status === 'active') {
-                    $query->where('is_active', true);
-                } elseif ($status === 'inactive') {
-                    $query->where('is_active', false);
-                }
             });
 
         $sort = $this->scalarInput($request, 'sort_by') ?? $this->scalarInput($request, 'sort');
@@ -146,6 +139,14 @@ class LocationController extends Controller
         return is_scalar($value) ? (string) $value : null;
     }
 
+    /** The `status` query value when it names a view of the page, else null: the default view. */
+    private function status(Request $request): ?string
+    {
+        $status = strtolower(trim((string) $this->scalarInput($request, 'status')));
+
+        return in_array($status, [...array_keys(Location::lifecycleFilters()), 'dihapus', 'semua'], true) ? $status : null;
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -155,14 +156,7 @@ class LocationController extends Controller
         $rawType = $this->scalarInput($request, 'type');
         $type = in_array($rawType, ['region', 'area', 'pop', 'rack', 'site'], true) ? $rawType : null;
 
-        $rawStatus = $this->scalarInput($request, 'status');
-        $status = null;
-        if ($rawStatus !== null) {
-            $normalizedStatus = strtolower(trim($rawStatus));
-            if (in_array($normalizedStatus, ['active', 'inactive'], true)) {
-                $status = $normalizedStatus;
-            }
-        }
+        $status = $this->status($request);
 
         $rawSort = $this->scalarInput($request, 'sort_by') ?? $this->scalarInput($request, 'sort');
         $sort = is_string($rawSort) && in_array($rawSort, self::SORTABLE, true) ? $rawSort : null;

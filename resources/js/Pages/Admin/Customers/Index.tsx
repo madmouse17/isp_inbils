@@ -8,8 +8,10 @@ import {
     DataTableActions,
     NativeSelect,
     PageHeader,
+    StatusFilter,
     type DataTableColumn,
 } from '@/Components/composite';
+import { UsageLine } from '@/Components/composite/UsageLine';
 import {
     Badge,
     Button,
@@ -35,11 +37,11 @@ import {
 } from '@/Components/ui/sheet';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
-import { CUSTOMER_STATUS, CUSTOMER_TYPE, optionsOf } from '@/lib/statuses';
+import { CUSTOMER_STATUS, CUSTOMER_TYPE, LIFECYCLE_STATE, optionsOf } from '@/lib/statuses';
 import type { Paginated } from '@/types';
-import type { AcquirerOption, CustomerAcquirer } from '@/types/models';
+import type { AcquirerOption, CustomerAcquirer, LifecycleFields } from '@/types/models';
 
-interface CustomerRow {
+interface CustomerRow extends LifecycleFields {
     id: string;
     code: string;
     name: string;
@@ -78,12 +80,23 @@ interface IndexProps {
 const NO_FILTERS = { search: '', type: '', status: '', account: '', acquired_by: '' };
 
 const TYPE_OPTIONS = [{ value: '', label: 'Semua tipe' }, ...optionsOf(CUSTOMER_TYPE)];
-const STATUS_OPTIONS = [{ value: '', label: 'Semua status' }, ...optionsOf(CUSTOMER_STATUS)];
 const ACCOUNT_OPTIONS = [
     { value: '', label: 'Semua akun' },
     { value: 'active', label: 'Aktif' },
     { value: 'inactive', label: 'Nonaktif' },
 ];
+
+/** The derived status and the account flag; a deleted customer shows only that it is deleted. */
+function StatusBadges({ customer }: { customer: CustomerRow }) {
+    if (customer.deleted_at) return <EnumBadge map={LIFECYCLE_STATE} value="dihapus" />;
+
+    return (
+        <>
+            <EnumBadge map={CUSTOMER_STATUS} value={customer.customer_status} />
+            {customer.is_active ? null : <Badge variant="muted">Akun nonaktif</Badge>}
+        </>
+    );
+}
 
 interface FilterFieldsProps {
     /** The inline filters and the phone sheet are both in the DOM, so each set needs its own ids. */
@@ -106,13 +119,12 @@ function FilterFields({ idPrefix, params, set, acquirers, className }: FilterFie
                 options={TYPE_OPTIONS}
                 wrapperClassName={className}
             />
-            <NativeSelect
+            <StatusFilter
                 id={`${idPrefix}-status`}
-                label="Status"
                 value={params.status ?? ''}
-                onChange={(event) => set('status', event.target.value)}
-                options={STATUS_OPTIONS}
-                wrapperClassName={className}
+                onChange={(value) => set('status', value)}
+                statuses={CUSTOMER_STATUS}
+                wrapperClassName={className ?? 'w-full'}
             />
             <NativeSelect
                 id={`${idPrefix}-account`}
@@ -177,12 +189,13 @@ export default function Index({ customers, filters, acquirerOptions, can }: Inde
             <DataTableActions
                 showHref={route('admin.customers.show', customer.id)}
                 editHref={can.update ? route('admin.customers.edit', customer.id) : undefined}
-                deleteHref={can.delete ? route('admin.customers.destroy', customer.id) : undefined}
-                deleteMessage={`Hapus ${customer.name}?`}
-                deleteDescription="Pelanggan yang masih punya langganan belum berhenti tidak bisa dihapus."
-                deleteConfirmCode={
-                    (customer.subscriptions_count ?? 0) > 0 ? customer.code : undefined
-                }
+                lifecycle={{
+                    row: customer,
+                    name: customer.name,
+                    noun: 'Pelanggan',
+                    routeBase: 'admin.customers',
+                    can: { update: can.update, delete: can.delete },
+                }}
             />
         ),
         [can.delete, can.update],
@@ -205,12 +218,21 @@ export default function Index({ customers, filters, acquirerOptions, can }: Inde
                 sortable: true,
                 sortKey: 'name',
                 cell: (customer) => (
-                    <Link
-                        href={route('admin.customers.show', customer.id)}
-                        className="font-medium text-primary-text hover:underline"
-                    >
-                        {customer.name}
-                    </Link>
+                    <div className="space-y-0.5">
+                        {customer.deleted_at ? (
+                            <span className="font-medium text-muted-foreground">
+                                {customer.name}
+                            </span>
+                        ) : (
+                            <Link
+                                href={route('admin.customers.show', customer.id)}
+                                className="font-medium text-primary-text hover:underline"
+                            >
+                                {customer.name}
+                            </Link>
+                        )}
+                        <UsageLine references={customer.references} />
+                    </div>
                 ),
             },
             {
@@ -239,8 +261,7 @@ export default function Index({ customers, filters, acquirerOptions, can }: Inde
                 sortKey: 'customer_status',
                 cell: (customer) => (
                     <div className="flex flex-wrap items-center gap-1.5">
-                        <EnumBadge map={CUSTOMER_STATUS} value={customer.customer_status} />
-                        {customer.is_active ? null : <Badge variant="muted">Akun nonaktif</Badge>}
+                        <StatusBadges customer={customer} />
                     </div>
                 ),
             },
@@ -396,30 +417,31 @@ export default function Index({ customers, filters, acquirerOptions, can }: Inde
                                     <CardContent className="space-y-3 p-4">
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="space-y-0.5 min-w-0">
-                                                <Link
-                                                    href={route(
-                                                        'admin.customers.show',
-                                                        customer.id,
-                                                    )}
-                                                    className="font-medium break-words text-primary-text hover:underline"
-                                                >
-                                                    {customer.name}
-                                                </Link>
+                                                {customer.deleted_at ? (
+                                                    <span className="font-medium break-words text-muted-foreground">
+                                                        {customer.name}
+                                                    </span>
+                                                ) : (
+                                                    <Link
+                                                        href={route(
+                                                            'admin.customers.show',
+                                                            customer.id,
+                                                        )}
+                                                        className="font-medium break-words text-primary-text hover:underline"
+                                                    >
+                                                        {customer.name}
+                                                    </Link>
+                                                )}
                                                 <p className="font-mono text-xs whitespace-nowrap text-muted-foreground">
                                                     {customer.code}
                                                 </p>
+                                                <UsageLine references={customer.references} />
                                             </div>
                                             {rowActions(customer)}
                                         </div>
                                         <div className="flex flex-wrap items-center gap-1.5">
-                                            <EnumBadge
-                                                map={CUSTOMER_STATUS}
-                                                value={customer.customer_status}
-                                            />
+                                            <StatusBadges customer={customer} />
                                             <EnumBadge map={CUSTOMER_TYPE} value={customer.type} />
-                                            {customer.is_active ? null : (
-                                                <Badge variant="muted">Akun nonaktif</Badge>
-                                            )}
                                         </div>
                                         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
                                             <dt className="text-muted-foreground">Telepon</dt>

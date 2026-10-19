@@ -1,6 +1,6 @@
 # Integrity hardening: close the remaining races found by the 2026-10-17 audit
 
-Status: ready-for-agent
+Status: done
 Ledger: `docs/plans/INBILS_OMP_BACKLOG.md` → "ISP roadmap lanes (2026-10-12)" row `integrity-hardening`
 Source: owner 2026-10-17 ("ada ga data race … biar web aplikasi kita stable" → "ya" to the recommendation). Evidence: `local://race-audit.md` (RaceAudit, read-only, file:line per gap) and flow-audit findings F4-D06, F5-D16.
 

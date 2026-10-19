@@ -7,10 +7,10 @@ use App\Models\Core\CustomerAddress;
 use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\CompanyService;
+use App\Support\OptimisticLock;
 use App\Support\RecordNotFound;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Modules\Service\Models\ServicePackage;
 
 class UpdateSubscriptionRequest extends FormRequest
 {
@@ -20,7 +20,6 @@ class UpdateSubscriptionRequest extends FormRequest
     protected function publicIdFields(): array
     {
         return [
-            'service_package_id' => ServicePackage::class,
             'installation_address_id' => CustomerAddress::class,
             'serving_pop_id' => Location::class,
         ];
@@ -63,7 +62,6 @@ class UpdateSubscriptionRequest extends FormRequest
         $customerId = $subscription instanceof ServiceSubscription ? $subscription->customer_id : null;
 
         return [
-            'service_package_id' => ['nullable', Rule::exists('service_packages', 'id')->where('company_id', $companyId)],
             'installation_address_id' => ['sometimes', 'required', 'integer', Rule::exists('customer_addresses', 'id')->where(fn ($query) => $query
                 ->where('company_id', $companyId)
                 ->where('customer_id', $customerId)
@@ -76,6 +74,7 @@ class UpdateSubscriptionRequest extends FormRequest
             'expiration_date' => ['nullable', 'date'],
             'next_invoice_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
+            OptimisticLock::FIELD => OptimisticLock::rules(),
         ];
     }
 

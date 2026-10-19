@@ -211,7 +211,7 @@ class NasDeviceHttpTest extends TestCase
 
     public function test_store_with_the_switch_off_saves_the_row_writes_nothing_and_warns(): void
     {
-        config(['services.radius.enabled' => false]);
+        $this->disableRadius();
         $asset = $this->routerAsset();
 
         $this->post(route('admin.nas-devices.store'), $this->payload($asset))->assertRedirect()->assertSessionHas('warning');
@@ -326,7 +326,7 @@ class NasDeviceHttpTest extends TestCase
         Schema::connection('radius')->drop('radacct');
         $this->get(route('admin.nas-devices.show', $nas))->assertOk()->assertInertia(fn (Assert $page) => $page->where('sessions', [])->where('radiusEnabled', true));
 
-        config(['services.radius.enabled' => false]);
+        $this->disableRadius();
         $this->get(route('admin.nas-devices.show', $nas))->assertOk()->assertInertia(fn (Assert $page) => $page->where('sessions', [])->where('radiusEnabled', false));
     }
 

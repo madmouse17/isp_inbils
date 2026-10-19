@@ -119,8 +119,12 @@ class UserController extends Controller
             unset($data['password']);
         }
 
+        $current = $user->getRoleNames()->all();
+
         $user->update($data);
-        $user->syncRoles($roles);
+        // Not syncRoles: it detaches and re-attaches every role, which the security trail would record as changes.
+        $user->removeRole(array_diff($current, $roles));
+        $user->assignRole(array_diff($roles, $current));
 
         return redirect()->route('admin.users.index')->with('success', 'Pengguna diperbarui.');
     }

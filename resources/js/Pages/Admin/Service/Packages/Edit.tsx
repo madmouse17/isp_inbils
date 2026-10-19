@@ -1,9 +1,10 @@
 import type { FormEvent } from 'react';
-import { useMemo } from 'react';
-import { Link, useForm } from '@inertiajs/react';
+import { useEffect, useMemo } from 'react';
+import { Link, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
+    Alert,
     Button,
     Card,
     CardContent,
@@ -14,7 +15,8 @@ import {
     Switch,
     Textarea,
 } from '@/Components/ui';
-import { PageHeader } from '@/Components/composite';
+import { ConflictBanner, PageHeader } from '@/Components/composite';
+import type { PageProps } from '@/types';
 
 interface OptRow {
     id: string;
@@ -34,6 +36,7 @@ interface PkgData {
     contract_min_months: number | null;
     description: string | null;
     is_active: boolean;
+    updated_at: string;
 }
 
 interface EditProps extends Record<string, unknown> {
@@ -67,7 +70,14 @@ export default function Edit({
         contract_min_months: String(p.contract_min_months ?? 0),
         description: p.description ?? '',
         is_active: p.is_active,
+        expected_updated_at: p.updated_at,
     });
+    const conflict = usePage<PageProps>().props.errors.conflict;
+    // A conflict reply carries the newer row: keeping the old version makes the retry conflict again until the page is reloaded.
+    useEffect(() => {
+        if (!conflict) setData('expected_updated_at', p.updated_at);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [p.updated_at]);
 
     const categoryOptions = useMemo(
         () =>
@@ -103,6 +113,12 @@ export default function Edit({
                         </Button>
                     }
                 />
+                <ConflictBanner />
+                <Alert variant="info">
+                    Mengubah harga bulanan, harga pemasangan, profil bandwidth, profil kecepatan,
+                    tingkat SLA, atau kategori membuat versi baru. Langganan yang sudah ada tetap di
+                    versinya; pindahkan dari halaman langganan bila perlu.
+                </Alert>
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
                         <CardHeader>

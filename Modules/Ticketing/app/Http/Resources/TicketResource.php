@@ -47,6 +47,10 @@ class TicketResource extends JsonResource
             'created_by' => $this->creator?->public_id,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at?->utc()->format('Y-m-d\TH:i:s.v\Z'),
+            // Written when the ticket closes: the page prefers them to the live category and assignee, which follow renames.
+            'category_name_snapshot' => $this->category_name_snapshot,
+            'assignee_name_snapshot' => $this->assignee_name_snapshot,
+            ...$this->lifecycleAttributes(),
             'category' => new TicketCategoryResource($this->whenLoaded('category')),
             'customer' => new CustomerResource($this->whenLoaded('customer')),
             'subscription' => new SubscriptionResource($this->whenLoaded('subscription')),

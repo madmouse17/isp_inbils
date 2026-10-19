@@ -4,6 +4,7 @@ namespace Modules\Inventory\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
+use App\Services\Core\LifecycleService;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -33,20 +34,24 @@ class CategoryController extends Controller
         Gate::authorize('viewAny', Category::class);
 
         $categories = $this->filteredQuery($request)
+            ->withReferenceCounts()
             ->paginate($this->perPage($request))
             ->withQueryString();
 
         return Inertia::render('Admin/Inventory/Categories/Index', [
             'categories' => CategoryResource::collection($categories),
-            'units' => UnitResource::collection(Unit::query()->orderBy('name')->get()),
+            // Active units only: a category that holds an inactive one carries it in its own `unit`.
+            'units' => UnitResource::collection(Unit::query()->where('is_active', true)->orderBy('name')->get()),
             // Every category, for the parent picker: the page holds only one page of the table.
             'categoryOptions' => Category::query()->orderBy('code')->get(['public_id', 'code', 'name'])
                 ->map(fn (Category $category): array => ['id' => $category->public_id, 'code' => $category->code, 'name' => $category->name])
                 ->all(),
-            'filters' => $request->only(['search', 'sort', 'direction', 'per_page']),
+            'filters' => $request->only(['status', 'search', 'sort', 'direction', 'per_page']),
             'can' => [
                 'create' => $request->user()?->can('inventory.create') ?? false,
                 'export' => $request->user()?->can('inventory.export') ?? false,
+                'update' => $request->user()?->can('inventory.update') ?? false,
+                'delete' => $request->user()?->can('inventory.delete') ?? false,
             ],
         ]);
     }
@@ -81,14 +86,9 @@ class CategoryController extends Controller
     public function destroy(Category $category): RedirectResponse
     {
         Gate::authorize('delete', $category);
+        LifecycleService::destroyIfUnreferenced($category);
 
-        if ($category->children()->exists() || $category->products()->exists()) {
-            return back()->withErrors(['category' => 'Kategori tidak dapat dihapus karena masih memiliki sub-kategori atau barang.']);
-        }
-
-        $category->delete();
-
-        return back()->with('success', 'Kategori berhasil dihapus.');
+        return back()->with('success', 'Kategori barang dihapus permanen.');
     }
 
     public function export(Request $request): Response|StreamedResponse
@@ -130,6 +130,7 @@ class CategoryController extends Controller
         $query = Category::query()
             ->with('unit')
             ->withCount('children')
+            ->lifecycleStatus($request->input('status'))
             ->when($request->input('search'), function (Builder $q, string $v): void {
                 $term = trim($v);
                 if ($term === '') {

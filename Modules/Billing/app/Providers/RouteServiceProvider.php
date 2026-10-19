@@ -2,6 +2,7 @@
 
 namespace Modules\Billing\Providers;
 
+use App\Services\Core\CompanyService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Cache\RateLimiting\Unlimited;
 use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
@@ -23,9 +24,14 @@ class RouteServiceProvider extends ServiceProvider
     {
         // Only requests that fail the signature check are counted. Midtrans' own notifications are never throttled, so
         // junk that shares their apparent address (a TLS-terminating proxy hides the real sender) cannot lock them out.
-        RateLimiter::for('midtrans-webhook', fn (Request $request): Limit|Unlimited => app(MidtransGateway::class)->isValidSignature($request->json()->all())
-            ? Limit::none()
-            : Limit::perMinute(30)->by($request->ip()));
+        // The signature is checked with the key of the company the request names; one that names none counts as junk.
+        RateLimiter::for('midtrans-webhook', function (Request $request): Limit|Unlimited {
+            $companyId = MidtransGateway::companyIdForNotification($request);
+            $signed = $companyId !== null
+                && CompanyService::runAs($companyId, fn (): bool => app(MidtransGateway::class)->isValidSignature($request->json()->all()));
+
+            return $signed ? Limit::none() : Limit::perMinute(30)->by($request->ip());
+        });
 
         parent::boot();
     }

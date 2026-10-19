@@ -107,7 +107,7 @@ class WhatsAppTraceRedactionTest extends TestCase
         CompanyService::useCompanyForTests(null);
 
         try {
-            app(WhatsAppWebhookHandler::class)->handle($this->textWebhook('6281234567890', ' Berhenti '));
+            app(WhatsAppWebhookHandler::class)->handle($this->textWebhook('6281234567890', ' Berhenti '), [self::WA_PHONE_NUMBER_ID => [$company->id]]);
             $this->fail('the failure must reach the webhook so that Meta delivers the reply again');
         } catch (RuntimeException $e) {
             $this->assertHoldsNoPersonalData($e, [...self::NUMBERS, 'Berhenti', 'Someone']);
@@ -171,6 +171,7 @@ class WhatsAppTraceRedactionTest extends TestCase
         return [
             'the Cloud API send' => [WhatsAppCloudClient::class, 'sendTemplate', ['to', 'parameters']],
             'the webhook signature check' => [WhatsAppCloudClient::class, 'isValidSignature', ['rawBody', 'header']],
+            'the companies a webhook signature verifies' => [WhatsAppCloudClient::class, 'verifiedCompanies', ['rawBody', 'header']],
             'the webhook verify token' => [WhatsAppCloudClient::class, 'isValidVerifyToken', ['token']],
             'the channel gate' => [WhatsAppChannel::class, 'deliver', ['payload']],
             'the channel send' => [WhatsAppChannel::class, 'transmit', ['phone', 'payload']],

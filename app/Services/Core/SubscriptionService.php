@@ -7,11 +7,13 @@ use App\Models\Core\CustomerAddress;
 use App\Models\Core\ServiceSubscription;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Modules\Ipam\Services\IpAssignmentService;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\NetworkAsset\Services\NetworkAssetService;
 use Modules\NetworkAsset\Services\OdnService;
 use Modules\Service\Models\ServicePackage;
+use Modules\Service\Models\ServicePackageVersion;
 
 class SubscriptionService
 {
@@ -21,7 +23,7 @@ class SubscriptionService
             $companyId = CompanyService::currentId();
             abort_if($companyId === null, 403, 'Konteks perusahaan diperlukan.');
 
-            $customer = Customer::query()->forCompany($companyId)->findOrFail($data['customer_id'] ?? null);
+            $customer = Customer::query()->forCompany($companyId)->lockForUpdate()->findOrFail($data['customer_id'] ?? null);
             /** @var ServicePackage $package */
             $package = ServicePackage::query()->forCompany($companyId)->findOrFail($data['service_package_id'] ?? null);
 
@@ -56,6 +58,7 @@ class SubscriptionService
     public static function activate(ServiceSubscription $subscription): ServiceSubscription
     {
         return DB::transaction(function () use ($subscription) {
+            self::lockCustomer($subscription->customer_id);
             $subscription = ServiceSubscription::lockForUpdate()->findOrFail($subscription->id);
             abort_if($subscription->status !== 'pending', 422, 'Langganan harus berstatus Menunggu untuk diaktifkan.');
 
@@ -78,6 +81,7 @@ class SubscriptionService
     public static function suspend(ServiceSubscription $subscription, string $reason, string $source = 'manual'): ServiceSubscription
     {
         return DB::transaction(function () use ($subscription, $reason, $source) {
+            self::lockCustomer($subscription->customer_id);
             $subscription = ServiceSubscription::lockForUpdate()->findOrFail($subscription->id);
             abort_if($subscription->status !== 'active', 422, 'Langganan harus berstatus Aktif untuk ditangguhkan.');
 
@@ -102,6 +106,7 @@ class SubscriptionService
     public static function reactivate(ServiceSubscription $subscription): ServiceSubscription
     {
         return DB::transaction(function () use ($subscription) {
+            self::lockCustomer($subscription->customer_id);
             $subscription = ServiceSubscription::lockForUpdate()->findOrFail($subscription->id);
             abort_if($subscription->status !== 'suspended', 422, 'Langganan harus berstatus Ditangguhkan untuk diaktifkan kembali.');
 
@@ -165,14 +170,62 @@ class SubscriptionService
         });
     }
 
+    /**
+     * Moves a subscription to the latest version of a package, its own or another one (spec .scratch/master-lifecycle D3).
+     * Editing a package moves nobody: this is the one explicit, audited step. The monthly fee becomes $mrcAmount, or the
+     * price of that version when none is given; the installation fee follows the version only while the subscription
+     * still waits for its installation. Nothing is prorated, the next invoice bills the new monthly fee. The network
+     * observer queues the RADIUS re-apply once this transaction commits.
+     */
+    public static function changePackage(ServiceSubscription $subscription, int $packageId, string|int|float|null $mrcAmount = null): ServiceSubscription
+    {
+        return DB::transaction(function () use ($subscription, $packageId, $mrcAmount) {
+            self::lockCustomer($subscription->customer_id);
+            $subscription = ServiceSubscription::lockForUpdate()->findOrFail($subscription->id);
+
+            if ($subscription->status === 'terminated') {
+                self::refuse('Langganan yang sudah berhenti tidak bisa pindah paket.');
+            }
+
+            // Locked before the versions are read: a package edit that is still writing its next version finishes first.
+            $package = ServicePackage::query()->forCompany((int) $subscription->company_id)->lockForUpdate()->findOrFail($packageId);
+            $latest = ServicePackageVersion::withoutCompany()->where('service_package_id', $package->id)->orderByDesc('version')->firstOrFail();
+
+            if ((int) $latest->id === (int) $subscription->service_package_version_id) {
+                self::refuse('Langganan sudah memakai versi terbaru paket ini.');
+            }
+
+            $subscription->loadMissing('servicePackage:id,code', 'packageVersion:id,version');
+            $from = self::packageTerms($subscription->servicePackage->getAttribute('code'), $subscription->packageVersion->version, $subscription);
+
+            $subscription->update([
+                'service_package_id' => $package->id,
+                'service_package_version_id' => $latest->id,
+                'mrc_amount' => $mrcAmount ?? $latest->price_mrc,
+                ...($subscription->status === 'pending' ? ['otc_installation_fee' => $latest->price_otc] : []),
+            ]);
+
+            AuditService::log('service_subscription', 'package_changed', [
+                'code' => $subscription->code,
+                'from' => $from,
+                'to' => self::packageTerms($package->getAttribute('code'), $latest->version, $subscription),
+            ], $subscription);
+
+            return $subscription->fresh();
+        });
+    }
+
     public static function terminate(ServiceSubscription $subscription, string $reason, bool $releaseOnt = false): ServiceSubscription
     {
-        abort_if($subscription->status === 'terminated', 422, 'Langganan sudah berhenti.');
-
         return DB::transaction(function () use ($subscription, $reason, $releaseOnt) {
+            self::lockCustomer($subscription->customer_id);
+
             $subscription = ServiceSubscription::with('customer')
                 ->lockForUpdate()
                 ->findOrFail($subscription->id);
+
+            // The caller's copy can be older than a terminate that committed meanwhile; only the locked row tells.
+            abort_if($subscription->status === 'terminated', 422, 'Langganan sudah berhenti.');
 
             if ($releaseOnt && $subscription->ont_asset_id) {
                 $asset = NetworkAsset::withoutCompany()
@@ -233,5 +286,31 @@ class SubscriptionService
         $next = $today->copy()->startOfMonth()->addMonthNoOverflow();
 
         return $next->setDay(min($billingDay, $next->daysInMonth))->startOfDay();
+    }
+
+    /**
+     * Lane lock order: the customer row before any of its subscriptions. Two transitions of one customer queue
+     * here, at their first statement, and never wait on each other in opposite order.
+     */
+    private static function lockCustomer(int $customerId): void
+    {
+        Customer::query()->whereKey($customerId)->lockForUpdate()->value('id');
+    }
+
+    /** @return array{package: string, version: int, mrc_amount: string, otc_installation_fee: string} */
+    private static function packageTerms(string $packageCode, int $version, ServiceSubscription $subscription): array
+    {
+        return [
+            'package' => $packageCode,
+            'version' => $version,
+            'mrc_amount' => $subscription->mrc_amount,
+            'otc_installation_fee' => $subscription->otc_installation_fee,
+        ];
+    }
+
+    /** A refusal the Ganti paket form shows under its package field. */
+    private static function refuse(string $message): never
+    {
+        throw ValidationException::withMessages(['service_package_id' => $message]);
     }
 }

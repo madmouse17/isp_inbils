@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\LifecycleController;
 use Illuminate\Support\Facades\Route;
 use Modules\Inventory\Http\Controllers\CategoryController;
 use Modules\Inventory\Http\Controllers\InventoryRequestController;
@@ -7,6 +8,9 @@ use Modules\Inventory\Http\Controllers\MaterialReturnController;
 use Modules\Inventory\Http\Controllers\ProductController;
 use Modules\Inventory\Http\Controllers\StockController;
 use Modules\Inventory\Http\Controllers\UnitController;
+use Modules\Inventory\Models\Category;
+use Modules\Inventory\Models\Product;
+use Modules\Inventory\Models\Unit;
 
 Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->prefix('admin')->name('admin.')->whereUlid([
     'inventory_request', 'material_return', 'product', 'category', 'unit', 'adjustment',
@@ -35,11 +39,15 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
     Route::get('stocks/export', [StockController::class, 'export'])->name('stocks.export');
     Route::get('products/export', [ProductController::class, 'export'])->name('products.export');
     Route::resource('products', ProductController::class);
+    LifecycleController::routes('products', Product::class);
 
     Route::get('categories/export', [CategoryController::class, 'export'])->name('categories.export');
     Route::resource('categories', CategoryController::class)->except(['create', 'edit', 'show']);
+    LifecycleController::routes('categories', Category::class);
+
     Route::get('units/export', [UnitController::class, 'export'])->name('units.export');
     Route::resource('units', UnitController::class)->except(['create', 'edit', 'show']);
+    LifecycleController::routes('units', Unit::class);
 
     Route::get('stocks', [StockController::class, 'index'])->name('stocks.index');
     Route::post('stocks/receive', [StockController::class, 'receive'])->name('stocks.receive');

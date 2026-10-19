@@ -31,4 +31,9 @@ class CategoryPolicy
     {
         return $user->can('inventory.delete');
     }
+
+    public function restore(User $user, Category $category): bool
+    {
+        return $this->delete($user, $category);
+    }
 }

@@ -60,8 +60,9 @@ class UniformNotFoundJsonTest extends TestCase
     {
         [$user] = $this->customerLogin($this->head);
 
-        $this->api('GET', 'customer/subscriptions/'.strtolower((string) Str::ulid()), token: $this->issueToken($user, ApiTokenService::CUSTOMER))
-            ->assertNotFound()
-            ->assertExactJson(['message' => 'Not found.', 'code' => 'not_found']);
+        $response = $this->api('GET', 'customer/subscriptions/'.strtolower((string) Str::ulid()), token: $this->issueToken($user, ApiTokenService::CUSTOMER))
+            ->assertNotFound();
+
+        $response->assertExactJson(['message' => 'Not found.', 'code' => 'not_found', 'request_id' => $response->headers->get('X-Request-Id')]);
     }
 }

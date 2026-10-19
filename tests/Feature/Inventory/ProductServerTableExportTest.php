@@ -154,4 +154,34 @@ class ProductServerTableExportTest extends TestCase
         $response->assertOk();
         $this->assertStringContainsString('application/pdf', (string) $response->headers->get('content-type'));
     }
+
+    public function test_index_and_export_filter_by_status_and_no_longer_by_is_active(): void
+    {
+        $unit = Unit::factory()->create(['company_id' => $this->admin->company_id]);
+        $category = Category::factory()->create([
+            'company_id' => $this->admin->company_id,
+            'unit_id' => $unit->id,
+        ]);
+        $own = ['company_id' => $this->admin->company_id, 'category_id' => $category->id, 'unit_id' => $unit->id];
+
+        Product::factory()->create([...$own, 'sku' => 'SKU-ON-1', 'name' => 'Still On', 'is_active' => true]);
+        Product::factory()->create([...$own, 'sku' => 'SKU-OFF-1', 'name' => 'Switched Off', 'is_active' => false]);
+        Product::factory()->create([...$own, 'sku' => 'SKU-GONE-1', 'name' => 'Long Gone'])->delete();
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.products.index', ['status' => 'nonaktif', 'is_active' => '1']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('products.data', 1)
+                ->where('products.data.0.sku', 'SKU-OFF-1')
+                ->where('filters.status', 'nonaktif')
+                ->missing('filters.is_active')
+            );
+
+        $csv = $this->get(route('admin.products.export', ['format' => 'csv', 'status' => 'dihapus']))->assertOk()->streamedContent();
+
+        $this->assertStringContainsString('SKU-GONE-1', $csv);
+        $this->assertStringNotContainsString('SKU-ON-1', $csv);
+        $this->assertStringNotContainsString('SKU-OFF-1', $csv);
+    }
 }

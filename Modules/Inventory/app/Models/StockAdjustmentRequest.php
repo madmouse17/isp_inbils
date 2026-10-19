@@ -56,13 +56,13 @@ class StockAdjustmentRequest extends Model
     /** @return BelongsTo<Product, $this> */
     public function product(): BelongsTo
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(Product::class)->withTrashed();
     }
 
     /** @return BelongsTo<Location, $this> */
     public function location(): BelongsTo
     {
-        return $this->belongsTo(Location::class);
+        return $this->belongsTo(Location::class)->withTrashed();
     }
 
     /** @return BelongsTo<User, $this> */

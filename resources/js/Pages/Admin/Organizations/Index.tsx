@@ -1,14 +1,14 @@
 import type { FormEvent } from 'react';
 import { useCallback, useMemo, useState } from 'react';
-import { useForm, usePage } from '@inertiajs/react';
+import { useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { DataTableActions } from '@/Components/composite/DataTableActions';
+import { StatusFilter } from '@/Components/composite/StatusFilter';
+import { UsageLine } from '@/Components/composite/UsageLine';
 import { PageHeader } from '@/Components/composite/PageHeader';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
 import { ExportMenu } from '@/Components/ui/ExportMenu';
 import {
-    Alert,
-    AlertDescription,
     Badge,
     Button,
     Card,
@@ -22,10 +22,16 @@ import {
 } from '@/Components/ui';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
-import { ACTIVE_STATE, ORGANIZATION_TYPE, labelOf, optionsOf } from '@/lib/statuses';
-import type { PageProps } from '@/types';
+import {
+    LIFECYCLE_STATE,
+    ORGANIZATION_TYPE,
+    labelOf,
+    lifecycleStateOf,
+    optionsOf,
+} from '@/lib/statuses';
+import type { LifecycleFields } from '@/types/models';
 
-interface OrgRow {
+interface OrgRow extends LifecycleFields {
     id: string;
     parent_id: string | null;
     code: string;
@@ -48,8 +54,14 @@ interface IndexProps extends Record<string, unknown> {
         total?: number;
     };
     parentOptions: { data: OrgRow[] };
-    filters: { search?: string; sort?: string; direction?: string; per_page?: string | number };
-    can: { export: boolean };
+    filters: {
+        search?: string;
+        status?: string;
+        sort?: string;
+        direction?: string;
+        per_page?: string | number;
+    };
+    can: { export: boolean; update: boolean; delete: boolean };
 }
 
 interface OrganizationForm {
@@ -79,9 +91,6 @@ export default function Index({ organizations, parentOptions, filters, can }: In
     const [editId, setEditId] = useState<string | null>(null);
     const { data, setData, post, put, processing, errors, reset, clearErrors } =
         useForm<OrganizationForm>(emptyForm);
-    // A refused delete comes back as a validation error on the page, not on this form.
-    const deleteError = (usePage<PageProps>().props.errors as Record<string, string | undefined>)
-        .organization;
 
     const {
         params,
@@ -154,7 +163,7 @@ export default function Index({ organizations, parentOptions, filters, can }: In
         post(route('admin.organizations.store'), { onSuccess: close });
     };
 
-    const hasFilters = Boolean(params.search);
+    const hasFilters = Boolean(params.search || params.status);
 
     const columns: DataTableColumn<OrgRow>[] = useMemo(
         () => [
@@ -171,13 +180,22 @@ export default function Index({ organizations, parentOptions, filters, can }: In
                 sortable: true,
                 sortKey: 'name',
                 cell: (o) => (
-                    <div>
-                        <p className="font-medium text-foreground">{o.name}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
+                    <div className="space-y-0.5">
+                        <p
+                            className={
+                                o.deleted_at
+                                    ? 'font-medium text-muted-foreground'
+                                    : 'font-medium text-foreground'
+                            }
+                        >
+                            {o.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
                             {o.parent_id
                                 ? `Induk: ${rowMap.get(o.parent_id)?.name ?? '-'}`
                                 : 'Unit utama'}
                         </p>
+                        <UsageLine references={o.references} />
                     </div>
                 ),
             },
@@ -199,24 +217,28 @@ export default function Index({ organizations, parentOptions, filters, can }: In
                 cell: (o) => <Badge variant="neutral">{o.children_count ?? 0} sub-unit</Badge>,
             },
             {
-                key: 'is_active',
+                key: 'status',
                 header: 'Status',
-                cell: (o) => <EnumBadge map={ACTIVE_STATE} value={o.is_active} />,
+                cell: (o) => <EnumBadge map={LIFECYCLE_STATE} value={lifecycleStateOf(o)} />,
             },
             {
                 key: 'actions',
                 header: 'Aksi',
                 cell: (o) => (
                     <DataTableActions
-                        onEdit={() => openEdit(o)}
-                        deleteHref={route('admin.organizations.destroy', o.id)}
-                        deleteMessage={`Hapus ${o.name}?`}
-                        deleteDescription={`Unit "${o.name}" akan dihapus. Unit yang masih punya sub-unit atau karyawan tidak bisa dihapus.`}
+                        onEdit={can.update ? () => openEdit(o) : undefined}
+                        lifecycle={{
+                            row: o,
+                            name: o.name,
+                            noun: 'Unit organisasi',
+                            routeBase: 'admin.organizations',
+                            can: { update: can.update, delete: can.delete },
+                        }}
                     />
                 ),
             },
         ],
-        [rowMap, openEdit],
+        [rowMap, openEdit, can.update, can.delete],
     );
 
     return (
@@ -242,20 +264,22 @@ export default function Index({ organizations, parentOptions, filters, can }: In
                     }
                 />
 
-                {deleteError ? (
-                    <Alert variant="danger">
-                        <AlertDescription>{deleteError}</AlertDescription>
-                    </Alert>
-                ) : null}
-
                 <Card>
                     <CardContent className="space-y-4 pt-6">
-                        <div className="max-w-md">
-                            <Input
-                                label="Cari"
-                                value={params.search ?? ''}
-                                onChange={(event) => set('search', event.target.value)}
-                                placeholder="Kode, nama, atau jalur"
+                        <div className="flex flex-wrap items-end gap-3">
+                            <div className="min-w-56 flex-1 sm:max-w-md">
+                                <Input
+                                    label="Cari"
+                                    value={params.search ?? ''}
+                                    onChange={(event) => set('search', event.target.value)}
+                                    placeholder="Kode, nama, atau jalur"
+                                />
+                            </div>
+                            <StatusFilter
+                                id="organization-status"
+                                value={params.status ?? ''}
+                                onChange={(value) => set('status', value)}
+                                deactivatable
                             />
                         </div>
 
@@ -275,7 +299,7 @@ export default function Index({ organizations, parentOptions, filters, can }: In
                                 </Button>
                             }
                             hasFilters={hasFilters}
-                            onResetFilters={() => setMany({ search: '' })}
+                            onResetFilters={() => setMany({ search: '', status: '' })}
                             itemLabel="unit organisasi"
                             loading={tableProcessing}
                         />

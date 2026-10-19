@@ -43,6 +43,102 @@
   unique). The list of tables is pinned by `PublicIdInventoryTest`, which also
   fails for a new `BelongsToCompany` model that lacks the trait.
 
+## Master lifecycle (deactivate, delete, restore)
+
+One mechanism covers the masters and the transactional records that can be hidden. A master is deactivated while anything
+points at it and hard-deleted only when nothing ever did.
+
+- Columns: `is_active` plus SoftDeletes (`deleted_at`). The only new flag is `units.is_active` (default true, index
+  `(company_id, is_active)`). The models use `App\Traits\HasLifecycle` together with `SoftDeletes` and `HasPublicId`.
+- `HasLifecycle` makes each model declare three things: the noun used in messages (`lifecycleNoun()`, for example "Profil
+  bandwidth"), the `?status=` filters (`lifecycleFilters()`) and the references (`lifecycleReferences()`).
+  `App\Services\Core\LifecycleService` does every write: `deactivate`, `activate`, `destroyIfUnreferenced`, `restore`.
+  `deactivate` and `activate` only flip `is_active` (no cascade to children) and are no-ops when the flag already has that
+  value. Both throw for a model without the flag.
+- Routes: `App\Http\Controllers\Admin\LifecycleController::routes($uri, $model, $actions, $name)` registers
+  `POST {uri}/{record}/{deactivate|activate|restore}` named `admin.{uri}.{action}` (the `{record}` is a ULID). The model comes
+  from a route default, never from input, and the record is looked up through the `BelongsToCompany` scope, so another
+  company's id answers 404. `deactivate` and `activate` authorize `update`, `restore` authorizes `restore`. Every policy
+  maps `restore` to its `delete` rule, so whoever may delete may restore. Each action flashes "{Noun} dinonaktifkan.",
+  "{Noun} diaktifkan." or "{Noun} dipulihkan.".
+- Masters with `is_active` and the `deactivate`/`activate`/`restore` routes: `bandwidth_profiles`, `speed_profiles`,
+  `sla_tiers`, `service_packages`, `products`, `categories`, `units`, `locations`, `customers`, `document_types`,
+  `vehicles`, `organization_units`. `customer_addresses` have no `is_active`: they are hard-deleted when unreferenced and
+  restored. Network assets follow the same hard delete rule (no `is_active`, status filter) and also gain `restore`; their
+  delete adds the old guard (an installed or maintenance asset is refused) and releases its IP addresses. Tickets, work
+  orders, invoices, employee profiles and employee evaluations only gain `restore`: their delete rules did not change (a
+  ticket is deleted only when closed, an invoice only as a draft).
+- Reference counts: `lifecycleReferences()` maps a label to a list of `table.column` pairs whose rows keep the record from
+  a hard delete (for example `paket => service_packages.bandwidth_profile_id`). The count uses the query builder, so trashed
+  children count too. A JSON path is allowed (`media.custom_properties->document_type_id` for document types). Index pages
+  call `withReferenceCounts()`, one correlated `COUNT(*)` per column, and the resource exposes the result as `references`
+  (`[{label, count}]`) next to `deleted_at`. `LifecycleReferencesMatchSchemaTest` fails when a RESTRICT, NO ACTION or SET
+  NULL foreign key to a lifecycle table is not declared. The one allowlist entry is `ip_addresses.network_asset_id`, which a
+  network asset delete releases instead of counting.
+- Hard delete only when unreferenced: `destroyIfUnreferenced` locks the row first, counts again under the lock, then runs
+  the entity's own check (products with stock above 0, installed or maintenance network assets, the customer address
+  primary promotion) and `forceDelete()`. Any count above zero answers 422 on the key `lifecycle`:
+  "{Noun} masih dipakai 3 paket, 12 langganan. Nonaktifkan saja." (entities without `is_active` end with ", jadi tidak bisa
+  dihapus."). A foreign key error 1451 from a child inserted a moment later gives "{Noun} baru saja dipakai data lain."
+  with the same ending. Success is audited as `force_deleted`; the other actions are audited as `deactivated`, `activated`
+  and `restored`.
+- Reserved keys: no unique index includes `deleted_at`, so a trashed or inactive row keeps its code or name reserved. The
+  Store and Update requests of masters do not ignore trashed rows when checking uniqueness, so a duplicate is a field
+  error and never a 500 from the index.
+- Pickers and FormRequests of deactivatable masters accept only active, non-deleted rows, plus the value the record already
+  holds. Deactivating a master therefore stops new use and leaves history alone.
+- Status filter: every index reads `?status=` through the scope `lifecycleStatus()`. An empty or unknown value is the
+  default list (SoftDeletes hides trashed rows). `aktif` and `nonaktif` filter `is_active`. A key of the entity's own status
+  list filters its status column (`customer_status` for customers, `status` for tickets, SPK, invoices, employees and
+  network assets). `dihapus` shows only trashed rows and `semua` shows trashed rows too. The UI select is `StatusFilter`:
+  "Semua status", "Aktif", "Nonaktif", the entity statuses, "Dihapus", "Semua, termasuk dihapus".
+- Restore: a locked, idempotent `restore()` (a live row is left alone). A row with `parent_id` whose parent is still trashed
+  is refused ("{Noun} tidak bisa dipulihkan karena induknya, {nama}, masih dihapus. Pulihkan induknya dulu."). A unique
+  violation is refused with "kode atau namanya sudah dipakai data lain". Restored `locations` and `organization_units`
+  recompute their `path` from the parent's current path (`LocationService::recomputePath`,
+  `OrganizationService::recomputePath`), because an ancestor may have been renamed or moved while they were deleted. A restored
+  `customer_addresses` row settles `is_primary` and `is_installation_point`: a marker another address holds is cleared, and a
+  marker nobody holds is set, so the customer keeps exactly one of each.
+
+### Package versions
+
+- `service_package_versions` is append-only (updating a row throws `LogicException`). Columns: company_id,
+  service_package_id (cascade, the package owns its versions), version (1..n, unique with service_package_id), price_mrc,
+  price_otc, bandwidth_profile_id, speed_profile_id, sla_tier_id, service_package_category_id (all RESTRICT), valid_from,
+  timestamps. There is no `public_id`: a version is reached through its package or subscription. The next version's
+  `valid_from` closes the previous one.
+- The package row keeps the current terms, so catalog readers do not change. The `RecordsVersions` concern appends version
+  n+1 on a model save that changes `price_mrc`, `price_otc`, `bandwidth_profile_id`, `speed_profile_id`, `sla_tier_id` or
+  `service_package_category_id`; creating a package writes version 1. Changing the code, name, description, contract
+  minimum or `is_active` is no new version. A query builder update or a raw insert skips the hook.
+- `service_subscriptions.service_package_version_id` is NOT NULL, FK RESTRICT. A new subscription takes the package's latest
+  version. `service_package_id` stays and both are always written together. Only
+  `SubscriptionService::changePackage` moves a subscription to a newer version (see `docs/business/billing.md`).
+- Reads that follow the version, not the live package: RADIUS rate limits, the ticket SLA tier, the package category filter
+  of reports, and the API package terms of a subscription.
+
+### Snapshot columns
+
+Nullable columns with the suffix `_snapshot` keep a name as it was when the document reached its final state. Readers use
+`snapshot ?? live value`, so an older row without one still shows the live value.
+
+- `invoices.customer_name_snapshot`, `customer_address_snapshot`, `customer_tax_id_snapshot`, `package_name_snapshot`:
+  written when the invoice leaves draft (`BillingService::send`, `generateForPeriod`) and when a draft is cancelled
+  (`BillingService::cancel`). `Modules\Billing\Support\InvoiceParty` fills them once and never overwrites.
+- `work_orders.technician_name_snapshot`, `location_code_snapshot` and `organization_unit_id` (FK RESTRICT, the technician's
+  unit): written by `SpkService::approve` when the SPK becomes `completed`.
+- `tickets.category_name_snapshot`, `assignee_name_snapshot`: written by `TicketService::close`.
+- The migrations backfill existing rows once with the live values, only rows still NULL, in chunks of 500, so a run that
+  stopped half way is repaired by running it again.
+
+### History relations
+
+Relations that history pages read use `->withTrashed()`, so a document still names a deleted parent. Examples: a subscription's
+customer, package, installation address, serving POP and ONT; an invoice's customer, subscription and work order; a work
+order's customer, subscription, location, ticket and organization unit; a ticket's category, customer, subscription, asset and
+location; stock movements and stock rows (product, locations); every `ServicePackageVersion` relation. `EmployeeProfile::organization`
+stays live because it drives report access. Pickers query the parent model directly and are unaffected.
+
 ## Tables by Module
 
 ### Core (app/Models/Core/)
@@ -83,7 +179,8 @@
 - `customer_contacts` — customer_id, name, phone, email, role,
   is_primary. Soft delete.
 - `service_subscriptions` — company_id, customer_id, service_package_id,
-  code, status (active/suspended/terminated), activation_date,
+  service_package_version_id (NOT NULL, FK RESTRICT, the version it was sold
+  under), code, status (active/suspended/terminated), activation_date,
   suspension_date, billing_day, ont_asset_id (FK network_assets,
   exception D-R5). Soft delete.
 - `employee_evaluations` — company_id, employee_id, reference_type,
@@ -92,7 +189,13 @@
 ### Service (Modules/Service/Models/)
 
 - `service_packages` — company_id, name, type, mrc, otc, description,
-  is_active. Soft delete.
+  is_active. Soft delete. Holds the current terms; a change of price, profile,
+  SLA tier or category also appends a row to `service_package_versions`.
+- `service_package_versions`: company_id, service_package_id (cascade),
+  version, price_mrc, price_otc, bandwidth_profile_id, speed_profile_id,
+  sla_tier_id, service_package_category_id, valid_from. Append-only (no
+  update, no soft delete). Unique: (service_package_id, version). See
+  "Package versions".
 - `bandwidth_profiles` — company_id, name, down_mbps, up_mbps,
   is_active. Soft delete.
 - `speed_profiles` — company_id, name, down_mbps, up_mbps,
@@ -129,7 +232,9 @@
 - `work_orders` — company_id, code, type (install/maintain/upgrade/
   relocate), status (pending/assigned/in_progress/completed/cancelled),
   customer_id, subscription_id, location_id, assigned_to, scheduled_at,
-  started_at, completed_at, priority, notes. Unique: (company_id, code).
+  started_at, completed_at, priority, notes, organization_unit_id (FK
+  RESTRICT, technician's unit at completion), technician_name_snapshot,
+  location_code_snapshot (written by `approve`). Unique: (company_id, code).
   Soft delete.
 - `work_order_items` — work_order_id, product_id, quantity, type
   (issue/return). Cascade delete.
@@ -142,7 +247,16 @@
 - `invoices` — company_id, number, customer_id, subscription_id,
   type (mrc/otc/adjustment), status (draft/sent/paid/overdue/
   cancelled), issue_date, due_date, subtotal, tax_amount, total,
-  paid_amount, notes. Unique: (company_id, number). Soft delete.
+  paid_amount, notes, customer_name_snapshot, customer_address_snapshot,
+  customer_tax_id_snapshot, package_name_snapshot (written when the invoice
+  leaves draft, see "Snapshot columns"), active_recurring_period (generated,
+  see below). Unique: (company_id, number). Soft delete.
+  `active_recurring_period` is a STORED generated date: `billing_period_start`
+  while the invoice is `recurring`, not `cancelled` and not deleted, else NULL.
+  Unique `(company_id, subscription_id, active_recurring_period)` is the
+  backstop against two active recurring invoices for one subscription and
+  period. NULL never collides, so manual and one-time invoices, and cancelled
+  or deleted ones, are free.
 - `invoice_items` — invoice_id, description, quantity, unit_price,
   total. Cascade delete.
 - `payments` — company_id, invoice_id, amount, method, paid_at,
@@ -153,8 +267,9 @@
 - `tickets` — company_id, code, customer_id, category_id,
   network_asset_id, subscription_id, title, description, status
   (open/assigned/in_progress/resolved/closed), priority, sla_deadline,
-  assigned_to, resolved_at, closed_at. Unique: (company_id, code).
-  Soft delete.
+  assigned_to, resolved_at, closed_at, category_name_snapshot,
+  assignee_name_snapshot (written by `close`, see "Snapshot columns").
+  Unique: (company_id, code). Soft delete.
 - `ticket_categories` — company_id, name, sla_hours, priority_default,
   is_active. Soft delete.
 - `ticket_comments` — ticket_id, user_id, body, is_internal. Cascade
@@ -184,6 +299,8 @@ companies 1──N customers
 customers 1──N customer_addresses
 customers 1──N customer_contacts
 customers 1──N service_subscriptions
+service_packages 1──N service_package_versions
+service_package_versions 1──N service_subscriptions
 service_packages 1──N service_subscriptions
 network_assets N──1 locations
 network_assets N──1 customers (installed at)

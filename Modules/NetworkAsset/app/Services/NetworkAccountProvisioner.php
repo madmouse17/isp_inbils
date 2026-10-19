@@ -4,6 +4,7 @@ namespace Modules\NetworkAsset\Services;
 
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\AuditService;
+use App\Services\Core\IntegrationConfig;
 use Illuminate\Support\Str;
 use Modules\Ipam\Services\IpAssignmentService;
 use Modules\NetworkAsset\Models\NasDevice;
@@ -18,7 +19,8 @@ use Modules\Service\Models\SpeedProfile;
 /**
  * Brings RADIUS in line with the database for one network account (desired-state convergence).
  *
- * The desired state is derived on every run, never stored: the subscription status, block flag and package decide it.
+ * The desired state is derived on every run, never stored: the subscription status, block flag and the speed profile of
+ * the package version it was sold under decide it (a package edit appends a version; subscriptions stay on theirs).
  * apply() is one code path for every trigger (observer, account save, resync, sync drift) and idempotent: a second
  * run against an unchanged RADIUS makes no write. Callers run it inside CompanyService::runAs().
  *
@@ -76,14 +78,14 @@ class NetworkAccountProvisioner
     }
 
     /**
-     * @return bool true when RADIUS was converged, false when the run was skipped (switch off; the account stays pending)
+     * @return bool true when RADIUS was converged, false when the run was skipped (the company has no enabled RADIUS integration; the account stays pending)
      *
      * @throws RadiusException kind unavailable (retry) or rejected (retrying cannot help)
      * @throws DisconnectPendingException a Disconnect got no usable answer; the run is retried
      */
     public function apply(NetworkAccount $account): bool
     {
-        if (! config('services.radius.enabled')) {
+        if (! app(IntegrationConfig::class)->isEnabled('radius')) {
             $this->markPending($account, RadiusException::disabled()->getMessage());
 
             return false;
@@ -299,7 +301,7 @@ class NetworkAccountProvisioner
             return $this->groupName($realm, 'isolir');
         }
 
-        $name = $account->subscription?->servicePackage?->speedProfile?->getAttribute('radius_profile_name');
+        $name = $account->subscription?->packageVersion?->speedProfile?->getAttribute('radius_profile_name');
 
         if (! is_string($name) || $name === '') {
             throw RadiusException::rejected('The speed profile of the package has no RADIUS profile name.');
@@ -327,7 +329,7 @@ class NetworkAccountProvisioner
         }
 
         /** @var SpeedProfile $profile */
-        $profile = $account->subscription->servicePackage->speedProfile;
+        $profile = $account->subscription->packageVersion->speedProfile;
 
         return $this->speedReplies($profile);
     }

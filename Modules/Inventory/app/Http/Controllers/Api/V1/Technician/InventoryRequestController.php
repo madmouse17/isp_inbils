@@ -7,6 +7,7 @@ use App\Services\Core\CompanyService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Modules\Inventory\Http\Requests\Api\V1\CancelTechnicianInventoryRequestRequest;
@@ -44,10 +45,20 @@ class InventoryRequestController extends Controller
         return TechnicianInventoryRequestResource::collection($paginator);
     }
 
-    /** A request from the app is queued for the warehouse at once: the app has no draft step. */
+    /**
+     * A request from the app is queued for the warehouse at once: the app has no draft step.
+     *
+     * Naming an SPK (`work_order_id`, already checked to be the caller's own active SPK) makes it the material of that SPK.
+     */
     public function store(StoreTechnicianInventoryRequestRequest $request): JsonResponse
     {
-        $created = InventoryRequestService::create($request->user(), [...$request->validated(), 'submit' => true]);
+        $workOrderId = $request->validated('work_order_id');
+        $created = InventoryRequestService::create($request->user(), [
+            ...Arr::except($request->validated(), 'work_order_id'),
+            'source_type' => $workOrderId === null ? null : 'work_order',
+            'source_id' => $workOrderId,
+            'submit' => true,
+        ]);
 
         return (new TechnicianInventoryRequestResource($this->detail($created)))->response()->setStatusCode(201);
     }

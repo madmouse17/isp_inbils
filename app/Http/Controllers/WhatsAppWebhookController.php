@@ -8,18 +8,14 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Meta's WhatsApp webhook: the GET handshake when the callback URL is saved in the app dashboard, and the
- * signed POST with delivery statuses and customer replies. No session and no CSRF: the verify token and the
- * body signature are the only credentials.
+ * Meta's WhatsApp webhook, one URL for every company: the GET handshake when the callback URL is saved in the app dashboard,
+ * and the signed POST with delivery statuses and customer replies. No session and no CSRF: the verify token and the body
+ * signature are the only credentials, and a signature only counts for the companies whose own app secret made it.
  */
 class WhatsAppWebhookController extends Controller
 {
     public function verify(Request $request, WhatsAppCloudClient $client): Response
     {
-        if (! $client->isConfigured()) {
-            return response()->noContent(404);
-        }
-
         // PHP turns the dots of Meta's hub.* query parameters into underscores.
         $token = $request->query('hub_verify_token');
         $challenge = $request->query('hub_challenge');
@@ -35,15 +31,18 @@ class WhatsAppWebhookController extends Controller
     {
         $body = $request->getContent();
 
-        // Nothing is read, let alone written, before Meta has proved who it is.
-        if (! $client->isValidSignature($body, $request->header('X-Hub-Signature-256'))) {
+        // Nothing is read, let alone written, before Meta has proved who it is: the companies whose app secret signs the
+        // body are the only ones the payload may touch.
+        $companies = $client->verifiedCompanies($body, $request->header('X-Hub-Signature-256'));
+
+        if ($companies === []) {
             return response()->noContent(403);
         }
 
         $payload = json_decode($body, true);
 
         if (is_array($payload)) {
-            $handler->handle($payload);
+            $handler->handle($payload, $companies);
         }
 
         // Anything but 200 makes Meta resend for days; content we ignore is still acknowledged.

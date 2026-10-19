@@ -40,4 +40,13 @@ class StoreWorkOrderEvidenceRequest extends FormRequest
 
         return $data;
     }
+
+    /** The same file with the same caption on one SPK is one piece of evidence: a second click, or a retry, finds the first. */
+    public function idempotencyKey(): string
+    {
+        /** @var UploadedFile $file */
+        $file = $this->file('file');
+
+        return hash('sha256', hash_file('sha256', $file->getRealPath())."\n".$this->validated('caption'));
+    }
 }

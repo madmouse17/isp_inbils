@@ -1,6 +1,10 @@
 <?php
 
+use App\Http\Controllers\Admin\LifecycleController;
 use Illuminate\Support\Facades\Route;
+use Modules\NetworkAsset\Http\Controllers\AssetPanelController;
+use Modules\NetworkAsset\Http\Controllers\AssetPortController;
+use Modules\NetworkAsset\Http\Controllers\AssetPortLinkController;
 use Modules\NetworkAsset\Http\Controllers\IsolirPageController;
 use Modules\NetworkAsset\Http\Controllers\NasDeviceController;
 use Modules\NetworkAsset\Http\Controllers\NetworkAccountController;
@@ -10,11 +14,14 @@ use Modules\NetworkAsset\Http\Controllers\OdnDropController;
 use Modules\NetworkAsset\Http\Controllers\OdnPonPortController;
 use Modules\NetworkAsset\Http\Controllers\OdnPortController;
 use Modules\NetworkAsset\Http\Controllers\OdnSplitterController;
+use Modules\NetworkAsset\Http\Controllers\RackPlacementController;
+use Modules\NetworkAsset\Models\NetworkAsset;
 
-Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->prefix('admin')->name('admin.')->whereUlid(['asset', 'nasDevice', 'subscription'])->group(function () {
+Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->prefix('admin')->name('admin.')->whereUlid(['asset', 'nasDevice', 'subscription', 'port'])->group(function () {
     Route::get('network-assets/export', [NetworkAssetController::class, 'export'])->name('network-assets.export');
     Route::get('network-assets/trace', [NetworkAssetController::class, 'trace'])->name('network-assets.trace');
     Route::resource('network-assets', NetworkAssetController::class)->parameters(['network-assets' => 'asset']);
+    LifecycleController::routes('network-assets', NetworkAsset::class, ['restore']);
     Route::post('network-assets/{asset}/install', [NetworkAssetController::class, 'install'])->name('network-assets.install');
     Route::post('network-assets/{asset}/remove', [NetworkAssetController::class, 'remove'])->name('network-assets.remove');
     Route::post('network-assets/{asset}/maintenance', [NetworkAssetController::class, 'maintenance'])->name('network-assets.maintenance');
@@ -22,6 +29,15 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
     Route::post('network-assets/{asset}/damage', [NetworkAssetController::class, 'damage'])->name('network-assets.damage');
     Route::post('network-assets/{asset}/repair', [NetworkAssetController::class, 'repair'])->name('network-assets.repair');
     Route::post('network-assets/{asset}/retire', [NetworkAssetController::class, 'retire'])->name('network-assets.retire');
+
+    // The device panel (spec .scratch/hardware-panel-ui): model, port labels and links, rack placement.
+    Route::put('network-assets/{asset}/panel', [AssetPanelController::class, 'update'])->name('network-assets.panel.update');
+    Route::put('network-assets/{asset}/rack-placement', [RackPlacementController::class, 'update'])->name('network-assets.rack-placement.update');
+    Route::scopeBindings()->group(function () {
+        Route::patch('network-assets/{asset}/ports/{port}', [AssetPortController::class, 'update'])->name('network-assets.ports.update');
+        Route::post('network-assets/{asset}/ports/{port}/link', [AssetPortLinkController::class, 'store'])->name('network-assets.ports.link.store');
+        Route::delete('network-assets/{asset}/ports/{port}/link', [AssetPortLinkController::class, 'destroy'])->name('network-assets.ports.link.destroy');
+    });
 
     // NAS routers (FreeRADIUS clients). RADIUS writes are best effort after the save and retried by network:sync.
     Route::resource('nas-devices', NasDeviceController::class)->parameters(['nas-devices' => 'nasDevice']);

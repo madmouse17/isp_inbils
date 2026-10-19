@@ -2,7 +2,10 @@
 
 namespace Tests\Feature\NetworkAsset;
 
-use Illuminate\Support\Facades\DB;
+use App\Models\Core\Company;
+use App\Services\Core\CompanyService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use Modules\NetworkAsset\Services\Radius\RadiusDirectory;
 use Modules\NetworkAsset\Services\Radius\RadiusException;
 use Tests\TestCase;
@@ -11,6 +14,7 @@ use Tests\Traits\InteractsWithRadius;
 class RadiusDirectoryTest extends TestCase
 {
     use InteractsWithRadius;
+    use RefreshDatabase;
 
     private const FAKE_SECRET = 'fake-subscriber-pass-1';
 
@@ -20,6 +24,8 @@ class RadiusDirectoryTest extends TestCase
     {
         parent::setUp();
         $this->fakeRadius();
+        // Created after fakeRadius(): the company gets its RADIUS integration like any later company does.
+        CompanyService::useCompanyForTests((int) Company::factory()->create(['is_active' => true])->id);
         $this->radius = new RadiusDirectory();
     }
 
@@ -292,7 +298,7 @@ class RadiusDirectoryTest extends TestCase
 
     public function test_every_method_refuses_without_a_query_while_switched_off(): void
     {
-        config(['services.radius.enabled' => false]);
+        $this->disableRadius();
         $this->radiusConnection()->enableQueryLog();
         $from = new \DateTimeImmutable('2026-10-01');
 
@@ -316,18 +322,7 @@ class RadiusDirectoryTest extends TestCase
 
     public function test_a_broken_connection_is_unavailable_and_leaks_nothing(): void
     {
-        config(['database.connections.radius' => [
-            'driver' => 'mysql',
-            'host' => '127.0.0.1',
-            'port' => '1',
-            'database' => 'fake_radius_db',
-            'username' => 'fake_radius_user',
-            'password' => 'fake-db-password',
-            'charset' => 'utf8mb4',
-            'collation' => 'utf8mb4_unicode_ci',
-            'prefix' => '',
-        ]]);
-        DB::purge('radius');
+        $this->breakRadius();
 
         try {
             $this->radius->putUser('budi@acme', self::FAKE_SECRET, 'acme/home-20m');
@@ -338,5 +333,22 @@ class RadiusDirectoryTest extends TestCase
                 $this->assertStringNotContainsStringIgnoringCase($leak, $e->getMessage());
             }
         }
+    }
+
+    public function test_an_unreachable_radius_logs_one_warning_without_host_or_secret(): void
+    {
+        Log::spy();
+        $this->breakRadius();
+
+        try {
+            $this->radius->putUser('budi@acme', self::FAKE_SECRET, 'acme/home-20m');
+            $this->fail('A broken connection must throw.');
+        } catch (RadiusException) {
+        }
+
+        Log::shouldHaveReceived('warning')->once()->withArgs(fn (string $message, array $context): bool => $message === 'radius.unavailable'
+            && array_keys($context) === ['error']
+            && is_string($context['error'])
+            && class_exists($context['error']));
     }
 }

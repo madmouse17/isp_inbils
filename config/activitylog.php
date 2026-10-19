@@ -10,10 +10,21 @@ return [
     'enabled' => env('ACTIVITY_LOGGER_ENABLED', true),
 
     /*
-     * When the clean-command is executed, all recording activities older than
-     * the number of days specified here will be deleted.
+     * `inbils:activity-log:prune` (scheduled daily) deletes the activities older than this many days, for every log
+     * name that is not listed in retention_days_by_log below, rows without a log name included. Spatie's own
+     * `activitylog:clean` reads only this number and is never scheduled.
      */
     'delete_records_older_than_days' => 365,
+
+    /*
+     * Log names that are kept longer than the default, in days. These are the trails an incident review reads long
+     * after the fact: sign-ins and role changes (security), the platform panel, and support access to a tenant.
+     */
+    'retention_days_by_log' => [
+        'security' => 730,
+        'platform' => 730,
+        'support' => 730,
+    ],
 
     /*
      * If no log name is passed to the activity() helper

@@ -7,6 +7,7 @@ import {
     ConfirmRequestDialog,
     type ConfirmRequest,
 } from '@/Components/composite/ConfirmRequestDialog';
+import { AssetPanelCard } from '@/Components/composite/hardware-panel/AssetPanelCard';
 import { PonPortsDialog } from '@/Components/composite/odn/PonPortsDialog';
 import { SplitterCard } from '@/Components/composite/odn/SplitterCard';
 import { SplitterDialog } from '@/Components/composite/odn/SplitterDialog';
@@ -119,6 +120,8 @@ export default function Asset({ asset, ponPorts, splitters, inputPortOptions, ca
                         </>
                     }
                 />
+
+                <AssetPanelCard assetId={asset.id} assetType={asset.asset_type} />
 
                 {isOlt ? (
                     <Card>

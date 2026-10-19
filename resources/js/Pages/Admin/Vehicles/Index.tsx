@@ -6,8 +6,10 @@ import {
     DataTable,
     DataTableActions,
     PageHeader,
+    StatusFilter,
     type DataTableColumn,
 } from '@/Components/composite';
+import { UsageLine } from '@/Components/composite/UsageLine';
 import { ExportMenu } from '@/Components/ui/ExportMenu';
 import {
     Button,
@@ -22,10 +24,11 @@ import {
 } from '@/Components/ui';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
-import { ACTIVE_STATE } from '@/lib/statuses';
+import { LIFECYCLE_STATE, lifecycleStateOf } from '@/lib/statuses';
 import type { Paginated } from '@/types';
+import type { LifecycleFields } from '@/types/models';
 
-interface VehRow {
+type VehRow = LifecycleFields & {
     id: string;
     plate_number: string;
     type: string | null;
@@ -34,12 +37,18 @@ interface VehRow {
     purchase_date: string | null;
     is_active: boolean;
     notes: string | null;
-}
+};
 
 interface IndexProps extends Record<string, unknown> {
     vehicles: Paginated<VehRow>;
-    filters: { search?: string; sort?: string; direction?: string; per_page?: string | number };
-    can: { create: boolean; export: boolean };
+    filters: {
+        search?: string;
+        status?: string;
+        sort?: string;
+        direction?: string;
+        per_page?: string | number;
+    };
+    can: { create: boolean; export: boolean; update: boolean; delete: boolean };
 }
 
 interface VehicleForm {
@@ -118,47 +127,59 @@ export default function Index({ vehicles, filters, can }: IndexProps) {
         }
     };
 
-    const hasFilters = Boolean(params.search);
+    const hasFilters = Boolean(params.search || params.status);
 
-    const columns: DataTableColumn<VehRow>[] = useMemo(() => {
-        const base: DataTableColumn<VehRow>[] = [
+    const columns: DataTableColumn<VehRow>[] = useMemo(
+        () => [
             {
                 key: 'plate_number',
                 header: 'Nomor polisi',
                 sortable: true,
                 sortKey: 'plate_number',
                 cell: (vehicle) => (
-                    <span className="font-mono text-sm">{vehicle.plate_number}</span>
+                    <div className="space-y-0.5">
+                        <p
+                            className={
+                                vehicle.deleted_at
+                                    ? 'font-mono text-sm text-muted-foreground'
+                                    : 'font-mono text-sm'
+                            }
+                        >
+                            {vehicle.plate_number}
+                        </p>
+                        <UsageLine references={vehicle.references} />
+                    </div>
                 ),
             },
             { key: 'type', header: 'Jenis', sortable: true, sortKey: 'type' },
             { key: 'brand', header: 'Merek', sortable: true, sortKey: 'brand' },
             { key: 'model', header: 'Model', sortable: true, sortKey: 'model' },
             {
-                key: 'is_active',
+                key: 'status',
                 header: 'Status',
-                cell: (vehicle) => <EnumBadge map={ACTIVE_STATE} value={vehicle.is_active} />,
+                cell: (vehicle) => (
+                    <EnumBadge map={LIFECYCLE_STATE} value={lifecycleStateOf(vehicle)} />
+                ),
             },
-        ];
-
-        if (!can.create) return base;
-
-        return [
-            ...base,
             {
                 key: 'actions',
                 header: 'Aksi',
                 cell: (vehicle) => (
                     <DataTableActions
-                        onEdit={() => openEdit(vehicle)}
-                        deleteHref={route('admin.vehicles.destroy', vehicle.id)}
-                        deleteMessage={`Hapus ${vehicle.plate_number}?`}
-                        deleteDescription={`Kendaraan "${vehicle.plate_number}" akan dihapus dari daftar.`}
+                        onEdit={can.update ? () => openEdit(vehicle) : undefined}
+                        lifecycle={{
+                            row: vehicle,
+                            name: vehicle.plate_number,
+                            noun: 'Kendaraan',
+                            routeBase: 'admin.vehicles',
+                            can: { update: can.update, delete: can.delete },
+                        }}
                     />
                 ),
             },
-        ];
-    }, [can.create, openEdit]);
+        ],
+        [can.update, can.delete, openEdit],
+    );
 
     return (
         <AdminLayout title="Kendaraan">
@@ -186,12 +207,20 @@ export default function Index({ vehicles, filters, can }: IndexProps) {
                 />
                 <Card>
                     <CardContent className="space-y-4 pt-6">
-                        <div className="max-w-md">
-                            <Input
-                                label="Cari"
-                                value={params.search ?? ''}
-                                onChange={(event) => set('search', event.target.value)}
-                                placeholder="Nomor polisi, jenis, merek, atau model"
+                        <div className="flex flex-wrap items-end gap-3">
+                            <div className="min-w-56 flex-1 sm:max-w-md">
+                                <Input
+                                    label="Cari"
+                                    value={params.search ?? ''}
+                                    onChange={(event) => set('search', event.target.value)}
+                                    placeholder="Nomor polisi, jenis, merek, atau model"
+                                />
+                            </div>
+                            <StatusFilter
+                                id="vehicle-status"
+                                value={params.status ?? ''}
+                                onChange={(value) => set('status', value)}
+                                deactivatable
                             />
                         </div>
                         <DataTable
@@ -212,7 +241,7 @@ export default function Index({ vehicles, filters, can }: IndexProps) {
                                 ) : undefined
                             }
                             hasFilters={hasFilters}
-                            onResetFilters={() => setMany({ search: '' })}
+                            onResetFilters={() => setMany({ search: '', status: '' })}
                             itemLabel="kendaraan"
                             loading={tableProcessing}
                         />

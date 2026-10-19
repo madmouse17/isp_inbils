@@ -55,11 +55,11 @@ class InventoryRequestItem extends Model
 
     public function product(): BelongsTo
     {
-        return $this->belongsTo(Product::class, 'product_id');
+        return $this->belongsTo(Product::class, 'product_id')->withTrashed();
     }
 
     public function sourceLocation(): BelongsTo
     {
-        return $this->belongsTo(Location::class, 'source_location_id');
+        return $this->belongsTo(Location::class, 'source_location_id')->withTrashed();
     }
 }

@@ -42,7 +42,7 @@ class LoginRequest extends WebLoginRequest
         try {
             parent::ensureIsNotRateLimited();
         } catch (ValidationException) {
-            $seconds = RateLimiter::availableIn($this->throttleKey());
+            $seconds = RateLimiter::availableIn($this->exhaustedKey() ?? $this->throttleKey());
 
             throw new ThrottleRequestsException(
                 trans('auth.throttle', ['seconds' => $seconds, 'minutes' => ceil($seconds / 60)]),

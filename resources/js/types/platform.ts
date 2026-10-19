@@ -1,4 +1,5 @@
 import type { PaginationMeta, Paginated } from '@/types';
+import type { IntegrationProvider, IntegrationState } from '@/types/integrations';
 
 export type PlatformTenantStatus = 'active' | 'suspended' | 'deletion_requested';
 export type TenantExportStatus = 'queued' | 'running' | 'ready' | 'failed' | 'expired';
@@ -117,6 +118,15 @@ export type PlatformFailedWhatsApp = {
     failed_at: string;
 };
 
+export interface PlatformTenantIntegration {
+    company: { id: string; code: string; name: string };
+    provider: IntegrationProvider;
+    state: IntegrationState;
+    is_enabled: boolean;
+    /** ISO 8601 */
+    last_checked_at: string | null;
+}
+
 export type PlatformTenantExport = {
     id: string;
     uuid: string;
@@ -201,6 +211,7 @@ export type PlatformCompanyShowProps = {
     recentAudit: PlatformAuditRow[];
     failedJobs: PlatformFailedJob[];
     failedWhatsApp: PlatformFailedWhatsApp[];
+    integrations: PlatformTenantIntegration[];
     exports: PlatformTenantExport[];
     lifecycle: PlatformLifecycle;
 };

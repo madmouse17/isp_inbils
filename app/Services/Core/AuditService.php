@@ -9,8 +9,9 @@ use Spatie\Activitylog\Contracts\Activity as ActivityContract;
 class AuditService
 {
     /**
-     * Log an action with automatic tenant/company capture. The causer is the authenticated user of the default
-     * guard, unless $causer names one: a platform login flow logs before its session exists.
+     * Log an action with automatic tenant/company capture. The action is the description and the `event` of the row.
+     * The causer is the authenticated user of the default guard, unless $causer names one: a platform login flow logs
+     * before its session exists.
      *
      * @param  array<string, mixed>  $properties
      */
@@ -18,13 +19,8 @@ class AuditService
     {
         $resolvedCompanyId = self::resolveCompanyId($subject, $properties, $companyId);
 
-        if ($resolvedCompanyId !== null) {
-            $properties['company_id'] = $resolvedCompanyId;
-        } else {
-            unset($properties['company_id']);
-        }
-
-        $activity = activity($module)->withProperties($properties);
+        // The company lives in its column (tapped below); the Activity::saving hook drops any `company_id` property.
+        $activity = activity($module)->event($action)->withProperties($properties);
 
         if ($subject) {
             $activity->performedOn($subject);
@@ -41,33 +37,6 @@ class AuditService
         }
 
         return $activity->log($action);
-    }
-
-    /**
-     * Log model lifecycle activity with automatic company capture.
-     */
-    public static function logModelActivity(Model $model, string $event, ?int $companyId = null): ?ActivityContract
-    {
-        $attributes = $model->getAttributes();
-        $resolvedCompanyId = self::resolveCompanyId($model, $attributes, $companyId);
-
-        if ($resolvedCompanyId !== null) {
-            $attributes['company_id'] = $resolvedCompanyId;
-        } else {
-            unset($attributes['company_id']);
-        }
-
-        $activity = activity(strtolower(class_basename($model)))
-            ->performedOn($model)
-            ->withProperties($attributes);
-
-        if ($resolvedCompanyId !== null) {
-            $activity->tap(function ($act) use ($resolvedCompanyId) {
-                $act->company_id = $resolvedCompanyId;
-            });
-        }
-
-        return $activity->log($event);
     }
 
     /**

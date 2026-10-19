@@ -4,7 +4,9 @@ namespace Modules\Service\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Modules\Service\Models\SpeedProfile;
 
+/** @mixin SpeedProfile */
 class SpeedProfileResource extends JsonResource
 {
     /** @return array<string, mixed> */
@@ -20,6 +22,7 @@ class SpeedProfileResource extends JsonResource
             'radius_profile_name' => $this->radius_profile_name,
             'is_active' => $this->is_active,
             'created_at' => $this->created_at,
+            ...$this->lifecycleAttributes(),
         ];
     }
 }

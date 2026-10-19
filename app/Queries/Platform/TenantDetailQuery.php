@@ -3,6 +3,7 @@
 namespace App\Queries\Platform;
 
 use App\Models\Core\Company;
+use App\Models\Core\CompanyIntegration;
 use App\Models\Platform\TenantExport;
 use App\Models\PlatformAdmin;
 use App\Models\User;
@@ -70,9 +71,38 @@ class TenantDetailQuery
             'recentAudit' => $this->recentAudit($ids),
             'failedJobs' => $this->failedJobs($ids),
             'failedWhatsApp' => $this->failedWhatsApp($ids, $companies),
+            'integrations' => $this->integrations($ids, $companies),
             'exports' => $this->exports($root),
             'lifecycle' => $this->lifecycle->state($root),
         ];
+    }
+
+    /**
+     * Every company of the tenant × every provider, with the state of its row ("empty" when it has none). The columns
+     * read exclude `credentials`, `settings` and `external_id`: a state and a time leave the server, never a value.
+     *
+     * @param  list<int>  $ids
+     * @param  Collection<int, Company>  $companies
+     * @return list<array<string, mixed>>
+     */
+    private function integrations(array $ids, Collection $companies): array
+    {
+        $rows = CompanyIntegration::withoutCompany()
+            ->whereIn('company_id', $ids)
+            ->get(['id', 'company_id', 'provider', 'is_enabled', 'verified_at', 'last_error', 'last_checked_at'])
+            ->keyBy(fn (CompanyIntegration $row): string => $row->company_id.':'.$row->provider);
+
+        return $companies->flatMap(fn (Company $company): array => array_map(function (string $provider) use ($company, $rows): array {
+            $row = $rows->get($company->id.':'.$provider);
+
+            return [
+                'company' => ['id' => $company->public_id, 'code' => $company->code, 'name' => $company->name],
+                'provider' => $provider,
+                'state' => CompanyIntegration::stateOf($row),
+                'is_enabled' => (bool) $row?->is_enabled,
+                'last_checked_at' => $row?->last_checked_at?->toIso8601String(),
+            ];
+        }, CompanyIntegration::PROVIDERS))->values()->all();
     }
 
     /** @return array<string, mixed> */

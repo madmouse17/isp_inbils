@@ -190,7 +190,8 @@ enum DrillKind: string
     }
 
     /**
-     * One list row: scalars only, keyed like columns().
+     * One list row: scalars only, keyed like columns(). An issued invoice, a closed ticket and a completed SPK name the
+     * customer, category and technician they were frozen with; the live record answers only while there is no snapshot.
      *
      * @return array<string, string|int|float|null>
      */
@@ -210,7 +211,7 @@ enum DrillKind: string
             ],
             self::Invoice => [
                 'number' => $get('number'),
-                'customer' => $get('customer.name'),
+                'customer' => $get('customer_name_snapshot') ?? $get('customer.name'),
                 'type' => $get('type'),
                 'status' => $get('status'),
                 'issue_date' => $get('issue_date')?->toDateString(),
@@ -221,7 +222,7 @@ enum DrillKind: string
             self::Ticket => [
                 'code' => $get('code'),
                 'title' => $get('title'),
-                'category' => $get('category.name'),
+                'category' => $get('category_name_snapshot') ?? $get('category.name'),
                 'status' => $get('status'),
                 'created_at' => self::moment($get('created_at')),
                 'first_response_at' => self::moment($get('first_response_at')),
@@ -238,7 +239,7 @@ enum DrillKind: string
                 'title' => $get('title'),
                 'type' => $get('type'),
                 'status' => $get('status'),
-                'assignee' => $get('assignee.name'),
+                'assignee' => $get('technician_name_snapshot') ?? $get('assignee.name'),
                 'started_at' => self::moment($get('started_at')),
                 'completed_at' => self::moment($get('completed_at')),
                 'work_minutes' => self::minutesBetween($get('started_at'), $get('completed_at')),

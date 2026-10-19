@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\LifecycleController;
 use Illuminate\Support\Facades\Route;
 use Modules\Service\Http\Controllers\AnnouncementController;
 use Modules\Service\Http\Controllers\BandwidthProfileController;
@@ -8,9 +9,13 @@ use Modules\Service\Http\Controllers\ServicePackageCategoryController;
 use Modules\Service\Http\Controllers\ServicePackageController;
 use Modules\Service\Http\Controllers\SLATierController;
 use Modules\Service\Http\Controllers\SpeedProfileController;
+use Modules\Service\Models\BandwidthProfile;
+use Modules\Service\Models\ServicePackage;
+use Modules\Service\Models\SLATier;
+use Modules\Service\Models\SpeedProfile;
 
 Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->whereUlid([
-    'announcement', 'promo_banner', 'service_package', 'pkg', 'service_package_category', 'bandwidth_profile', 'speed_profile', 'sla_tier',
+    'announcement', 'promo_banner', 'service_package', 'service_package_category', 'bandwidth_profile', 'speed_profile', 'sla_tier',
 ])->group(function () {
     Route::group(['prefix' => 'admin', 'as' => 'admin.'], function () {
         Route::get('announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
@@ -26,13 +31,16 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
         Route::delete('promo-banners/{promo_banner}', [PromoBannerController::class, 'destroy'])->name('promo-banners.destroy');
         Route::get('service-packages/export', [ServicePackageController::class, 'export'])->name('service-packages.export');
         Route::resource('service-packages', ServicePackageController::class);
-        Route::post('service-packages/{pkg}/deactivate', [ServicePackageController::class, 'deactivate'])->name('service-packages.deactivate');
+        LifecycleController::routes('service-packages', ServicePackage::class);
         Route::resource('service-package-categories', ServicePackageCategoryController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::get('bandwidth-profiles/export', [BandwidthProfileController::class, 'export'])->name('bandwidth-profiles.export');
         Route::resource('bandwidth-profiles', BandwidthProfileController::class)->except(['show']);
+        LifecycleController::routes('bandwidth-profiles', BandwidthProfile::class);
         Route::get('speed-profiles/export', [SpeedProfileController::class, 'export'])->name('speed-profiles.export');
         Route::resource('speed-profiles', SpeedProfileController::class)->except(['show']);
+        LifecycleController::routes('speed-profiles', SpeedProfile::class);
         Route::get('sla-tiers/export', [SLATierController::class, 'export'])->name('sla-tiers.export');
         Route::resource('sla-tiers', SLATierController::class)->except(['show']);
+        LifecycleController::routes('sla-tiers', SLATier::class);
     });
 });

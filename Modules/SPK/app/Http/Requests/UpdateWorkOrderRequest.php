@@ -7,6 +7,7 @@ use App\Models\Core\Customer;
 use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\CompanyService;
+use App\Support\OptimisticLock;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -39,6 +40,7 @@ class UpdateWorkOrderRequest extends FormRequest
             'location_id' => ['nullable', Rule::exists('locations', 'id')->where('company_id', $companyId)],
             'priority' => ['nullable', 'string', 'in:low,medium,high,urgent'],
             'scheduled_date' => ['nullable', 'date_format:Y-m-d'],
+            OptimisticLock::FIELD => OptimisticLock::rules(),
         ];
     }
 

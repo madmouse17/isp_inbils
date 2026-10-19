@@ -2,6 +2,7 @@
 
 namespace Modules\Inventory\Http\Resources;
 
+use App\Support\OptimisticLock;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -23,6 +24,8 @@ class ProductResource extends JsonResource
             'cost_price' => $this->cost_price,
             'min_stock' => $this->min_stock,
             'is_active' => $this->is_active,
+            ...$this->lifecycleAttributes(),
+            'updated_at' => OptimisticLock::version($this->resource),
             'category' => new CategoryResource($this->whenLoaded('category')),
             'unit' => new UnitResource($this->whenLoaded('unit')),
             'stocks' => StockResource::collection($this->whenLoaded('stocks')),

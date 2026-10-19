@@ -92,12 +92,7 @@ class AuditLogTenantIsolationTest extends TestCase
 
         $this->assertNotNull($activity);
         $this->assertSame((int) $this->companyA->id, (int) $activity->company_id);
-        $this->assertSame((int) $this->companyA->id, (int) $activity->properties['company_id']);
-
-        // Test model lifecycle activity logging
-        $modelActivity = AuditService::logModelActivity($customerA, 'updated_test');
-        $this->assertNotNull($modelActivity);
-        $this->assertSame((int) $this->companyA->id, (int) $modelActivity->company_id);
+        $this->assertArrayNotHasKey('company_id', $activity->properties->toArray(), 'the company lives in its column, not in the properties');
 
         // Client cannot spoof company_id away from server-authoritative subject/context
         $spoofed = AuditService::log(
@@ -108,7 +103,8 @@ class AuditLogTenantIsolationTest extends TestCase
         );
         $this->assertNotNull($spoofed);
         $this->assertSame((int) $this->companyA->id, (int) $spoofed->company_id);
-        $this->assertSame((int) $this->companyA->id, (int) $spoofed->properties['company_id']);
+        $this->assertArrayNotHasKey('company_id', $spoofed->properties->toArray(), 'the spoofed company is stored nowhere');
+        $this->assertSame('payload', $spoofed->properties['danger']);
     }
 
     public function test_two_tenant_collision_isolation_in_audit_log_query(): void

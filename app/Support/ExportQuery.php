@@ -2,9 +2,11 @@
 
 namespace App\Support;
 
+use App\Services\Core\AuditService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -21,6 +23,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class ExportQuery
 {
+    private const PDF_MAX_CELLS = 1500;
+
     public const DEFAULT_MAX_ROWS = 100;
 
     private const TRUNCATION_NOTICE = '# Ekspor dipotong pada %d baris. Persempit filter untuk mengekspor sisa barisnya.';
@@ -344,9 +348,11 @@ class ExportQuery
             fputcsv($out, $headers);
 
             $count = 0;
+            $truncated = false;
             foreach ($this->rows() as $row) {
                 if ($count >= $max) {
                     fputcsv($out, [sprintf(self::TRUNCATION_NOTICE, $max)]);
+                    $truncated = true;
                     break;
                 }
                 fputcsv($out, array_map(self::escapeCsvCell(...), self::dataRow($row, $columns)));
@@ -354,6 +360,7 @@ class ExportQuery
             }
 
             fclose($out);
+            $this->auditExport('csv', $count, $truncated);
         }, $filename, $this->downloadHeaders('text/csv; charset=UTF-8', $max));
     }
 
@@ -363,7 +370,8 @@ class ExportQuery
         $columns = $this->columns;
         $headers = self::headerRow($columns);
         $filename = self::safeFilename($this->filename, 'pdf');
-        $max = $this->maxRowsLimit();
+        // DomPDF holds the whole table in memory (F9-D01): the cap counts cells, so wide tables get fewer rows.
+        $max = min($this->maxRowsLimit(), intdiv(self::PDF_MAX_CELLS, max(1, count($headers))));
 
         return response()->streamDownload(function () use ($headers, $max, $title, $columns) {
             $rows = [];
@@ -383,7 +391,38 @@ class ExportQuery
                 'capped' => $capped,
                 'maxRows' => $max,
             ])->setPaper('a4', 'landscape')->setOption('isRemoteEnabled', false)->output();
+            $this->auditExport('pdf', count($rows), $capped);
         }, $filename, $this->downloadHeaders('application/pdf', $max));
+    }
+
+    /** One row per finished download; an aborted stream never reaches it. */
+    private function auditExport(string $format, int $rows, bool $truncated): void
+    {
+        $request = $this->request ?? request();
+
+        AuditService::log('export', 'export.'.$format, [
+            'report' => $request->route()?->getName(),
+            'filters' => self::maskSearchTerms(Arr::except($request->query(), ['format'])),
+            'rows' => $rows,
+            'truncated' => $truncated,
+        ]);
+    }
+
+    /**
+     * A search term is often a phone number, an email or a name: the row says that one was typed, never what.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    private static function maskSearchTerms(array $filters): array
+    {
+        foreach (['q', 'search'] as $key) {
+            if (filled($filters[$key] ?? null)) {
+                $filters[$key] = AuditProperties::MASKED;
+            }
+        }
+
+        return $filters;
     }
 
     /** @param array<int|string, mixed> $columns @return array<int, string> */

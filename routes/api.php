@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\MediaController;
 use App\Http\Controllers\Api\V1\MePasswordController;
 use App\Http\Controllers\Api\V1\MeProfileController;
 use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\PushTestController;
 use App\Http\Controllers\Api\V1\Technician\MyWorkController;
 use Illuminate\Support\Facades\Route;
 
@@ -40,6 +41,7 @@ Route::middleware('api.any')->group(function () {
     Route::post('me/password', MePasswordController::class)->name('me.password');
     Route::post('me/device-token', [DeviceTokenController::class, 'store'])->name('me.device-token.store');
     Route::delete('me/device-token', [DeviceTokenController::class, 'destroy'])->name('me.device-token.destroy');
+    Route::post('me/push-test', PushTestController::class)->middleware('throttle:api-push-test')->name('me.push-test');
     Route::get('devices', [DeviceController::class, 'index'])->name('devices.index');
     Route::delete('devices/{id}', [DeviceController::class, 'destroy'])->whereUlid('id')->name('devices.destroy');
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');

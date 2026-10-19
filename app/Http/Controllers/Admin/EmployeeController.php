@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
 use App\Support\ExportQuery;
+use App\Support\OptimisticLock;
 use App\Support\PublicId;
 use App\Support\SearchOptions;
 use Illuminate\Database\Eloquent\Builder;
@@ -52,6 +53,7 @@ class EmployeeController extends Controller
         }
 
         $employees = $employees->paginate($this->perPage($request))->withQueryString();
+        $canManage = $request->user()?->can('employee.manage') ?? false;
 
         return Inertia::render('Admin/Employees/Index', [
             'employees' => EmployeeResource::collection($employees),
@@ -69,7 +71,9 @@ class EmployeeController extends Controller
             ),
             'filters' => $request->only(['search', 'organization_id', 'status', 'sort', 'direction', 'per_page']),
             'can' => [
-                'create' => $request->user()?->can('employee.manage') ?? false,
+                'create' => $canManage,
+                'update' => $canManage,
+                'delete' => $canManage,
                 'export' => $request->user()?->can('employee.export') ?? false,
             ],
             'codeSequence' => [
@@ -94,7 +98,11 @@ class EmployeeController extends Controller
     public function update(UpdateEmployeeRequest $request, EmployeeProfile $employee): RedirectResponse
     {
         Gate::authorize('update', $employee);
-        $employee->update($request->validated());
+        DB::transaction(function () use ($request, $employee): void {
+            $locked = EmployeeProfile::query()->lockForUpdate()->findOrFail($employee->id);
+            OptimisticLock::assert($locked, $request->string(OptimisticLock::FIELD)->toString());
+            $locked->update($request->safe()->except(OptimisticLock::FIELD));
+        });
 
         return back()->with('success', 'Karyawan diperbarui.');
     }
@@ -168,11 +176,7 @@ class EmployeeController extends Controller
                 });
             })
             ->when($request->input('organization_id'), fn (Builder $q, $organizationId) => $q->where('organization_id', PublicId::resolveOne(OrganizationUnit::class, $organizationId) ?? 0))
-            ->when($request->input('status'), function (Builder $q, string $status): void {
-                if (in_array($status, ['active', 'inactive', 'terminated'], true)) {
-                    $q->where('status', $status);
-                }
-            });
+            ->lifecycleStatus($request->input('status'));
 
         return $this->applySort($query, $request, 'employee_number');
     }

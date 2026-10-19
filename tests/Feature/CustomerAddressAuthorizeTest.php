@@ -174,9 +174,9 @@ class CustomerAddressAuthorizeTest extends TestCase
         $this
             ->actingAs($user)
             ->delete(route('admin.customers.addresses.destroy', [$customer, $address]))
-            ->assertSessionHasErrors();
+            ->assertSessionHasErrors(['lifecycle' => 'Alamat masih dipakai 1 langganan, jadi tidak bisa dihapus.']);
 
-        $this->assertDatabaseHas('customer_addresses', ['id' => $address->id, 'label' => $address->label]);
+        $this->assertDatabaseHas('customer_addresses', ['id' => $address->id, 'label' => $address->label, 'deleted_at' => null]);
     }
 
     public function test_store_enforces_exactly_one_primary_marker(): void
@@ -276,9 +276,10 @@ class CustomerAddressAuthorizeTest extends TestCase
             ->actingAs($user)
             ->delete(route('admin.customers.addresses.destroy', [$customer, $primary]))
             ->assertRedirect()
-            ->assertSessionHasNoErrors();
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success', 'Alamat dihapus permanen.');
 
-        $this->assertSoftDeleted('customer_addresses', ['id' => $primary->id]);
+        $this->assertDatabaseMissing('customer_addresses', ['id' => $primary->id]);
         $this->assertTrue((bool) $remaining->fresh()?->is_primary);
     }
 

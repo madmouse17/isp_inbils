@@ -13,6 +13,7 @@ use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\NetworkAsset\Models\NetworkAccount;
+use Modules\NetworkAsset\Queries\AssetPanelQuery;
 use Modules\NetworkAsset\Services\NetworkAccountProvisioner;
 use Modules\NetworkAsset\Services\Radius\DisconnectPendingException;
 use Modules\NetworkAsset\Services\Radius\RadiusException;
@@ -71,6 +72,8 @@ class ApplyNetworkAccountJob implements ShouldBeUniqueUntilProcessing, ShouldQue
 
             try {
                 $provisioner->apply($account);
+                // Block, unblock, provision and resync all end here, after the sessions were cut: the panels' online sets are stale now.
+                AssetPanelQuery::forgetOnline($this->companyId);
             } catch (RadiusException $e) {
                 match ($e->kind) {
                     RadiusException::DISABLED => $this->record($account, 'pending', $e->getMessage()),

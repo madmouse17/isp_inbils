@@ -18,6 +18,7 @@ type Employee = {
     employee_number: string;
     organization_id: string | null;
     status: string;
+    updated_at: string;
 };
 
 type Organization = { id: string; code: string };
@@ -61,6 +62,9 @@ async function updateEmployee(
     organizationId: string | null,
     status = 'active',
 ) {
+    // The save names the version of the row it read. This spec saves the same employee again and
+    // again, so the version is read anew each time.
+    const { updated_at } = await employeeByNumber(page, employee.employee_number);
     const response = await page.request.put(`/admin/employees/${employee.id}`, {
         headers: { 'X-XSRF-TOKEN': await csrfToken(page) },
         maxRedirects: 0,
@@ -68,6 +72,7 @@ async function updateEmployee(
             employee_number: employee.employee_number,
             organization_id: organizationId === null ? '' : String(organizationId),
             status,
+            expected_updated_at: updated_at,
         },
     });
     expect(response.status(), `Employee update ${employee.employee_number}`).toBe(302);

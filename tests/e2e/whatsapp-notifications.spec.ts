@@ -266,9 +266,10 @@ test.describe('@lifecycle whatsapp notifications', () => {
         const section = page
             .getByRole('heading', { name: 'WhatsApp', exact: true })
             .locator('xpath=../..');
-        await expect(section).toContainText(
-            'Notifikasi tidak akan terkirim sampai kredensial diatur di server.',
-        );
+        await expect(section).toContainText('WhatsApp belum dikonfigurasi untuk perusahaan ini.');
+        await expect(
+            section.getByRole('link', { name: 'Atur di Pengaturan → Integrasi' }),
+        ).toBeVisible();
         await expect(section).toContainText('Kredensial terkonfigurasi: Tidak');
         // No credential value ever reaches the page.
         await expect(section.locator('input[type="password"]')).toHaveCount(0);

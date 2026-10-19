@@ -5,9 +5,11 @@ namespace Modules\Inventory\Http\Requests;
 use App\Http\Requests\Concerns\ResolvesPublicIds;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
+use App\Support\OptimisticLock;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\Inventory\Models\Category;
+use Modules\Inventory\Models\Unit;
 
 class UpdateProductRequest extends FormRequest
 {
@@ -40,16 +42,18 @@ class UpdateProductRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        $productId = $this->route('product')->id;
+        $product = $this->route('product');
+        $productId = $product->id;
         $companyId = CompanyService::currentId();
 
         return [
+            OptimisticLock::FIELD => OptimisticLock::rules(),
             'sku' => NumberSequenceService::allowsManual('product')
                 ? ['required', 'string', 'max:100', Rule::unique('products')->where('company_id', $companyId)->ignore($productId)]
                 : ['exclude'],
             'name' => ['required', 'string', 'max:255'],
             'category_id' => ['required', Rule::exists('categories', 'id')->where('company_id', $companyId)],
-            'unit_id' => ['required', Rule::exists('units', 'id')->where('company_id', $companyId)],
+            'unit_id' => ['required', Unit::assignableRule($companyId, $product->unit_id)],
             'description' => ['nullable', 'string'],
             'type' => ['nullable', 'string', 'in:consumable,asset,service'],
             'track_stock' => ['boolean'],
@@ -58,5 +62,11 @@ class UpdateProductRequest extends FormRequest
             'min_stock' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['boolean'],
         ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return ['unit_id.exists' => 'Satuan kategori ini sudah tidak aktif. Ganti satuan kategori terlebih dahulu.'];
     }
 }

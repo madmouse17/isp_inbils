@@ -41,4 +41,9 @@ class SpeedProfilePolicy
     {
         return $user->can('service.delete') || $user->can('service.manage');
     }
+
+    public function restore(User $user, SpeedProfile $speedProfile): bool
+    {
+        return $this->delete($user, $speedProfile);
+    }
 }

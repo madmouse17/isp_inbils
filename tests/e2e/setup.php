@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Core\Company;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\ConfigurationUrlParser;
 
@@ -76,6 +77,21 @@ try {
             '--class' => 'Database\Seeders\E2ePlatformSeeder',
             '--force' => true,
         ]);
+    }
+
+    // Midtrans, WhatsApp and RADIUS are configured per company now: give every seeded company the values of the environment
+    // (.env.e2e, and the RADIUS_* the lab runner exports). A provider without values is skipped.
+    if ($exitCode === 0) {
+        foreach (Company::query()->orderBy('id')->pluck('code') as $code) {
+            $exitCode = $kernel->call('inbils:integrations:import-env', [
+                '--company' => $code,
+                '--force' => true,
+            ]);
+
+            if ($exitCode !== 0) {
+                break;
+            }
+        }
     }
 
     exit($exitCode);

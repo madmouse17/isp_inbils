@@ -50,7 +50,19 @@ test('@customer-edit tabs are accessible, forms never nest, scalar save is isola
     await page.getByLabel('Email').fill(`${unique('customer').toLowerCase()}@example.test`);
     const save = page.getByRole('button', { name: 'Simpan pelanggan' });
     await save.dblclick();
-    await expect(page).toHaveURL(/\/admin\/customers\/?$/);
+    // One save however the second click lands. Normally the busy button swallows it and the list opens. If it gets
+    // through, the server refuses the repeat: the form stays up with the duplicate toast once, never twice.
+    const repeated = page
+        .getByLabel('Notifikasi')
+        .getByRole('alert')
+        .filter({ hasText: 'Permintaan yang sama baru saja dikirim.' });
+    await expect(
+        page
+            .getByRole('heading', { name: 'Pelanggan', level: 1, exact: true })
+            .or(repeated)
+            .first(),
+    ).toBeVisible();
+    expect(await repeated.count()).toBeLessThanOrEqual(1);
     await page.goto(`/admin/customers/${id}/edit`);
     await expect(page.getByLabel('Nama')).toHaveValue(name);
     await expect(page.getByRole('tab', { name: /Alamat/ })).toContainText('(1)');

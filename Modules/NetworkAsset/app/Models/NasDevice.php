@@ -62,7 +62,7 @@ class NasDevice extends Model
     /** @return BelongsTo<NetworkAsset, $this> */
     public function networkAsset(): BelongsTo
     {
-        return $this->belongsTo(NetworkAsset::class);
+        return $this->belongsTo(NetworkAsset::class)->withTrashed();
     }
 
     protected static function newFactory(): NasDeviceFactory

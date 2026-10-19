@@ -28,7 +28,7 @@ final class BusinessSources
 
         return $packageCategoryId === null
             ? $query
-            : $query->whereIn('service_subscriptions.service_package_id', self::packageIdsInCategory(self::companyOf($companyId), $packageCategoryId));
+            : $query->whereIn('service_subscriptions.service_package_version_id', self::packageVersionIdsInCategory(self::companyOf($companyId), $packageCategoryId));
     }
 
     /** @return Builder<ServiceSubscription> */
@@ -44,7 +44,7 @@ final class BusinessSources
     }
 
     /**
-     * Invoices of subscriptions on packages of the category; invoices without a subscription fall outside it.
+     * Invoices of subscriptions sold under a package version of the category; invoices without a subscription fall outside it.
      *
      * @param  Builder<Invoice>  $query
      * @return Builder<Invoice>

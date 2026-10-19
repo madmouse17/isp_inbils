@@ -41,15 +41,18 @@ class AnnouncementService
 
     public function publish(Announcement $announcement): Announcement
     {
-        if ($announcement->published_at !== null) {
-            throw ValidationException::withMessages(['status' => 'Pengumuman sudah diterbitkan.']);
-        }
-        if ($announcement->ends_at !== null && ! $announcement->ends_at->isFuture()) {
-            throw ValidationException::withMessages(['ends_at' => 'Periode pengumuman sudah berakhir.']);
-        }
-
         return DB::transaction(function () use ($announcement): Announcement {
-            $announcement->forceFill(['published_at' => now(), 'is_active' => true])->save();
+            $locked = Announcement::query()->whereKey($announcement->id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->published_at !== null) {
+                throw ValidationException::withMessages(['status' => 'Pengumuman sudah diterbitkan.']);
+            }
+            if ($locked->ends_at !== null && ! $locked->ends_at->isFuture()) {
+                throw ValidationException::withMessages(['ends_at' => 'Periode pengumuman sudah berakhir.']);
+            }
+
+            $locked->forceFill(['published_at' => now(), 'is_active' => true])->save();
+            $announcement->setRawAttributes($locked->getAttributes(), true);
             AuditService::log('announcement', 'published', ['announcement_id' => $announcement->id], $announcement);
             HomeFeedCache::flush((int) $announcement->company_id);
 

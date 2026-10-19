@@ -265,8 +265,8 @@ class DocumentTest extends TestCase
         $id = $documentType->id;
 
         $response = $this->actingAs($this->admin)->delete(route('admin.documents.destroy', $documentType));
-        $response->assertRedirect();
-        $this->assertDatabaseMissing('document_types', ['id' => $id, 'deleted_at' => null]);
+        $response->assertRedirect()->assertSessionHas('success', 'Jenis dokumen dihapus permanen.');
+        $this->assertDatabaseMissing('document_types', ['id' => $id]);
     }
 
     public function test_document_type_delete_rejects_unauthorized_user(): void

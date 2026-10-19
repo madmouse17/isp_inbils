@@ -229,7 +229,7 @@ Untuk menghapus foto yang sudah terkirim: ketuk foto di **Bukti kerja**, lalu **
 
 ## Material di SPK
 
-Bagian **Material** di detail SPK menampilkan material yang kantor alokasikan dan yang sudah Anda pakai: **Dialokasikan** dan **Terpakai**. Saat SPK **Dikerjakan**, Anda bisa mencatat pemakaian sendiri.
+Bagian **Material** di detail SPK menampilkan material SPK: **Dialokasikan** dan **Terpakai**. **Dialokasikan** hanya terisi pada SPK lama, karena kantor tidak lagi menulis jumlah rencana; pada SPK baru angkanya 0. Saat SPK **Dikerjakan**, Anda bisa mencatat pemakaian sendiri. Saat SPK **Ditugaskan** atau **Dikerjakan**, tombol **Minta material** membuka permintaan barang untuk SPK itu (bagian Permintaan barang baru).
 
 ![SPK berstatus Dikerjakan dengan tombol Tambah material](images/technician/detail-spk-material.png)
 
@@ -383,18 +383,31 @@ Kesalahan umum:
 
 Gunakan ini bila Anda butuh barang dari gudang untuk pekerjaan.
 
-![Layar Permintaan barang](images/technician/permintaan-baru.png)
+![Layar Permintaan barang dengan Gudang asal, SPK, Alasan, dan Barang yang diminta](images/technician/permintaan-baru.png)
 
-1. Di tab **Material**, ketuk **Permintaan baru** (tombol melayang di kanan bawah).
-2. Pilih **Gudang asal**. Bila hanya ada satu gudang, otomatis terpilih. Bila daftar kosong, aplikasi menulis "Belum ada gudang yang bisa dipilih. Hubungi kantor."
-3. Isi **Alasan (opsional)**, maksimal 2000 karakter.
+Ada dua jalan masuk:
+
+- Dari detail SPK: di bagian **Material**, ketuk **Minta material**. Tombol ini tampil saat SPK **Ditugaskan** atau **Dikerjakan**, dan formulir terbuka dengan SPK itu sudah terpilih.
+- Dari tab **Material**: ketuk **Permintaan baru** (tombol melayang di kanan bawah).
+
+Lalu isi formulir:
+
+1. Pilih **Gudang asal**. Bila hanya ada satu gudang, otomatis terpilih. Bila daftar kosong, aplikasi menulis "Belum ada gudang yang bisa dipilih. Hubungi kantor."
+2. Cek kolom **SPK**. Pilihannya **Tanpa SPK** dan SPK Anda yang **Ditugaskan** atau **Dikerjakan**, masing-masing tertulis "kode · judul". Kolom ini terisi sendiri. Bila Anda datang dari **Minta material**, SPK itu yang terpilih. Bila Anda datang dari tab **Material**, yang terpilih adalah SPK yang sedang dikerjakan, atau bila tidak ada, SPK **Ditugaskan** dengan jadwal terdekat. Ganti pilihannya, atau pilih **Tanpa SPK** bila barang itu bukan untuk SPK. Daftar memuat paling banyak sepuluh SPK pertama dari daftar pekerjaan untuk tiap status, jadi SPK yang tidak ada di sana dipilih lewat **Minta material** di detail SPK itu.
+3. Isi **Alasan (opsional)**, maksimal 2000 karakter. Bila dikosongkan dan SPK terpilih, alasannya tertulis "Permintaan material untuk SPK" disusul nomor SPK.
 4. Ketuk **Tambah barang**. Di layar **Pilih material**, cari dan ketuk barang, lalu isi **Jumlah diminta** dan ketuk **Tambah**. Barang yang sudah ada di daftar tidak bisa dipilih lagi ("Sudah ada di daftar"). Ulangi untuk tiap barang.
 5. Untuk membuang baris barang, ketuk ikon tempat sampah di sebelahnya.
 6. Ketuk **Kirim permintaan**.
 
 Aplikasi menulis "Permintaan REQ-xxxx diajukan." Permintaan langsung masuk antrean gudang, tanpa tahap draf.
 
-Kesalahan umum: **"Pilih gudang asal."** atau **"Tambahkan minimal satu barang."** muncul bila bagian itu belum diisi. Pesan dari server tampil di bawah kolom yang dimaksud. Kirim permintaan butuh internet.
+Permintaan yang memuat SPK menjadi material SPK itu. Barang yang gudang serahkan untuk SPK itu dihitung terhadap pemakaian SPK, jadi saat kantor menyetujui SPK, barang tersebut tidak dikurangi dari stok untuk kedua kalinya. Gudang tidak bisa menyerahkan barang bila SPK-nya sudah selesai atau dibatalkan.
+
+Kesalahan umum:
+
+- **"Pilih gudang asal."** atau **"Tambahkan minimal satu barang."** muncul bila bagian itu belum diisi.
+- **"SPK harus SPK aktif (ditugaskan atau dikerjakan) milik Anda."** tampil di bawah kolom **SPK**: SPK itu sudah selesai, dibatalkan, atau pindah ke teknisi lain sejak daftar dimuat. Pilih SPK lain atau **Tanpa SPK**.
+- Pesan lain dari server tampil di bawah kolom yang dimaksud. Kirim permintaan butuh internet.
 
 ## Pantau dan batalkan permintaan
 
@@ -449,6 +462,7 @@ Kesalahan umum: daftar tidak bertambah saat sinyal buruk. Tarik layar ke bawah s
 | Batas respons pertama terlewat | Waktu respons pertama tiket sudah lewat. | Ya |
 | SLA tiket terlampaui | Tiket melewati batas SLA. | Ya |
 | Permintaan barang siap diambil | Gudang menyiapkan barang yang Anda minta. Ketuk untuk membuka tab **Material**. | Ya |
+| Notifikasi uji | Anda mengetuk **Kirim notifikasi uji** di **Akun** → **Notifikasi uji** (bagian berikut). Isinya "Notifikasi uji dari {nama ISP}." Tidak membuka layar apa pun. | Ya, hanya ke ponsel yang mengirimnya |
 
 Kolom **Push** menunjukkan notifikasi yang juga masuk ke layar ponsel. Notifikasi lain, misalnya pengembalian material, hanya ada di daftar ini.
 
@@ -467,6 +481,26 @@ Saat **Keluar**, aplikasi menghapus pendaftaran ponsel ini, sehingga tidak ada p
 
 Bila push tidak muncul, pastikan izin notifikasi menyala, ponsel punya internet dan Anda masih masuk di aplikasi ini. ISP juga harus sudah mengaktifkan push di servernya; bila belum, notifikasi tetap muncul di tab **Notifikasi**.
 
+## Notifikasi uji
+
+Layar **Notifikasi uji** memeriksa apakah ponsel ini bisa menerima push dari ISP Anda, dan bila tidak, apa yang harus diperbaiki. Pakai saat push tidak muncul, sesudah ganti ponsel atau mengubah pengaturan baterai, atau sesudah masuk di ponsel baru.
+
+1. Buka tab **Akun**, lalu ketuk **Notifikasi uji**. Layar ini butuh internet.
+2. Baca tiga pemeriksaan dari atas ke bawah. Tiap pemeriksaan punya ikon dan teks hasil, jadi tidak bergantung pada warna:
+   - **Izin notifikasi**: **Diizinkan**, **Belum ditanyakan** (ketuk **Izinkan** untuk memunculkan pertanyaan Android), atau **Diblokir di pengaturan HP** (ketuk **Buka pengaturan**, lalu nyalakan notifikasi aplikasi Inbils). Bila pengaturan tidak terbuka, aplikasi menulis "Pengaturan tidak bisa dibuka. Buka Pengaturan HP, lalu Aplikasi, Inbils, Notifikasi." Aplikasi memeriksa izin lagi saat Anda kembali dari pengaturan.
+   - **Token terdaftar di server**: awalnya **Belum diperiksa**. Hasilnya **Terdaftar** diikuti nama ponsel ini, atau **Belum terdaftar** (ketuk **Daftarkan ulang**, lalu kirim notifikasi uji lagi). Bila server belum memasang Firebase, hasilnya "Notifikasi push belum aktif di server" dengan saran **Perbaiki** "Hubungi admin ISP Anda: Firebase server belum dipasang."
+   - **Pesan diterima**: **Belum dikirim**, lalu "Menunggu pesan… N dtk" dengan hitungan mundur 30 detik, lalu "Diterima dalam N dtk" atau "Pesan tidak datang dalam 30 detik".
+3. Ketuk **Kirim notifikasi uji**. Tombol aktif bila izin sudah **Diizinkan**, token tidak **Belum terdaftar**, dan tidak ada pengiriman yang sedang berjalan. Aplikasi memeriksa izin dan token, lalu meminta server mengirim satu pesan ke ponsel ini saja, bukan ke ponsel lain di akun Anda.
+4. Tetap di layar ini selama hitungan mundur. Pesan uji muncul sebagai banner di atas layar dan pemeriksaan **Pesan diterima** menjadi hijau dengan lama kedatangannya. Pesan yang sama tersimpan di tab **Notifikasi** dengan judul "Notifikasi uji".
+
+Bila **Pesan diterima** gagal, baca saran **Perbaiki** di bawahnya: "Periksa internet dan mode hemat baterai, lalu coba lagi. Bila tetap gagal, minta admin memeriksa status Firebase di Pengaturan → Integrasi." Admin ISP melihat status Firebase di halaman web **Integrasi** (kartu **Notifikasi aplikasi (Firebase)**: **Kredensial server** dan **Pengiriman terakhir berhasil**). Mode hemat baterai di beberapa ponsel menahan push untuk aplikasi yang tertutup. Keluarkan Inbils dari pembatasan baterai di pengaturan Android bila itu terjadi.
+
+Kesalahan umum:
+
+- "Terlalu banyak percobaan. Coba lagi dalam N detik.": satu akun boleh mengirim 3 notifikasi uji per menit. Tombol aktif lagi setelah hitungan itu.
+- Tombol **Kirim notifikasi uji** tidak bisa diketuk: lihat pemeriksaan **Izin notifikasi** dan **Token terdaftar di server**. Selesaikan saran di bawahnya.
+- "Tidak ada koneksi internet. Periksa sinyal, lalu coba lagi.": ponsel tidak punya internet, jadi server tidak bisa menjawab. Nyalakan internet, lalu kirim lagi.
+
 # 7. Akun
 
 Tab **Akun** menampilkan **Nama**, **Email**, dan **Telepon** Anda ("Belum diisi" bila kosong), pilihan **Tampilan**, dan menu di bawahnya.
@@ -475,7 +509,7 @@ Tab **Akun** menampilkan **Nama**, **Email**, dan **Telepon** Anda ("Belum diisi
 
 **Tampilan** memilih mode warna aplikasi: **Sistem** (mengikuti pengaturan ponsel), **Terang**, atau **Gelap**. Pilihan berlaku seketika dan tersimpan di ponsel ini. Warna utamanya mengikuti warna merek ISP, terang maupun gelap.
 
-Menu: **Ubah profil**, **Ganti kata sandi**, **Perangkat**, **Tentang aplikasi**, **Keluar**. Menu ini tetap bisa dibuka tanpa internet, jadi Anda tetap bisa keluar dari akun.
+Menu: **Ubah profil**, **Ganti kata sandi**, **Perangkat**, **Notifikasi uji**, **Tentang aplikasi**, **Keluar**. Menu ini tetap bisa dibuka tanpa internet, jadi Anda tetap bisa keluar dari akun. **Notifikasi uji** sendiri butuh internet untuk mengirim pesan.
 
 ## Ubah profil
 

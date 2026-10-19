@@ -42,6 +42,7 @@ use Modules\Billing\Queries\ReceivablesQuery;
 use Modules\Billing\Services\BillingService;
 use Modules\Billing\Services\MidtransGateway;
 use Modules\Billing\Services\PaymentAttemptService;
+use Modules\Billing\Support\InvoiceParty;
 use Modules\Billing\Support\Terbilang;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -84,6 +85,8 @@ class InvoiceController extends Controller
             'can' => [
                 'create' => $request->user()?->can('billing.create') ?? false,
                 'export' => $request->user()?->can('billing.export') ?? false,
+                'update' => $request->user()?->can('billing.update') ?? false,
+                'delete' => $request->user()?->can('billing.delete') ?? false,
             ],
         ]);
     }
@@ -93,7 +96,7 @@ class InvoiceController extends Controller
     {
         return Invoice::query()
             ->when($request->input('type'), fn ($query, $value) => $query->where('type', $value))
-            ->when($request->input('status'), fn ($query, $value) => $query->where('status', $value))
+            ->lifecycleStatus($request->input('status'))
             ->when($request->input('source'), fn ($query, $value) => $query->where('source', $value))
             ->when($request->input('customer_id'), fn ($query, $value) => $query->where('customer_id', PublicId::resolveOne(Customer::class, $value) ?? 0))
             ->when($request->input('date_from'), fn ($query, $value) => $query->whereDate('issue_date', '>=', $value))
@@ -245,11 +248,12 @@ class InvoiceController extends Controller
         $this->ensureSameCompany($invoice);
         Gate::authorize('view', $invoice);
 
-        $invoice->load(['customer', 'subscription.servicePackage', 'items']);
+        $invoice->load(['subscription', 'items']);
         $company = CompanyService::current();
 
         return Pdf::loadView('pdf.invoice', [
             'invoice' => $invoice,
+            'party' => InvoiceParty::of($invoice),
             'company' => $company,
             'bankInfo' => ($company?->settings ?? [])['bank_account_info'] ?? '',
             'terbilang' => Terbilang::make((float) $invoice->total),

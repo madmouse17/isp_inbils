@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ChangeSubscriptionPackageRequest;
 use App\Http\Requests\Admin\StoreSubscriptionRequest;
 use App\Http\Requests\Admin\UpdateSubscriptionRequest;
 use App\Http\Resources\CustomerAddressResource;
@@ -13,6 +14,7 @@ use App\Models\Core\ServiceSubscription;
 use App\Services\Core\CompanyService;
 use App\Services\Core\SubscriptionService;
 use App\Support\ExportQuery;
+use App\Support\OptimisticLock;
 use App\Support\PublicId;
 use App\Support\RecordNotFound;
 use Illuminate\Database\Eloquent\Builder;
@@ -22,6 +24,7 @@ use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
+use Inertia\OptionalProp;
 use Inertia\Response as InertiaResponse;
 use Modules\Ipam\Queries\IpPrefixUtilisationQuery;
 use Modules\Ipam\Services\IpAssignmentService;
@@ -76,11 +79,23 @@ class SubscriptionController extends Controller
         $this->ensureSameCompany($subscription);
         Gate::authorize('customer.subscription.view');
 
-        $subscription->load(['servicePackage.category', 'customer', 'installationAddress', 'servingPop', 'blockedBy:id,public_id,name']);
+        $subscription->load([
+            'servicePackage.category',
+            'servicePackage.latestVersion',
+            'packageVersion.bandwidthProfile',
+            'packageVersion.speedProfile',
+            'packageVersion.slaTier',
+            'packageVersion.category',
+            'customer',
+            'installationAddress',
+            'servingPop',
+            'blockedBy:id,public_id,name',
+        ]);
 
         $user = $request->user();
         $canAssignIp = $user?->can('ipam.assign') ?? false;
         $canAssignDrop = $user?->can('odn.assign') ?? false;
+        $canChangePackage = $user?->can('customer.subscription.manage') ?? false;
 
         return Inertia::render('Admin/Subscriptions/Show', [
             'subscription' => new SubscriptionResource($subscription),
@@ -98,7 +113,9 @@ class SubscriptionController extends Controller
             'dropPort' => ($user?->can('odn.view') ?? false) ? OdnService::dropPortFor($subscription) : null,
             // Free ODP ports under the serving POP; evaluated only on a partial reload that asks for it.
             ...($canAssignDrop ? ['dropPortOptions' => OdnOccupancyQuery::dropPortOptions($request, $subscription->serving_pop_id)] : []),
-            'can' => ['assignIp' => $canAssignIp, 'assignDrop' => $canAssignDrop, 'block' => $user?->can('customer.subscription.block') ?? false],
+            // The packages a subscription can move to; evaluated only on a partial reload that asks for it.
+            ...($canChangePackage ? ['packageOptions' => $this->packageOptions()] : []),
+            'can' => ['assignIp' => $canAssignIp, 'assignDrop' => $canAssignDrop, 'block' => $user?->can('customer.subscription.block') ?? false, 'changePackage' => $canChangePackage],
         ]);
     }
 
@@ -107,16 +124,18 @@ class SubscriptionController extends Controller
         $this->ensureSameCompany($subscription);
         Gate::authorize('customer.subscription.manage');
 
-        $data = $request->validated();
+        $data = $request->safe()->except(OptimisticLock::FIELD);
         unset($data['status'], $data['code']);
 
-        $packageChanged = isset($data['service_package_id']) && (int) $data['service_package_id'] !== (int) $subscription->service_package_id;
-        $addressChanged = isset($data['installation_address_id']) && (int) $data['installation_address_id'] !== (int) $subscription->installation_address_id;
+        DB::transaction(function () use ($request, $subscription, $data) {
+            $subscription = ServiceSubscription::query()->lockForUpdate()->findOrFail($subscription->id);
+            OptimisticLock::assert($subscription, $request->string(OptimisticLock::FIELD)->toString());
 
-        DB::transaction(function () use ($subscription, $data, $packageChanged, $addressChanged) {
+            $addressChanged = isset($data['installation_address_id']) && (int) $data['installation_address_id'] !== (int) $subscription->installation_address_id;
+
             $subscription->update($data);
 
-            if ($packageChanged || $addressChanged) {
+            if ($addressChanged) {
                 $subscription->load('installationAddress', 'customer');
                 $generatedSpk = $subscription->workOrders()
                     ->whereIn('status', ['draft', 'generated', 'rejected', 'cancelled'])
@@ -133,6 +152,18 @@ class SubscriptionController extends Controller
         });
 
         return back()->with('success', 'Langganan diperbarui.');
+    }
+
+    public function changePackage(ChangeSubscriptionPackageRequest $request, ServiceSubscription $subscription): RedirectResponse
+    {
+        $this->ensureSameCompany($subscription);
+        Gate::authorize('customer.subscription.manage');
+
+        $data = $request->validated();
+
+        SubscriptionService::changePackage($subscription, (int) $data['service_package_id'], $data['mrc_amount'] ?? null);
+
+        return back()->with('success', 'Langganan dipindahkan ke versi terbaru paket.');
     }
 
     public function activate(Request $request, ServiceSubscription $subscription): RedirectResponse
@@ -264,6 +295,22 @@ class SubscriptionController extends Controller
             ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->string('status')->toString()));
 
         return $this->applySort($query, $request, 'created_at', 'desc');
+    }
+
+    private function packageOptions(): OptionalProp
+    {
+        // shortcut: the whole active catalogue in one list, a few dozen rows; search it on the server (SearchOptions) when a company outgrows a select.
+        return Inertia::optional(fn (): array => ServicePackage::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['public_id', 'code', 'name', 'price_mrc'])
+            ->map(fn (ServicePackage $package): array => [
+                'id' => $package->public_id,
+                'code' => $package->getAttribute('code'),
+                'name' => $package->name,
+                'price_mrc' => $package->getAttribute('price_mrc'),
+            ])
+            ->all());
     }
 
     private function ensureSameCompany(Customer|ServiceSubscription $model): void

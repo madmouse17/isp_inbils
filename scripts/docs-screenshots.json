@@ -3,6 +3,10 @@
         "width": 1280,
         "height": 800
     },
+    "phone": {
+        "width": 390,
+        "height": 844
+    },
     "screens": [
         {
             "slug": "login",
@@ -93,7 +97,7 @@
                     "click": "role=button[name=\"Tambah item\"] >> visible=true >> nth=0"
                 },
                 {
-                    "waitFor": "text=Jumlah dicadangkan >> visible=true >> nth=0"
+                    "waitFor": "text=Jumlah terpakai >> visible=true >> nth=0"
                 }
             ]
         },
@@ -269,13 +273,16 @@
         },
         {
             "slug": "network-assets-show",
-            "url": "/admin/network-assets",
+            "url": "/admin/network-assets?search=E2E-PANEL-ONT",
             "actions": [
                 {
                     "click": "main table tbody tr a >> visible=true >> nth=0"
                 },
                 {
                     "waitFor": "text=Siklus hidup >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "[data-panel-ready=\"true\"]"
                 }
             ]
         },
@@ -292,6 +299,9 @@
                 },
                 {
                     "waitFor": "text=Halaman isolir >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "role=heading[name=\"Pilih model perangkat\"]"
                 }
             ]
         },
@@ -333,6 +343,109 @@
                 },
                 {
                     "waitFor": "text=Splitter 1:8 >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "[data-panel-ready=\"true\"]"
+                }
+            ]
+        },
+        {
+            "slug": "panel-picker",
+            "url": "/admin/network-assets?search=E2E-PANEL-NEW",
+            "actions": [
+                {
+                    "click": "main table tbody tr a >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "role=heading[name=\"Pilih model perangkat\"]"
+                }
+            ]
+        },
+        {
+            "slug": "panel-olt",
+            "url": "/admin/network-assets?search=E2E-PANEL-OLT",
+            "actions": [
+                {
+                    "click": "main table tbody tr a >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "[data-panel-ready=\"true\"]"
+                },
+                {
+                    "hover": "[data-port-button=\"pon1:1\"]"
+                },
+                {
+                    "waitFor": "[role=\"tooltip\"][data-open]"
+                }
+            ]
+        },
+        {
+            "slug": "panel-phone",
+            "url": "/admin/network-assets?search=E2E-PANEL-RTR",
+            "phone": true,
+            "actions": [
+                {
+                    "click": "main table tbody tr a >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "[data-panel-ready=\"true\"]"
+                }
+            ]
+        },
+        {
+            "slug": "panel-router-portsheet",
+            "url": "/admin/network-assets?search=E2E-PANEL-RTR",
+            "actions": [
+                {
+                    "click": "main table tbody tr a >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "[data-panel-ready=\"true\"]"
+                },
+                {
+                    "click": "[data-port-button=\"ether:2\"]"
+                },
+                {
+                    "click": "role=button[name=\"Hubungkan ke port lain\"]"
+                },
+                {
+                    "fill": ["role=combobox[name=\"Perangkat tujuan\"]", "E2E-PANEL-OLT"]
+                },
+                {
+                    "click": "role=option[name=/E2E-PANEL-OLT/] >> nth=0"
+                },
+                {
+                    "click": "role=combobox[name=\"Port tujuan\"]"
+                },
+                {
+                    "click": "role=option[name=/^UP2/]"
+                }
+            ]
+        },
+        {
+            "slug": "panel-rack",
+            "url": "/admin/network-assets?search=E2E-PANEL-RACK",
+            "actions": [
+                {
+                    "click": "main table tbody tr a >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "[data-rack-asset]"
+                },
+                {
+                    "hover": "role=button[name=\"E2E-PANEL-RTR, U13, 1U\"]"
+                }
+            ]
+        },
+        {
+            "slug": "panel-trace",
+            "url": "/admin/network-assets/trace?search=E2E-PANEL-ONT",
+            "actions": [
+                {
+                    "click": "role=button[name=\"Jalur fiber E2E-PANEL-SUB\"]"
+                },
+                {
+                    "waitFor": "role=list[name=\"Jalur fiber E2E-PANEL-SUB\"]"
                 }
             ]
         },
@@ -534,6 +647,24 @@
             "actions": [
                 {
                     "click": "text=Pemakaian bulan ini >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "company-integrations",
+            "url": "/admin/company/integrations",
+            "actions": [
+                {
+                    "waitFor": "role=button[name=\"Uji koneksi\"] >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "company-integrations-firebase",
+            "url": "/admin/company/integrations",
+            "actions": [
+                {
+                    "click": "text=Pengiriman terakhir berhasil >> visible=true >> nth=0"
                 }
             ]
         },

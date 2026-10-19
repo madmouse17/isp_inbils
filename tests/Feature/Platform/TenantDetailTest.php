@@ -3,6 +3,7 @@
 namespace Tests\Feature\Platform;
 
 use App\Models\Core\Company;
+use App\Models\Core\CompanyIntegration;
 use App\Models\Core\Customer;
 use App\Models\Platform\TenantExport;
 use App\Models\User;
@@ -358,6 +359,61 @@ class TenantDetailTest extends TestCase
             ->missing('exports.1.download_url'));
     }
 
+    public function test_the_tenant_page_lists_integration_states_without_values(): void
+    {
+        $row = fn (Company $company, string $provider, array $attributes = []) => CompanyIntegration::withoutCompany()->forceCreate([
+            'company_id' => $company->id,
+            'provider' => $provider,
+            'credentials' => ['server_key' => 'SB-Mid-server-zq9Xk7Lmn4Pw', 'access_token' => 'hunter2-zq9Xk7Lmn4Pw'],
+            'settings' => ['host' => 'smtp.secret-host.test'],
+            'external_id' => 'phone-id-zq9Xk7',
+            ...$attributes,
+        ]);
+        $row($this->alpha['root'], 'midtrans', ['is_enabled' => true]);
+        $row($this->alpha['root'], 'whatsapp', ['is_enabled' => true, 'verified_at' => '2026-10-19 09:00:00', 'last_checked_at' => '2026-10-19 09:00:00']);
+        $row($this->alpha['root'], 'mail', ['last_error' => 'Login SMTP ditolak. zq9Xk7', 'last_checked_at' => '2026-10-19 10:30:00']);
+        $row($this->alpha['child'], 'radius', ['is_enabled' => true]);
+        $row($this->beta['root'], 'midtrans', ['verified_at' => '2026-10-19 09:00:00']);
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $response = $this->show($this->alpha['root'])->assertOk();
+        $integrationQueries = collect(DB::getQueryLog())->pluck('query')->filter(fn (string $sql): bool => str_contains($sql, 'company_integrations'));
+        $this->assertCount(1, $integrationQueries, 'one grouped query for the tenant');
+        $this->assertStringNotContainsString('credentials', $integrationQueries->first());
+        $this->assertStringNotContainsString('settings', $integrationQueries->first());
+        $this->assertStringNotContainsString('external_id', $integrationQueries->first());
+
+        $response->assertInertia(function (Assert $page): void {
+            $page->has('integrations', 8);
+            $states = collect($page->toArray()['props']['integrations'])->mapWithKeys(fn (array $item): array => [$item['company']['code'].':'.$item['provider'] => $item]);
+
+            $this->assertSame(
+                ['ALP:midtrans' => 'filled', 'ALP:whatsapp' => 'verified', 'ALP:mail' => 'failed', 'ALP:radius' => 'empty',
+                    'ALP-C:midtrans' => 'empty', 'ALP-C:whatsapp' => 'empty', 'ALP-C:mail' => 'empty', 'ALP-C:radius' => 'filled'],
+                $states->map(fn (array $item): string => $item['state'])->all(),
+            );
+            $this->assertSame(
+                [
+                    'company' => ['id' => $this->alpha['root']->public_id, 'code' => 'ALP', 'name' => 'Alpha Net'],
+                    'provider' => 'whatsapp',
+                    'state' => 'verified',
+                    'is_enabled' => true,
+                    'last_checked_at' => '2026-10-19T09:00:00+00:00',
+                ],
+                $states['ALP:whatsapp'],
+            );
+            $this->assertSame('2026-10-19T10:30:00+00:00', $states['ALP:mail']['last_checked_at']);
+            $this->assertNull($states['ALP:radius']['last_checked_at']);
+            $this->assertFalse($states['ALP:radius']['is_enabled']);
+
+            $json = json_encode($page->toArray()['props'], JSON_THROW_ON_ERROR);
+            foreach (['credentials', 'tersimpan', 'zq9Xk7', 'Lmn4Pw', 'hunter2', 'smtp.secret-host.test', 'Login SMTP ditolak'] as $leak) {
+                $this->assertStringNotContainsString($leak, $json);
+            }
+        });
+    }
+
     public function test_an_empty_tenant_renders_with_empty_lists(): void
     {
         $lonely = Company::factory()->create(['name' => 'Lonely', 'code' => 'LON']);
@@ -371,6 +427,8 @@ class TenantDetailTest extends TestCase
             ->where('failedJobs', [])
             ->where('failedWhatsApp', [])
             ->where('exports', [])
+            ->has('integrations', 4)
+            ->where('integrations.0.state', 'empty')
             ->where('metrics.users_count', 0)
             ->where('metrics.last_login_at', null));
     }

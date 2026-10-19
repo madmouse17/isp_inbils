@@ -568,22 +568,22 @@ class MaterialReturnWorkflowTest extends TestCase
             'quantity_used' => 5,
         ]);
 
-        // Line 2: Legacy product with reservation
+        // Line 2: product no request covers, taken from the SPK location
         WorkOrderItem::create([
             'company_id' => $company->id,
             'work_order_id' => $spk->id,
             'product_id' => $legacyProduct->id,
-            'quantity_reserved' => 4,
+            'quantity_reserved' => 0,
             'quantity_used' => 4,
         ]);
 
-        // Stock initial for legacy product: 10 total, 4 reserved
+        // Stock initial for that product: 10 total, nothing reserved
         Stock::create([
             'company_id' => $company->id,
             'product_id' => $legacyProduct->id,
             'location_id' => $location->id,
             'quantity' => 10,
-            'reserved_quantity' => 4,
+            'reserved_quantity' => 0,
         ]);
 
         // Start SPK
@@ -663,7 +663,7 @@ class MaterialReturnWorkflowTest extends TestCase
         $this->assertEquals(0, (float) $irStock->quantity);
         $this->assertEquals(0, (float) $irStock->reserved_quantity);
 
-        // 2. Legacy product: quantity consumed 4 (10 - 4 = 6), reserved released (4 - 4 = 0)
+        // 2. Uncovered product: 4 issued at the SPK location (10 - 4 = 6), nothing reserved or released
         $legacyStock = Stock::where('product_id', $legacyProduct->id)->where('location_id', $location->id)->first();
         $this->assertEquals(6, (float) $legacyStock->quantity);
         $this->assertEquals(0, (float) $legacyStock->reserved_quantity);
@@ -782,22 +782,22 @@ class MaterialReturnWorkflowTest extends TestCase
             'created_by' => $creator->id,
         ]);
 
-        // 5 reserved on SPK, 10 used
+        // 10 used
         $item1 = WorkOrderItem::create([
             'company_id' => $company->id,
             'work_order_id' => $spk->id,
             'product_id' => $product->id,
-            'quantity_reserved' => 5,
+            'quantity_reserved' => 0,
             'quantity_used' => 10,
         ]);
 
-        // Initial warehouse stock: 20 total, 5 reserved
+        // Initial warehouse stock: 20 total, 4 reserved for the request below
         $stock = Stock::create([
             'company_id' => $company->id,
             'product_id' => $product->id,
             'location_id' => $location->id,
             'quantity' => 20,
-            'reserved_quantity' => 5,
+            'reserved_quantity' => 4,
         ]);
 
         $this->actingAs($technician);
@@ -869,9 +869,9 @@ class MaterialReturnWorkflowTest extends TestCase
 
         // Verify:
         // Total needed was 10 units. IR covered 4.
-        // Direct consumption issued 6 units (1 on item 1, 5 on item 2).
+        // Direct consumption issued the 6 units the request did not cover, from the request's warehouse.
         // Stock should be 16 - 6 = 10.00!
-        // All reservations must be completely released (reserved_quantity = 0.00)!
+        // The request's reservation went with its issue: nothing is left reserved (reserved_quantity = 0.00)!
         $stock->refresh();
         $this->assertEquals(10.00, (float) $stock->quantity);
         $this->assertEquals(0.00, (float) $stock->reserved_quantity);

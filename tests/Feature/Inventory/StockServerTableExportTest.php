@@ -101,7 +101,8 @@ class StockServerTableExportTest extends TestCase
         $this->get(route('admin.stocks.index', $query))->assertOk()->assertInertia(fn (Assert $page) => $page
             ->where('stocks.meta.total', 1)
             ->where('stocks.data.0.id', $stock->public_id)
-            ->where('stocks.data.0.product', null)
+            ->where('stocks.data.0.product.name', 'Deleted product')
+            ->whereNot('stocks.data.0.product.deleted_at', null)
         );
         $rows = $this->csvRows($this->get(route('admin.stocks.export', $query))->assertOk()->streamedContent());
         $this->assertCount(1, $rows);

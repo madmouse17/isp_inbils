@@ -4,23 +4,38 @@ namespace App\Services\Core;
 
 use App\Models\Core\Company;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CompanyLogoService
 {
+    /**
+     * The new file is stored first; the old one goes only after the commit, so a failure never leaves the company without a logo or with a stray file.
+     * Inside a caller's transaction it joins that transaction: Laravel drops the rollback callbacks of a nested transaction that already committed.
+     */
     public static function store(Company $company, UploadedFile $logo): void
     {
-        $company->clearMediaCollection('logo');
+        $contents = self::webpContents($logo);
 
-        $company->addMediaFromString(self::webpContents($logo))
-            ->withCustomProperties(['company_id' => $company->id])
-            ->usingFileName('logo.webp')
-            ->toMediaCollection('logo', 'public');
+        $replace = function () use ($company, $contents): void {
+            Company::query()->whereKey($company->id)->lockForUpdate()->firstOrFail();
+            $old = $company->media()->where('collection_name', 'logo')->get();
+
+            $new = $company->addMediaFromString($contents)
+                ->withCustomProperties(['company_id' => $company->id])
+                ->usingFileName('logo.webp')
+                ->toMediaCollection('logo', 'public');
+
+            DB::afterRollBack(fn () => $new->delete());
+            DB::afterCommit(fn () => $old->each->delete());
+        };
+
+        DB::transactionLevel() === 0 ? DB::transaction($replace) : $replace();
     }
 
     private static function webpContents(UploadedFile $logo): string
     {
-        $image = imagecreatefromstring($logo->getContent());
+        $image = @imagecreatefromstring($logo->getContent());
 
         if ($image === false) {
             throw ValidationException::withMessages(['logo' => 'Berkas logo tidak dapat dibaca.']);

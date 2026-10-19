@@ -328,17 +328,19 @@ final class OdnOccupancyQuery
     }
 
     /** "OLT-1 · PON 3" or "ODC-2 · 1:4 · keluaran 2" (the splitter label replaces the ratio when it has one). */
-    private static function label(string $kind, string $assetCode, int $number, ?int $outputs, ?string $splitterLabel): string
+    public static function label(string $kind, string $assetCode, int $number, ?int $outputs, ?string $splitterLabel): string
     {
-        if ($kind === OdnPort::KIND_PON) {
-            return "{$assetCode} · PON {$number}";
-        }
+        return "{$assetCode} · ".self::portLabel($kind, $number, $outputs, $splitterLabel);
+    }
 
-        return "{$assetCode} · ".self::ratio($outputs, $splitterLabel)." · keluaran {$number}";
+    /** The port half of label(): "PON 3" or "1:4 · keluaran 2"; the hardware panel shows it next to the asset code. */
+    public static function portLabel(string $kind, int $number, ?int $outputs, ?string $splitterLabel): string
+    {
+        return $kind === OdnPort::KIND_PON ? "PON {$number}" : self::ratio($outputs, $splitterLabel)." · keluaran {$number}";
     }
 
     /** The splitter label when it has one, else its ratio ("1:8"). */
-    private static function ratio(?int $outputs, ?string $splitterLabel): string
+    public static function ratio(?int $outputs, ?string $splitterLabel): string
     {
         return ($splitterLabel !== null && $splitterLabel !== '') ? $splitterLabel : '1:'.$outputs;
     }

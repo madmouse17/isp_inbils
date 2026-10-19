@@ -31,4 +31,9 @@ class DocumentTypePolicy
     {
         return $user->can('system.setting');
     }
+
+    public function restore(User $user, DocumentType $dt): bool
+    {
+        return $this->delete($user, $dt);
+    }
 }

@@ -65,13 +65,13 @@ class IpAddress extends Model
     /** @return BelongsTo<ServiceSubscription, $this> */
     public function subscription(): BelongsTo
     {
-        return $this->belongsTo(ServiceSubscription::class);
+        return $this->belongsTo(ServiceSubscription::class)->withTrashed();
     }
 
     /** @return BelongsTo<NetworkAsset, $this> */
     public function networkAsset(): BelongsTo
     {
-        return $this->belongsTo(NetworkAsset::class);
+        return $this->belongsTo(NetworkAsset::class)->withTrashed();
     }
 
     /** @return BelongsTo<User, $this> */

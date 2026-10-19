@@ -307,11 +307,11 @@ class InventoryPickersTest extends TestCase
         $free = Unit::factory()->create(['company_id' => $this->company->id, 'name' => 'Pak']);
 
         $this->delete(route('admin.units.destroy', $used))
-            ->assertSessionHasErrors(['unit' => 'Satuan tidak dapat dihapus karena masih dipakai barang atau kategori.']);
+            ->assertSessionHasErrors(['lifecycle' => 'Satuan masih dipakai 1 kategori barang. Nonaktifkan saja.']);
         $this->assertNotSoftDeleted($used);
 
-        $this->delete(route('admin.units.destroy', $free))->assertSessionHas('success', 'Satuan berhasil dihapus.');
-        $this->assertSoftDeleted($free);
+        $this->delete(route('admin.units.destroy', $free))->assertSessionHas('success', 'Satuan dihapus permanen.');
+        $this->assertModelMissing($free);
     }
 
     public function test_the_item_finder_lists_consumables_only(): void

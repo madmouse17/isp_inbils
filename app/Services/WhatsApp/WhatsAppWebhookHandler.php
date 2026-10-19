@@ -2,7 +2,6 @@
 
 namespace App\Services\WhatsApp;
 
-use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\Core\WhatsAppInboundReceipt;
 use App\Models\Core\WhatsAppMessage;
@@ -16,12 +15,13 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Applies a payload whose signature was already verified: delivery statuses move a message forward, a STOP or
- * BERHENTI reply withdraws the sender's consent. Everything else is ignored. Meta repeats and reorders
- * callbacks, so a status only ever moves forward, and only through a conditional UPDATE: two callbacks racing
- * on the same row cannot move it back, and a reply is applied once per message (a receipt per company) and
- * never to consent given after it was sent. Nothing here logs a request body or a phone number, and every
- * parameter that holds one is #[\SensitiveParameter], so a stack trace cannot carry them into failed_jobs or
- * the logs.
+ * BERHENTI reply withdraws the sender's consent. Everything else is ignored. A change counts only for the companies
+ * whose app secret signed the body and that own the number it names: another company's messages and customers are
+ * never touched, whatever else the body claims. Meta repeats and reorders callbacks, so a status only ever moves
+ * forward, and only through a conditional UPDATE: two callbacks racing on the same row cannot move it back, and a
+ * reply is applied once per message (a receipt per company) and never to consent given after it was sent. Nothing
+ * here logs a request body or a phone number, and every parameter that holds one is #[\SensitiveParameter], so a
+ * stack trace cannot carry them into failed_jobs or the logs.
  */
 class WhatsAppWebhookHandler
 {
@@ -31,24 +31,36 @@ class WhatsAppWebhookHandler
     /** Replies that withdraw consent, compared trimmed and in lower case. */
     private const OPT_OUT_WORDS = ['stop', 'berhenti'];
 
-    /** @param array<string, mixed> $payload */
-    public function handle(#[\SensitiveParameter] array $payload): void
+    /**
+     * @param  array<string, mixed>  $payload
+     * @param  array<string, list<int>>  $companies  phone_number_id => the companies whose app secret signed the payload
+     *                                               (WhatsAppCloudClient::verifiedCompanies); a change for another number is skipped
+     */
+    public function handle(#[\SensitiveParameter] array $payload, array $companies): void
     {
         foreach ($this->values($payload) as $value) {
+            $number = data_get($value, 'metadata.phone_number_id');
+            $companyIds = is_string($number) ? ($companies[$number] ?? []) : [];
+
+            if ($companyIds === []) {
+                continue;
+            }
+
             foreach ($this->items($value, 'statuses') as $status) {
-                $this->applyStatus($status);
+                $this->applyStatus($status, $companyIds);
             }
 
             foreach ($this->items($value, 'messages') as $message) {
-                $this->applyReply($message);
+                $this->applyReply($message, $companyIds);
             }
         }
     }
 
     /**
      * @param  array<string, mixed>  $status
+     * @param  list<int>  $companyIds  the companies of the number the status came to
      */
-    private function applyStatus(#[\SensitiveParameter] array $status): void
+    private function applyStatus(#[\SensitiveParameter] array $status, array $companyIds): void
     {
         $providerId = $status['id'] ?? null;
         $state = $status['status'] ?? null;
@@ -69,8 +81,9 @@ class WhatsAppWebhookHandler
             return; // played, unknown states
         }
 
-        // The provider id is globally unique and the only way to learn which company the message belongs to.
-        $message = WhatsAppMessage::withoutCompany()->where('provider_message_id', $providerId)->first();
+        // The provider id is globally unique and the way to learn which company the message belongs to; only a company of
+        // this number may have it moved by this payload.
+        $message = WhatsAppMessage::withoutCompany()->where('provider_message_id', $providerId)->whereIn('company_id', $companyIds)->first();
 
         if ($message === null) {
             return;
@@ -97,8 +110,9 @@ class WhatsAppWebhookHandler
      * at least once, so a redelivered STOP must not withdraw consent that staff recorded again in the meantime.
      *
      * @param  array<string, mixed>  $message
+     * @param  list<int>  $companyIds  the companies of the number the reply was said to
      */
-    private function applyReply(#[\SensitiveParameter] array $message): void
+    private function applyReply(#[\SensitiveParameter] array $message, array $companyIds): void
     {
         $from = $message['from'] ?? null;
         $body = data_get($message, 'text.body');
@@ -122,9 +136,10 @@ class WhatsAppWebhookHandler
         $receipt = is_string($id) && $id !== '' ? hash_hmac('sha256', $id, (string) config('app.key')) : null;
         $sentAt = $this->moment($message['timestamp'] ?? null);
 
-        // A number can belong to customers of several companies; each withdrawal is audited in its own company.
-        foreach (Company::query()->pluck('id') as $companyId) {
-            CompanyService::runAs((int) $companyId, fn () => $this->optOutCustomers($phone, $receipt, $sentAt));
+        // A phone can belong to customers of several companies on the number; each withdrawal is audited in its own
+        // company, and a company on another number never hears the reply.
+        foreach ($companyIds as $companyId) {
+            CompanyService::runAs($companyId, fn () => $this->optOutCustomers($phone, $receipt, $sentAt));
         }
     }
 

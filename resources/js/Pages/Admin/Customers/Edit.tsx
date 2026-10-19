@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react';
-import { useState } from 'react';
-import { Link, router, useForm } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
+import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
@@ -17,6 +17,7 @@ import {
     type GeocodeResult,
 } from '@/Components/ui';
 import {
+    ConflictBanner,
     CustomerAcquirerField,
     CustomerAddressEditor,
     CustomerContactEditor,
@@ -27,11 +28,12 @@ import {
     type IndonesiaRegionOptions,
 } from '@/Components/composite';
 import { formatDate } from '@/lib/format';
+import type { PageProps } from '@/types';
 import type { AcquirerOption, Customer } from '@/types/models';
 import type { CustomerWhatsApp } from '@/types/whatsapp';
 
 interface EditPageProps {
-    customer: { data: Customer & { whatsapp: CustomerWhatsApp } };
+    customer: { data: Customer & { whatsapp: CustomerWhatsApp; updated_at: string } };
     regions: IndonesiaRegionOptions;
     geocodeResults?: GeocodeResult[];
     geocodeIndex?: number;
@@ -53,6 +55,8 @@ interface CustomerEditForm extends CustomerDataValue {
     acquirer_correction_reason: string;
     /** Consent to WhatsApp notifications; sent only when changed, see `submit`. */
     whatsapp_opt_in: boolean;
+    /** Row version the edit started from; the server refuses the save when the row moved on. */
+    expected_updated_at: string;
 }
 
 export default function Edit({
@@ -91,7 +95,14 @@ export default function Edit({
         acquirer_id: initialAcquirerId,
         acquirer_correction_reason: '',
         whatsapp_opt_in: initialWhatsAppOptIn,
+        expected_updated_at: c.updated_at,
     });
+    const conflict = usePage<PageProps>().props.errors.conflict;
+    // A conflict reply carries the newer row: keeping the old version makes the retry conflict again until the page is reloaded.
+    useEffect(() => {
+        if (!conflict) setData('expected_updated_at', c.updated_at);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [c.updated_at]);
     const formErrors = errors as Partial<Record<keyof CustomerDataValue, string>>;
     const acquirerErrors = errors as Partial<
         Record<'acquired_by_user_id' | 'acquirer_correction_reason', string>
@@ -164,6 +175,7 @@ export default function Edit({
                         </Button>
                     }
                 />
+                <ConflictBanner />
                 <Card>
                     <CardContent className="pt-6">
                         <Tabs value={tab} onValueChange={setTab}>

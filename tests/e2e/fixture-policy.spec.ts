@@ -149,6 +149,46 @@ test('@kanban-t_1d1f1f13 later document request allows app-origin abort after lo
     });
 });
 
+test('abort of a request the old page started while a document request was pending is navigation-caused once that navigation commits', () => {
+    const failure = requestFailure({
+        startedAt: 3_174,
+        failedAt: 3_260,
+        lifecycleSequenceAtStart: 4,
+        lifecycleSequenceAtFailure: 4,
+    });
+    const documentRequest = {
+        type: 'document-request' as const,
+        pageUrl: `${appOrigin}/admin/odn/assets/olt`,
+        at: 3_162,
+        sequence: 3,
+        visitUrl: `${appOrigin}/admin/odn/assets/olt`,
+        visitMethod: 'GET',
+    };
+    const commit = {
+        type: 'framenavigated' as const,
+        pageUrl: `${appOrigin}/admin/odn/assets/olt`,
+        at: 3_261,
+        sequence: 5,
+    };
+
+    expect(abortCorrelationFor(failure, [documentRequest, commit])).toEqual({
+        type: 'document-request',
+        pageUrl: `${appOrigin}/admin/odn/assets/olt`,
+        sequence: 3,
+        visitUrl: `${appOrigin}/admin/odn/assets/olt`,
+        visitMethod: 'GET',
+    });
+    // A document request that never commits explains nothing.
+    expect(abortCorrelationFor(failure, [documentRequest])).toBeNull();
+    // One that committed before the request failed is no longer pending.
+    expect(
+        abortCorrelationFor(
+            { ...failure, lifecycleSequenceAtStart: 5, lifecycleSequenceAtFailure: 5 },
+            [documentRequest, { ...commit, sequence: 4 }],
+        ),
+    ).toBeNull();
+});
+
 test('@kanban-t_1d1f1f13 later inertia request allows app-origin abort', () => {
     const failure = requestFailure({
         startedAt: 1_000,

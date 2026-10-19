@@ -91,8 +91,8 @@ class TechnicianPerformanceQuery
             ->groupBy('type')->pluck('count', 'type')->toArray();
 
         $ticketsByCategory = TechnicianSources::resolvedTicketsByCategory($companyId, $technicianId, $dateFrom, $dateTo)
-            ->select('ticket_categories.name', DB::raw('count(*) as count'))
-            ->groupBy('ticket_categories.name')->pluck('count', 'name')->toArray();
+            ->select(DB::raw(SlaSources::CATEGORY_LABEL.' as name'), DB::raw('count(*) as count'))
+            ->groupByRaw(SlaSources::CATEGORY_LABEL)->pluck('count', 'name')->toArray();
 
         return [
             'technician_id' => $target->public_id,

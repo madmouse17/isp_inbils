@@ -17,7 +17,8 @@ class CustomerSubscriptionResource extends JsonResource
     {
         $subscription = $this->resource;
         $package = $subscription->servicePackage;
-        $tier = $package?->slaTier;
+        // The terms the subscription was sold under, not the package's current ones (spec .scratch/master-lifecycle D3).
+        $version = $subscription->packageVersion;
         $address = $subscription->installationAddress;
 
         return [
@@ -32,23 +33,23 @@ class CustomerSubscriptionResource extends JsonResource
              */
             'suspension_reason' => $subscription->status === 'suspended' ? $subscription->suspension_source : null,
             'suspended_at' => $subscription->suspended_at?->toIso8601String(),
-            'package' => $package === null ? null : [
+            'package' => [
                 'id' => $package->public_id,
                 'name' => $package->name,
                 'category' => [
-                    'id' => $package->category->public_id,
-                    'name' => $package->category->name,
+                    'id' => $version->category->public_id,
+                    'name' => $version->category->name,
                 ],
-                'download_mbps' => $package->bandwidthProfile?->download_mbps,
-                'upload_mbps' => $package->bandwidthProfile?->upload_mbps,
-                /** Marketing speed, e.g. "Hingga 50 Mbps": speed profile max download, else bandwidth download; null when neither profile exists. */
-                'speed_label' => ($mbps = $package->speedProfile?->download_max_mbps ?? $package->bandwidthProfile?->download_mbps) === null ? null : "Hingga {$mbps} Mbps",
+                'download_mbps' => $version->bandwidthProfile->download_mbps,
+                'upload_mbps' => $version->bandwidthProfile->upload_mbps,
+                /** Marketing speed, e.g. "Hingga 50 Mbps": the maximum download of the speed profile. */
+                'speed_label' => "Hingga {$version->speedProfile->download_max_mbps} Mbps",
             ],
-            /** The package's service level; null when the package has none. */
-            'sla_tier' => $tier === null ? null : [
-                'name' => $tier->name,
-                'response_time_hours' => $tier->response_time_hours,
-                'resolution_time_hours' => $tier->resolution_time_hours,
+            /** The service level the package was sold with. */
+            'sla_tier' => [
+                'name' => $version->slaTier->name,
+                'response_time_hours' => $version->slaTier->response_time_hours,
+                'resolution_time_hours' => $version->slaTier->resolution_time_hours,
             ],
             /** The PPPoE login the customer types into the router. Never the password. */
             'pppoe_username' => $subscription->pppoeAccount?->username,

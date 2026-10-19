@@ -94,7 +94,9 @@ Skema: `docs/DATABASE.md` Section 10 (Ticketing).
   category.default_sla_hours), first_response_at timestamp nullable,
   resolved_at timestamp nullable, closed_at timestamp nullable,
   resolution_note text nullable, created_by FK→users.id NOT NULL,
-  created_at, updated_at, deleted_at.
+  created_at, updated_at, deleted_at. Saat `close`, dua kolom nama beku diisi:
+  `category_name_snapshot` string nullable dan `assignee_name_snapshot` string
+  nullable (lihat "Snapshot tiket tertutup").
 - Unique: `(company_id, code)`. Index: `(company_id, status)`,
   `(company_id, source)`, `(company_id, category_id)`,
   `(company_id, assigned_to)`, `(company_id, customer_id)`,
@@ -141,13 +143,27 @@ Lihat `docs/WORKFLOW.md` Section 8 (Ticketing). Ringkas state machine:
 | open | assigned | assign(handler, Kepala Unit) | assigned_to set, status=assigned, AuditLog. |
 | open/assigned | on_progress | startWork (handler, set first_response_at if null) | first_response_at=now if null (FRT tracking), status=on_progress. |
 | on_progress | resolved | resolve(resolution_note) | resolved_at=now, resolution_note set, status=resolved. Hitung resolution_time = resolved_at - created_at. SLA compliance check. |
-| resolved | closed | close | closed_at=now, status=closed. Terminal v1. |
+| resolved | closed | close | closed_at=now, status=closed. Membekukan `category_name_snapshot` (nama kategori) dan `assignee_name_snapshot` (nama petugas, kosong bila tiket tanpa petugas). Terminal v1. |
 | resolved | on_progress | reopen (v2) | status=on_progress, reopen reason. |
 
 ### SLA
-- Saat create: `sla_deadline = now + category.default_sla_hours` (jam
-  kalender, bukan jam kerja — v1 simple). Override per ticket (urgent
-  priority = sla * 0.5).
+- Saat create: `TicketService::computeDeadlines` menghitung dua tenggat dari
+  `created_at` (jam kalender, bukan jam kerja): `sla_deadline` (resolusi) dan
+  `response_deadline` (respons pertama, kosong bila targetnya kosong). Sumber
+  targetnya (`slaTarget`):
+  1. Tingkat SLA dari **versi paket** yang dipakai langganan tiket
+     (`subscription.packageVersion.slaTier`: `response_time_hours` dan
+     `resolution_time_hours`).
+  2. Bila tiket tidak punya langganan, kategori tiket (`default_response_hours`
+     dan `default_sla_hours`).
+  Prioritas urgent memotong kedua target jadi setengah, dibulatkan ke atas.
+  Halaman detail tiket menulis sumbernya (nama tingkat SLA atau nama kategori).
+- Versi paket menyimpan tingkat SLA yang dijual. Tenggat tiket baru tetap
+  memakai tingkat itu setelah paket pindah ke versi baru (langganan lama tetap
+  di versinya) dan setelah tingkat SLA itu dinonaktifkan: menonaktifkan hanya
+  menghentikan penjualan baru. Tenggat dihitung ulang hanya saat tiket baru
+  dibuat atau saat prioritas tiket `open` diubah. Langganan yang dipindah lewat
+  Ganti paket memberi tiket berikutnya tingkat SLA versi barunya.
 - Saat resolve: `resolution_time = resolved_at - created_at`.
 - Breach: `sla_deadline < now AND status NOT IN (resolved, closed)` →
   badge "SLA breached" + dashboard widget. Job harian `CheckSlaBreachJob`
@@ -155,6 +171,29 @@ Lihat `docs/WORKFLOW.md` Section 8 (Ticketing). Ringkas state machine:
 - First Response Time (FRT): `first_response_at - created_at` (saat
   handler pertama kali respond/start). Dipakai Reporting technician
   performance.
+
+### Snapshot tiket tertutup
+- `TicketService::close` mengunci baris tiket, lalu menyimpan nama kategori
+  (`category_name_snapshot`) dan nama petugas (`assignee_name_snapshot`) pada
+  saat itu, bersama status `closed`. Mengganti nama kategori tiket atau nama
+  pengguna petugas sesudahnya tidak mengubah tiket yang sudah ditutup. Tiket
+  tanpa petugas menyimpan `assignee_name_snapshot` kosong.
+- Tiket yang belum ditutup membaca nama kategori dan petugas yang berlaku saat
+  ini. Pembaca memakai `snapshot ?? nama hidup`:
+  - halaman detail tiket staf (Kategori dan Petugas; teks "(saat ditutup)"
+    muncul bila nama sekarang berbeda);
+  - API pelanggan (`category.name` dan `handler_first_name`, nama depan);
+  - laporan Kepatuhan SLA dan Kinerja Teknisi, yang mengelompokkan tiket per
+    kategori lewat `COALESCE(tickets.category_name_snapshot,
+    ticket_categories.name)`.
+- Migrasi `2026_10_23_100400_add_snapshot_columns_to_tickets_table` mengisi
+  tiket tertutup yang sudah ada sekali, dengan nama saat migrasi dijalankan, dan
+  hanya baris yang kolomnya masih kosong.
+- Hapus dan pulihkan: tiket `closed` dihapus lunak (aturan lama tidak berubah).
+  Filter **Status** daftar tiket punya pilihan **Dihapus** dan **Semua,
+  termasuk dihapus**, dan baris yang dihapus punya aksi **Pulihkan**
+  (`POST /admin/tickets/{ticket}/restore`, izin yang sama dengan hapus,
+  `ticket.delete`). Tiket yang dipulihkan kembali dengan statusnya semula.
 
 ### Auto-routing (system suggest)
 - Saat create: system tentukan unit terkait berdasarkan:

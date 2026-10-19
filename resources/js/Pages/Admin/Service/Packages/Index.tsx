@@ -1,8 +1,9 @@
 import { Link } from '@inertiajs/react';
 import { useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { DataTableActions, NativeSelect, PageHeader } from '@/Components/composite';
+import { DataTableActions, PageHeader, StatusFilter } from '@/Components/composite';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
+import { UsageLine } from '@/Components/composite/UsageLine';
 import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { Button } from '@/Components/ui/Button';
 import { EmptyCell } from '@/Components/ui/EmptyCell';
@@ -12,9 +13,10 @@ import { SearchSelect } from '@/Components/ui/SearchSelect';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
 import { formatDate, formatMoney } from '@/lib/format';
-import { ACTIVE_STATE } from '@/lib/statuses';
+import { LIFECYCLE_STATE, lifecycleStateOf } from '@/lib/statuses';
+import type { LifecycleFields } from '@/types/models';
 
-type Row = {
+type Row = LifecycleFields & {
     id: string;
     name: string;
     code: string;
@@ -37,23 +39,17 @@ type Props = {
     packageCategories: { id: string; code: string; name: string; is_active: boolean }[];
     filters: {
         search?: string;
-        is_active?: string;
+        status?: string;
         sla_tier_id?: string;
         service_package_category_id?: string;
         sort?: string;
         direction?: string;
         per_page?: string | number;
     };
-    can: { create: boolean; export: boolean };
+    can: { create: boolean; update: boolean; delete: boolean; export: boolean };
 };
 
-const NO_FILTERS = { search: '', is_active: '', sla_tier_id: '', service_package_category_id: '' };
-
-const ACTIVE_OPTIONS = [
-    { value: '', label: 'Semua status' },
-    { value: '1', label: 'Aktif' },
-    { value: '0', label: 'Nonaktif' },
-];
+const NO_FILTERS = { search: '', status: '', sla_tier_id: '', service_package_category_id: '' };
 
 export default function PackagesIndex({
     servicePackages,
@@ -92,12 +88,19 @@ export default function PackagesIndex({
                 sortable: true,
                 sortKey: 'name',
                 cell: (row) => (
-                    <Link
-                        href={route('admin.service-packages.show', row.id)}
-                        className="font-medium text-primary-text hover:underline"
-                    >
-                        {row.name}
-                    </Link>
+                    <div className="space-y-0.5">
+                        {row.deleted_at ? (
+                            <span className="font-medium text-muted-foreground">{row.name}</span>
+                        ) : (
+                            <Link
+                                href={route('admin.service-packages.show', row.id)}
+                                className="font-medium text-primary-text hover:underline"
+                            >
+                                {row.name}
+                            </Link>
+                        )}
+                        <UsageLine references={row.references} />
+                    </div>
                 ),
             },
             {
@@ -137,7 +140,7 @@ export default function PackagesIndex({
                 header: 'Status',
                 sortable: true,
                 sortKey: 'is_active',
-                cell: (row) => <EnumBadge map={ACTIVE_STATE} value={Boolean(row.is_active)} />,
+                cell: (row) => <EnumBadge map={LIFECYCLE_STATE} value={lifecycleStateOf(row)} />,
             },
             {
                 key: 'created_at',
@@ -154,14 +157,18 @@ export default function PackagesIndex({
                     <DataTableActions
                         showHref={route('admin.service-packages.show', row.id)}
                         editHref={route('admin.service-packages.edit', row.id)}
-                        deleteHref={route('admin.service-packages.destroy', row.id)}
-                        deleteMessage={`Hapus ${row.name}?`}
-                        deleteDescription={`Paket "${row.name}" akan dihapus permanen. Paket yang masih dipakai langganan menunggu atau aktif tidak bisa dihapus.`}
+                        lifecycle={{
+                            row,
+                            name: row.name,
+                            noun: 'Paket layanan',
+                            routeBase: 'admin.service-packages',
+                            can: { update: can.update, delete: can.delete },
+                        }}
                     />
                 ),
             },
         ],
-        [],
+        [can.update, can.delete],
     );
 
     const createButton = can.create ? (
@@ -201,13 +208,11 @@ export default function PackagesIndex({
                             placeholder="Nama atau kode"
                         />
                     </div>
-                    <NativeSelect
-                        id="pkg-active"
-                        label="Status"
-                        value={params.is_active ?? ''}
-                        onChange={(e) => set('is_active', e.target.value)}
-                        options={ACTIVE_OPTIONS}
-                        wrapperClassName="sm:w-40"
+                    <StatusFilter
+                        id="pkg-status"
+                        value={params.status ?? ''}
+                        onChange={(value) => set('status', value)}
+                        deactivatable
                     />
                     <SearchSelect
                         id="pkg-sla"

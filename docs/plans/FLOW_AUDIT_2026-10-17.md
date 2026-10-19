@@ -1,27 +1,27 @@
 # Audit alur operasi ISP end-to-end, 17 Oktober 2026
 
-Basis data dev `inbils` (Sail, http://localhost). Kode: web `main` a6348bb, mobile `main` fab0a56. Tujuh agen QA (FlowAudit1 sampai FlowAudit7) menjalankan alur 0 sampai 12 lewat UI web dan aplikasi di emulator Android, per persona, dan agen MidtransCallback menambahkan Alur 5b (callback Midtrans nyata lewat tunel). Tenant uji AUDIT-ISP dan AUDIT-SUP dibuat lewat panel platform, bukan seeder. Tidak ada reset, truncate, atau pembersihan data; penghapusan hanya lewat UI sebagai bagian uji (satu profil bandwidth uji, satu lampiran tiket), dan rekaman berawalan AUDIT tidak dihapus. Satu perubahan kode dibuat selama audit (F8-D01, belum di-commit); tidak ada commit lain.
+Basis data dev `inbils` (Sail, http://localhost). Kode: web `main` a6348bb, mobile `main` fab0a56. Tujuh agen QA (FlowAudit1 sampai FlowAudit7) menjalankan alur 0 sampai 12 lewat UI web dan aplikasi di emulator Android, per persona, agen MidtransCallback menambahkan Alur 5b (callback Midtrans nyata lewat tunel), dan satu agen lagi menambahkan Alur 7b (provisioning nyata ke FreeRADIUS lab). Tenant uji AUDIT-ISP dan AUDIT-SUP dibuat lewat panel platform, bukan seeder. Tidak ada reset, truncate, atau pembersihan data; penghapusan hanya lewat UI sebagai bagian uji (satu profil bandwidth uji, satu lampiran tiket), dan rekaman berawalan AUDIT tidak dihapus. Satu perubahan kode dibuat selama audit (F8-D01); perubahan itu dan perbaikan lain sesudah audit masuk commit e5095de.
 
 ## 1. Putusan
 
-Alur inti ISP berjalan dari ujung ke ujung dan terasa cepat: pendaftaran pelanggan, pemasangan oleh teknisi, tagihan, pembayaran lewat Midtrans sandbox (termasuk callback nyata lewat tunel), isolir otomatis dan pemulihannya, tiket dukungan, pengumuman gangguan, dan dukungan platform selesai di tenant uji, dengan aksi web 0,3 sampai 3,5 detik dan gerbang regresi 265 lulus (4 dilewati). Sistem belum layak dipakai ISP sungguhan sebelum 5 blocker ditutup: persetujuan SPK gagal atau memotong stok dua kali bila teknisi meminta material lewat aplikasi (F4-D06); tagihan pro-rata berpecahan rupiah tidak bisa dibayar online (F5-D01); satu kunci Midtrans dipakai semua tenant, sehingga uang pelanggan ISP masuk ke rekening platform (F5-D10); balasan pelanggan pada tiket Diselesaikan atau Ditutup diterima tanpa ada yang diberi tahu (F6-D01); dan aksi pengembalian fisik gagal "CSRF token mismatch" (F8-D01), yang sudah diperbaiki tetapi belum di-commit. Callback yang dikirim Midtrans sendiri lewat tunel terbukti benar untuk pembayaran sukses, ditolak, batal, dan kedaluwarsa; pengiriman ulang tidak menggandakan pembayaran dan isi yang dirusak ditolak. Celahnya ada di kartu tanpa 3-D Secure (F5-D14) dan pembayaran VA setelah tunai yang tidak terbukukan (F5-D16). Di luar blocker, temuan terbanyak jatuh pada dua tema: data basi dan pemberitahuan yang tidak sampai (aplikasi tidak memuat ulang, ketuk push tidak membuka tujuannya, staf dan pelanggan tidak diberi tahu), dan onboarding tenant baru yang panjang (tanpa daftar periksa, data contoh bercampur dengan data nyata, peran staf terlalu lebar). Totalnya 142 defect (5 blocker, 64 friction, 70 polish, 3 info atau catatan) dan 114 rekomendasi UX; 37 keputusan menunggu owner, dan urutan perbaikan yang diusulkan ada di bagian 5.
+Alur inti ISP berjalan dari ujung ke ujung dan terasa cepat: pendaftaran pelanggan, pemasangan oleh teknisi, tagihan, pembayaran lewat Midtrans sandbox (termasuk callback nyata lewat tunel), isolir otomatis dan pemulihannya, tiket dukungan, pengumuman gangguan, dan dukungan platform selesai di tenant uji, dengan aksi web 0,3 sampai 3,5 detik dan gerbang regresi 265 lulus (4 dilewati). Sistem belum layak dipakai ISP sungguhan sebelum 5 blocker ditutup: persetujuan SPK gagal atau memotong stok dua kali bila teknisi meminta material lewat aplikasi (F4-D06); tagihan pro-rata berpecahan rupiah tidak bisa dibayar online (F5-D01); satu kunci Midtrans dipakai semua tenant, sehingga uang pelanggan ISP masuk ke rekening platform (F5-D10); balasan pelanggan pada tiket Diselesaikan atau Ditutup diterima tanpa ada yang diberi tahu (F6-D01); dan aksi pengembalian fisik gagal "CSRF token mismatch" (F8-D01), yang sudah diperbaiki di commit e5095de. Callback yang dikirim Midtrans sendiri lewat tunel terbukti benar untuk pembayaran sukses, ditolak, batal, dan kedaluwarsa; pengiriman ulang tidak menggandakan pembayaran dan isi yang dirusak ditolak. Celahnya ada di kartu tanpa 3-D Secure (F5-D14) dan pembayaran VA setelah tunai yang tidak terbukukan (F5-D16). Di luar blocker, temuan terbanyak jatuh pada dua tema: data basi dan pemberitahuan yang tidak sampai (aplikasi tidak memuat ulang, ketuk push tidak membuka tujuannya, staf dan pelanggan tidak diberi tahu), dan onboarding tenant baru yang panjang (tanpa daftar periksa, data contoh bercampur dengan data nyata, peran staf terlalu lebar). Alur 7b menjalankan provisioning nyata ke FreeRADIUS lab: blokir, isolir otomatis, bayar, IP statis, dan hentikan langganan sampai ke baris RADIUS dan sesi CPE, dengan aksi 0,2 sampai 0,6 detik; celahnya ada di pesan saat NAS mati, zona waktu sesi, dan dialog tanpa penjelasan dampak (F7-D20 sampai F7-D27). Totalnya 150 defect (5 blocker, 70 friction, 72 polish, 3 info atau catatan) dan 122 rekomendasi UX; 37 keputusan menunggu owner, dan urutan perbaikan yang diusulkan ada di bagian 5.
 
 Isi laporan: [1. Putusan](#1-putusan) · [2. Defect di seluruh alur](#2-defect-di-seluruh-alur) · [3. Rekomendasi UX](#3-rekomendasi-ux) · [4. Keputusan pemilik](#4-keputusan-pemilik) · [5. Urutan perbaikan yang diusulkan](#5-urutan-perbaikan-yang-diusulkan) · [6. Batasan audit](#6-batasan-audit) · [7. Rekaman AUDIT-* yang tertinggal di DB inbils](#7-rekaman-audit--yang-tertinggal-di-db-inbils) · [Cara membaca rincian per alur](#cara-membaca-rincian-per-alur) · [Rincian per alur](#rincian-per-alur) · [Lingkungan dan pembersihan](#lingkungan-dan-pembersihan) · [Lampiran](#lampiran)
 
 ## 2. Defect di seluruh alur
 
-142 defect dari alur 0 sampai 12. Urutan: keparahan, lalu alur. Kolom keputusan merujuk ke nomor K di bagian 4. Rincian tiap defect (langkah, yang terjadi, yang diharapkan ISP, saran perbaikan, bukti) ada di tabel "Temuan cacat" tiap alur.
+150 defect dari alur 0 sampai 12 (termasuk 5b dan 7b). Urutan: keparahan, lalu alur. Kolom keputusan merujuk ke nomor K di bagian 4. Rincian tiap defect (langkah, yang terjadi, yang diharapkan ISP, saran perbaikan, bukti) ada di tabel "Temuan cacat" tiap alur.
 
 **Jumlah menurut keparahan**
 
 | Keparahan | Jumlah | Keterangan |
 |---|---|---|
-| blocker | 5 | F4-D06, F5-D01, F5-D10, F6-D01, F8-D01 (F5-D10 blocker bisnis; F8-D01 sudah diperbaiki, belum di-commit) |
-| friction | 64 | mengganggu pekerjaan atau menyesatkan, ada jalan keluar |
-| polish | 70 | kerapian, bahasa, konsistensi |
+| blocker | 5 | F4-D06, F5-D01, F5-D10, F6-D01, F8-D01 (F5-D10 blocker bisnis; F8-D01 Sudah diperbaiki (commit e5095de)) |
+| friction | 70 | mengganggu pekerjaan atau menyesatkan, ada jalan keluar; F7-D24 dan F8-D01 sudah diperbaiki di commit e5095de |
+| polish | 72 | kerapian, bahasa, konsistensi |
 | info | 1 | F12-D03 (tidak perlu tindakan) |
 | catatan | 2 | F12-D05, F12-D20 (belum teruji atau belum dipastikan) |
-| **Total** | **142** |  |
+| **Total** | **150** |  |
 
 **Jumlah menurut alur**
 
@@ -35,12 +35,13 @@ Isi laporan: [1. Putusan](#1-putusan) · [2. Defect di seluruh alur](#2-defect-d
 | 5 Penagihan (termasuk 5b) | 2 | 14 | 5 | 0 | 21 | 17 |
 | 6 Dukungan | 1 | 12 | 11 | 0 | 24 | 20 |
 | 7 Operasi jaringan | 0 | 2 | 3 | 0 | 5 | 5 |
+| 7b Provisioning RADIUS (lab) | 0 | 6 | 2 | 0 | 8 | 8 |
 | 8 Inventaris | 1 | 5 | 7 | 0 | 13 | 6 |
 | 9 Laporan dan ekspor | 0 | 3 | 6 | 0 | 9 | 3 |
 | 10 Anak dan induk perusahaan | 0 | 2 | 2 | 0 | 4 | 2 |
 | 11 Dukungan platform | 0 | 4 | 8 | 0 | 12 | 10 |
 | 12 Aplikasi lintas fungsi | 0 | 7 | 10 | 3 | 20 | 9 |
-| **Total** | **5** | **64** | **70** | **3** | **142** | **114** |
+| **Total** | **5** | **70** | **72** | **3** | **150** | **122** |
 
 **Semua defect**
 
@@ -50,7 +51,7 @@ Isi laporan: [1. Putusan](#1-putusan) · [2. Defect di seluruh alur](#2-defect-d
 | F5-D01 | 5 | Tagihan pro-rata berpecahan rupiah tidak bisa dibayar online; angka beda antar layar | blocker | ya (K1) |
 | F5-D10 | 5 | Satu kunci Midtrans untuk semua tenant; uang pelanggan masuk ke rekening platform | blocker (bisnis) | ya (K2) |
 | F6-D01 | 6 | Balasan pelanggan pada tiket Diselesaikan atau Ditutup diterima, tetapi tak seorang pun diberi tahu | blocker | ya (K13) |
-| F8-D01 | 8 | Aksi pengembalian fisik gagal "CSRF token mismatch" 419 (sudah diperbaiki) | blocker (diperbaiki) | tidak |
+| F8-D01 | 8 | Aksi pengembalian fisik gagal "CSRF token mismatch" 419 | blocker (Sudah diperbaiki (commit e5095de)) | tidak |
 | F0-D01 | 0 | Kunci E2E basi tidak direklamasi otomatis di Linux | friction | tidak |
 | F1-D01 | 1 | Logo terunggah tidak tampil (403; di dev public/storage bukan symlink) | friction | tidak |
 | F1-D05 | 1 | Status undangan admin tidak terlihat di halaman perusahaan | friction | tidak |
@@ -94,6 +95,12 @@ Isi laporan: [1. Putusan](#1-putusan) · [2. Defect di seluruh alur](#2-defect-d
 | F6-D13 | 6 | Layar tiket pelanggan basi sampai tarik-untuk-muat-ulang | friction | tidak |
 | F7-D01 | 7 | Halaman isolir: tombol Masuk berujung /app-only dan teks selalu menyalahkan tagihan | friction | ya (K25) |
 | F7-D02 | 7 | Pesan saat RADIUS mati menyesatkan ("dijadwalkan", "sesinya diputus") | friction | tidak |
+| F7-D20 | 7b | Sesi mulai RADIUS memakai zona waktu berbeda dari zona aplikasi (selisih 7 jam; aturan basi 15 menit bisa salah) | friction | tidak |
+| F7-D21 | 7b | Galat jaringan berbahasa Inggris dan berjargon; "RADIUS is switched off." tidak hilang setelah RADIUS menyala | friction | tidak |
+| F7-D22 | 7b | Blokir saat NAS mati: teks "sesinya diputus", grup RADIUS, dan "Online" menyesatkan | friction | tidak |
+| F7-D24 | 7b | Sinkron ulang memutus sesi pelanggan tanpa dialog konfirmasi | friction (Sudah diperbaiki (commit e5095de): dialog konfirmasi ditambahkan) | tidak |
+| F7-D25 | 7b | Tanggal jatuh tempo bentuk dd/mm/yyyy ditolak tetapi Simpan tetap jalan dengan tanggal bawaan | friction | tidak |
+| F7-D26 | 7b | GET /admin/invoices/{id}/edit mengembalikan 500 (Edit.tsx tidak ada) | friction | tidak |
 | F8-D02 | 8 | Permintaan barang dari aplikasi teknisi tidak terhubung ke SPK atau tiket | friction | tidak |
 | F8-D03 | 8 | Permintaan stok kosong diterima; galat saat setujui tanpa info stok | friction | tidak |
 | F8-D04 | 8 | Dialog terima pengembalian tanpa kolom Hilang dan Lainnya | friction | tidak |
@@ -152,6 +159,8 @@ Isi laporan: [1. Putusan](#1-putusan) · [2. Defect di seluruh alur](#2-defect-d
 | F7-D03 | 7 | Router NAS tanpa tombol sinkron manual | polish | tidak |
 | F7-D04 | 7 | "Aktifkan kembali" menggeser tanggal tagihan berikutnya tanpa pemberitahuan | polish | ya (K27) |
 | F7-D05 | 7 | Tangguhkan dan Isolir tampil berbeda di aplikasi pelanggan, operator tidak diberi tahu | polish | tidak |
+| F7-D23 | 7b | Router mati lalu hidup: sesi tanpa Acct-Stop tetap tampil "Online" | polish | tidak |
+| F7-D27 | 7b | Router NAS belum pernah ditulis berlencana "Gagal ditulis" saat RADIUS mati | polish | tidak |
 | F8-D07 | 8 | Satuan "m" dan "meter" tidak seragam antar tabel | polish | tidak |
 | F8-D08 | 8 | Kode permintaan terpotong dua baris; format kode beda antarmodul | polish | ya (K29) |
 | F8-D09 | 8 | Kolom angka dialog pengembalian tanpa nama aksesibel | polish | tidak |
@@ -189,19 +198,21 @@ Isi laporan: [1. Putusan](#1-putusan) · [2. Defect di seluruh alur](#2-defect-d
 | F12-D05 | 12 | Login aplikasi pada tenant yang ditangguhkan belum teruji | catatan | tidak |
 | F12-D20 | 12 | Tiga notifikasi kosong setelah "Clear all" (sekali, belum dipastikan) | catatan | tidak |
 
+**Sudah diperbaiki setelah audit (commit e5095de):** F8-D01 (aksi pengembalian 419), F7-D24 (Sinkron ulang kini punya dialog konfirmasi), dan sebagian F7-U22 (IP statis kini sampai ke RADIUS sebagai `Framed-IP-Address`). Hitungan di bagian ini tetap memuat ketiganya.
+
 ## 3. Rekomendasi UX
 
-114 rekomendasi UX. Peringkat memakai skor manfaat dibagi usaha (manfaat: Tinggi 3, Sedang-tinggi 2,5, Sedang 2, Rendah 1; usaha: S 1, S/M 1,5, M 2, L 4). Skor sama diurutkan dengan usaha kecil dahulu, lalu manfaat, lalu ID. Rincian (langkah, catatan mockup, lensa) ada di tabel "Temuan UX" tiap alur.
+122 rekomendasi UX. Peringkat memakai skor manfaat dibagi usaha (manfaat: Tinggi 3, Sedang-tinggi 2,5, Sedang 2, Rendah 1; usaha: S 1, S/M 1,5, M 2, L 4). Skor sama diurutkan dengan usaha kecil dahulu, lalu manfaat, lalu ID. Rincian (langkah, catatan mockup, lensa) ada di tabel "Temuan UX" tiap alur.
 
 **Jumlah menurut manfaat dan usaha**
 
 | Manfaat | Usaha S | Usaha S/M | Usaha M | Jumlah |
 |---|---|---|---|---|
-| Tinggi | 19 | 3 | 17 | 39 |
-| Sedang-tinggi | 1 | 0 | 1 | 2 |
-| Sedang | 44 | 0 | 12 | 56 |
-| Rendah | 17 | 0 | 0 | 17 |
-| **Total** | **81** | **3** | **30** | **114** |
+| Tinggi | 20 | 4 | 18 | 42 |
+| Sedang-tinggi | 2 | 0 | 1 | 3 |
+| Sedang | 45 | 0 | 14 | 59 |
+| Rendah | 18 | 0 | 0 | 18 |
+| **Total** | **85** | **4** | **33** | **122** |
 
 | Peringkat | ID | Alur | Sekarang → seharusnya | Manfaat | Usaha |
 |---|---|---|---|---|---|
@@ -218,107 +229,115 @@ Isi laporan: [1. Putusan](#1-putusan) · [2. Defect di seluruh alur](#2-defect-d
 | 11 | F6-U12 | 6 | Daftar Tiket web enam kolom tanpa Petugas dan tenggat → kolom Petugas dan "Respons sebelum" berwarna; saringan Belum ditugaskan, Hampir terlampaui, Tiket saya | Tinggi: Antrean harian terbaca tanpa membuka tiket | S |
 | 12 | F6-U15 | 6 | Evaluasi teknisi: 8 aksi dari menu Evaluasi → tombol "Evaluasi teknisi" pada tiket Ditutup membuka formulir terisi | Tinggi: 8 aksi menjadi 3; tidak bias 5.0 | S |
 | 13 | F6-U18 | 6 | Dasbor tiket: hanya Belum ditugaskan dan SLA terlampaui → kartu Hampir terlampaui dan Pelanggan membalas; peringatan juga untuk tiket belum ditugaskan | Tinggi: Tiket belum ditugaskan ikut dijaga | S |
-| 14 | F8-U02 | 8 | Penyetuju tidak melihat stok sebelum klik → kolom "Tersedia" dan peringatan bila melebihi | Tinggi: Tanpa pesan galat tidak jelas; hemat satu putaran | S |
-| 15 | F8-U03 | 8 | Terima pengembalian: dua kolom, nol → tiga kolom (Baik, Rusak, Hilang) terisi dari deklarasi teknisi | Tinggi: Tanpa pemalsuan kategori; hemat ketikan | S |
-| 16 | F11-U01 | 11 | Delapan tindakan dukungan sama bunyinya di audit tenant → kalimat per tindakan dan pencarian pada teks terlihat | Tinggi: Admin tenant tahu 2FA siapa yang diatur ulang | S |
-| 17 | F11-U02 | 11 | Buka kunci hanya 2FA, tersembunyi tanpa 2FA, tanpa status → satu tombol dengan status kunci dan sisa waktu | Tinggi: Tiket "tidak bisa masuk" selesai dalam 1 klik | S |
-| 18 | F12-U02 | 12 | Layar dari push menampilkan status lama → data segar dengan kerangka kecil | Tinggi: Teknisi melihat alasan penolakan | S |
-| 19 | F12-U03 | 12 | SLA terlampaui: pelanggan dapat surel, teknisi tak tahu → penangani dan manajer diberi tahu (push dan bel) | Tinggi: SLA dijaga | S |
-| 20 | F6-U13 | 6 | Detail tiket web: tenggat statis, sumber SLA tak dijelaskan → sisa waktu berwarna, "2 jam ÷ 2 karena Mendesak", pelanggan sebagai tautan dan telepon | Sedang-tinggi: Keputusan tanpa membuka layar lain | S |
-| 21 | F1-U03 | 1 | Pengaturan Perusahaan satu halaman panjang, Simpan hanya di dasar → bilah Simpan menempel, navigasi bagian, penanda belum tersimpan | Sedang: Mengurangi gulir ± 2.500 px dan risiko lupa menyimpan | S |
-| 22 | F1-U04 | 1 | Wilayah peta bawaan seluruh Indonesia, nama berhuruf kapital → wilayah disarankan dari alamat profil, huruf judul | Sedang: Menghemat satu pencarian dan peta langsung benar untuk semua alamat pelanggan | S |
-| 23 | F2-U03 | 2 | Harga diketik angka mentah → kolom uang dengan pemisah ribuan dan awalan Rp | Sedang: Menghindari salah nol pada harga | S |
-| 24 | F2-U04 | 2 | Lintang dan Bujur lokasi diketik → pemilih peta yang sama dengan Pengaturan Perusahaan | Sedang: Koordinat benar tanpa salin-tempel; konsisten | S |
-| 25 | F2-U05 | 2 | Site wajib berinduk Rak, jadi harus membuat Rak palsu → Site langsung di bawah POP atau Area | Sedang: Menghemat 1 formulir dan data palsu per lokasi lapangan | S |
-| 26 | F2-U06 | 2 | Tab Peta tampil dulu dan menulis "0 lokasi" → buka tab Tabel bila tidak ada koordinat, atau tulis "3 lokasi belum punya koordinat" | Sedang: Menghilangkan kebingungan layar pertama | S |
-| 27 | F2-U07 | 2 | Kondisi kosong ODN tanpa tombol, 5 layar menuju splitter → tombol "Daftarkan ODP" lalu langsung ke dialog splitter (2 layar) | Sedang: Memangkas 5 layar menjadi 2 | S |
-| 28 | F2-U10 | 2 | Kolom Aksi tidak seragam antar daftar katalog → satu pola aksi baris | Sedang: Pengguna belajar sekali; mencegah salah klik Hapus | S |
-| 29 | F3-U05 | 3 | Halaman /app-only tanpa tautan unduh → tautan APK atau Play Store, QR, atau "Minta tautan aplikasi ke admin ISP Anda" | Sedang: Teknisi baru menyelesaikan pemasangan aplikasi < 1 menit tanpa bantuan | S |
-| 30 | F4-U01 | 4 | Tab Kontak meminta ulang nama, telepon, email → kontak utama terisi dari data pelanggan ("Sama dengan data pelanggan") | Sedang: Menghemat 3 isian dan satu tab untuk setiap pelanggan perorangan | S |
-| 31 | F4-U05 | 4 | Manajer melihat tombol Mulai dan Batalkan pada SPK yang sudah ditugaskan → tombol menurut peran (Ganti teknisi/Batalkan untuk manajer) | Sedang: Mencegah salah klik yang melompati tahap kunjungan dan check-in | S |
-| 32 | F4-U08 | 4 | Material dan foto bukti tiga layar di bawah Pelanggan/POP → Bukti kerja dan Material di atas, atau chip "Foto 0/1" yang menggulir | Sedang: 2 gulir dan beberapa detik per SPK; teknisi tidak mencari | S |
-| 33 | F4-U09 | 4 | Satu foto = 6 ketukan → setelah Selesai langsung antre, keterangan opsional, beberapa foto berturut-turut | Sedang: 2-3 ketukan per foto, 3 foto per pemasangan umum | S |
-| 34 | F4-U10 | 4 | Picker material tanpa stok, alat dan bahan tercampur → tampilkan stok, pisahkan Alat dan Bahan, peringatan bila melebihi stok | Sedang: Menghindari permintaan yang pasti ditolak sebagian | S |
-| 35 | F4-U12 | 4 | Kartu antrean gudang menghitung yang menunggu manajer → hitung hanya yang bisa dikerjakan gudang; tulis "Menunggu persetujuan Manajer/Admin" | Sedang: Staf tidak mencari tombol yang memang belum ada | S |
-| 36 | F5-U05 | 5 | "Hubungi kami untuk membayar" tanpa tombol → tombol "Hubungi ISP" (telepon atau WhatsApp) di setiap keadaan tak bisa bayar | Sedang: Pelanggan tidak berhenti buntu | S |
-| 37 | F5-U06 | 5 | Isi push dan bel tagihan generik → "INV-... Rp ... jatuh tempo ..." dan tindakan Bayar | Sedang: Pelanggan memutuskan dari bayangan notifikasi | S |
-| 38 | F5-U07 | 5 | Dasbor keuangan hanya "Tagihan jatuh tempo" → kartu Draf menunggu dikirim, Jatuh tempo 3 hari, Pembayaran online tertunda | Sedang: Pekerjaan harian terlihat tanpa membuka Tagihan | S |
-| 39 | F5-U08 | 5 | Pratinjau tagihan bulanan tanpa daftar yang dilewati → daftar dilewati dengan alasan, periode bawaan dari langganan yang belum ditagih | Sedang: Tidak ada pelanggan terlewat diam-diam | S |
-| 40 | F5-U09 | 5 | Kirim tagihan satu klik tanpa pratinjau → pratinjau "Pelanggan melihat: ..." dan konfirmasi | Sedang: Salah kirim berkurang | S |
-| 41 | F5-U10 | 5 | Snap dimuat ± 8 s tanpa penanda, harus tutup tab sendiri → layar "Menyiapkan pembayaran", tombol kembali ke aplikasi, VA di aplikasi | Sedang: Pelanggan tidak mengira macet | S |
-| 42 | F5-U11 | 5 | Panel "Pembayaran online" staf: alasan dan metode mentah, tanpa bank atau pesan penerbit → alasan Indonesia, metode manusiawi, waktu gagal, tombol "Batalkan di Midtrans" | Sedang: Staf menjawab pelanggan tanpa membuka dashboard Midtrans | S |
-| 43 | F5-U15 | 5 | Halaman selesai Snap satu teks untuk semua hasil, tanpa tombol aplikasi → judul sesuai hasil, "Buka aplikasi Inbils", tutup otomatis | Sedang | S |
-| 44 | F5-U17 | 5 | Uji callback nyata butuh tunel dan pekerja dipasang manual → satu perintah Sail "dev:payments" (tunel, queue:work, schedule:work) | Sedang: Bukti callback nyata dapat diulang | S |
-| 45 | F6-U02 | 6 | Tiga pintu masuk tiket, lima istilah → satu pintu lewat kategori dan petunjuk, satu istilah ("Lapor masalah") | Sedang: Kategori selalu terisi, SLA benar | S |
-| 46 | F6-U03 | 6 | Tiket ganda sekategori tanpa peringatan → "Anda sudah punya tiket aktif TKT-... Lihat / Tetap buat baru" | Sedang: Lebih sedikit tiket ganda | S |
-| 47 | F6-U08 | 6 | Detail tiket teknisi tanpa prioritas dan tenggat, alamat POP → prioritas, tenggat, alamat pelanggan, Maps, Telepon/WhatsApp di kepala kartu | Sedang: Tanpa gulir dan telepon untuk menanyakan alamat | S |
-| 48 | F6-U10 | 6 | Mulai tiket: dialog dua ketukan tanpa hasil check-in → satu ketukan, snackbar "Check-in tercatat 0 m · Urungkan", peringatan bila jauh | Sedang: -1 ketukan; salah lokasi terdeteksi saat itu | S |
-| 49 | F6-U17 | 6 | Isi push tiket tanpa prioritas, judul, nomor → "MENDESAK · TKT-... respons sebelum 21:17" dan "TKT-... selesai: ... Sudah beres?" | Sedang: Keputusan dari bayangan notifikasi | S |
-| 50 | F6-U19 | 6 | Kategori tenant baru tanpa petunjuk → isi bawaan per kategori dan pratinjau di web | Sedang: Sebagian tiket selesai swalayan | S |
-| 51 | F6-U20 | 6 | Halaman tiket 15 Tab sebelum aksi pertama → "Lewati ke konten" dan fokus awal ke aksi utama | Sedang: -14 Tab per tiket | S |
-| 52 | F7-U02 | 7 | Terbitkan pengumuman tanpa jumlah penerima, tiga langkah → "± 8 pelanggan akan menerima" di dialog dan "Simpan & Terbitkan" | Sedang: Hindari salah target; hemat 3 klik per gangguan | S |
-| 53 | F7-U03 | 7 | Dialog Blokir/Tangguhkan tanpa efek ke pelanggan → satu kalimat "Pelanggan akan melihat: ...; tagihan tetap berjalan" | Sedang: Mengurangi salah pilih Tangguhkan vs Blokir | S |
-| 54 | F7-U04 | 7 | Router NAS tanpa tombol sinkron → "Sinkronkan sekarang" dan status terakhir | Sedang: Operator tidak menunggu 15 menit setelah ganti rahasia NAS | S |
-| 55 | F8-U06 | 8 | Pemilih barang dan lokasi kosong sebelum mengetik 2 huruf → 10 pilihan terakhir muncul saat dibuka | Sedang: ± 3 ketikan per pilihan, 8 klik jadi 6 | S |
-| 56 | F9-U02 | 9 | Kinerja Teknisi wajib memilih satu teknisi → tabel semua teknisi dengan peringkat, baris membuka detail | Sedang: Pemilik membandingkan teknisi dalam satu layar (hemat 3 klik per teknisi) | S |
-| 57 | F11-U03 | 11 | Kata sandi operator diketik di tiap dialog → lewati bila sudah dikonfirmasi < 5 menit, tulis "Terkonfirmasi sampai ..." | Sedang: 3 ketikan dan 3 klik lebih sedikit | S |
-| 58 | F11-U04 | 11 | Unduh ekspor hanya di halaman Ekspor → tombol Unduh di baris ekspor halaman perusahaan | Sedang: 2 klik dan 1 layar | S |
-| 59 | F11-U05 | 11 | "Coba lagi dalam 663 detik" → "Coba lagi dalam 11 menit" | Sedang: Terbaca sekali lihat | S |
-| 60 | F11-U07 | 11 | Akun pribadi saat akses dukungan: teks putih mentah → kartu bertata letak dengan tombol Kembali | Sedang: Tidak buntu | S |
-| 61 | F12-U04 | 12 | Isi push generik, awalan ISP memotong → "INV-...: Rp 99.000 jatuh tempo 18 Okt" | Sedang | S |
-| 62 | F12-U05 | 12 | Teknisi luring: tombol mati tanpa alasan → spanduk luring dan satu "Coba lagi" | Sedang | S |
-| 63 | F12-U06 | 12 | Permintaan barang: gudang bebas, tanpa stok → gudang bawaan yang punya stok, stok di baris | Sedang | S |
-| 64 | F12-U08 | 12 | Kirim review tanpa konfirmasi, kata "pemasangan" → konfirmasi dan kata menurut tipe SPK | Sedang | S |
-| 65 | F5-U12 | 5 | Aplikasi pelanggan setelah gagal bayar tanpa alasan, exception tampil "failed" → banner hasil percobaan terakhir dengan "Coba lagi" dan "Pakai metode lain"; exception "Sedang diperiksa, hubungi ISP" | Tinggi: Pelanggan tahu langkah berikutnya | S/M |
-| 66 | F5-U14 | 5 | Dialog "Catat pembayaran" tanpa peringatan walau ada VA atau QR pending → banner "Ada pembayaran online tertunda. Batalkan dulu?" dengan satu klik batal | Tinggi: Mencegah pembayaran ganda | S/M |
-| 67 | F12-U01 | 12 | Banyak push tertunda digabung Android, ketukan pertama salah → ringkasan "N notifikasi" membuka kotak masuk, anak membuka subjeknya | Tinggi: Ketuk pertama tepat | S/M |
-| 68 | F1-U01 | 1 | Dasbor tenant baru hanya berisi kartu bernilai 0 → kartu "Mulai dari sini" dengan daftar periksa langkah awal, tiap baris tertaut dan berpersen selesai | Tinggi: Admin baru tahu langkah berikutnya tanpa membuka panduan; mempercepat onboarding dari ± 1 jam menjadi beberapa menit | M |
-| 69 | F1-U06 | 1 | 2FA opsional untuk admin ISP, tanpa ajakan → ajakan aktifkan 2FA saat login pertama dan opsi "wajib 2FA untuk admin" per perusahaan | Tinggi: Akun admin memegang data seluruh pelanggan dan tagihan; satu kebocoran kata sandi kini cukup untuk masuk | M |
-| 70 | F2-U01 | 2 | Satu paket butuh 4 formulir dan ± 25 isian → picker dengan "+ Baru" di tempat; kecepatan terisi dari profil bandwidth, atau satukan jadi "Profil layanan" | Tinggi: Menghemat ± 10 klik dan 6 ketikan angka per paket; mencegah selisih bandwidth vs kecepatan | M |
-| 71 | F3-U01 | 3 | Satu teknisi butuh dua layar admin (Pengguna lalu Karyawan) → bagian "Profil karyawan" di formulir yang sama atau arahkan otomatis | Tinggi: Menghemat ± 12 klik per teknisi dan menutup jebakan "teknisi tidak bisa dipilih" | M |
-| 72 | F3-U04 | 3 | Satu peran "staff" untuk CS, gudang, keuangan (26 menu) → peran CS, Gudang, Keuangan bawaan; menu mengikuti pekerjaan (± 12) | Tinggi: Menu staf CS turun dari 26 ke ± 12 butir; risiko salah klik dan akses data berlebih berkurang | M |
-| 73 | F4-U04 | 4 | Pelanggan sampai teknisi ditugaskan butuh 3 layar dan 17+ isian → opsi "Tugaskan sekarang" (teknisi dan jadwal) di tab Langganan & SPK | Tinggi: Menghapus dua layar dan ± 6 klik untuk pemasangan yang sudah disepakati jadwalnya | M |
-| 74 | F4-U06 | 4 | Permintaan barang tanpa pilihan SPK, teknisi mengetik rujukan → tombol "Minta material" di SPK aktif, SPK terisi otomatis | Tinggi: Menghapus ketikan, menutup blocker F4-D06, gudang tahu untuk pelanggan mana | M |
-| 75 | F4-U14 | 4 | Login pertama pelanggan ± 8 langkah (email, tautan, kata sandi, buka app, ketik ulang) → tombol "Buka aplikasi Inbils" dengan email terisi (± 4 langkah) | Tinggi: Login pertama pelanggan dari ± 8 langkah menjadi ± 4 | M |
-| 76 | F5-U02 | 5 | Tagihan manual: tiga layar, kode langganan diketik, pajak 0 → satu formulir dengan item, langganan dari daftar, pajak 11% bawaan | Tinggi: 3 layar menjadi 1, salah pajak hilang | M |
-| 77 | F5-U04 | 5 | Halaman isolir hanya "Masuk" → tombol "Bayar tagihan" tanpa login, WhatsApp ISP, tautan aplikasi, dua varian teks | Tinggi: Pelanggan terisolir bisa bayar dalam 1 menit tanpa app | M |
-| 78 | F6-U04 | 6 | Kategori dan petunjuk tidak membaca pengumuman gangguan → kartu "Ada gangguan di area Anda" sebelum kategori, dengan "Ikuti pembaruan" | Tinggi: Saat gangguan massal: tiket serupa tak terbuat | M |
-| 79 | F6-U06 | 6 | Setelah Selesai hanya kotak balasan → kartu "Masalah sudah beres?": Sudah beres (tutup + bintang) atau Masih bermasalah (buka kembali) | Tinggi: Pelanggan menutup, CSAT terkumpul, tak ada balasan hilang | M |
-| 80 | F6-U11 | 6 | Daftar petugas: nama dan email, alfabet → peran, beban tiket/SPK aktif, jarak ke pelanggan, rekomendasi, "Tugaskan ke saya" | Tinggi: Pada ISP > 3 teknisi: beban merata, respons cepat | M |
-| 81 | F6-U14 | 6 | Buat tiket oleh staf: pelanggan, langganan, prioritas diisi satu per satu → pilih pelanggan, lainnya terisi; tampil target SLA; judul dari kategori | Tinggi: 6 isian menjadi 2; kanal telepon tak menurunkan SLA | M |
-| 82 | F7-U01 | 7 | Halaman isolir satu teks, tombol berujung /app-only → teks mengikuti penyebab, tombol telepon dan WhatsApp, tautan aplikasi | Tinggi: Pelanggan terisolir tidak berputar; panggilan "sudah bayar tapi mati" turun | M |
-| 83 | F8-U01 | 8 | Permintaan barang teknisi mandiri, tanpa SPK dan stok → dibuka dari SPK dengan gudang dan barang disarankan, "Tersedia: N" | Tinggi: Biaya per pekerjaan, tidak ada permintaan yang pasti ditolak | M |
-| 84 | F9-U01 | 9 | Ekspor berupa dump mentah → label, kop, format id-ID, batas aman PDF | Tinggi: Laporan bulanan bisa langsung dikirim; tidak ada kegagalan 30 s | M |
-| 85 | F6-U16 | 6 | Laporan Kepatuhan SLA tanpa teknisi, prioritas, pelanggar → rincian per teknisi, prioritas, sumber target, pelanggar teratas, respons pertama, CSAT | Sedang-tinggi: Laporan menjawab "siapa dan mengapa" | M |
-| 86 | F1-U02 | 1 | Kode perusahaan diketik tangan → saran kode dari nama dengan cek unik langsung | Rendah: Menghindari kode salah/duplikat yang tidak bisa diubah lagi | S |
-| 87 | F1-U07 | 1 | Penomoran sudah jelas (contoh baik) → pertahankan; tambah ringkasan prefiks per entitas di daftar periksa awal | Rendah: Konsistensi kode sejak data pertama | S |
-| 88 | F2-U02 | 2 | Kode paket diketik tangan → disarankan dari kategori dan kecepatan, bisa diubah | Rendah: Kode seragam, tidak ada duplikat | S |
-| 89 | F2-U09 | 2 | Tipe aset (12 pilihan) tanpa pencarian, dua label IP → picker yang bisa dicari, satu label IP dengan keterangan | Rendah: Memilih lebih cepat, tidak salah isi IP | S |
-| 90 | F3-U03 | 3 | Kode unit diketik, Jenis kendaraan teks bebas → kode disarankan dari nama, Jenis berupa pilihan (Motor, Mobil, Pikap) | Rendah: Data seragam untuk laporan; salah ketik hilang | S |
-| 91 | F3-U06 | 3 | Peran read-only tanpa jalur meminta perubahan → tombol "Minta perubahan peran" ke operator | Rendah: Menghindari tiket di luar sistem; jejak permintaan | S |
-| 92 | F4-U02 | 4 | Alamat jalan tetap kosong setelah geocoder mengisi wilayah → alamat jalan terisi dari hasil geocoder, bisa diedit | Rendah: Menghemat satu ketikan panjang per alamat | S |
-| 93 | F4-U13 | 4 | Istilah permintaan barang beda antara aplikasi dan web → satu glosarium (R6) untuk serah terima dan retur | Rendah: Kurang bingung lintas peran | S |
-| 94 | F4-U16 | 4 | Dasbor manajer "Menunggu persetujuan saya 0" tanpa penjelasan → "1 SPK menunggu admin (Anda pembuatnya)" atau jalur "Minta admin" | Rendah: Manajer tidak menyangka antrean kosong | S |
-| 95 | F4-U17 | 4 | Berangkat dan Mulai: dua ketukan dan dialog → satu ketukan dengan Urungkan 10 detik | Rendah: 2 ketukan per langkah | S |
-| 96 | F7-U05 | 7 | Perawatan aset sudah jelas (contoh baik) → pertahankan; tambah filter "Dalam perawatan" | Rendah: Temukan aset perawatan cepat | S |
-| 97 | F10-U02 | 10 | Konsolidasi di anak perusahaan: 403 → penjelasan dan tombol ganti ke induk | Rendah: Tidak buntu | S |
-| 98 | F11-U08 | 11 | Audit platform dua baris per tindakan → satu baris, atau saring bawaan ke sumber Platform | Rendah: Daftar separuh panjang | S |
-| 99 | F11-U09 | 11 | Toast menutupi tombol banner dukungan → toast di bawah banner | Rendah | S |
-| 100 | F11-U10 | 11 | Daftar zona waktu terbuka di Africa/Abidjan → terbuka di nilai terpilih (Asia/Jakarta) | Rendah | S |
-| 101 | F12-U07 | 12 | SPK dikembalikan hanya teks → status "Menunggu penugasan ulang" | Rendah | S |
-| 102 | F12-U09 | 12 | Daftar bel melompat ke atas setelah kembali → pertahankan posisi gulir | Rendah | S |
-| 103 | F2-U08 | 2 | Router harus dibuat dulu sebagai aset, lalu didaftarkan sebagai NAS → buat aset di tempat atau satu formulir "Router" | Sedang: Menghemat satu layar dan satu pindah menu | M |
-| 104 | F3-U02 | 3 | Admin mengetik kata sandi awal dan menyampaikannya sendiri → undangan email atau WhatsApp dengan tautan atur kata sandi | Sedang: Kata sandi tidak beredar lewat chat; satu pola yang sama | M |
-| 105 | F4-U03 | 4 | POP dipilih manual, port drop tampil kode aset tanpa urutan jarak → POP terdekat disarankan; port drop dengan nama ODP, sisa port, jarak | Sedang: Pemilihan POP/port 3 klik lebih sedikit dan salah-pilih ODP jauh berkurang | M |
-| 106 | F4-U15 | 4 | Pemakaian material dicatat dua kali di dua tempat → satu catatan: deklarasi mengisi item SPK, atau sebaliknya | Sedang: Separuh ketikan dan tidak ada angka yang berbeda antar layar | M |
-| 107 | F5-U03 | 5 | Tunggakan per pelanggan tanpa umur, pencarian, ekspor, pengingat → tabel per tagihan dengan umur, kontak, Pengingat; Isolir terpisah dan berkonfirmasi | Sedang: Penagih tidak membuka dua layar per pelanggan | M |
-| 108 | F5-U16 | 5 | Tidak ada jejak callback per percobaan → baris "Diterima 23:18:33 · settlement · 200" di panel percobaan | Sedang: Staf tidak perlu membuka dashboard Midtrans | M |
-| 109 | F6-U05 | 6 | Lampiran dan balasan dua rute, foto terpotong → satu kotak balasan dengan ikon klip, foto utuh, pengirim di tiap pesan | Sedang: ±8 menjadi ±4 ketukan | M |
-| 110 | F8-U04 | 8 | Siapkan, Siap diambil, Serah terima: tiga dialog (6 klik) → satu layar "Siapkan barang" dengan daftar ambil; konfirmasi hanya serah terima | Sedang: 6 klik jadi 3; tidak ada status perantara yang tidak berguna | M |
-| 111 | F8-U05 | 8 | Penyesuaian tanpa stok sistem; Terima Barang tanpa pemasok, PO, harga → stok sistem tampil; pemasok, PO, harga satuan, satuan di angka | Sedang: Nilai stok dan penelusuran pembelian | M |
-| 112 | F9-U03 | 9 | Log Audit: aksi mentah, subjek ULID → kalimat "Demo Manager membatalkan permintaan REQ-..." dengan tautan | Sedang: Audit dapat dibaca owner non-teknis | M |
-| 113 | F10-U01 | 10 | Anak perusahaan dibuat di luar tenant, konteks aktif sulit terlihat → pembuatan mandiri atau permintaan satu klik; pita "Sedang di anak perusahaan X" | Sedang: Mencegah salah catat di perusahaan yang keliru | M |
-| 114 | F11-U06 | 11 | Dialog Tangguhkan bersifat umum → tampilkan jumlah pengguna, yang sedang masuk, token aplikasi, tagihan berikutnya | Sedang: Operator tahu dampaknya | M |
+| 14 | F7-U20 | 7b | Secret 8 sampai 60 karakter diketik manual, dua kali (Inbils dan router); tanpa penghasil acak, tombol Salin, atau perintah RouterOS. → Tombol "Buat secret acak" dan Salin; setelah simpan panel `/radius add ...` dan `/radius incoming set accept=yes port=13799`. | Tinggi: salah secret membuat semua pelanggan gagal login. | S |
+| 15 | F8-U02 | 8 | Penyetuju tidak melihat stok sebelum klik → kolom "Tersedia" dan peringatan bila melebihi | Tinggi: Tanpa pesan galat tidak jelas; hemat satu putaran | S |
+| 16 | F8-U03 | 8 | Terima pengembalian: dua kolom, nol → tiga kolom (Baik, Rusak, Hilang) terisi dari deklarasi teknisi | Tinggi: Tanpa pemalsuan kategori; hemat ketikan | S |
+| 17 | F11-U01 | 11 | Delapan tindakan dukungan sama bunyinya di audit tenant → kalimat per tindakan dan pencarian pada teks terlihat | Tinggi: Admin tenant tahu 2FA siapa yang diatur ulang | S |
+| 18 | F11-U02 | 11 | Buka kunci hanya 2FA, tersembunyi tanpa 2FA, tanpa status → satu tombol dengan status kunci dan sisa waktu | Tinggi: Tiket "tidak bisa masuk" selesai dalam 1 klik | S |
+| 19 | F12-U02 | 12 | Layar dari push menampilkan status lama → data segar dengan kerangka kecil | Tinggi: Teknisi melihat alasan penolakan | S |
+| 20 | F12-U03 | 12 | SLA terlampaui: pelanggan dapat surel, teknisi tak tahu → penangani dan manajer diberi tahu (push dan bel) | Tinggi: SLA dijaga | S |
+| 21 | F6-U13 | 6 | Detail tiket web: tenggat statis, sumber SLA tak dijelaskan → sisa waktu berwarna, "2 jam ÷ 2 karena Mendesak", pelanggan sebagai tautan dan telepon | Sedang-tinggi: Keputusan tanpa membuka layar lain | S |
+| 22 | F7-U23 | 7b | Dialog tidak menyebut bahwa sesi online diputus (terukur: 1 Disconnect ACK, 170 ms). → "Pelanggan yang sedang online terputus sebentar dan tersambung ulang dengan alamat baru." | Sedang-tinggi: tidak ada pemutusan mengejutkan. | S |
+| 23 | F1-U03 | 1 | Pengaturan Perusahaan satu halaman panjang, Simpan hanya di dasar → bilah Simpan menempel, navigasi bagian, penanda belum tersimpan | Sedang: Mengurangi gulir ± 2.500 px dan risiko lupa menyimpan | S |
+| 24 | F1-U04 | 1 | Wilayah peta bawaan seluruh Indonesia, nama berhuruf kapital → wilayah disarankan dari alamat profil, huruf judul | Sedang: Menghemat satu pencarian dan peta langsung benar untuk semua alamat pelanggan | S |
+| 25 | F2-U03 | 2 | Harga diketik angka mentah → kolom uang dengan pemisah ribuan dan awalan Rp | Sedang: Menghindari salah nol pada harga | S |
+| 26 | F2-U04 | 2 | Lintang dan Bujur lokasi diketik → pemilih peta yang sama dengan Pengaturan Perusahaan | Sedang: Koordinat benar tanpa salin-tempel; konsisten | S |
+| 27 | F2-U05 | 2 | Site wajib berinduk Rak, jadi harus membuat Rak palsu → Site langsung di bawah POP atau Area | Sedang: Menghemat 1 formulir dan data palsu per lokasi lapangan | S |
+| 28 | F2-U06 | 2 | Tab Peta tampil dulu dan menulis "0 lokasi" → buka tab Tabel bila tidak ada koordinat, atau tulis "3 lokasi belum punya koordinat" | Sedang: Menghilangkan kebingungan layar pertama | S |
+| 29 | F2-U07 | 2 | Kondisi kosong ODN tanpa tombol, 5 layar menuju splitter → tombol "Daftarkan ODP" lalu langsung ke dialog splitter (2 layar) | Sedang: Memangkas 5 layar menjadi 2 | S |
+| 30 | F2-U10 | 2 | Kolom Aksi tidak seragam antar daftar katalog → satu pola aksi baris | Sedang: Pengguna belajar sekali; mencegah salah klik Hapus | S |
+| 31 | F3-U05 | 3 | Halaman /app-only tanpa tautan unduh → tautan APK atau Play Store, QR, atau "Minta tautan aplikasi ke admin ISP Anda" | Sedang: Teknisi baru menyelesaikan pemasangan aplikasi < 1 menit tanpa bantuan | S |
+| 32 | F4-U01 | 4 | Tab Kontak meminta ulang nama, telepon, email → kontak utama terisi dari data pelanggan ("Sama dengan data pelanggan") | Sedang: Menghemat 3 isian dan satu tab untuk setiap pelanggan perorangan | S |
+| 33 | F4-U05 | 4 | Manajer melihat tombol Mulai dan Batalkan pada SPK yang sudah ditugaskan → tombol menurut peran (Ganti teknisi/Batalkan untuk manajer) | Sedang: Mencegah salah klik yang melompati tahap kunjungan dan check-in | S |
+| 34 | F4-U08 | 4 | Material dan foto bukti tiga layar di bawah Pelanggan/POP → Bukti kerja dan Material di atas, atau chip "Foto 0/1" yang menggulir | Sedang: 2 gulir dan beberapa detik per SPK; teknisi tidak mencari | S |
+| 35 | F4-U09 | 4 | Satu foto = 6 ketukan → setelah Selesai langsung antre, keterangan opsional, beberapa foto berturut-turut | Sedang: 2-3 ketukan per foto, 3 foto per pemasangan umum | S |
+| 36 | F4-U10 | 4 | Picker material tanpa stok, alat dan bahan tercampur → tampilkan stok, pisahkan Alat dan Bahan, peringatan bila melebihi stok | Sedang: Menghindari permintaan yang pasti ditolak sebagian | S |
+| 37 | F4-U12 | 4 | Kartu antrean gudang menghitung yang menunggu manajer → hitung hanya yang bisa dikerjakan gudang; tulis "Menunggu persetujuan Manajer/Admin" | Sedang: Staf tidak mencari tombol yang memang belum ada | S |
+| 38 | F5-U05 | 5 | "Hubungi kami untuk membayar" tanpa tombol → tombol "Hubungi ISP" (telepon atau WhatsApp) di setiap keadaan tak bisa bayar | Sedang: Pelanggan tidak berhenti buntu | S |
+| 39 | F5-U06 | 5 | Isi push dan bel tagihan generik → "INV-... Rp ... jatuh tempo ..." dan tindakan Bayar | Sedang: Pelanggan memutuskan dari bayangan notifikasi | S |
+| 40 | F5-U07 | 5 | Dasbor keuangan hanya "Tagihan jatuh tempo" → kartu Draf menunggu dikirim, Jatuh tempo 3 hari, Pembayaran online tertunda | Sedang: Pekerjaan harian terlihat tanpa membuka Tagihan | S |
+| 41 | F5-U08 | 5 | Pratinjau tagihan bulanan tanpa daftar yang dilewati → daftar dilewati dengan alasan, periode bawaan dari langganan yang belum ditagih | Sedang: Tidak ada pelanggan terlewat diam-diam | S |
+| 42 | F5-U09 | 5 | Kirim tagihan satu klik tanpa pratinjau → pratinjau "Pelanggan melihat: ..." dan konfirmasi | Sedang: Salah kirim berkurang | S |
+| 43 | F5-U10 | 5 | Snap dimuat ± 8 s tanpa penanda, harus tutup tab sendiri → layar "Menyiapkan pembayaran", tombol kembali ke aplikasi, VA di aplikasi | Sedang: Pelanggan tidak mengira macet | S |
+| 44 | F5-U11 | 5 | Panel "Pembayaran online" staf: alasan dan metode mentah, tanpa bank atau pesan penerbit → alasan Indonesia, metode manusiawi, waktu gagal, tombol "Batalkan di Midtrans" | Sedang: Staf menjawab pelanggan tanpa membuka dashboard Midtrans | S |
+| 45 | F5-U15 | 5 | Halaman selesai Snap satu teks untuk semua hasil, tanpa tombol aplikasi → judul sesuai hasil, "Buka aplikasi Inbils", tutup otomatis | Sedang | S |
+| 46 | F5-U17 | 5 | Uji callback nyata butuh tunel dan pekerja dipasang manual → satu perintah Sail "dev:payments" (tunel, queue:work, schedule:work) | Sedang: Bukti callback nyata dapat diulang | S |
+| 47 | F6-U02 | 6 | Tiga pintu masuk tiket, lima istilah → satu pintu lewat kategori dan petunjuk, satu istilah ("Lapor masalah") | Sedang: Kategori selalu terisi, SLA benar | S |
+| 48 | F6-U03 | 6 | Tiket ganda sekategori tanpa peringatan → "Anda sudah punya tiket aktif TKT-... Lihat / Tetap buat baru" | Sedang: Lebih sedikit tiket ganda | S |
+| 49 | F6-U08 | 6 | Detail tiket teknisi tanpa prioritas dan tenggat, alamat POP → prioritas, tenggat, alamat pelanggan, Maps, Telepon/WhatsApp di kepala kartu | Sedang: Tanpa gulir dan telepon untuk menanyakan alamat | S |
+| 50 | F6-U10 | 6 | Mulai tiket: dialog dua ketukan tanpa hasil check-in → satu ketukan, snackbar "Check-in tercatat 0 m · Urungkan", peringatan bila jauh | Sedang: -1 ketukan; salah lokasi terdeteksi saat itu | S |
+| 51 | F6-U17 | 6 | Isi push tiket tanpa prioritas, judul, nomor → "MENDESAK · TKT-... respons sebelum 21:17" dan "TKT-... selesai: ... Sudah beres?" | Sedang: Keputusan dari bayangan notifikasi | S |
+| 52 | F6-U19 | 6 | Kategori tenant baru tanpa petunjuk → isi bawaan per kategori dan pratinjau di web | Sedang: Sebagian tiket selesai swalayan | S |
+| 53 | F6-U20 | 6 | Halaman tiket 15 Tab sebelum aksi pertama → "Lewati ke konten" dan fokus awal ke aksi utama | Sedang: -14 Tab per tiket | S |
+| 54 | F7-U02 | 7 | Terbitkan pengumuman tanpa jumlah penerima, tiga langkah → "± 8 pelanggan akan menerima" di dialog dan "Simpan & Terbitkan" | Sedang: Hindari salah target; hemat 3 klik per gangguan | S |
+| 55 | F7-U03 | 7 | Dialog Blokir/Tangguhkan tanpa efek ke pelanggan → satu kalimat "Pelanggan akan melihat: ...; tagihan tetap berjalan" | Sedang: Mengurangi salah pilih Tangguhkan vs Blokir | S |
+| 56 | F7-U04 | 7 | Router NAS tanpa tombol sinkron → "Sinkronkan sekarang" dan status terakhir | Sedang: Operator tidak menunggu 15 menit setelah ganti rahasia NAS | S |
+| 57 | F7-U24 | 7b | Dialog hanya Alasan dan dua tombol. → Daftar dampak: akun RADIUS dihapus, sesi diputus, IP statis dan port drop dilepas, tagihan berhenti. | Sedang | S |
+| 58 | F8-U06 | 8 | Pemilih barang dan lokasi kosong sebelum mengetik 2 huruf → 10 pilihan terakhir muncul saat dibuka | Sedang: ± 3 ketikan per pilihan, 8 klik jadi 6 | S |
+| 59 | F9-U02 | 9 | Kinerja Teknisi wajib memilih satu teknisi → tabel semua teknisi dengan peringkat, baris membuka detail | Sedang: Pemilik membandingkan teknisi dalam satu layar (hemat 3 klik per teknisi) | S |
+| 60 | F11-U03 | 11 | Kata sandi operator diketik di tiap dialog → lewati bila sudah dikonfirmasi < 5 menit, tulis "Terkonfirmasi sampai ..." | Sedang: 3 ketikan dan 3 klik lebih sedikit | S |
+| 61 | F11-U04 | 11 | Unduh ekspor hanya di halaman Ekspor → tombol Unduh di baris ekspor halaman perusahaan | Sedang: 2 klik dan 1 layar | S |
+| 62 | F11-U05 | 11 | "Coba lagi dalam 663 detik" → "Coba lagi dalam 11 menit" | Sedang: Terbaca sekali lihat | S |
+| 63 | F11-U07 | 11 | Akun pribadi saat akses dukungan: teks putih mentah → kartu bertata letak dengan tombol Kembali | Sedang: Tidak buntu | S |
+| 64 | F12-U04 | 12 | Isi push generik, awalan ISP memotong → "INV-...: Rp 99.000 jatuh tempo 18 Okt" | Sedang | S |
+| 65 | F12-U05 | 12 | Teknisi luring: tombol mati tanpa alasan → spanduk luring dan satu "Coba lagi" | Sedang | S |
+| 66 | F12-U06 | 12 | Permintaan barang: gudang bebas, tanpa stok → gudang bawaan yang punya stok, stok di baris | Sedang | S |
+| 67 | F12-U08 | 12 | Kirim review tanpa konfirmasi, kata "pemasangan" → konfirmasi dan kata menurut tipe SPK | Sedang | S |
+| 68 | F5-U12 | 5 | Aplikasi pelanggan setelah gagal bayar tanpa alasan, exception tampil "failed" → banner hasil percobaan terakhir dengan "Coba lagi" dan "Pakai metode lain"; exception "Sedang diperiksa, hubungi ISP" | Tinggi: Pelanggan tahu langkah berikutnya | S/M |
+| 69 | F5-U14 | 5 | Dialog "Catat pembayaran" tanpa peringatan walau ada VA atau QR pending → banner "Ada pembayaran online tertunda. Batalkan dulu?" dengan satu klik batal | Tinggi: Mencegah pembayaran ganda | S/M |
+| 70 | F7-U22 | 7b | "Alamat 10.99.0.1" tanpa tanda statis atau dinamis dan tanpa alamat yang diharapkan. → Baris "IP statis diharapkan: 10.99.0.1 (IPAM 10.99.0.0/26)"; peringatan bila sesi memakai alamat lain; tombol "Putuskan sesi". Sebagian sudah diperbaiki (commit e5095de): IP statis kini sampai ke RADIUS sebagai `Framed-IP-Address`; tanda statis dan peringatan alamat berbeda belum ada. | Tinggi: keluhan "IP statis tidak aktif" terjawab dalam satu layar. | S/M |
+| 71 | F12-U01 | 12 | Banyak push tertunda digabung Android, ketukan pertama salah → ringkasan "N notifikasi" membuka kotak masuk, anak membuka subjeknya | Tinggi: Ketuk pertama tepat | S/M |
+| 72 | F1-U01 | 1 | Dasbor tenant baru hanya berisi kartu bernilai 0 → kartu "Mulai dari sini" dengan daftar periksa langkah awal, tiap baris tertaut dan berpersen selesai | Tinggi: Admin baru tahu langkah berikutnya tanpa membuka panduan; mempercepat onboarding dari ± 1 jam menjadi beberapa menit | M |
+| 73 | F1-U06 | 1 | 2FA opsional untuk admin ISP, tanpa ajakan → ajakan aktifkan 2FA saat login pertama dan opsi "wajib 2FA untuk admin" per perusahaan | Tinggi: Akun admin memegang data seluruh pelanggan dan tagihan; satu kebocoran kata sandi kini cukup untuk masuk | M |
+| 74 | F2-U01 | 2 | Satu paket butuh 4 formulir dan ± 25 isian → picker dengan "+ Baru" di tempat; kecepatan terisi dari profil bandwidth, atau satukan jadi "Profil layanan" | Tinggi: Menghemat ± 10 klik dan 6 ketikan angka per paket; mencegah selisih bandwidth vs kecepatan | M |
+| 75 | F3-U01 | 3 | Satu teknisi butuh dua layar admin (Pengguna lalu Karyawan) → bagian "Profil karyawan" di formulir yang sama atau arahkan otomatis | Tinggi: Menghemat ± 12 klik per teknisi dan menutup jebakan "teknisi tidak bisa dipilih" | M |
+| 76 | F3-U04 | 3 | Satu peran "staff" untuk CS, gudang, keuangan (26 menu) → peran CS, Gudang, Keuangan bawaan; menu mengikuti pekerjaan (± 12) | Tinggi: Menu staf CS turun dari 26 ke ± 12 butir; risiko salah klik dan akses data berlebih berkurang | M |
+| 77 | F4-U04 | 4 | Pelanggan sampai teknisi ditugaskan butuh 3 layar dan 17+ isian → opsi "Tugaskan sekarang" (teknisi dan jadwal) di tab Langganan & SPK | Tinggi: Menghapus dua layar dan ± 6 klik untuk pemasangan yang sudah disepakati jadwalnya | M |
+| 78 | F4-U06 | 4 | Permintaan barang tanpa pilihan SPK, teknisi mengetik rujukan → tombol "Minta material" di SPK aktif, SPK terisi otomatis | Tinggi: Menghapus ketikan, menutup blocker F4-D06, gudang tahu untuk pelanggan mana | M |
+| 79 | F4-U14 | 4 | Login pertama pelanggan ± 8 langkah (email, tautan, kata sandi, buka app, ketik ulang) → tombol "Buka aplikasi Inbils" dengan email terisi (± 4 langkah) | Tinggi: Login pertama pelanggan dari ± 8 langkah menjadi ± 4 | M |
+| 80 | F5-U02 | 5 | Tagihan manual: tiga layar, kode langganan diketik, pajak 0 → satu formulir dengan item, langganan dari daftar, pajak 11% bawaan | Tinggi: 3 layar menjadi 1, salah pajak hilang | M |
+| 81 | F5-U04 | 5 | Halaman isolir hanya "Masuk" → tombol "Bayar tagihan" tanpa login, WhatsApp ISP, tautan aplikasi, dua varian teks | Tinggi: Pelanggan terisolir bisa bayar dalam 1 menit tanpa app | M |
+| 82 | F6-U04 | 6 | Kategori dan petunjuk tidak membaca pengumuman gangguan → kartu "Ada gangguan di area Anda" sebelum kategori, dengan "Ikuti pembaruan" | Tinggi: Saat gangguan massal: tiket serupa tak terbuat | M |
+| 83 | F6-U06 | 6 | Setelah Selesai hanya kotak balasan → kartu "Masalah sudah beres?": Sudah beres (tutup + bintang) atau Masih bermasalah (buka kembali) | Tinggi: Pelanggan menutup, CSAT terkumpul, tak ada balasan hilang | M |
+| 84 | F6-U11 | 6 | Daftar petugas: nama dan email, alfabet → peran, beban tiket/SPK aktif, jarak ke pelanggan, rekomendasi, "Tugaskan ke saya" | Tinggi: Pada ISP > 3 teknisi: beban merata, respons cepat | M |
+| 85 | F6-U14 | 6 | Buat tiket oleh staf: pelanggan, langganan, prioritas diisi satu per satu → pilih pelanggan, lainnya terisi; tampil target SLA; judul dari kategori | Tinggi: 6 isian menjadi 2; kanal telepon tak menurunkan SLA | M |
+| 86 | F7-U01 | 7 | Halaman isolir satu teks, tombol berujung /app-only → teks mengikuti penyebab, tombol telepon dan WhatsApp, tautan aplikasi | Tinggi: Pelanggan terisolir tidak berputar; panggilan "sudah bayar tapi mati" turun | M |
+| 87 | F7-U21 | 7b | Lencana "Tertulis ke RADIUS" padahal FreeRADIUS baru melayani setelah dimulai ulang (catatan ada di halaman). → Status "Menunggu FreeRADIUS dimulai ulang" dan tombol "Uji koneksi" (Status-Server atau Access-Request uji). | Tinggi: operator tahu kapan router siap, tanpa menunggu telepon pelanggan. | M |
+| 88 | F8-U01 | 8 | Permintaan barang teknisi mandiri, tanpa SPK dan stok → dibuka dari SPK dengan gudang dan barang disarankan, "Tersedia: N" | Tinggi: Biaya per pekerjaan, tidak ada permintaan yang pasti ditolak | M |
+| 89 | F9-U01 | 9 | Ekspor berupa dump mentah → label, kop, format id-ID, batas aman PDF | Tinggi: Laporan bulanan bisa langsung dikirim; tidak ada kegagalan 30 s | M |
+| 90 | F6-U16 | 6 | Laporan Kepatuhan SLA tanpa teknisi, prioritas, pelanggar → rincian per teknisi, prioritas, sumber target, pelanggar teratas, respons pertama, CSAT | Sedang-tinggi: Laporan menjawab "siapa dan mengapa" | M |
+| 91 | F1-U02 | 1 | Kode perusahaan diketik tangan → saran kode dari nama dengan cek unik langsung | Rendah: Menghindari kode salah/duplikat yang tidak bisa diubah lagi | S |
+| 92 | F1-U07 | 1 | Penomoran sudah jelas (contoh baik) → pertahankan; tambah ringkasan prefiks per entitas di daftar periksa awal | Rendah: Konsistensi kode sejak data pertama | S |
+| 93 | F2-U02 | 2 | Kode paket diketik tangan → disarankan dari kategori dan kecepatan, bisa diubah | Rendah: Kode seragam, tidak ada duplikat | S |
+| 94 | F2-U09 | 2 | Tipe aset (12 pilihan) tanpa pencarian, dua label IP → picker yang bisa dicari, satu label IP dengan keterangan | Rendah: Memilih lebih cepat, tidak salah isi IP | S |
+| 95 | F3-U03 | 3 | Kode unit diketik, Jenis kendaraan teks bebas → kode disarankan dari nama, Jenis berupa pilihan (Motor, Mobil, Pikap) | Rendah: Data seragam untuk laporan; salah ketik hilang | S |
+| 96 | F3-U06 | 3 | Peran read-only tanpa jalur meminta perubahan → tombol "Minta perubahan peran" ke operator | Rendah: Menghindari tiket di luar sistem; jejak permintaan | S |
+| 97 | F4-U02 | 4 | Alamat jalan tetap kosong setelah geocoder mengisi wilayah → alamat jalan terisi dari hasil geocoder, bisa diedit | Rendah: Menghemat satu ketikan panjang per alamat | S |
+| 98 | F4-U13 | 4 | Istilah permintaan barang beda antara aplikasi dan web → satu glosarium (R6) untuk serah terima dan retur | Rendah: Kurang bingung lintas peran | S |
+| 99 | F4-U16 | 4 | Dasbor manajer "Menunggu persetujuan saya 0" tanpa penjelasan → "1 SPK menunggu admin (Anda pembuatnya)" atau jalur "Minta admin" | Rendah: Manajer tidak menyangka antrean kosong | S |
+| 100 | F4-U17 | 4 | Berangkat dan Mulai: dua ketukan dan dialog → satu ketukan dengan Urungkan 10 detik | Rendah: 2 ketukan per langkah | S |
+| 101 | F7-U05 | 7 | Perawatan aset sudah jelas (contoh baik) → pertahankan; tambah filter "Dalam perawatan" | Rendah: Temukan aset perawatan cepat | S |
+| 102 | F7-U27 | 7b | Satu-satunya alamat pemasangan tidak terpilih otomatis; langganan lahir tanpa POP, sehingga panel IP memakai kalimat "untuk POP langganan ini". → Alamat tunggal terpilih; pilih POP atau pesan "langganan belum punya POP". | Rendah | S |
+| 103 | F10-U02 | 10 | Konsolidasi di anak perusahaan: 403 → penjelasan dan tombol ganti ke induk | Rendah: Tidak buntu | S |
+| 104 | F11-U08 | 11 | Audit platform dua baris per tindakan → satu baris, atau saring bawaan ke sumber Platform | Rendah: Daftar separuh panjang | S |
+| 105 | F11-U09 | 11 | Toast menutupi tombol banner dukungan → toast di bawah banner | Rendah | S |
+| 106 | F11-U10 | 11 | Daftar zona waktu terbuka di Africa/Abidjan → terbuka di nilai terpilih (Asia/Jakarta) | Rendah | S |
+| 107 | F12-U07 | 12 | SPK dikembalikan hanya teks → status "Menunggu penugasan ulang" | Rendah | S |
+| 108 | F12-U09 | 12 | Daftar bel melompat ke atas setelah kembali → pertahankan posisi gulir | Rendah | S |
+| 109 | F2-U08 | 2 | Router harus dibuat dulu sebagai aset, lalu didaftarkan sebagai NAS → buat aset di tempat atau satu formulir "Router" | Sedang: Menghemat satu layar dan satu pindah menu | M |
+| 110 | F3-U02 | 3 | Admin mengetik kata sandi awal dan menyampaikannya sendiri → undangan email atau WhatsApp dengan tautan atur kata sandi | Sedang: Kata sandi tidak beredar lewat chat; satu pola yang sama | M |
+| 111 | F4-U03 | 4 | POP dipilih manual, port drop tampil kode aset tanpa urutan jarak → POP terdekat disarankan; port drop dengan nama ODP, sisa port, jarak | Sedang: Pemilihan POP/port 3 klik lebih sedikit dan salah-pilih ODP jauh berkurang | M |
+| 112 | F4-U15 | 4 | Pemakaian material dicatat dua kali di dua tempat → satu catatan: deklarasi mengisi item SPK, atau sebaliknya | Sedang: Separuh ketikan dan tidak ada angka yang berbeda antar layar | M |
+| 113 | F5-U03 | 5 | Tunggakan per pelanggan tanpa umur, pencarian, ekspor, pengingat → tabel per tagihan dengan umur, kontak, Pengingat; Isolir terpisah dan berkonfirmasi | Sedang: Penagih tidak membuka dua layar per pelanggan | M |
+| 114 | F5-U16 | 5 | Tidak ada jejak callback per percobaan → baris "Diterima 23:18:33 · settlement · 200" di panel percobaan | Sedang: Staf tidak perlu membuka dashboard Midtrans | M |
+| 115 | F6-U05 | 6 | Lampiran dan balasan dua rute, foto terpotong → satu kotak balasan dengan ikon klip, foto utuh, pengirim di tiap pesan | Sedang: ±8 menjadi ±4 ketukan | M |
+| 116 | F7-U25 | 7b | Setelah toast tidak ada umpan balik sesi; setelah bayar akun "Offline" tanpa penjelasan sampai router menyambung ulang. → Baris "Sesi diputus 00:22, menunggu router menyambung ulang" dengan segar-ulang otomatis. | Sedang | M |
+| 117 | F7-U26 | 7b | Operator tidak melihat kesehatan router atau antrean pemutusan; hanya "Menunggu" dan teks Inggris. → "Router tidak menjawab sejak 00:22, mencoba lagi otomatis" dengan tombol "Coba sekarang". | Sedang | M |
+| 118 | F8-U04 | 8 | Siapkan, Siap diambil, Serah terima: tiga dialog (6 klik) → satu layar "Siapkan barang" dengan daftar ambil; konfirmasi hanya serah terima | Sedang: 6 klik jadi 3; tidak ada status perantara yang tidak berguna | M |
+| 119 | F8-U05 | 8 | Penyesuaian tanpa stok sistem; Terima Barang tanpa pemasok, PO, harga → stok sistem tampil; pemasok, PO, harga satuan, satuan di angka | Sedang: Nilai stok dan penelusuran pembelian | M |
+| 120 | F9-U03 | 9 | Log Audit: aksi mentah, subjek ULID → kalimat "Demo Manager membatalkan permintaan REQ-..." dengan tautan | Sedang: Audit dapat dibaca owner non-teknis | M |
+| 121 | F10-U01 | 10 | Anak perusahaan dibuat di luar tenant, konteks aktif sulit terlihat → pembuatan mandiri atau permintaan satu klik; pita "Sedang di anak perusahaan X" | Sedang: Mencegah salah catat di perusahaan yang keliru | M |
+| 122 | F11-U06 | 11 | Dialog Tangguhkan bersifat umum → tampilkan jumlah pengguna, yang sedang masuk, token aplikasi, tagihan berikutnya | Sedang: Operator tahu dampaknya | M |
 
 ## 4. Keputusan pemilik
 
@@ -450,19 +469,19 @@ Isi laporan: [1. Putusan](#1-putusan) · [2. Defect di seluruh alur](#2-defect-d
 
 Urutan ini mengikuti tiga aturan: (1) blocker dan temuan yang membuat data salah atau hilang lebih dulu, (2) rekomendasi UX bermanfaat tinggi dengan usaha kecil berikutnya, (3) sisanya. Setiap ID defect dan UX muncul tepat satu kali di tiga gelombang. Kolom K merujuk ke keputusan di bagian "Keputusan pemilik".
 
-### Gelombang 1: blocker dan integritas data (29 ID)
+### Gelombang 1: blocker dan integritas data (30 ID)
 
 | Kelompok | ID | Isi dan catatan |
 |---|---|---|
-| Blocker | F4-D06, F5-D01, F5-D10, F6-D01, F8-D01 | F8-D01 sudah diperbaiki di working tree (`Show.tsx`, spesifikasi `inventory-returns.spec.ts`) dan menunggu commit serta gerbang E2E penuh. Empat blocker lain butuh keputusan owner lebih dulu. Keputusan: K1, K2, K6, K13. |
+| Blocker | F4-D06, F5-D01, F5-D10, F6-D01, F8-D01 | F8-D01 sudah diperbaiki di commit e5095de (`Show.tsx`, spesifikasi `inventory-returns.spec.ts`); gerbang E2E penuh sesudahnya belum tercatat. Empat blocker lain butuh keputusan owner lebih dulu. Keputusan: K1, K2, K6, K13. |
 | Stok dan material (sisi aplikasi dan galat) | F4-D07, F8-D02, F4-U06, F8-U01 | Permintaan barang dari aplikasi membawa SPK aktif, tombol "Minta material" di halaman SPK, dan alasan penolakan stok sampai ke layar. Ini bagian dari perbaikan F4-D06. |
-| Uang dan tagihan | F5-D02, F5-D04, F5-D05, F12-D17, F4-D16, F4-D17, F4-D19 | Periode masa depan ditolak, tagihan Rp 0 tidak bisa dikirim, tanggal jatuh tempo yang diketik tidak diabaikan dan tidak boleh sebelum tanggal terbit, tagihan Draf dan akun jaringan tidak tertinggal tanpa pemberitahuan, serta kebijakan penagihan material. Keputusan: K7, K17, K18. |
+| Uang dan tagihan | F5-D02, F5-D04, F5-D05, F7-D25, F12-D17, F4-D16, F4-D17, F4-D19 | Periode masa depan ditolak, tagihan Rp 0 tidak bisa dikirim, tanggal jatuh tempo yang diketik tidak diabaikan (F7-D25 adalah gejala yang sama dengan F5-D05, bentuk dd/mm/yyyy) dan tidak boleh sebelum tanggal terbit, tagihan Draf dan akun jaringan tidak tertinggal tanpa pemberitahuan, serta kebijakan penagihan material. Keputusan: K7, K17, K18. |
 | Pembayaran online (Midtrans) | F5-D14, F5-D16, F5-D18, F5-D20 | Kartu selalu 3-D Secure, pembayaran VA setelah tunai tidak hilang dan staf diberi tahu, merchant Midtrans tidak dibagi dengan proyek lain, dan pelanggan yang sudah membayar diberi tahu tagihan lain yang menahan reaktivasi. Keputusan: K2, K3, K4, K5. |
 | Data yang tersimpan atau tampil salah | F3-D01, F2-D04, F4-D08, F6-D06, F6-D11 | Dialog buat dikosongkan setelah simpan, hapus profil yang dipakai paket ditolak atau diperingatkan (tiga katalog), antrean persetujuan memakai waktu dan teknisi yang mengajukan, respons pertama dihitung dari balasan petugas, jam Laporan SLA memakai zona waktu perusahaan. Keputusan: K9. |
 | Pemberitahuan SLA ke pihak yang salah | F6-D05, F12-D10 | Pelanggan menerima surel SLA internal, sementara penangani dan staf tidak diberi tahu. Keputusan: K8. |
 | Data lintas lingkungan dan tenant | F11-D04, F0-D03 | ZIP ekspor memilih berkas menurut baris media milik tenant, dan jalur storage dev dan uji dipisah (F0-D03 adalah akar penyebab F11-D04). Keputusan: K21. |
 
-### Gelombang 2: UX bermanfaat tinggi dengan usaha kecil (29 ID)
+### Gelombang 2: UX bermanfaat tinggi dengan usaha kecil (32 ID)
 
 | Kelompok | ID | Isi dan catatan |
 |---|---|---|
@@ -472,19 +491,20 @@ Urutan ini mengikuti tiga aturan: (1) blocker dan temuan yang membuat data salah
 | Dukungan platform | F11-U01, F11-D03, F11-U02, F11-D02 | Satu kalimat per tindakan dukungan di audit tenant dan satu tombol "Buka kunci" dengan status kunci. Keputusan: K19, K20. |
 | Push dan aplikasi | F12-U01, F12-D07, F12-U02, F12-D09, F12-U03 | Ketuk push selalu membuka subjeknya, layar dari push segar, dan SLA terlampaui sampai ke penangani dan manajer. |
 | Pembayaran online (staf dan pelanggan) | F5-U12, F5-U13, F5-U14 | Banner hasil percobaan terakhir di aplikasi pelanggan, kartu dasbor untuk pembayaran online bermasalah, dan peringatan di dialog Catat pembayaran bila ada VA atau QR pending. |
+| Operasi jaringan (RADIUS) | F7-U20, F7-U22, F7-U23 | Secret acak dengan Salin dan perintah RouterOS, baris "IP statis diharapkan" dengan peringatan alamat berbeda (sebagian sudah di commit e5095de: IP statis kini sampai ke RADIUS), dan dialog IP statis yang menyebut pemutusan sesi. |
 
-### Gelombang 3: sisanya (198 ID)
+### Gelombang 3: sisanya (210 ID)
 
 Urutan di dalam gelombang ini: friction dahulu, lalu perubahan UX bernilai tinggi yang butuh usaha M, lalu UX sedang dengan usaha S, UX sedang dengan usaha M, polish, dan UX rendah. Tabel "Kelompok perbaikan berakar sama" di bawahnya menunjukkan ID yang bisa ditutup oleh satu perubahan.
 
 | Kelompok | Jumlah | ID |
 |---|---|---|
-| 3a. Defect friction | 38 | F0-D01, F1-D01, F1-D05, F3-D02, F4-D01, F4-D02, F4-D11, F4-D13, F4-D15, F5-D03, F5-D06, F5-D07, F5-D09, F5-D12, F5-D15, F5-D19, F6-D02, F6-D03, F6-D04, F6-D07, F6-D08, F6-D09, F6-D10, F6-D12, F6-D13, F7-D01, F7-D02, F8-D05, F8-D06, F9-D01, F9-D02, F9-D03, F10-D01, F10-D02, F11-D01, F12-D01, F12-D11, F12-D13 |
-| 3b. UX manfaat tinggi, usaha M | 16 | F1-U01, F1-U06, F2-U01, F3-U01, F3-U04, F4-U04, F4-U14, F5-U02, F5-U04, F6-U04, F6-U06, F6-U11, F6-U14, F6-U16, F7-U01, F9-U01 |
-| 3c. UX manfaat sedang, usaha S | 44 | F1-U03, F1-U04, F2-U03, F2-U04, F2-U05, F2-U06, F2-U07, F2-U10, F3-U05, F4-U01, F4-U05, F4-U08, F4-U09, F4-U10, F4-U12, F5-U05, F5-U06, F5-U07, F5-U08, F5-U09, F5-U10, F5-U11, F5-U15, F5-U17, F6-U02, F6-U03, F6-U08, F6-U10, F6-U17, F6-U19, F6-U20, F7-U02, F7-U03, F7-U04, F8-U06, F9-U02, F11-U03, F11-U04, F11-U05, F11-U07, F12-U04, F12-U05, F12-U06, F12-U08 |
-| 3d. UX manfaat sedang, usaha M | 12 | F2-U08, F3-U02, F4-U03, F4-U15, F5-U03, F5-U16, F6-U05, F8-U04, F8-U05, F9-U03, F10-U01, F11-U06 |
-| 3e. Defect polish | 68 | F0-D02, F1-D02, F1-D03, F1-D04, F2-D01, F2-D02, F2-D03, F3-D03, F4-D03, F4-D04, F4-D05, F4-D09, F4-D10, F4-D12, F4-D14, F4-D18, F5-D08, F5-D11, F5-D13, F5-D17, F5-D21, F6-D14, F6-D15, F6-D16, F6-D17, F6-D18, F6-D19, F6-D20, F6-D21, F6-D22, F6-D23, F6-D24, F7-D03, F7-D04, F7-D05, F8-D07, F8-D08, F8-D09, F8-D10, F8-D11, F8-D12, F8-D13, F9-D04, F9-D05, F9-D06, F9-D07, F9-D08, F9-D09, F10-D03, F10-D04, F11-D05, F11-D06, F11-D07, F11-D08, F11-D09, F11-D10, F11-D11, F11-D12, F12-D02, F12-D04, F12-D06, F12-D08, F12-D12, F12-D14, F12-D15, F12-D16, F12-D18, F12-D19 |
-| 3f. UX manfaat rendah | 17 | F1-U02, F1-U07, F2-U02, F2-U09, F3-U03, F3-U06, F4-U02, F4-U13, F4-U16, F4-U17, F7-U05, F10-U02, F11-U08, F11-U09, F11-U10, F12-U07, F12-U09 |
+| 3a. Defect friction | 43 | F0-D01, F1-D01, F1-D05, F3-D02, F4-D01, F4-D02, F4-D11, F4-D13, F4-D15, F5-D03, F5-D06, F5-D07, F5-D09, F5-D12, F5-D15, F5-D19, F6-D02, F6-D03, F6-D04, F6-D07, F6-D08, F6-D09, F6-D10, F6-D12, F6-D13, F7-D01, F7-D02, F8-D05, F8-D06, F9-D01, F9-D02, F9-D03, F10-D01, F10-D02, F11-D01, F12-D01, F12-D11, F12-D13, F7-D20, F7-D21, F7-D22, F7-D24 (sudah diperbaiki, commit e5095de), F7-D26 |
+| 3b. UX manfaat tinggi, usaha M | 17 | F1-U01, F1-U06, F2-U01, F3-U01, F3-U04, F4-U04, F4-U14, F5-U02, F5-U04, F6-U04, F6-U06, F6-U11, F6-U14, F6-U16, F7-U01, F9-U01, F7-U21 |
+| 3c. UX manfaat sedang, usaha S | 45 | F1-U03, F1-U04, F2-U03, F2-U04, F2-U05, F2-U06, F2-U07, F2-U10, F3-U05, F4-U01, F4-U05, F4-U08, F4-U09, F4-U10, F4-U12, F5-U05, F5-U06, F5-U07, F5-U08, F5-U09, F5-U10, F5-U11, F5-U15, F5-U17, F6-U02, F6-U03, F6-U08, F6-U10, F6-U17, F6-U19, F6-U20, F7-U02, F7-U03, F7-U04, F8-U06, F9-U02, F11-U03, F11-U04, F11-U05, F11-U07, F12-U04, F12-U05, F12-U06, F12-U08, F7-U24 |
+| 3d. UX manfaat sedang, usaha M | 14 | F2-U08, F3-U02, F4-U03, F4-U15, F5-U03, F5-U16, F6-U05, F8-U04, F8-U05, F9-U03, F10-U01, F11-U06, F7-U25, F7-U26 |
+| 3e. Defect polish | 70 | F0-D02, F1-D02, F1-D03, F1-D04, F2-D01, F2-D02, F2-D03, F3-D03, F4-D03, F4-D04, F4-D05, F4-D09, F4-D10, F4-D12, F4-D14, F4-D18, F5-D08, F5-D11, F5-D13, F5-D17, F5-D21, F6-D14, F6-D15, F6-D16, F6-D17, F6-D18, F6-D19, F6-D20, F6-D21, F6-D22, F6-D23, F6-D24, F7-D03, F7-D04, F7-D05, F8-D07, F8-D08, F8-D09, F8-D10, F8-D11, F8-D12, F8-D13, F9-D04, F9-D05, F9-D06, F9-D07, F9-D08, F9-D09, F10-D03, F10-D04, F11-D05, F11-D06, F11-D07, F11-D08, F11-D09, F11-D10, F11-D11, F11-D12, F12-D02, F12-D04, F12-D06, F12-D08, F12-D12, F12-D14, F12-D15, F12-D16, F12-D18, F12-D19, F7-D23, F7-D27 |
+| 3f. UX manfaat rendah | 18 | F1-U02, F1-U07, F2-U02, F2-U09, F3-U03, F3-U06, F4-U02, F4-U13, F4-U16, F4-U17, F7-U05, F10-U02, F11-U08, F11-U09, F11-U10, F12-U07, F12-U09, F7-U27 |
 | 3g. Info dan catatan | 3 | F12-D03, F12-D05, F12-D20 |
 
 #### Kelompok perbaikan berakar sama
@@ -502,11 +522,11 @@ Satu perubahan menutup beberapa ID sekaligus. ID yang sudah ada di gelombang 1 a
 | Pesan validasi bawaan browser berbahasa Inggris | F1-D02, F6-D22 | `noValidate` pada formulir bersama dan pesan Indonesia di samping kolom. |
 | Format uang dan angka | F2-U03, F4-D04, F5-D01, F9-D03, F9-D05 | Satu komponen dan util format id-ID untuk rupiah, persen, dan angka. |
 | Email bawaan Laravel (pengirim, tanda tangan, templat) | F1-D04, F6-D24, F4-U14 | Templat mail bermerek dengan data dan tautan. |
-| Aksi yang tidak bisa ditarik tanpa konfirmasi seragam | F4-D13, F5-D03, F12-D13, F4-U17, F5-U09, F6-U10, F12-U08 | Satu aturan: konfirmasi ringkas atau Urungkan beberapa detik. |
+| Aksi yang tidak bisa ditarik tanpa konfirmasi seragam | F4-D13, F5-D03, F12-D13, F4-U17, F5-U09, F6-U10, F12-U08, F7-D24, F7-U23, F7-U24 | Satu aturan: konfirmasi ringkas atau Urungkan beberapa detik. |
 | Tombol tampil tanpa izin; penolakan berupa layar mentah | F5-D04, F6-D10, F4-U05, F4-D02, F10-D02, F11-D07 | Sembunyikan tombol tanpa izin dan ganti halaman 403 atau 422 dengan pesan di halaman yang sama. |
 | Pemberitahuan yang tidak ada untuk staf atau pelanggan | F4-D13, F4-D16, F5-D12, F6-D04, F6-D05, F8-D05, F12-D10, F5-D16, F5-U13 | Matriks pemberitahuan per peristiwa (bel, push, surel, dasbor) dan penerimanya. |
 | Toast ganda atau tidak terlihat | F4-D03, F6-D15, F10-D03, F11-D08 | Satu sumber toast dan posisi yang tidak menutupi kendali. |
-| Isolir dan status RADIUS mati | F2-D02, F5-D12, F5-U04, F7-D01, F7-D02, F7-D05, F7-U01, F7-U03, F5-D20 | Teks mengikuti penyebab dan mode, dengan jalan bayar atau hubungi ISP. |
+| Isolir dan status RADIUS mati | F2-D02, F5-D12, F5-U04, F7-D01, F7-D02, F7-D05, F7-U01, F7-U03, F5-D20, F7-D21, F7-D22, F7-U26 | Teks mengikuti penyebab dan mode, dengan jalan bayar atau hubungi ISP. |
 | Peran dan menu | F3-D03, F3-U04, F3-U06, F4-D01 | Peran CS, Gudang, Keuangan bawaan, label Indonesia, dan jalur meminta perubahan peran. |
 | Onboarding tenant baru | F1-D05, F1-U01, F1-U03, F1-U04, F1-U05, F1-U06, F2-U11 | Daftar periksa awal, dua saklar tagihan, 2FA, katalog awal opsional, status undangan. |
 | Isian yang diketik padahal bisa dipilih | F1-U02, F2-U02, F2-U04, F2-U09, F3-U03, F5-U02, F6-U14, F8-U06 | Picker dengan pencarian dan isian bawaan. |
@@ -522,7 +542,7 @@ Satu perubahan menutup beberapa ID sekaligus. ID yang sudah ada di gelombang 1 a
 | 5, 6, 12 | `schedule:run` tidak dijalankan. Perintah terjadwal (`billing:whatsapp-reminders`, `billing:check-overdue`, `billing:suspend-overdue`, `tickets:sla`) dijalankan langsung dengan `--company=3`, karena tanpa batas perusahaan perintah itu menyentuh tenant DEMO. | Logika tiap perintah teruji; pemicu waktu nyata (jam berapa tugas jatuh) tidak. |
 | 5, 12 | Tanggal jatuh tempo diketik lewat formulir tagihan manual (20 Okt untuk H-3, 8 Okt untuk lewat jatuh tempo) karena jatuh tempo bawaan 14 hari tidak menghasilkan H-3 alami. FlowAudit7 menggeser `sla_deadline` TKT-2026-00004 ke masa lalu dengan satu UPDATE (SLA minimum 1 jam, tidak bisa lewat formulir). | Pengingat H-3, isolir, dan pelanggaran SLA diuji dengan data yang dibuat. Owner menentukan apakah itu wajar (K37). Pelanggaran SLA tiga jam tidak ditunggu. |
 | 5, 5b | Midtrans sandbox. Alur 5 mengirim notifikasi `settlement` sendiri dengan `signature_key` sah dari dalam kontainer, karena Midtrans tidak menjangkau `localhost`. Alur 5b memakai Cloudflare Tunnel sehingga Midtrans mengirim notifikasi sendiri (17 pengiriman tertangkap). Tidak teruji di 5b: 3-D Secure (tidak pernah muncul), kedaluwarsa alami (payload memaksa 24 jam, dikedaluwarsakan lewat API), callback yang gagal terkirim lalu diulang Midtrans, `midtrans:reconcile`, pesanan proyek lain yang masuk ke endpoint, dan WhatsApp. | Jalur Midtrans ke server teruji dari luar untuk pembayaran sukses, gagal, batal, dan kedaluwarsa. Belum diuji: pembayaran sebagian dan tombol "Unduh PDF" tagihan di web. |
-| 2, 4, 7 | RADIUS dimatikan di dev: akun jaringan hanya berstatus "Menunggu" dan sinkron ke router tidak dijalankan. | F2-D02, F7-D02, dan F4-D17 menilai tampilan dan alurnya saja, bukan efek di router. |
+| 2, 4, 7 | RADIUS dimatikan di dev: akun jaringan hanya berstatus "Menunggu" dan sinkron ke router tidak dijalankan. | F2-D02, F7-D02, dan F4-D17 menilai tampilan dan alurnya saja, bukan efek di router. Alur 7b menguji RADIUS menyala terhadap FreeRADIUS lab. |
 | 5, 6 | WhatsApp dimatikan di AUDIT-ISP. | Kanal WhatsApp tidak diuji (hanya bel, push, dan surel). |
 | 4, 6, 12 | Perangkat adalah emulator AVD `inbils_pixel7` (Android 15), bukan ponsel fisik. GPS diset dengan `adb emu geo fix`. `adb reverse` membuat aplikasi tetap daring di mode pesawat, sehingga luring sungguhan memerlukan `adb reverse --remove tcp:8010`. Emulator mati tiga kali pada FlowAudit7 (memori host penuh). | Perilaku di ponsel fisik tidak teruji. |
 | 12 | Mode gelap diuji sebagian: 14 layar (6 teknisi, 8 pelanggan) dengan pemilih Tampilan = Sistem. Belum dilihat: layar masuk dan splash, detail SPK dan tiket, Notifikasi teknisi, Ubah profil, Ganti kata sandi, Perangkat, Tentang, pemirsa foto, dialog dan bottom sheet, alur buat tiket, dan kedua aplikasi pada pemilih "Gelap" saat sistem terang. | F12-D03 hanya mencakup layar yang dilihat. Tiga pasangan warna lulus AA dengan selisih tipis (4,56; 4,58; 6,93). |
@@ -532,9 +552,12 @@ Satu perubahan menutup beberapa ID sekaligus. ID yang sudah ada di gelombang 1 a
 | 4 | Retur 2 m belum diterima staf gudang (kasus 22 masih `awaiting_receipt`). Check-in jauh dari lokasi belum diuji untuk SPK (diuji untuk tiket, F6-D07). | Penerimaan retur kasus 22 tidak punya bukti layar; jalur penerimaan retur diuji di alur 8 (REQ-20261017-0002 dan spesifikasi E2E baru). |
 | 6 | Belum diuji: tombol "Buat SPK" dari tiket, tugaskan ulang, ekspor tiket, kamera pelanggan, dan angka Laporan SLA setelah TKT-2026-00002 diselesaikan. | - |
 | 8 | Teknisi memakai API yang dipakai aplikasi (login web teknisi berujung `/app-only`), bukan layar aplikasi. Jalur "Tolak fisik" hanya diuji lewat spesifikasi E2E baru. | Layar aplikasi teknisi untuk alur 8 diaudit di alur 4 dan 12. |
+| 7b | Lab FreeRADIUS 3.2.10 dan nas-sim, bukan router sungguhan. Aplikasi mobile dan layar sempit (lensa 8), papan ketik dan pembaca layar pada dialog baru (lensa 9), serta peran selain admin (manajer memegang `ipam.assign`; staf tidak) belum diuji. | Penilaian lensa 8 dan 9 serta kecocokan peran untuk alur 7b belum ada. |
+| 7b | MikroTik sungguhan, NAS hidup dengan port CoA terblokir (kasus F7-D22 yang paling berbahaya), klien FreeRADIUS belum dimulai ulang (Access-Request dari klien tak dikenal), IPv6, WhatsApp, dan beban banyak sesi belum diuji. | Perilaku pada perangkat nyata dan kegagalan jaringan sebagian tidak terbukti. |
+| 7b | Backoff antrean database 30/120/300/900 detik tidak teruji; antrean `sync` tidak mengulang pada `release()`. | Jalur ulang yang teruji hanya `network:sync` dan tombol Sinkron ulang. |
 | 10 | Membuat anak perusahaan lewat panel platform tidak dijalankan; anak perusahaan yang dipakai adalah E2E-SUB. | F10-D01 berasal dari pembacaan kode. |
 | 11 | Langkah-naik kata sandi pada mode ubah (respons 423 lalu halaman konfirmasi) tidak teruji karena semua percobaan terjadi kurang dari 5 menit setelah konfirmasi. Login aplikasi pada tenant yang ditangguhkan belum diuji di layar. | F11-D12 dan F12-D05. |
-| Semua | Temuan berlabel [dari kode] belum dicoba di layar: F0-D03 (hipotesis), F6-D05 (sebagian), F7-D05, F8-D04, F10-D01, F10-D03, F11-D06, F12-D02. Penilaian manfaat dan usaha rekomendasi UX adalah penilaian auditor. | Verifikasi dulu di layar sebelum mengerjakan temuan itu. |
+| Semua | Temuan berlabel [dari kode] belum dicoba di layar: F0-D03 (hipotesis), F6-D05 (sebagian), F7-D05, F7-D20 (bagian basi), F7-D24 (pemutusan oleh tombol), F8-D04, F10-D01, F10-D03, F11-D06, F12-D02. Penilaian manfaat dan usaha rekomendasi UX adalah penilaian auditor. | Verifikasi dulu di layar sebelum mengerjakan temuan itu. |
 | 0, 8 | Gerbang E2E penuh lulus pada percobaan kedua di `inbils_test` (265 lulus, 4 dilewati, 17,6 menit; percobaan pertama berhenti di `e2e-setup` karena kunci basi), sebelum perbaikan F8-D01. Setelah perbaikan hanya tiga spesifikasi inventaris yang dijalankan (11 lulus, 55,9 detik); E2E penuh dan PHPUnit penuh tidak dijalankan ulang. | Belum ada bukti regresi penuh setelah perubahan F8-D01. |
 | Semua | 16 referensi tangkapan layar menunjuk berkas yang tidak ada di `docs/plans/flow-audit/` (daftar di Lampiran B). | Bukti visual untuk temuan terkait hilang; teks temuan tetap berlaku. |
 
@@ -600,6 +623,12 @@ Semua rekaman di bawah sengaja tidak dihapus supaya owner bisa memeriksanya manu
 | 7 | AUDIT-ISP | langganan | SUB-2026-00005 | IP statis 10.20.8.3 (dibiarkan terpasang) |
 | 7 | AUDIT-ISP | prefiks IP | 10.99.0.0/28 "AUDIT 2026-10-17 uji IPAM" | POP Antapani; cadangan 10.99.0.1 |
 | 7 | AUDIT-ISP | aset | AST-2026-00010 | masuk lalu keluar perawatan |
+| 7b | AUDIT-ISP | aset + NAS | NA-2026-00003 "AUDIT-F7b Router NAS-sim" | IP manajemen 127.0.0.1 (baris IPAM aset), NAS 172.30.77.20 : 13799, tersinkron |
+| 7b | AUDIT-ISP | prefiks IP | 10.99.0.0/26 | pool IP statis pelanggan, tanpa POP; 10.99.0.1 sudah dilepas |
+| 7b | AUDIT-ISP | langganan + akun | SUB-2026-00002, `aud00002@audit-isp` | dibuat, diaktifkan, diberi IP statis, dilepas, diberi lagi, lalu dihentikan; baris RADIUS dihapus |
+| 7b | AUDIT-ISP | tagihan | INV-2026-00014 | draf Rp 0, tanggal bawaan karena tanggal ketikan diabaikan (F7-D25) |
+| 7b | AUDIT-ISP | tagihan | INV-2026-00015 | jatuh tempo 25 Sep, Rp 111.000, lunas (pembayaran tunai), mengisolir lalu mengaktifkan SUB-2026-00001 |
+| 7b | AUDIT-ISP | langganan | SUB-2026-00001 | keadaan akhir Aktif, tidak diblokir, grup `audit-home-30`; `last_error` kosong |
 | 8 | AUDIT-ISP | permintaan barang | REQ-20261017-0001 | ditolak (stok kosong); id publik 01m54sfgqmm7140mqwcqxa008r |
 | 8 | AUDIT-ISP | permintaan barang | REQ-20261017-0002 | siklus penuh; id 01m54smxp083nsrw9jf56f375e; kasus pengembalian 01m54snv9rpp7dekbnfch2c5qy (selesai) |
 | 8 | AUDIT-ISP | permintaan barang | REQ-20261017-0003 | dibatalkan manajer |
@@ -629,7 +658,7 @@ Semua rekaman di bawah sengaja tidak dihapus supaya owner bisa memeriksanya manu
 
 Rincian per alur memindahkan hasil agen QA dengan ID yang sama. Penyusun laporan hanya mengubah hal berikut: tabel yang terbagi di beberapa bagian disatukan per alur (alur 4 dan 12), penomoran F12-D05, F12-D06, dan F12-D08 diseragamkan (lihat Alur 12), tautan tangkapan layar diarahkan ke `docs/plans/flow-audit/`, tanda hubung panjang diganti, tanda kurung sudut dan tanda pipa dalam kode diberi pelindung supaya tabel tampil benar, dan pernyataan status yang sudah dilampaui alur berikutnya diperbarui.
 
-- ID memakai pola `F<alur>-D<nn>` untuk defect dan `F<alur>-U<nn>` untuk rekomendasi UX. Alur 0 adalah gerbang regresi, alur 1 sampai 12 mengikuti urutan bisnis di spesifikasi `.scratch/flow-audit/spec.md`. Alur 5b (callback Midtrans nyata) melanjutkan ID alur 5 (F5-D14 dan seterusnya, F5-U11 dan seterusnya).
+- ID memakai pola `F<alur>-D<nn>` untuk defect dan `F<alur>-U<nn>` untuk rekomendasi UX. Alur 0 adalah gerbang regresi, alur 1 sampai 12 mengikuti urutan bisnis di spesifikasi `.scratch/flow-audit/spec.md`. Alur 5b (callback Midtrans nyata) melanjutkan ID alur 5 (F5-D14 dan seterusnya, F5-U11 dan seterusnya). Alur 7b (provisioning nyata ke FreeRADIUS lab) melanjutkan ID alur 7 (F7-D20 dan seterusnya, F7-U20 dan seterusnya).
 - Keparahan: blocker menghalangi alur atau membuat uang atau komunikasi pelanggan hilang; friction mengganggu atau menyesatkan tetapi ada jalan keluar; polish menyangkut kerapian, bahasa, dan konsistensi.
 - Manfaat UX adalah penilaian auditor. Tinggi mengurangi data salah atau waktu onboarding secara nyata, Sedang menghemat klik atau salah ketik rutin, Rendah menyangkut kerapian. Usaha: S kecil, M sedang, L besar.
 - Kolom Lensa pada tabel UX merujuk ke sepuluh pertanyaan UX di spesifikasi: 1 ketik vs pilih; 2 select panjang tanpa pencarian; 3 jumlah klik dan layar; 4 isian bawaan; 5 umpan balik dan galat; 6 kecepatan; 7 konsistensi istilah (glosarium R6); 8 mobile pertama kali; 9 keyboard dan aksesibilitas; 10 kecocokan peran.
@@ -1303,6 +1332,86 @@ Catatan penilaian: halaman 1,1 s sampai tenang; semua aksi ≈ 0,3 s; toast Indo
 | F7-U04 | Router NAS | Tidak ada tombol sinkron. | "Sinkronkan sekarang" + status terakhir. | Sedang: operator tidak menunggu 15 menit setelah ganti rahasia NAS. | S | Tombol di kepala kartu. | 5, 6 |
 | F7-U05 | Aset → perawatan | Dialog dan pemulihan jelas (contoh baik); tidak ada filter "Dalam perawatan". | Pertahankan; tambah filter. | Rendah: temukan aset perawatan cepat. | S | - | 2, 7 |
 
+### Alur 7b: Provisioning nyata ke FreeRADIUS lab (RadiusStaticIp)
+
+**Status:** dijalankan dari ujung ke ujung di layar terhadap FreeRADIUS 3.2.10 + nas-sim (`~/labs/freeradius`): router didaftarkan sebagai NAS → akun diprovisioning → CPE tersambung (`sim connect`) → Inbils menampilkan online dan pemakaian setelah Interim → blokir manual → CPE masuk grup isolir (`sim scenario block-unblock`) → buka blokir → `billing:suspend-overdue --company=3` → bayar → kembali ke grup kecepatan → IP statis dari IPAM menjadi `Framed-IP-Address` sesi dan pelepasan mengembalikan alamat pool NAS → hentikan langganan (baris RADIUS dan IP hilang) → NAS mati (`docker stop radlab-nas-sim`), blokir, nyalakan lagi, Sinkron ulang.
+**Persona:** admin AUDIT ISP (web, 2FA TOTP), tenant AUDIT-ISP (id 3, realm `audit-isp`), pelanggan AUD-00001. CPE disimulasikan oleh nas-sim.
+**Kode:** web `main` a6348bb dengan perubahan IP statis RADIUS yang saat audit belum di-commit dan kemudian masuk commit e5095de (listener `QueueAccountOnIpAssignmentChange`, `Framed-IP-Address` di `NetworkAccountProvisioner`/`RadiusDirectory`). Jam dinding WIB; basis data dan log UTC.
+
+#### Cara aplikasi diarahkan ke lab (tanpa mengubah `.env`, Sail, atau database)
+
+Sail dev memiliki RADIUS mati dan kontainernya tidak menjangkau port lab yang hanya terikat ke loopback host. Dipakai jalur "aplikasi disajikan dari host" yang sama dengan `scripts/e2e-radius-lab.sh`, tetapi menuju database dev `inbils` (bukan `inbils_test`):
+
+- `php artisan serve --host=127.0.0.1 --port=8011 --no-reload` di host (4 pekerja), dengan variabel lingkungan proses: `DB_HOST=127.0.0.1 DB_PORT=3306` (MySQL Sail yang dipublikasikan ke host), `CACHE_STORE=file SESSION_DRIVER=file QUEUE_CONNECTION=sync MAIL_MAILER=log`, dan `RADIUS_ENABLED=true RADIUS_DB_HOST=127.0.0.1 RADIUS_DB_PORT=13306 RADIUS_DB_DATABASE/USERNAME/PASSWORD` yang dibaca dari `.env` lab saat dijalankan (nilai tidak pernah dicetak). Pembungkus sementara `/tmp/fa9-serve.sh` (dihapus di akhir).
+- `network:sync` dan `billing:suspend-overdue` dijalankan di host dengan lingkungan yang sama.
+- Target Disconnect: aset router `management_ip` 127.0.0.1 : port CoA 13799 (port UDP nas-sim yang dipublikasikan), alamat NAS (sumber paket menurut FreeRADIUS) 172.30.77.20, secret = secret lab, diketik di formulir.
+- Antrean `sync`: aksi UI menjalankan job apply di dalam permintaan. Backoff 30/120/300/900 detik milik antrean database **tidak teruji**; `release()` pada antrean sync tidak mengulang, sehingga jalur ulang yang teruji adalah `network:sync` dan tombol Sinkron ulang.
+- Tidak ada `migrate:fresh`, `db:wipe`, `e2e-setup.mjs`, atau `RefreshDatabase` terhadap `inbils`; semua catatan tambahan berawalan AUDIT-F7b.
+
+#### Catatan eksekusi
+
+- **Daftarkan router.** Aset → Buat (Nama, Tipe aset Router, IP manajemen 127.0.0.1, Lokasi) lalu Router NAS → Daftarkan router: Aset router (ketik "F7b" → pilih), Alamat NAS terisi 127.0.0.1 dari IP manajemen (diubah menjadi 172.30.77.20), Port CoA terisi 1700 (diubah 13799), Secret diketik. Simpan 243 ms → "Tertulis ke RADIUS", Target CoA `127.0.0.1:13799`, Realm `audit-isp`, catatan "Mulai ulang FreeRADIUS setelah menambah NAS ini". Baris `nas` `172.30.77.20 audit-isp` ada di lab. FreeRADIUS dimulai ulang lewat Docker (sehat dalam ±7 detik). Sebelumnya baris `172.30.77.20 demo` sisa E2E dihapus dari lab (pernyataan yang sama dengan pereset runner E2E). ![06](flow-audit/07b-06-nas-registered.png)
+- **Akun diprovisioning.** Akun `aud00001@audit-isp` dibuat saat RADIUS mati (Menunggu, "RADIUS is switched off."). Setelah RADIUS menyala, Sinkron ulang → "Tersinkron", grup `audit-isp/audit-home-30`, tabel RADIUS: `radcheck` 1, `radusergroup` 1, balasan grup `Mikrotik-Group=audit-home-30`, `Mikrotik-Rate-Limit=6M/30M`, `Acct-Interim-Interval=300`. `network:sync --company=3` menulis 1 klien NAS lagi (NAS lama 10.20.0.1) dalam 0,27 detik.
+- **Online dan pemakaian.** "Tampilkan kata sandi" (dialog konfirmasi, tercatat di audit) → `sim connect` berhasil: Mikrotik-Rate-Limit 6M/30M, Framed-IP dari pool NAS 10.99.1.10. Halaman akun: "Online", alamat, NAS "NA-2026-00003 - AUDIT-F7b Router NAS-sim", "Bulan ini Unggah 0 B" sebelum Interim; setelah 3 Interim: "Unggah 45.65 KB, unduh 592.89 KB" (nilai sama dengan nas-sim). ![11](flow-audit/07b-11-account-online-after-interim.png)
+- **Blokir manual + CPE masuk isolir.** Subscription → Blokir internet → alasan → Blokir: toast "Internet langganan diblokir." 197 ms; nas-sim menerima Disconnect-Request ACK (dua sesi terbuka, kedua-duanya diputus), `sim scenario block-unblock --expect-group isolir` selesai kode 0 dalam 586 ms: CPE login ulang dengan `Mikrotik-Group=isolir` dan `Mikrotik-Address-List=isolir`. Halaman akun: "Diisolir karena diblokir", grup `audit-isp/isolir`. ![15](flow-audit/07b-15-account-isolated.png)
+- **Buka blokir.** Dialog "Sesi pelanggan diputus dan layanan normal kembali saat router menyambung ulang." → toast 183 ms; scenario kode 0 dalam 303 ms: grup `audit-home-30`, `6M/30M`. ![18](flow-audit/07b-18-account-back-to-speed.png)
+- **Isolir otomatis.** INV-2026-00015 (jatuh tempo 25 Sep, Rp 111.000, status Belum dibayar) dibuat lewat UI (tanggal harus diketik `25 Sep 2026`, lihat F7-D25). `billing:suspend-overdue --company=3 --dry-run` → "Would suspend SUB-2026-00001"; tanpa `--dry-run` 273 ms: Suspended; CPE masuk `isolir` (`Mikrotik-Address-List=isolir`). Halaman akun: "Diisolir karena ditangguhkan." ![23](flow-audit/07b-23-account-isolated-by-overdue.png)
+- **Bayar.** Catat pembayaran Rp 111.000 (dialog: Jumlah, Metode, Referensi, Catatan): status "Lunas" dalam 259 ms, langganan Aktif, 1 Disconnect ACK ke sesi isolir; akun "Offline" sampai CPE menyambung ulang, lalu `audit-home-30`/`6M/30M`. ![26](flow-audit/07b-26-payment-recorded.png)
+- **IP statis (fitur baru).** Pool `10.99.0.0/26` (IP statis pelanggan, tanpa POP) dibuat lewat UI. Pada SUB-2026-00002 (langganan baru dari tab pelanggan, akun `aud00002@audit-isp` dibuat dalam 353 ms): Berikan IP statis → pool terpilih otomatis, alamat kosong → `10.99.0.1`; baris RADIUS `radreply Framed-IP-Address := 10.99.0.1` langsung tertulis tanpa Sinkron ulang (listener `IpAssignmentChanged`). `sim connect` → `framed_ip 10.99.0.1`, atribut `Framed-IP-Address` ada, grup `audit-home-30` utuh; halaman akun "Alamat 10.99.0.1". Lepas 10.99.0.1 saat CPE online: 170 ms, 1 Disconnect ACK (Admin-Reset), `radreply` kosong; CPE login ulang `10.99.1.11` (pool NAS), tanpa `Framed-IP-Address`. Berikan lagi → CPE `10.99.0.1`. ![38](flow-audit/07b-38-account2-online-static.png) ![40](flow-audit/07b-40-ipam-released.png)
+- **Hentikan langganan.** Aktifkan (tanpa dialog) → Hentikan (alasan wajib): status "Berhenti", Disconnect ACK ke sesi bertatik 10.99.0.1, IP dikembalikan ("Dinamis (diberikan router)"), `radcheck`/`radusergroup`/`radreply` untuk `aud00002@audit-isp` = 0 baris, baris `aud00001@audit-isp` tetap. ![43](flow-audit/07b-43-terminated.png)
+- **NAS mati.** `docker stop radlab-nas-sim`, lalu Blokir SUB-2026-00001: toast 195 ms (aksi bisnis tidak menunggu RADIUS). Halaman akun: "Menunggu", "1 Disconnect-Request(s) got no usable answer from the NAS; retrying.", "Pemutusan sesi yang terbuka masih tertunda.", tetapi "Status yang diharapkan: Diisolir ... sesinya diputus", "Grup RADIUS audit-isp/audit-home-30 sejak 00:22" (padahal tabel RADIUS sudah `audit-isp/isolir`, dicek SQL), dan "Online 10.99.1.10" (F7-D22). ![45](flow-audit/07b-45-account-pending-nas-down.png)
+- **NAS hidup lagi + Sinkron ulang.** `docker start radlab-nas-sim` (sehat ±3 detik), Sinkron ulang → toast 188 ms, "Tersinkron", grup `audit-isp/isolir`; nas-sim menjawab NAK (sesi tidak ada karena sim dimulai ulang) dan Inbils menganggapnya selesai; halaman masih "Online ... sesi mulai 17:22" dari baris `radacct` yang tak pernah ditutup (F7-D23). CPE login ulang masuk `isolir`; Buka blokir mengembalikan SUB-2026-00001 ke Aktif dan `audit-home-30`. ![48](flow-audit/07b-48-final-account-speed-group.png)
+
+**Contoh baik yang dipertahankan:** semua aksi 0,2 sampai 0,6 detik walau RADIUS dipanggil; aksi bisnis tidak menunggu RADIUS saat NAS mati; Disconnect memutus semua sesi terbuka satu pengguna (dua sesi → dua ACK) dan NAK 503 dianggap selesai; dialog Blokir/Buka blokir menyebut dampak ke sesi dan tagihan; "Tampilkan kata sandi" meminta konfirmasi dan tercatat; username realm `aud00002` + `@audit-isp` terlihat saat mengetik; pool statis terpilih otomatis bila hanya satu dan alamat kosong = terendah; halaman NAS memuat URL isolir dan catatan restart FreeRADIUS; pembayaran Lunas mengaktifkan kembali dan memutus sesi isolir dalam satu langkah.
+
+#### Rekaman yang tertinggal (database dev `inbils`, tidak dihapus; berawalan AUDIT-F7b)
+
+| Jenis | Kode / nama | Keterangan |
+|---|---|---|
+| aset + NAS | NA-2026-00003 "AUDIT-F7b Router NAS-sim" | IP manajemen 127.0.0.1 (baris IPAM aset), NAS 172.30.77.20 : 13799, tersinkron |
+| prefiks IP | 10.99.0.0/26 | pool IP statis pelanggan, tanpa POP; 10.99.0.1 sudah dilepas |
+| langganan + akun | SUB-2026-00002, `aud00002@audit-isp` | dibuat, diaktifkan, diberi IP statis, dilepas, diberi lagi, lalu dihentikan; baris RADIUS dihapus |
+| tagihan | INV-2026-00014 | draf Rp 0, tanggal bawaan karena tanggal ketikan diabaikan (F7-D25) |
+| tagihan | INV-2026-00015 | jatuh tempo 25 Sep, Rp 111.000, lunas (pembayaran tunai), mengisolir lalu mengaktifkan SUB-2026-00001 |
+| langganan | SUB-2026-00001 | keadaan akhir Aktif, tidak diblokir, grup `audit-home-30`; `last_error` kosong |
+
+#### Temuan cacat
+
+| ID | Langkah | Yang terjadi | Yang diharapkan ISP | Keparahan | Saran perbaikan | Perlu keputusan owner | Bukti |
+|---|---|---|---|---|---|---|---|
+| F7-D20 | Akses jaringan → Sesi mulai | "Sesi mulai 17/10/2026 17:18" (jam `radacct` apa adanya, UTC di lab) di kartu yang sama dengan "sejak 18/10/2026 00:18" (WIB): selisih 7 jam. Aturan sesi basi 15 menit membandingkan teks yang sama dengan `now()` zona aplikasi [dari kode]; bila zona server RADIUS berbeda dari zona aplikasi lebih dari 15 menit, semua sesi tampil Offline [inferensi]. | Satu zona perusahaan di seluruh halaman; zona database RADIUS dinyatakan di konfigurasi. | friction | `RADIUS_DB_TIMEZONE` dan konversi di `RadiusDirectory` untuk tampilan dan aturan basi. | tidak | [07b-15](flow-audit/07b-15-account-isolated.png), [07b-18](flow-audit/07b-18-account-back-to-speed.png) |
+| F7-D21 | Akses jaringan → Status sinkronisasi | Galat berbahasa Inggris dan berjargon: "RADIUS is switched off." tetap tampil setelah RADIUS dinyalakan sampai apply berikutnya; "1 Disconnect-Request(s) got no usable answer from the NAS; retrying." (keluarga F7-D02). | Kalimat Indonesia tanpa jargon; pesan lama dibersihkan saat saklar menyala. | friction | Satu penerjemah pesan status jaringan di `NetworkAccountResource`; hapus `last_error` saat saklar menyala. | tidak | [07b-02](flow-audit/07b-02-account-before.png), [07b-45](flow-audit/07b-45-account-pending-nas-down.png) |
+| F7-D22 | Blokir saat NAS mati | Toast "Internet langganan diblokir." tanpa peringatan; halaman menulis "sesinya diputus" padahal belum, "Grup RADIUS" memuat grup lama (catatan belum maju) sementara tabel RADIUS sudah `audit-isp/isolir`, dan "Online" tetap tampil. | Peringatan "Blokir tersimpan; sesi terputus setelah router menjawab" dan grup yang sebenarnya tertulis. | friction | Tampilkan `pending_disconnect_at` dan grup RADIUS yang tertulis; ubah teks "Status yang diharapkan" saat Disconnect tertunda. | tidak | [07b-44](flow-audit/07b-44-nas-down-block-result.png), [07b-45](flow-audit/07b-45-account-pending-nas-down.png) |
+| F7-D23 | Router mati lalu hidup | Sesi tanpa Acct-Stop: baris `radacct` tetap terbuka, halaman terus "Online ... Sesi mulai 17:22" sampai 15 menit tanpa Interim, padahal tak ada sesi di NAS. | "Terakhir terlihat HH:MM" dan penanda basi bila Interim terlambat lebih dari 2 kali interval (300 detik). | polish | Tampilkan `updated_at` sesi dan tandai basi. | tidak | [07b-47](flow-audit/07b-47-account-after-resync-nas-up.png) |
+| F7-D24 | Sinkron ulang [dari kode] | `NetworkAccountService::resync` menulis ulang user dan mewajibkan Disconnect (memutus sesi pelanggan) tanpa dialog konfirmasi; label dan toast "Sinkron ulang dijadwalkan." tidak menyebut pemutusan. Pada uji ini sesi sudah tidak ada, jadi pemutusan nyata oleh tombol ini belum teramati. | Dialog konfirmasi yang menyebut pemutusan, atau label "Sinkron ulang dan putuskan sesi". | friction (Sudah diperbaiki (commit e5095de): dialog konfirmasi ditambahkan) | `ConfirmRequestDialog` dengan teks dampak. | tidak | [07b-46](flow-audit/07b-46-resync-toast.png) |
+| F7-D25 | Buat tagihan → tanggal | Mengetik `20/09/2026` dan `25/09/2026` menampilkan galat merah "Format tanggal tidak valid. Contoh: 18 Okt 2026." tetapi Simpan tetap jalan: INV-2026-00014 tersimpan dengan tanggal bawaan (17 Okt dan 31 Okt) tanpa pemberitahuan. Isolir otomatis tidak akan memakai tanggal yang dimaksud operator. | Simpan ditahan sampai tanggal sah, atau format dd/mm/yyyy diterima. | friction | Blokir pengiriman bila ada galat lokal; terima dd/mm/yyyy. | tidak | [07b-20](flow-audit/07b-20-invoice-create-filled.png) |
+| F7-D26 | `GET /admin/invoices/{id}/edit` | 500 `ViteException: Unable to locate file in Vite manifest: resources/js/Pages/Admin/Billing/Invoices/Edit.tsx`. Rute dan controller ada, halaman tidak; tagihan Draf tidak punya tombol Ubah, jadi tanggal draf tidak bisa diperbaiki dari UI. | Halaman Ubah untuk tagihan Draf, atau rute dihapus. | friction | Tambah `Edit.tsx` dan tombol Ubah pada Draf. | tidak | [07b-21](flow-audit/07b-21-invoice-edit-500.png) |
+| F7-D27 | Router NAS → daftar sebelum RADIUS menyala | Lencana "Gagal ditulis" untuk router yang tidak pernah dicoba (`last_error` = "RADIUS is switched off."). | "Menunggu ditulis" dengan alasan saklar mati. | polish | Bedakan "dimatikan" dari galat tulis. | tidak | [07b-01](flow-audit/07b-01-nas-index-before.png) |
+
+#### Temuan UX
+
+| ID | Langkah | Sekarang | Seharusnya | Manfaat | Usaha | Catatan mockup | Lensa |
+|---|---|---|---|---|---|---|---|
+| F7-U20 | Daftarkan Router NAS → Secret | Secret 8 sampai 60 karakter diketik manual, dua kali (Inbils dan router); tanpa penghasil acak, tombol Salin, atau perintah RouterOS. | Tombol "Buat secret acak" dan Salin; setelah simpan panel `/radius add ...` dan `/radius incoming set accept=yes port=13799`. | Tinggi: salah secret membuat semua pelanggan gagal login. | S | Panel perintah di halaman router. | 1, 3, 5 |
+| F7-U21 | Setelah router terdaftar | Lencana "Tertulis ke RADIUS" padahal FreeRADIUS baru melayani setelah dimulai ulang (catatan ada di halaman). | Status "Menunggu FreeRADIUS dimulai ulang" dan tombol "Uji koneksi" (Status-Server atau Access-Request uji). | Tinggi: operator tahu kapan router siap, tanpa menunggu telepon pelanggan. | M | Langkah 1-2-3 di kartu Status. | 5, 10 |
+| F7-U22 | Akses jaringan → Alamat | "Alamat 10.99.0.1" tanpa tanda statis atau dinamis dan tanpa alamat yang diharapkan. | Baris "IP statis diharapkan: 10.99.0.1 (IPAM 10.99.0.0/26)"; peringatan bila sesi memakai alamat lain; tombol "Putuskan sesi". Sebagian sudah diperbaiki (commit e5095de): IP statis kini sampai ke RADIUS sebagai `Framed-IP-Address`; tanda statis dan peringatan alamat berbeda belum ada. | Tinggi: keluhan "IP statis tidak aktif" terjawab dalam satu layar. | S/M | Lencana Statis/Dinamis di baris Alamat. | 5, 7 |
+| F7-U23 | Berikan atau Lepas IP statis | Dialog tidak menyebut bahwa sesi online diputus (terukur: 1 Disconnect ACK, 170 ms). | "Pelanggan yang sedang online terputus sebentar dan tersambung ulang dengan alamat baru." | Sedang-tinggi: tidak ada pemutusan mengejutkan. | S | Teks bantu di dialog. | 5 |
+| F7-U24 | Hentikan langganan | Dialog hanya Alasan dan dua tombol. | Daftar dampak: akun RADIUS dihapus, sesi diputus, IP statis dan port drop dilepas, tagihan berhenti. | Sedang | S | Daftar centang abu-abu di atas Alasan. | 5 |
+| F7-U25 | Blokir, buka blokir, bayar | Setelah toast tidak ada umpan balik sesi; setelah bayar akun "Offline" tanpa penjelasan sampai router menyambung ulang. | Baris "Sesi diputus 00:22, menunggu router menyambung ulang" dengan segar-ulang otomatis. | Sedang | M | Lencana di baris Online. | 5, 6 |
+| F7-U26 | NAS mati: jalur ulang | Operator tidak melihat kesehatan router atau antrean pemutusan; hanya "Menunggu" dan teks Inggris. | "Router tidak menjawab sejak 00:22, mencoba lagi otomatis" dengan tombol "Coba sekarang". | Sedang | M | Kartu peringatan kuning di halaman akun. | 5 |
+| F7-U27 | Buat Langganan dari tab pelanggan | Satu-satunya alamat pemasangan tidak terpilih otomatis; langganan lahir tanpa POP, sehingga panel IP memakai kalimat "untuk POP langganan ini". | Alamat tunggal terpilih; pilih POP atau pesan "langganan belum punya POP". | Rendah | S | - | 4 |
+
+#### Belum diuji
+
+Aplikasi mobile dan layar sempit (lensa 8), papan ketik dan pembaca layar pada dialog baru (lensa 9), peran selain admin (manajer memegang `ipam.assign`; staf tidak), MikroTik sungguhan, NAS hidup tetapi port CoA terblokir (kasus F7-D22 yang paling berbahaya), backoff antrean database 30/120/300/900 detik, klien FreeRADIUS belum dimulai ulang (paket Access-Request dari klien tak dikenal), IPv6, WhatsApp, dan beban banyak sesi.
+
+#### Lingkungan dan pembersihan
+
+- Server `:8011`, peramban uji, dan pembungkus `/tmp/fa9-serve.sh` dihentikan atau dihapus. `.env`, Sail, dan basis data `inbils` hanya ditambah baris AUDIT-F7b; tidak ada reset.
+- Lab: baris `nas` sisa E2E `172.30.77.20 demo` dihapus di awal; baris `nas` yang ditulis Inbils (`172.30.77.20 audit-isp`, `10.20.0.1 audit-isp`) dihapus di akhir dan FreeRADIUS dimulai ulang agar runner E2E berikutnya dapat mendaftarkan NAS-nya (penulis tidak menimpa baris yang bukan miliknya). Pengguna `aud00001@audit-isp`, grup `audit-isp/*`, dan riwayat `radacct` (satu baris terbuka sisa restart nas-sim) dibiarkan; semuanya dapat dibangun ulang oleh `network:sync`.
+- Tangkapan layar `07b-*` (45 berkas) di `docs/plans/flow-audit/`; catatan terstruktur di `~/.config/inbils/flow-audit/notes-fa9.jsonl`. Layar tampil dalam mode gelap (profil peramban uji); tangkapan yang memuat kata sandi hasil ungkap tidak disimpan.
+
+
 ### Alur 8: Inventaris (permintaan, persetujuan, gudang, serah terima, pengembalian, stok, penyesuaian)
 
 **Status:** selesai; jalur "Tolak fisik" diuji lewat spesifikasi E2E baru (lihat "Verifikasi perbaikan F8-D01") dan push "Siap diambil" ke ponsel teknisi diuji di alur 12 (peristiwa 7).  
@@ -1344,7 +1453,7 @@ Catatan penilaian: semua aksi ≈ 0,3 s kecuali serah terima 0,8 s; urutan peran
 
 | ID | Langkah | Yang terjadi | Yang diharapkan ISP | Keparahan | Saran perbaikan | Perlu keputusan owner | Bukti |
 |---|---|---|---|---|---|---|---|
-| F8-D01 | Permintaan → kasus pengembalian → Terima Pengembalian Fisik / Tolak Fisik Barang / Selesaikan Selisih | Setiap klik konfirmasi menjawab **"CSRF token mismatch." (419)** dan dialog tetap terbuka. Penyebab: `Show.tsx` memakai `fetch` dengan header dari `meta[name="csrf-token"]`, tag yang tidak pernah dirender `app.blade.php`; seluruh aplikasi lain memakai axios (cookie XSRF). Staf gudang tidak bisa membukukan barang kembali dan manajer tidak bisa menutup selisih dari browser. Tidak ada uji E2E yang menyentuh jalur ini. | Barang kembali masuk stok dan selisih ditutup dari halaman permintaan. | **blocker** (**diperbaiki**) | `handleReturnApiAction` memakai `axios.post` (header `X-XSRF-TOKEN` otomatis); uji `tests/e2e/inventory-returns.spec.ts` (3 skenario). | tidak | [08-12-accept-dialog.png](flow-audit/08-12-accept-dialog.png); bukti: tag meta tidak ada, `fetch` gaya UI → 419, `fetch` dengan `X-XSRF-TOKEN` → lolos |
+| F8-D01 | Permintaan → kasus pengembalian → Terima Pengembalian Fisik / Tolak Fisik Barang / Selesaikan Selisih | Setiap klik konfirmasi menjawab **"CSRF token mismatch." (419)** dan dialog tetap terbuka. Penyebab: `Show.tsx` memakai `fetch` dengan header dari `meta[name="csrf-token"]`, tag yang tidak pernah dirender `app.blade.php`; seluruh aplikasi lain memakai axios (cookie XSRF). Staf gudang tidak bisa membukukan barang kembali dan manajer tidak bisa menutup selisih dari browser. Tidak ada uji E2E yang menyentuh jalur ini. | Barang kembali masuk stok dan selisih ditutup dari halaman permintaan. | **blocker** (**Sudah diperbaiki (commit e5095de)**) | `handleReturnApiAction` memakai `axios.post` (header `X-XSRF-TOKEN` otomatis); uji `tests/e2e/inventory-returns.spec.ts` (3 skenario). | tidak | [08-12-accept-dialog.png](flow-audit/08-12-accept-dialog.png); bukti: tag meta tidak ada, `fetch` gaya UI → 419, `fetch` dengan `X-XSRF-TOKEN` → lolos |
 | F8-D02 | Aplikasi teknisi → Permintaan barang | Layar permintaan tidak punya referensi SPK/tiket dan API menolak `source_type` (`work_order: null` pada respons). Form web punya sumber SPK tetapi teknisi hanya memakai aplikasi. | Permintaan terhubung ke SPK sehingga biaya material per pekerjaan dapat ditelusuri. | friction | Tambahkan `work_order_id` opsional di API dan tombol "Minta material" di layar SPK. | tidak | [08-01-request-submitted-manager.png](flow-audit/08-01-request-submitted-manager.png); kode `new_request_screen.dart`, `StoreTechnicianInventoryRequestRequest` |
 | F8-D03 | Permintaan barang stok kosong → Setujui | Permintaan diterima dari aplikasi walau stok 0; baru ditolak saat disetujui dengan toast umum "Data gagal disimpan. Periksa input." dan pesan berisi kode ("CON-SC-APC di POP-BDG-DGO"). Modal setujui tidak menampilkan stok tersedia. | Teknisi melihat stok saat memilih; penyetuju melihat "Tersedia: N" dan pesan memakai nama. | friction | Tampilkan stok tersedia di pemilih, modal setujui, dan pesan galat. | tidak | [08-06-approve-dialog.png](flow-audit/08-06-approve-dialog.png) (pengganti 08-02, yang tidak tersimpan) |
 | F8-D04 | Dialog Terima Pengembalian Fisik | Dialog hanya punya "Diterima Baik" dan "Rusak"; server mewajibkan terpakai + diterima + rusak + **hilang** + lainnya = diserahkan (`MaterialReturnService.php` baris ± 350) sedangkan UI selalu mengirim `lost_qty = 0`. Selisih "hilang" yang dideklarasikan teknisi (5 m) tidak bisa dicatat; staf harus memasukkannya sebagai "rusak" atau aksi ditolak 422. "Rusak" juga tidak terisi dari deklarasi. [dari kode + dialog yang teramati; klik penuh baru bisa setelah F8-D01] | Kolom Hilang dan Lainnya, terisi dari deklarasi teknisi. | friction | Tambah input `lost_qty` dan `other_discrepancy_qty`; prefill dari deklarasi. | tidak | [08-12-accept-dialog.png](flow-audit/08-12-accept-dialog.png) |
@@ -1696,7 +1805,7 @@ Catatan lingkungan di tiap alur menggambarkan keadaan saat alur itu dijalankan. 
 - Tidak ada proses emulator dan `adb devices` kosong. Layanan sementara `fa4-*`, `fa7-*`, dan `avd-*` tidak terdaftar di `systemctl --user`.
 - Di kontainer Sail (`inbils-sail-laravel.test-1`) hanya `supervisord` dan `artisan serve` yang berjalan; tidak ada pekerja antrean atau penjadwal.
 - Proses `queue:work`, `queue:work platform`, dan `schedule:work` yang terlihat di host milik kontainer stack deploy (`inbils-queue`, `inbils-platform-queue`, `inbils-scheduler`, port 8080, basis data sendiri), bukan stack Sail.
-- Perubahan kode dari audit belum di-commit: `resources/js/Pages/Admin/Inventory/Requests/Show.tsx` (diubah) dan `tests/e2e/inventory-returns.spec.ts` (baru, belum terlacak).
+- Perubahan kode dari audit sudah di-commit di e5095de: `resources/js/Pages/Admin/Inventory/Requests/Show.tsx` (diubah) dan `tests/e2e/inventory-returns.spec.ts` (baru).
 - Tunel Cloudflare `cloudflared tunnel run inbils-dev` (host `inbils-dev.tehpaid.my.id` ke `http://localhost:80`) masih berjalan. Selama aktif, instance dev berisi data AUDIT terjangkau dari internet; matikan setelah uji. Layanan lama `midtrans-tunnel` (ssh ke localhost.run) yang dilaporkan MidtransCallback tidak terlihat saat diperiksa.
 
 **Masih ada di host, hapus bila tidak dipakai lagi**
@@ -1727,8 +1836,8 @@ Laporan ini dicocokkan dengan catatan terstruktur agen di `~/.config/inbils/flow
 | Baris bertipe defect | 111 baris, 110 ID unik (F12-D07 muncul dua kali: rintisan di fa4, isi lengkap di fa7) |
 | Baris bertipe ux | 98 baris, 98 ID unik |
 | Baris tipe lain | log 71, record 52, push-event 12, bell-customer 11, bell-technician 6, dark 21, motion 1, note 1 |
-| ID defect: catatan + laporan | 110 (tipe defect) + 1 (F12-D20, bertipe note) + 31 (alur 7 sampai 10, hanya di markdown FlowAudit2) = 142; laporan memuat 142. Cocok. |
-| ID UX: catatan + laporan | 98 + 16 (alur 7 sampai 10) = 114; laporan memuat 114. Cocok. |
+| ID defect: catatan + laporan | 110 (tipe defect) + 1 (F12-D20, bertipe note) + 31 (alur 7 sampai 10, hanya di markdown FlowAudit2) = 142 sebelum alur 7b; alur 7b menambah 8 defect (F7-D20 sampai D27) dari `notes-fa9.jsonl` dan bagian Alur 7b, sehingga laporan memuat 150. |
+| ID UX: catatan + laporan | 98 + 16 (alur 7 sampai 10) = 114 sebelum alur 7b; alur 7b menambah 8 UX (F7-U20 sampai U27), sehingga laporan memuat 122. |
 | ID di catatan tetapi tidak di laporan | 0 defect, 0 UX |
 | ID di laporan tetapi tidak di catatan | 31 defect dan 16 UX, semuanya alur 7 sampai 10 (FlowAudit2 menulis markdown tanpa berkas catatan) |
 | Rintisan tanpa keparahan | 20 baris defect di fa4 (F11-D01 sampai D12 dan F12-D01 sampai D08) hanya menunjuk ke laporan; keparahan dan keputusan diambil dari tabel laporan |

@@ -15,7 +15,7 @@ use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Tests\TestCase;
 
 /**
- * Every error under api/* is JSON {message, code, errors?} whatever the Accept header says, with the status
+ * Every error under api/* is JSON {message, code, errors?, request_id} whatever the Accept header says, with the status
  * mapped to a stable snake_case code and nothing of the exception (class, SQL, trace) in the body.
  */
 class ErrorEnvelopeTest extends TestCase
@@ -158,9 +158,10 @@ class ErrorEnvelopeTest extends TestCase
         $this->assertIsString($response->json('message'));
         $this->assertNotSame('', $response->json('message'));
         $this->assertSame(
-            $status === 422 && $code === 'validation_failed' ? ['code', 'errors', 'message'] : ['code', 'message'],
+            $status === 422 && $code === 'validation_failed' ? ['code', 'errors', 'message', 'request_id'] : ['code', 'message', 'request_id'],
             collect($response->json())->keys()->sort()->values()->all(),
-            'the envelope is exactly {message, code} plus errors for a validation failure',
+            'the envelope is exactly {message, code, request_id} plus errors for a validation failure',
         );
+        $this->assertSame($response->headers->get('X-Request-Id'), $response->json('request_id'));
     }
 }

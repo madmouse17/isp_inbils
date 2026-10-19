@@ -248,11 +248,13 @@ membaca kolom ini).
 
 ### Notifikasi WhatsApp: persetujuan, STOP, pengaturan, template
 
-Keputusan: `.scratch/whatsapp-notifications/spec.md` (Q1-Q13, disetujui owner 2026-10-12). Satu pengirim untuk seluruh instalasi
-(WhatsApp Cloud API Meta; token, phone number id, app secret dan verify token hanya di `.env` host, dibaca lewat
-`config/services.php`). Per company hanya saklar non-rahasia di `companies.settings`. Pesan hanya berupa template `utility` yang sudah
-disetujui Meta (`config/whatsapp.php`); aplikasi tidak pernah mengirim teks bebas. Template billing: `docs/business/billing.md`;
-tiket dan SPK: `docs/business/ticketing.md`.
+Keputusan: `.scratch/whatsapp-notifications/spec.md` (Q1-Q13, disetujui owner 2026-10-12) dan `.scratch/tenant-integrations/spec.md` (2026-10-17).
+Satu akun WhatsApp Cloud API (Meta) per company: access token, phone number id, app secret dan verify token disimpan terenkripsi di
+`company_integrations` (provider `whatsapp`, diisi admin di Pengaturan → Integrasi, izin `company.integrations.manage`) dan dibaca lewat
+`IntegrationConfig`. `WHATSAPP_*` di `.env` hanya sumber impor (`php artisan inbils:integrations:import-env --company=<kode>`);
+`WHATSAPP_GRAPH_VERSION` tetap dibaca saat runtime. Company tanpa baris integrasi aktif tidak mengirim apa pun. Per company juga ada saklar
+non-rahasia di `companies.settings`. Pesan hanya berupa template `utility` yang sudah disetujui Meta (`config/whatsapp.php`); aplikasi
+tidak pernah mengirim teks bebas. Template billing: `docs/business/billing.md`; tiket dan SPK: `docs/business/ticketing.md`.
 
 - **Persetujuan (opt-in).** Tidak ada pesan ke customer tanpa `whatsapp_opt_in_at` atau dengan `whatsapp_opt_out_at` terisi. Customer
   lama mulai tanpa persetujuan sampai staf mencatatnya. Hanya `SetCustomerWhatsAppConsentAction` yang menulisnya (kolom tidak
@@ -261,8 +263,10 @@ tiket dan SPK: `docs/business/ticketing.md`.
   melepas centang mengisi `whatsapp_opt_out_at`. Nilai yang tidak berubah tidak menulis dan tidak masuk audit. Audit `whatsapp`
   (`opted_in`/`opted_out`) hanya berisi id.
 - **STOP / BERHENTI.** Balasan `STOP` atau `BERHENTI` (tanpa beda huruf besar/kecil, spasi pinggir diabaikan) dari sebuah nomor
-  mengisi `whatsapp_opt_out_at` pada SEMUA customer di semua company yang nomornya cocok (setelah normalisasi); audit
-  `opted_out_by_reply` per company. Tidak ada balasan otomatis. Staf dapat mencentang lagi (persetujuan baru). Meta mengirim callback
+  mengisi `whatsapp_opt_out_at` pada semua customer yang nomornya cocok (setelah normalisasi) HANYA di company-company yang memakai
+  nomor pengirim yang dituju balasan itu (`metadata.phone_number_id`) dan yang app secret-nya menandatangani body; company dengan nomor
+  pengirim lain tidak terpengaruh walau customernya bernomor sama. Audit `opted_out_by_reply` per company. Tidak ada balasan otomatis.
+  Staf dapat mencentang lagi (persetujuan baru). Meta mengirim callback
   minimal satu kali, jadi satu STOP tidak boleh berlaku dua kali atau mencabut persetujuan yang staf catat sesudahnya: (a) tiap id
   pesan masuk dicatat per company di `whatsapp_inbound_receipts` (hanya HMAC id pesan, tanpa nomor dan teks; dihapus setelah 30 hari
   oleh `model:prune` harian) dalam transaksi yang sama dengan pencabutan, sehingga pencabutan yang gagal membatalkan receipt-nya,
@@ -272,27 +276,31 @@ tiket dan SPK: `docs/business/ticketing.md`.
 - **Nomor**: dinormalisasi saat kirim, tanpa mengubah data tersimpan. Hanya seluler Indonesia (`^628[1-9][0-9]{6,10}$` setelah
   `+62`/`0062`/`62`/`0` → `62`); telepon rumah, nomor asing dan `812…` tanpa awalan dilewati sebagai `invalid_phone` dan ditandai
   `reachable: false` di halaman customer.
-- **Pengaturan company** (`/admin/company/settings`, `company.manage`): `whatsapp_enabled` (default mati), `whatsapp_events` (default
+- **Pengaturan company** (`/admin/company/settings`, `company.manage`; akun WhatsApp sendiri di `/admin/company/integrations`): `whatsapp_enabled` (default mati), `whatsapp_events` (default
   semua event), jam tenang `whatsapp_quiet_start`/`whatsapp_quiet_end` (default 21:00-07:00 waktu company; pesan batch — invoice
   terbit dan pengingat — menunggu selesai, pesan berbasis kejadian tidak), `whatsapp_monthly_cap` (default 1000, 0 = tidak ada pesan,
   lewat batas = `skipped: budget_exceeded`; satu slot dipakai tiap pesan yang diterima Meta sejak awal bulan kalender company menurut
   waktu kirim `sent_at`, bukan waktu baris dibuat, dan tiap pesan `queued` yang masih bisa dikirim ulang — 2 jam sejak percobaan
   terakhir; slot dipesan di bawah kunci baris company, sehingga worker paralel tidak melewati batas). Halaman menampilkan jumlah
-  sent/delivered/failed/billable bulan berjalan dan apakah kredensial terpasang (boolean saja). Pesan "sent" = diterima Meta (status
+  sent/delivered/failed/billable bulan berjalan dan apakah company ini punya akun WhatsApp yang aktif (boolean saja). Pesan "sent" = diterima Meta (status
   sent, delivered, read).
 - **Log pesan** `whatsapp_messages` (per company, dihapus setelah 12 bulan oleh `model:prune` harian): event, subjek, template,
   status (`queued|sent|delivered|read|failed|skipped`), alasan skip (`disabled|event_disabled|no_consent|opted_out|invalid_phone|
   budget_exceeded`), kode error, id pesan Meta, hash HMAC nomor dan 4 digit terakhir. Tidak menyimpan nomor lengkap, teks, atau
   parameter. Kunci dedupe `(company_id, dedupe_key)` mencegah kirim ganda; baris `skipped` ditimpa percobaan berikutnya, baris `queued`
   dengan kode error (gagal sementara) diambil ulang oleh retry. Halaman customer menampilkan 20 baris terakhir.
-- **Webhook** `GET|POST /webhooks/whatsapp` (tanpa session/CSRF; throttle hanya untuk permintaan yang gagal verifikasi): GET
-  `hub.verify_token`; POST `X-Hub-Signature-256` (HMAC-SHA256 body mentah dengan app secret). Status bergerak maju saja
+- **Webhook** `GET|POST /webhooks/whatsapp`, satu URL bersama untuk semua company (tanpa session/CSRF; throttle hanya untuk permintaan
+  yang gagal verifikasi): GET `hub.verify_token` (cocok bila verify token salah satu company aktif sama); POST `X-Hub-Signature-256`
+  (HMAC-SHA256 body mentah dengan app secret). POST diarahkan menurut `metadata.phone_number_id` ke baris `company_integrations` aktif
+  dengan `external_id` itu, dan hanya company yang app secret-nya menandatangani body yang diproses (`WhatsAppCloudClient::verifiedCompanies`).
+  Beberapa company satu grup boleh memakai nomor yang sama; tiap company tetap punya secret sendiri. Status bergerak maju saja
   (`sent → delivered → read`; `failed` hanya dari `queued|sent`); status delivered/read yang tiba saat baris masih `queued` juga
   mengisi `sent_at`.
-- **Deploy**: `php artisan migrate`; worker WAJIB mendengarkan antrean `whatsapp` (`queue:work --queue=default,whatsapp`; ubah
-  `compose.yaml` dan `deploy/systemd/queue-worker.service.example`); isi enam variabel `WHATSAPP_*` di `.env` host; daftarkan
-  `<APP_URL>/webhooks/whatsapp` dan verify token di aplikasi Meta; admin company mencentang `whatsapp_enabled`. Tanpa token dan phone
-  number id fitur mati dan setiap pesan tercatat `skipped: disabled`. Image produksi membawa `docker/php/conf.d/inbils.ini`
+- **Deploy**: `php artisan migrate`; lalu per company `php artisan inbils:integrations:import-env --company=<kode>` (sekali; sampai itu atau
+  admin mengisi Pengaturan → Integrasi, WhatsApp mati untuk company itu); worker WAJIB mendengarkan antrean `whatsapp`
+  (`queue:work --queue=default,whatsapp`; ubah `compose.yaml` dan `deploy/systemd/queue-worker.service.example`); daftarkan
+  `<APP_URL>/webhooks/whatsapp` dan verify token company di aplikasi Meta; admin company mencentang `whatsapp_enabled`. Tanpa akun
+  aktif (token dan phone number id) fitur mati dan setiap pesan tercatat `skipped: disabled`. Image produksi membawa `docker/php/conf.d/inbils.ini`
   (`zend.exception_ignore_args=On`) supaya stack trace di `failed_jobs` dan log tidak memuat argumen pemanggilan (nomor telepon);
   parameter yang memuat nomor, token atau isi webhook juga bertanda `#[\SensitiveParameter]`. Sail memakai php.ini paket Ubuntu yang
   sudah bersetelan sama.

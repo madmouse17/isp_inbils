@@ -86,7 +86,6 @@ class PromoBanner extends Model implements HasMedia
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('promo_banner')
-            ->singleFile()
             ->acceptsFile(fn (File $file): bool => in_array($file->mimeType, ['image/jpeg', 'image/png', 'image/webp'], true));
     }
 

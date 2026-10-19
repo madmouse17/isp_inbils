@@ -27,16 +27,23 @@ class UpdateCategoryRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        $categoryId = $this->route('category')->id;
+        $category = $this->route('category');
+        $categoryId = $category->id;
         $companyId = CompanyService::currentId();
 
         return [
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', 'max:100', Rule::unique('categories')->where('company_id', $companyId)->ignore($categoryId)],
             'parent_id' => ['nullable', Rule::exists('categories', 'id')->where('company_id', $companyId)],
-            'unit_id' => ['required', Rule::exists('units', 'id')->where('company_id', $companyId)],
+            'unit_id' => ['required', Unit::assignableRule($companyId, $category->unit_id)],
             'description' => ['nullable', 'string'],
             'is_active' => ['boolean'],
         ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return ['unit_id.exists' => 'Satuan yang dipilih tidak aktif atau tidak ditemukan.'];
     }
 }

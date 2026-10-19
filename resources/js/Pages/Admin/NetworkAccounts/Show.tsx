@@ -30,6 +30,7 @@ import { ConfirmDialog } from '@/Components/composite/ConfirmDialog';
 import { CopyButton } from '@/Components/composite/CopyButton';
 import { desiredStateExplanation } from '@/Components/composite/NetworkAccessBadges';
 import { SuggestionChip } from '@/Components/composite/SuggestionChip';
+import { usePermission } from '@/hooks/usePermission';
 import { formatDateTime } from '@/lib/format';
 import {
     NETWORK_DESIRED_STATE,
@@ -354,6 +355,7 @@ export default function Show({
     const [confirmingReveal, setConfirmingReveal] = useState(false);
     const [resyncing, setResyncing] = useState(false);
     const [confirmingResync, setConfirmingResync] = useState(false);
+    const canOpenIntegrations = usePermission().can('company.integrations.manage');
 
     const reveal = () => {
         setRevealing(true);
@@ -433,9 +435,16 @@ export default function Show({
 
                 {!radiusEnabled && (
                     <Alert variant="warning">
-                        <AlertDescription>
-                            RADIUS dimatikan untuk instalasi ini. Perubahan disimpan tetapi tidak
-                            dikirim ke FreeRADIUS, dan status online serta pemakaian tidak tersedia.
+                        <AlertDescription className="flex flex-wrap items-center gap-3">
+                            RADIUS belum dikonfigurasi untuk perusahaan ini. Perubahan disimpan
+                            tetapi tidak dikirim ke FreeRADIUS.
+                            {canOpenIntegrations && (
+                                <Button asChild variant="outline" size="sm">
+                                    <Link href={route('admin.company.integrations.edit')}>
+                                        Atur di Pengaturan → Integrasi
+                                    </Link>
+                                </Button>
+                            )}
                         </AlertDescription>
                     </Alert>
                 )}

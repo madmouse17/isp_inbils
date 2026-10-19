@@ -36,4 +36,9 @@ class VehiclePolicy
     {
         return $user->can('vehicle.manage');
     }
+
+    public function restore(User $user, Vehicle $vehicle): bool
+    {
+        return $this->delete($user, $vehicle);
+    }
 }

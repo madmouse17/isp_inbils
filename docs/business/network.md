@@ -67,6 +67,10 @@ customers ──< network_asset_installations (FK customer_id nullable)
 service_subscriptions ──< network_asset_installations (FK subscription_id nullable)
 work_orders ──< network_asset_installations (FK spk_id nullable — backlink)
 users ──< network_asset_installations (FK installed_by)
+network_assets ──< asset_ports (FK network_asset_id, restrict: satu baris per port non-ODN)
+asset_ports ──< asset_ports (FK linked_port_id nullable, unik: sambungan tersimpan di kedua sisi)
+network_assets ──< network_assets (FK rack_asset_id nullable, restrict: perangkat terpasang di aset bertipe rack)
+port_templates ──< network_assets (FK template_key nullable: null saat baris katalog dihapus)
 ```
 
 Skema: `docs/DATABASE.md` Section 7 (NetworkAsset + Location).
@@ -121,6 +125,10 @@ Skema: `docs/DATABASE.md` Section 7 (NetworkAsset + Location).
   `BelongsToCompany`. Soft delete.
 - Check: `status IN ('available','installed','maintenance','damaged','retired')`,
   `ownership IN ('owned','leased','customer_provided')`.
+- Kolom panel (migrasi `2026_10_24_110100`): `template_key` nullable FK→port_templates.key (set null), `port_layout` json
+  nullable (snapshot tata letak), `rack_asset_id` nullable FK→network_assets.id (restrict), `rack_unit` tinyint unsigned
+  nullable, `height_u` tinyint unsigned nullable (tinggi perangkat; untuk rak, ukurannya). Unik `(rack_asset_id, rack_unit)`.
+  Bukan `$fillable`. Lihat bagian Panel perangkat.
 
 ### network_asset_installations (append-only history)
 - id, company_id FK NOT NULL, network_asset_id FK NOT NULL (cascade),
@@ -213,6 +221,8 @@ odn.manage                     (port PON, splitter)
 odn.assign                     (port drop subscription)
 ```
 
+Panel perangkat tidak menambah izin: `NetworkAssetPolicy::updatePanel` memakai `network_asset.update` (lihat bagian Panel perangkat).
+
 ## API (Route)
 
 Lihat `docs/API.md` Section 4 (NetworkAsset + Location group). Ringkas:
@@ -231,6 +241,12 @@ Lihat `docs/API.md` Section 4 (NetworkAsset + Location group). Ringkas:
 - `POST   /admin/network-assets/{asset}/retire` (body: reason)
 - `GET    /admin/network-assets/{asset}/installations` (history)
 - `GET    /admin/network-assets/trace` (query: serial/mac/ip/customer_id/subscription_id → return asset + location path + status)
+- `GET    /admin/network-assets/trace?path_subscription={id}` (jalur fiber satu subscription; hanya pemegang `odn.view`)
+- `PUT    /admin/network-assets/{asset}/panel` (body: template_key | layout, height_u? | rak: height_u)
+- `PUT    /admin/network-assets/{asset}/rack-placement` (body: rack_asset_id, rack_unit, height_u | rack_asset_id: null)
+- `PATCH  /admin/network-assets/{asset}/ports/{port}` (body: label, note, admin_down)
+- `POST   /admin/network-assets/{asset}/ports/{port}/link` (body: target_port_id)
+- `DELETE /admin/network-assets/{asset}/ports/{port}/link`
 - `GET    /admin/network-assets/export`
 - `GET    /admin/locations` (tree, filter: type, parent_id, search)
 - `POST   /admin/locations` (create with parent)
@@ -299,9 +315,12 @@ ditulis sebagai `Framed-IP-Address` (lihat Model). Pendahulunya (`.scratch/mikro
   hanya saat start; `kill -HUP` tidak cukup); Inbils tidak mengendalikan proses FreeRADIUS.
 - **Online dan pemakaian**: halaman account dan halaman NAS membaca `radacct` langsung (sesi terbuka =
   `acctstoptime IS NULL` dan update atau mulai dalam 15 menit; octet bulan kalender berjalan). Tidak ada salinan di
-  Inbils. Saat saklar mati atau RADIUS tak terjangkau, `session`/`usage` null dan `sessions` kosong; halaman tetap tampil.
-- **Saklar**: `RADIUS_ENABLED` (default `false`) mematikan semua baca/tulis database RADIUS dan semua Disconnect.
-  Account tetap `pending` dengan alasannya.
+  Inbils. Saat integrasi RADIUS company mati atau RADIUS tak terjangkau, `session`/`usage` null dan `sessions` kosong; halaman tetap tampil.
+- **Saklar**: baris integrasi `radius` company (`company_integrations`, `is_enabled`, diisi di Pengaturan → Integrasi dengan izin
+  `company.integrations.manage`) mematikan semua baca/tulis database RADIUS dan semua Disconnect untuk company itu. Company tanpa baris aktif
+  tidak membaca atau menulis RADIUS. Account tetap `pending` dengan alasannya ("RADIUS belum dikonfigurasi untuk perusahaan ini
+  (Pengaturan → Integrasi)."). `RADIUS_ENABLED` dan `RADIUS_DB_*` di `.env` hanya sumber impor (`php artisan inbils:integrations:import-env
+  --company=<kode>`), bukan saklar runtime. `services.radius.coa_timeout` berlaku untuk semua company.
 - **Rahasia**: `radius_secret` tidak pernah di-flash ke session (`dontFlash`); secret satu kali disimpan tersegel
   (`Crypt`) di session dan dibuka hanya saat halaman dibangun, termasuk saat respons Inertia 409 (versi aset basi)
   me-reflash session. Rotasi `APP_KEY`: simpan kunci lama di `APP_PREVIOUS_KEYS`, kalau tidak semua secret tak terbaca.
@@ -316,8 +335,9 @@ ditulis sebagai `Framed-IP-Address` (lihat Model). Pendahulunya (`.scratch/mikro
 
 ### Runbook FreeRADIUS dan MikroTik
 
-1. **Database RADIUS terpisah** (koneksi `radius`, env `RADIUS_DB_HOST|PORT|DATABASE|USERNAME|PASSWORD`; nilai hanya di
-   host): skema bawaan FreeRADIUS 3.2 (`schema.sql` dari FreeRADIUS) di database sendiri; Inbils tidak pernah
+1. **Database RADIUS terpisah per ISP** (host, port, nama database, pengguna dan kata sandi diisi admin company di Pengaturan → Integrasi,
+   kartu RADIUS; kata sandi terenkripsi, koneksi `radius_{company id}` dibangun dari baris itu dan ditutup setelah dipakai; "Uji koneksi"
+   menjalankan `SELECT 1` dan memeriksa enam tabel; host loopback, link-local dan metadata ditolak, jaringan RFC 1918 boleh): skema bawaan FreeRADIUS 3.2 (`schema.sql` dari FreeRADIUS) di database sendiri; Inbils tidak pernah
    memigrasikannya. User database Inbils: `SELECT, INSERT, UPDATE, DELETE` pada `radcheck`, `radreply`,
    `radusergroup`, `radgroupreply`, `nas` dan `SELECT` pada `radacct` saja. FreeRADIUS memakai user sendiri dan
    tidak pernah melihat tabel Inbils. Database ini berisi password cleartext: batasi jaringan, tanpa backup tak terenkripsi.
@@ -372,10 +392,12 @@ ditulis sebagai `Framed-IP-Address` (lihat Model). Pendahulunya (`.scratch/mikro
    - profil PPP `isolir` dengan address list `isolir` dan redirect HTTP ke `/isolir/{kode company}`; satu profil PPP
      per `radius_profile_name` hanya bila rate tidak dikirim lewat `Mikrotik-Rate-Limit` (RADIUS menimpa rate profil PPP).
    - walled garden untuk host Inbils dan host Midtrans (halaman isolir dan pembayaran).
-5. **Onboarding**: `RADIUS_ENABLED=false` → isi env koneksi `radius` → daftarkan NAS (flash peringatan sampai tertulis)
-   → restart FreeRADIUS → buat account → `RADIUS_ENABLED=true` → `php artisan network:sync` → terakhir
-   `auto_suspend_enabled` per company. Worker queue dan scheduler harus jalan (tanpa keduanya account tetap `pending`).
-6. **Rollback**: `RADIUS_ENABLED=false` (RADIUS menyimpan baris terakhir, sesi berjalan tetap hidup, tanpa
+5. **Onboarding**: isi kartu RADIUS di Pengaturan → Integrasi dengan **Aktif** mati dan klik "Uji koneksi" (baris yang masih mati boleh diuji)
+   → daftarkan NAS (flash peringatan sampai tertulis) → restart FreeRADIUS → buat account → nyalakan **Aktif** → `php artisan network:sync`
+   → terakhir `auto_suspend_enabled` per company. Impor dari `.env` (`RADIUS_ENABLED=true` dan `RADIUS_DB_*`, lalu
+   `php artisan inbils:integrations:import-env --company=<kode> --provider=radius`) menulis baris dengan **Aktif** sudah menyala, jadi
+   daftarkan NAS dan buat account sebelum mengimpor bila urutan di atas harus dijaga. Worker queue dan scheduler harus jalan (tanpa keduanya account tetap `pending`).
+6. **Rollback**: matikan **Aktif** pada kartu RADIUS company (RADIUS menyimpan baris terakhir, sesi berjalan tetap hidup, tanpa
    Disconnect) → bila perlu router kembali ke secret lokal secara manual → migrasi down (kolom yang diubah kembali
    kosong; kolom blokir hilang bersama datanya).
 
@@ -460,6 +482,136 @@ Lokasi tetap pohon `region > area > pop > rack > site`; ODC dan ODP adalah **ass
 - **Permission**: `odn.view`, `odn.manage` (port PON, splitter), `odn.assign` (drop). Admin dan manager ketiganya;
   staff `odn.view` + `odn.assign` (mereka melakukan onboarding); teknisi `odn.view`; customer tidak ada.
 - **Di luar lingkup**: loss budget optik, peta/rute fiber, splice, port rusak, impor CSV data ODN.
+
+## Panel perangkat (port, rak, jalur fiber)
+
+Permintaan owner 2026-10-17 (`.scratch/hardware-panel-ui/spec.md`, rancangan teknis di `design.md` pada folder yang sama): router, switch, OLT, ONU/ONT, ODC, ODP, dan rak digambar seperti wajah fisiknya, dengan port di tempat port aslinya dan status yang terbaca sekilas. Fase 1 hanya membaca data yang sudah ada di Inbils. Inbils tidak mem-polling SNMP atau RouterOS, tidak menampilkan lalu lintas per port, tidak mengirim konfigurasi ke perangkat, dan tidak menemukan port otomatis. Panel tampil di halaman aset (`/admin/network-assets/{asset}`), halaman router NAS (untuk aset routernya), halaman ODN (`/admin/odn/assets/{asset}`), dan, untuk jalur fiber, di Lacak Aset (`/admin/network-assets/trace`). Tipe aset yang punya panel: `router`, `switch`, `olt`, `onu_ont`, `odc`, `odp`, `rack` (`PanelLayout::ASSET_TYPES`). Rute `panel` menjawab 404 untuk tipe lain.
+
+### Model data
+
+- **Katalog model** (`port_templates`): 14 baris dari `Modules/NetworkAsset/database/data/port_templates.json`, disalin ke tabel oleh migrasi `2026_10_24_110300_seed_port_templates.php` lewat `PortTemplateCatalogue::sync()`. Data referensi bersama semua company (tanpa `company_id` dan `public_id`, seperti `settings`). Kolom: `key` (unik, pengenal yang dikirim UI), `vendor`, `model`, `asset_type` (`router`, `switch`, `olt`, `onu_ont`, `odc`, `odp`), `height_u` (null = unit meja atau dinding), `layout` (JSON), `source_url` (datasheet yang dipakai memeriksa baris). `sync()` memvalidasi tiap baris dengan aturan `PanelLayout` (baris rusak menggagalkan migrasi), memakai upsert, dan tidak pernah menghapus: baris yang ditambah operator tetap ada, dan dua kali jalan tidak mengubah apa pun. Model baru berarti satu baris JSON plus satu migrasi yang memanggil `sync()`. Unit yang belum ada di katalog digambar lewat tata letak manual, tanpa deploy.
+- **Snapshot di aset** (`network_assets`): `template_key` (baris katalog asal; null untuk tata letak manual; menghapus baris katalog mengosongkannya dan snapshot tetap), `port_layout` (JSON, salinan tata letak saat model diterapkan), serta `rack_asset_id`, `rack_unit`, `height_u` (lihat Rak). Panel selalu digambar dari `port_layout`, tidak pernah dari katalog, jadi menyunting baris katalog tidak menggeser port aset yang sudah memakainya. Kelima kolom tidak ada di `$fillable`; hanya `AssetPanelService` yang menulisnya (`forceFill`), jadi rute simpan dan ubah aset tidak bisa mengubahnya.
+- **Port** (`asset_ports`): satu baris per port fisik router, switch, uplink OLT, dan ONU/ONT. Kolom: `public_id`, `company_id`, `network_asset_id`, `group_key` (grup blok di tata letak: `ether`, `sfp`, `uplink`, `lan`, `pon`, dan sebagainya), `number` (mulai 1 di dalam grup), `kind` (`rj45`, `sfp`, `sc`, `rj11`), `name` (nama vendor, lihat Penamaan port), `label` (maks 64 karakter), `note` (maks 255), `admin_down`, `linked_port_id`. Unik: `public_id`, `(network_asset_id, group_key, number)`, dan `linked_port_id`. Model `AssetPort` memakai `BelongsToCompany`, `HasPublicId`, dan `LogsActivity`; `linked_port_id` tidak ada di `$fillable`. `group_key` bersifat semantik: grup yang sama di model lama dan model baru berarti port yang sama, jadi ganti model mempertahankan label, catatan, dan sambungan. Tabel ini tidak punya `subscription_id`, karena tidak ada alur yang memasang pelanggan ke port router atau switch; port PON ONT mengambil drop dari langganan ONT-nya. Info VLAN ditulis bebas di `note`.
+- **Port ODN tidak disalin.** Port PON OLT dan output splitter ODC/ODP tetap di `odn_ports` (bagian ODN di atas), dan panel membaca dua sumber sekaligus. Blok `role: pon` pada OLT dicocokkan dengan `odn_ports` jenis `pon` lewat urutan baca (`odn_ports.number` adalah ordinal 1-based per OLT dan tidak berubah); blok OLT lain, misalnya uplink, adalah baris `asset_ports`. Slot model yang belum punya baris `odn_ports` digambar putus-putus dengan status `unregistered` (Belum terdaftar). Baris PON di atas jumlah slot model muncul di baris sasis tambahan berjudul "Port PON di luar model" (nama `PON {n}`), supaya tidak ada baris register yang tersembunyi. ODC dan ODP tidak pernah punya baris `asset_ports`: tata letaknya dibuat saat query dari splitternya, satu baris sasis per splitter berisi pseudo-port `IN` (input splitter, tanpa baris port, tautannya ke port hulu) dan N output (dua tingkat port mulai 16 output).
+
+### Katalog bawaan (14 model)
+
+Delapan baris unit vendor (MikroTik, ZTE, Huawei) dan enam baris umum (vendor `Umum`). Rancangan mencatat bahwa jumlah port, keberadaan SFP+, console, dan PSU, serta pemakaian slot pada C320 dan MA5608T diperiksa terhadap halaman di kolom `source_url`. Rancangan juga mencatat dua hal yang belum dicocokkan dengan perangkat fisik: baris atas atau bawah yang memegang nomor ganjil pada unit MikroTik bersusun dua (diasumsikan ganjil di atas), dan nama antarmuka uplink OLT (yang dipakai adalah label di muka perangkat: `10GE-1`, `GE-1`, `0/2/0`). Keduanya data, jadi koreksinya cukup menyunting JSON dan menjalankan `sync()` lewat migrasi baru.
+
+| `key` | Tipe | Tinggi | Port |
+|---|---|---|---|
+| `mikrotik-hap-ac2` | router | meja | 5 RJ45 (`ether1` sampai `ether5`) |
+| `mikrotik-rb4011igs-rm` | router | 1U | 10 RJ45 (dua blok 5), 1 SFP+ (`sfp-sfpplus1`) |
+| `mikrotik-ccr2004-16g-2s` | router | 1U | 16 RJ45 (dua blok 8, bersusun dua), 2 SFP+ (`sfp-sfpplus1`, `sfp-sfpplus2`) |
+| `mikrotik-crs326-24g-2s-rm` | switch | 1U | 24 RJ45 (tiga blok 8, bersusun dua), 2 SFP+ |
+| `mikrotik-crs317-1g-16s-rm` | switch | 1U | 1 RJ45 manajemen, 16 SFP+ (dua blok 8, bersusun dua) |
+| `zte-c320-gtgh` | olt | 2U | 2 slot masing-masing 16 PON (`gpon-olt_1/{slot}/{port}`); uplink 2 SFP+ 10GE, 2 SFP GE, 2 RJ45 GE |
+| `zte-c320-gtgo` | olt | 2U | 2 slot masing-masing 8 PON; uplink sama |
+| `huawei-ma5608t-gpfd` | olt | 2U | 2 slot masing-masing 16 PON (`0/{slot}/{port}`, mulai dari 0); 4 uplink GE (`0/2/0` sampai `0/2/3`) |
+| `generic-ont-1pon-4lan-2pots` | onu_ont | meja | 1 SC `PON`, 4 RJ45 (`LAN1` sampai `LAN4`), 2 RJ11 (`TEL1`, `TEL2`) |
+| `generic-switch-8` | switch | meja | 8 RJ45 (`1` sampai `8`) |
+| `generic-switch-24` | switch | 1U | 24 RJ45 (dua blok 12, bersusun dua), 2 SFP (`SFP1`, `SFP2`) |
+| `generic-switch-48` | switch | 1U | 48 RJ45 (empat blok 12, bersusun dua), 4 SFP |
+| `generic-odp-8` | odp | meja | splitter 1:8 |
+| `generic-odp-16` | odp | meja | splitter 1:16 |
+
+ODC tidak punya baris katalog: ODC mengikuti splitter yang dibuat di halaman ODN. Baris ODP hanya ditawarkan selama ODP belum punya splitter.
+
+### Penamaan port
+
+`PanelLayout::portName(block, number)` memberi nama vendor sebuah port. Polanya adalah `name` pada blok (bawaan per jenis: `ether{port}`, `sfp{port}`, `sc{port}`, `tel{port}`; port PON `PON {port}`), dengan `{port}` = `number - 1 + first` dan `{slot}` = `slot` milik blok. `first` (0 atau 1, bawaan 1) adalah nomor cetak port pertama, dan `from` (bawaan 1) membuat satu grup menyambung beberapa blok (misalnya Ethernet 1-8 dan 9-16 pada CCR2004). Pola pada grup yang punya lebih dari satu port wajib memuat `{port}`, dan pola dengan `{slot}` wajib punya `slot`. Contoh dari katalog:
+
+| Model | Ordinal di ODN | Nama vendor |
+|---|---|---|
+| ZTE C320 2× GTGH (`first` 1, slot 1 dan 2) | 1, 16, 17, 32 | `gpon-olt_1/1/1`, `gpon-olt_1/1/16`, `gpon-olt_1/2/1`, `gpon-olt_1/2/16` |
+| Huawei MA5608T 2× GPFD (`first` 0, slot 0 dan 1) | 1, 16, 17, 32 | `0/0/0`, `0/0/15`, `0/1/0`, `0/1/15` |
+
+Nama port non-PON disimpan di `asset_ports.name` saat model diterapkan dan diperbarui oleh penerapan berikutnya. Nama port PON dihitung saat baca dari urutan slot model, jadi `odn_ports.number` tetap seperti ditulis `OdnService::createPonPorts()` dan tabel ODN tetap menulis "PON 17" di samping `gpon-olt_1/2/1` (tooltip panel: "PON 17 di ODN"). Tata letak manual ("Susun manual") memberi nama awalan + `{port}` dengan awalan bawaan `ether`, `sfp`, `PON`, `TEL` (ONU/ONT: `LAN` untuk RJ45), dan awalan yang diketik pengguna menggantikannya.
+
+### Menerapkan model
+
+`PUT /admin/network-assets/{asset}/panel` menerima satu dari tiga isi: `template_key` (model katalog untuk tipe aset itu), `layout` (tata letak manual: 1 sampai 8 baris sasis, tiap baris 1 sampai 16 blok, tiap blok 1 sampai 64 port, total paling banyak 256 port, satu jenis port per grup), atau, khusus rak, `height_u` (1 sampai 52). `template_key` dan `layout` tidak boleh dikirim bersama. Tata letak manual ditolak untuk ODC dan ODP, karena port keduanya berasal dari splitter. `AssetPanelService::apply()` (422 dengan pesan di field):
+
+- Port lama dan baru dicocokkan lewat `(group_key, number)`. Port yang ada di kedua tata letak mempertahankan label, catatan, status nonaktif, dan sambungannya, dan hanya `kind` dan `name` yang diperbarui. Port baru ditambahkan. Port yang tidak ada lagi di tata letak dihapus bila bebas; bila masih tersambung, penerapan ditolak di field `ports`, misalnya "Port ether3 dan ether4 masih terhubung. Lepas sambungannya dulu." Menerapkan model yang sama berulang tidak mengubah apa pun dan tidak menulis audit.
+- OLT: P = jumlah slot PON model, H = nomor PON tertinggi di `odn_ports`. H lebih besar dari P ditolak dengan "OLT ini sudah punya H port PON terdaftar; model ini hanya P." H lebih kecil dari P membuat sisanya lewat `OdnService::createPonPorts()` (paling banyak 64 per panggilan), jadi port PON model lahir di register ODN. ODP tanpa splitter yang diberi model katalog ODP mendapat splitternya lewat `OdnService::createSplitter()` (1:8 atau 1:16). Keduanya berjalan sebelum transaksi panel, karena `OdnService` mengambil kunci topologi `odn:topology:{company}` lebih dulu.
+- Satu penerapan per aset pada satu waktu (`Cache::lock("asset-panel:{company}:{aset}", 30)`, ditunggu 5 detik). Gagal mendapat kunci menghasilkan 409 "Panel perangkat ini sedang diubah. Coba lagi."
+- Tinggi U aset diambil dari baris katalog, atau dari `height_u` yang dikirim bersama tata letak manual. Aset yang sudah terpasang di rak tetap memakai tinggi pemasangannya, supaya model baru tidak mendorongnya ke perangkat di sebelahnya.
+- Audit `panel_applied` (aset, `template_key`, jumlah port yang ditambah, diganti nama, dan dihapus) hanya ditulis bila ada yang berubah.
+
+**Izin tambahan untuk OLT dan ODP.** Model OLT dan ODP menulis register ODN (port PON dan splitter), jadi `ApplyPortTemplateRequest::authorize()` meminta `odn.manage` selain `network_asset.update` (lewat `can('create', OdnPort::class)`). Tanpa `odn.manage`, server menjawab 403 saat model OLT atau ODP dipilih atau diganti. Router, switch, ONU/ONT, dan ukuran rak cukup `network_asset.update`. Pemilih model di UI hanya memeriksa `network_asset.update`, jadi pemegang izin itu tanpa `odn.manage` tetap melihat pilihannya dan baru ditolak saat menekan **Terapkan model**. Peran bawaan admin dan manager memegang keduanya.
+
+### Sambungan port (patch)
+
+Sambungan menghubungkan dua `asset_ports` milik dua aset dalam satu company, misalnya uplink SFP+ router ke uplink OLT. Sambungan tersimpan di kedua baris: A.`linked_port_id` = B.id dan B.`linked_port_id` = A.id. `linked_port_id` unik, jadi satu port menjadi tujuan paling banyak satu port lain, dan foreign key `restrictOnDelete` menahan penghapusan port yang tersambung. MySQL menolak CHECK pada kolom AUTO_INCREMENT, jadi "bukan dirinya sendiri" adalah aturan service.
+
+- `AssetPanelService::link()` (422 dengan pesan di field): bukan port yang sama ("Port tidak dapat dihubungkan ke dirinya sendiri."), bukan di aset yang sama ("Hubungkan ke port perangkat lain."), kedua port bebas ("Port {nama} di {kode} sudah terhubung."), dan tujuan ada di company yang sama pada aset yang belum dihapus ("Port yang dipilih tidak ditemukan."). Kedua baris dikunci `FOR UPDATE` berurutan id dalam satu transaksi, dan `unique(linked_port_id)` adalah backstop balapan. Audit `port_linked`.
+- `unlink()` mengosongkan kedua baris dalam satu transaksi. Port yang tidak tersambung ditolak ("Port ini tidak terhubung."), begitu pula port yang sambungannya baru saja berubah ("Sambungan port ini baru saja berubah. Muat ulang halaman."). Audit `port_unlinked`.
+- Hanya `asset_ports` yang bisa disambung. Port PON dan output splitter tidak bisa disambung lewat panel, karena hubungan serat ada di register ODN (splitter dan drop). Pilihan perangkat tujuan di UI memuat router, switch, OLT, dan ONU/ONT yang sudah punya model, kecuali aset itu sendiri. Pilihan port memuat port bebas perangkat tujuan, paling banyak 256.
+- `PATCH /admin/network-assets/{asset}/ports/{port}` mengubah `label` (maks 64), `note` (maks 255), dan `admin_down`. Tanda nonaktif hanya penanda di panel dan tidak mengubah konfigurasi perangkat. Port PON belum punya tanda ini, karena butuh kolom di `odn_ports`.
+
+### Rak
+
+Rak di sini adalah asset bertipe `rack`, bukan lokasi bertipe `rack` di pohon lokasi. Ukurannya `network_assets.height_u` (1 sampai 52 U), diatur lewat `PUT .../panel` dengan `height_u`. Perangkat yang terpasang punya `rack_asset_id`, `rack_unit` (U terendah yang dipakai, U1 di bawah), dan `height_u` (tinggi perangkat, 1 sampai 10 U). `PUT /admin/network-assets/{asset}/rack-placement` memasang perangkat (`rack_asset_id`, `rack_unit`, `height_u`) atau melepasnya (`rack_asset_id: null`, yang mengosongkan `rack_asset_id` dan `rack_unit`). `AssetPanelService::place()` (422 dengan pesan di field):
+
+- Tujuan harus asset bertipe `rack` di company yang sama. Rak tidak bisa dipasang di rak ("Rak tidak dapat dipasang di dalam rak.") atau di dirinya sendiri ("Perangkat tidak dapat dipasang di dirinya sendiri.").
+- Rak tanpa ukuran ditolak ("Rak belum punya ukuran."), begitu pula posisi yang melewati puncak rak ("Posisi melewati tinggi rak (42U).", dengan tinggi rak yang sebenarnya).
+- U yang bertabrakan ditolak dengan menyebut U yang terisi dan kode perangkatnya, misalnya "U13 sudah terisi E2E-PANEL-RTR." Perangkat yang sudah dihapus (soft delete) tetap memegang U-nya.
+- Baris rak dikunci lebih dulu, lalu aset, jadi dua pemasangan ke rak yang sama tidak bisa mengambil U yang sama. `unique(rack_asset_id, rack_unit)` adalah backstop.
+- Mengecilkan rak sampai di bawah puncak isinya ditolak, misalnya "Rak berisi perangkat sampai U13; ukurannya tidak boleh lebih kecil."
+
+Audit: `rack_placed`, `rack_unplaced`, dan `panel_applied` untuk ukuran rak.
+
+**Hapus aset.** `NetworkAssetController::destroy` memanggil `AssetPanelService::assertDeletable()` sebelum pemeriksaan siklus hidup umum. Aset yang port-nya masih tersambung ditolak ("Port aset ini masih terhubung ke port lain. Lepas sambungannya dulu."), begitu pula rak yang masih berisi perangkat ("Rak ini masih berisi perangkat. Kosongkan rak dulu."). `NetworkAsset::lifecycleReferences()` kini juga menghitung "port perangkat" (`asset_ports.network_asset_id`) dan "perangkat di rak" (`network_assets.rack_asset_id`), jadi aset yang sudah punya baris port dan rak yang masih berisi perangkat tidak bisa dihapus permanen, dan pesan umum menyebut jumlahnya.
+
+### Jalur fiber (trace)
+
+`GET /admin/network-assets/trace?path_subscription={id langganan}` mengisi prop `tracePath` halaman Lacak Aset, hanya bagi pemegang `odn.view`. Tanpa izin itu, atau bila langganan tidak ditemukan di company aktif, prop bernilai `null`. `AssetPanelQuery::tracePath()` berjalan dari port drop langganan naik lewat tiap splitter sampai port PON dengan satu query rekursif (paling banyak 9 tingkat splitter, satu di atas batas rantai `OdnService` yang 8, jadi siklus pada data rusak berhenti), lalu menyusun hop dari OLT sampai pelanggan:
+
+1. Port PON OLT, bernama dari model OLT (misalnya `gpon-olt_1/1/3`), atau `PON {n}` bila OLT belum punya model.
+2. Tiap output splitter ODC atau ODP, ditulis "{kode aset} · {rasio} · {nomor}".
+3. ONU/ONT langganan itu (`ont_asset_id`, atau ONU/ONT yang `subscription_id`-nya langganan itu), atau kotak berlabel nama pelanggan bila tidak ada ONT.
+
+Tiap hop membawa tata letaknya sendiri dan satu port yang dinyalakan, jadi muatannya konstan per hop. Paling banyak 3 statement SQL dan satu query `radacct` ter-cache. Langganan tanpa port drop menghasilkan `hops` kosong, dan halaman menulis "Belum ada port drop tercatat untuk {kode}. Atur di halaman langganan." Warna jalur mengikuti status drop (Terpakai, Online, Offline, atau Diisolir).
+
+### Status online dan warna port
+
+- **Urutan prioritas warna** (dihitung di browser oleh `portStateKey` di `resources/js/Components/composite/hardware-panel/panelGeometry.helpers.ts`; server hanya mengirim bendera status): Belum terdaftar, Dinonaktifkan, Diisolir, Online, Offline, Terpakai, Kosong. Offline hanya muncul bila ada pelanggan di port itu (drop, atau pelanggan di bawah splitter) dan daftar online diketahui. Selain itu port berpelanggan tetap Terpakai.
+- **Online** = ada sesi RADIUS terbuka (`radacct.acctstoptime` kosong) yang pembaruan terakhirnya (`COALESCE(acctupdatetime, acctstarttime)`) tidak lebih tua dari 15 menit. Aturan 15 menit ada satu kali di `RadiusDirectory::open()`, dipakai daftar sesi dan pemeriksaan online. Satu panel bertanya sekali lewat `RadiusDirectory::onlineAmong()` (satu `whereIn` username untuk semua drop dan semua pelanggan di bawahnya).
+- Hasilnya di-cache 15 detik per company, versi, lingkup (`asset:{id}`, `sub:{id}`, atau `port:{id}`), dan hash username terurut, jadi drop baru tidak menunggu 15 detik. `AssetPanelQuery::forgetOnline($companyId)` menaikkan versi (lewat `DB::afterCommit`) dan dipanggil `ApplyNetworkAccountJob` setelah `apply` berhasil. Blokir, buka blokir, tangguhkan, aktifkan ulang, hentikan, provision, dan sinkron ulang semuanya berakhir di job itu.
+- RADIUS nonaktif atau tidak terjangkau bukan galat: kegagalan tidak di-cache, panel tetap tampil tanpa tanda online (`online.known` false, alasan `disabled` atau `unavailable`), port berpelanggan tampil Terpakai, dan legenda menulis "Status online tidak tersedia: RADIUS nonaktif." atau "Status online tidak tersedia: RADIUS tidak dapat dihubungi."
+- Isolir tidak di-cache: dibaca dari baris langganan (`suspended`, atau `blocked_at` terisi, kecuali `terminated`), aturan yang sama dengan `NetworkAccountProvisioner::isolatedBecause()`.
+- "Online sejak" di sheet port memanggil `RadiusDirectory::openSessions()` langsung, tanpa cache, hanya untuk satu username.
+
+### Izin dan route
+
+Tidak ada izin baru. `NetworkAssetPolicy::updatePanel` (ability baru) memakai `network_asset.update`.
+
+| Aksi | Izin |
+|---|---|
+| Melihat panel, rak, dan port non-ODN | `network_asset.view` |
+| Melihat port PON, splitter, drop ONT, pelanggan di port, dan jalur fiber | `odn.view` (tanpa izin ini panel menyembunyikan blok PON dan splitter dan menulis "Port PON dan splitter tampil untuk pengguna dengan akses ODN.") |
+| Memilih atau mengganti model, label dan catatan port, tanda nonaktif, sambung dan lepas, pasang di rak, ukuran rak | `network_asset.update` |
+| Memilih atau mengganti model OLT dan ODP | `network_asset.update` dan `odn.manage` |
+| Memasang pelanggan di port ODP dan melepas port drop dari sheet | `odn.assign` (route ODN yang sudah ada) |
+| Blokir internet dan buka blokir dari sheet | `customer.subscription.block` (route langganan yang sudah ada) |
+
+Peran bawaan (`RolePermissionSeeder`): admin dan manager mengubah panel; staff dan technician hanya membaca. Staff juga bisa memasang dan melepas drop (`odn.assign`), dan teknisi melihat port, drop, dan tanda online karena butuh di lapangan.
+
+Semua route ada di grup `auth, verified, redirect.app.only, require.has.company` dengan prefiks `admin` (`whereUlid` mencakup `port`). Tiga route port memakai `scopeBindings()`, jadi port milik aset lain di URL menjawab 404, dan aset atau port company lain juga 404.
+
+| Route | Nama | Body | Pesan sukses |
+|---|---|---|---|
+| `PUT admin/network-assets/{asset}/panel` | `admin.network-assets.panel.update` | `template_key`, atau `layout` (dan `height_u`), atau untuk rak `height_u` | "Model perangkat diterapkan." (rak: "Ukuran rak disimpan.") |
+| `PATCH admin/network-assets/{asset}/ports/{port}` | `admin.network-assets.ports.update` | `label`, `note`, `admin_down` | "Port diperbarui." |
+| `POST admin/network-assets/{asset}/ports/{port}/link` | `admin.network-assets.ports.link.store` | `target_port_id` (public id) | "Port dihubungkan." |
+| `DELETE admin/network-assets/{asset}/ports/{port}/link` | `admin.network-assets.ports.link.destroy` | tanpa body | "Sambungan port dilepas." |
+| `PUT admin/network-assets/{asset}/rack-placement` | `admin.network-assets.rack-placement.update` | `rack_asset_id`, `rack_unit`, `height_u`; atau `rack_asset_id: null` untuk melepas | "Posisi rak disimpan." atau "Perangkat dilepas dari rak." |
+
+Halaman membawa data panel lewat prop Inertia yang ditambahkan `AssetPanelProps::for()`: `panel` (ditunda, jadi halaman tidak menunggu panel maupun RADIUS), `portDetail` (dimuat saat port dibuka), dan daftar pilihan (`linkAssetOptions`, `linkPortOptions`, `dropSubscriptionOptions`, `rackAssetOptions`). `AssetPanelProps::for()` mengembalikan kosong untuk tipe tanpa panel atau pengguna yang tidak boleh melihat aset.
+
+### Di luar lingkup
+
+Polling SNMP atau RouterOS, lalu lintas per port, konfigurasi yang dikirim ke perangkat, penemuan port otomatis, LED link langsung, urutan rak lewat seret, dan sambungan dengan seret (ditunda: tidak punya padanan keyboard, dan panel hanya menampilkan satu perangkat sekaligus). Tanda nonaktif untuk port PON (butuh kolom di `odn_ports` dan route ODN). Menghapus model dari aset: tidak ada aksi untuk itu, hanya mengganti model.
 
 ## Testing Scenario
 

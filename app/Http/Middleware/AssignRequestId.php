@@ -4,7 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -15,7 +15,8 @@ final class AssignRequestId
         $id = $this->resolveId($request);
 
         $request->attributes->set('request_id', $id);
-        Log::shareContext(['request_id' => $id]);
+        // The Context reaches every log line (extra.request_id), the queued jobs this request dispatches and the activity rows.
+        Context::add('request_id', $id);
 
         /** @var Response $response */
         $response = $next($request);
@@ -42,9 +43,7 @@ final class AssignRequestId
 
     private function isSafe(string $value): bool
     {
-        // printable ASCII, no CR/LF, reasonable length
-        return $value !== ''
-            && strlen($value) <= 128
-            && preg_match('/^[\x20-\x7E]+$/', $value) === 1;
+        // Token characters only: the id is stored on audit rows and sent to vendors, so a client cannot choose anything free-form.
+        return preg_match('/^[A-Za-z0-9._:-]{1,128}$/', $value) === 1;
     }
 }

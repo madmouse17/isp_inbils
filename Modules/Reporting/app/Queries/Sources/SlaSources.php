@@ -20,6 +20,13 @@ final class SlaSources
     use ScopesToCompany;
 
     /**
+     * The category of a ticket in a breakdown, over tickets joined to ticket_categories: the name it closed under, the
+     * live name until it closes. The by-category figures and their drill lists group and match on this one expression,
+     * so renaming a category never regroups a closed ticket.
+     */
+    public const CATEGORY_LABEL = 'COALESCE(tickets.category_name_snapshot, ticket_categories.name)';
+
+    /**
      * Resolved tickets (resolved_at set, whatever their status), optionally inside a period and category.
      *
      * @return Builder<Ticket>
@@ -122,8 +129,8 @@ final class SlaSources
     }
 
     /**
-     * Resolved tickets joined to their category for the per-category breakdown. v1: ignores the
-     * period and category filters of the report.
+     * Resolved tickets joined to their category for the per-category breakdown, which names each by CATEGORY_LABEL.
+     * v1: ignores the period and category filters of the report.
      *
      * @return Builder<Ticket>
      */

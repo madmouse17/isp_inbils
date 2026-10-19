@@ -7,6 +7,7 @@ use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasLifecycle;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -46,6 +47,8 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property ?Carbon $resolved_at
  * @property ?Carbon $closed_at
  * @property ?string $resolution_note
+ * @property ?string $category_name_snapshot the category name as it was when the ticket closed; null until then
+ * @property ?string $assignee_name_snapshot the handler name as it was when the ticket closed; null until then
  * @property int $created_by
  * @property ?Carbon $created_at
  * @property ?Carbon $updated_at
@@ -66,16 +69,19 @@ class Ticket extends Model implements HasMedia
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasLifecycle;
     use HasPublicId;
     use InteractsWithMedia;
     use LogsActivity;
     use SoftDeletes;
 
+    public const STATUSES = ['open', 'assigned', 'on_progress', 'resolved', 'closed'];
+
     protected $fillable = [
         'company_id', 'code', 'title', 'description', 'source', 'category_id', 'status', 'priority',
         'customer_id', 'subscription_id', 'network_asset_id', 'location_id',
         'assigned_to', 'spawned_spk_id', 'sla_deadline', 'response_deadline', 'first_response_at',
-        'resolved_at', 'closed_at', 'resolution_note', 'created_by',
+        'resolved_at', 'closed_at', 'resolution_note', 'category_name_snapshot', 'assignee_name_snapshot', 'created_by',
     ];
 
     protected $casts = [
@@ -86,29 +92,30 @@ class Ticket extends Model implements HasMedia
         'closed_at' => 'datetime',
     ];
 
+    /** The parents of a ticket are history: one deleted since still shows (spec .scratch/master-lifecycle D6). */
     public function category(): BelongsTo
     {
-        return $this->belongsTo(TicketCategory::class, 'category_id');
+        return $this->belongsTo(TicketCategory::class, 'category_id')->withTrashed();
     }
 
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Customer::class)->withTrashed();
     }
 
     public function subscription(): BelongsTo
     {
-        return $this->belongsTo(ServiceSubscription::class);
+        return $this->belongsTo(ServiceSubscription::class)->withTrashed();
     }
 
     public function networkAsset(): BelongsTo
     {
-        return $this->belongsTo(NetworkAsset::class);
+        return $this->belongsTo(NetworkAsset::class)->withTrashed();
     }
 
     public function location(): BelongsTo
     {
-        return $this->belongsTo(Location::class);
+        return $this->belongsTo(Location::class)->withTrashed();
     }
 
     public function assignee(): BelongsTo
@@ -118,7 +125,7 @@ class Ticket extends Model implements HasMedia
 
     public function spawnedSpk(): BelongsTo
     {
-        return $this->belongsTo(WorkOrder::class, 'spawned_spk_id');
+        return $this->belongsTo(WorkOrder::class, 'spawned_spk_id')->withTrashed();
     }
 
     public function creator(): BelongsTo
@@ -129,6 +136,22 @@ class Ticket extends Model implements HasMedia
     public function comments(): HasMany
     {
         return $this->hasMany(TicketComment::class, 'ticket_id');
+    }
+
+    public static function lifecycleNoun(): string
+    {
+        return 'Tiket';
+    }
+
+    public static function lifecycleFilters(): array
+    {
+        return self::statusFilters('status', self::STATUSES);
+    }
+
+    /** A ticket keeps its own soft-delete rule: only a closed one is deleted, and it can be restored. */
+    public static function lifecycleReferences(): ?array
+    {
+        return null;
     }
 
     public function getIsSlaBreachedAttribute(): bool

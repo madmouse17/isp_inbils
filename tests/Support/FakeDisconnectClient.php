@@ -2,6 +2,7 @@
 
 namespace Tests\Support;
 
+use App\Services\Core\IntegrationConfig;
 use LogicException;
 use Modules\NetworkAsset\Services\Radius\DisconnectResult;
 use Modules\NetworkAsset\Services\Radius\RadiusDisconnectClient;
@@ -32,7 +33,7 @@ class FakeDisconnectClient extends RadiusDisconnectClient
 
     public function disconnect(string $host, int $port, string $secret, array $attributes): DisconnectResult
     {
-        if (! config('services.radius.enabled')) {
+        if (! app(IntegrationConfig::class)->isEnabled('radius')) {
             throw RadiusException::disabled();
         }
 

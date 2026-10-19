@@ -4,6 +4,7 @@ namespace Tests\Feature\Platform;
 
 use App\Jobs\Platform\BuildTenantExportJob;
 use App\Models\Core\Company;
+use App\Models\Core\CompanyIntegration;
 use App\Models\Platform\TenantExport;
 use App\Models\User;
 use App\Services\Platform\PlatformAuditService;
@@ -221,11 +222,11 @@ class TenantExportTest extends PurgeTestCase
         $this->assertSame([$this->operator::class, $this->operator->id], [$platform->causer_type, (int) $platform->causer_id]);
         $this->assertSame([TenantExport::class, $export->id], [$platform->subject_type, (int) $platform->subject_id]);
         $this->assertSame($root->id, (int) $platform->company_id);
-        $this->assertEquals(['export_id' => $export->id, 'tenant_code' => 'ALP', 'company_id' => $root->id], $platform->properties->all());
+        $this->assertEquals(['export_id' => $export->id, 'tenant_code' => 'ALP'], $platform->properties->all());
 
         $support = Activity::query()->where('log_name', 'support')->where('description', 'tenant.export_requested')->sole();
         $this->assertSame($root->id, (int) $support->company_id);
-        $this->assertSame(['export_id' => $export->id, 'company_id' => $root->id], $support->properties->all(), 'ids only: no operator identity');
+        $this->assertSame(['export_id' => $export->id], $support->properties->all(), 'ids only: no operator identity');
     }
 
     public function test_only_a_tenant_can_be_exported_a_subsidiary_id_is_a_404(): void
@@ -585,11 +586,57 @@ class TenantExportTest extends PurgeTestCase
         $this->assertSame(['radius_secret'], $omitted['nas_devices']);
         $this->assertEqualsCanonicalizing(['password', 'provisioned_password_hash'], $omitted['network_accounts']);
         $this->assertEqualsCanonicalizing(['snap_token', 'redirect_url', 'last_notification'], $omitted['payment_attempts']);
+        $this->assertEqualsCanonicalizing(['ip_address', 'user_agent'], $omitted['activity_log'], 'a support row keeps the operator\'s address and agent in the platform database only');
         $this->assertArrayNotHasKey('customers', $omitted, 'a table with nothing to hide is not listed');
 
         foreach ($omitted as $table => $columns) {
             $this->assertSame([], array_intersect($columns, $this->header($entries["data/{$table}.csv"])), "{$table} still has an omitted column");
         }
+    }
+
+    public function test_integration_credentials_are_omitted(): void
+    {
+        $alpha = $this->buildTenant('ALP', 'Alpha Net')['root'];
+        $beta = $this->buildTenant('BET', 'Beta Link')['root'];
+        $row = CompanyIntegration::query()->create([
+            'company_id' => $alpha->id,
+            'provider' => 'whatsapp',
+            'external_id' => '109876543210987',
+            'is_enabled' => true,
+            'credentials' => ['access_token' => 'EAAG-token-sentinel-BBBB2222', 'app_secret' => 'app-secret-sentinel-CCCC3333', 'webhook_verify_token' => 'verify-sentinel-DDDD4444'],
+            'settings' => ['note' => 'plain-setting-sentinel'],
+        ]);
+        $foreign = CompanyIntegration::query()->create([
+            'company_id' => $beta->id,
+            'provider' => 'midtrans',
+            'credentials' => ['server_key' => 'SB-Mid-server-beta-sentinel-0000'],
+            'settings' => ['is_production' => false],
+        ]);
+
+        $entries = $this->entries($this->build($alpha));
+        $everything = implode("\n", $entries);
+
+        foreach (['EAAG-token-sentinel-BBBB2222', 'app-secret-sentinel-CCCC3333', 'verify-sentinel-DDDD4444', 'SB-Mid-server-beta-sentinel-0000'] as $secretValue) {
+            $this->assertStringNotContainsString($secretValue, $everything);
+        }
+        foreach ([$row, $foreign] as $stored) {
+            $ciphertext = (string) DB::table('company_integrations')->where('id', $stored->id)->value('credentials');
+
+            $this->assertNotSame('', $ciphertext);
+            $this->assertStringNotContainsString($ciphertext, $everything, 'not even the ciphertext leaves');
+        }
+
+        $header = $this->header($entries['data/company_integrations.csv']);
+        $this->assertNotContains('credentials', $header);
+        $this->assertSame([], array_diff(['id', 'company_id', 'provider', 'settings', 'external_id', 'is_enabled', 'verified_at', 'last_error', 'last_checked_at'], $header), 'the rest of the row is there');
+
+        $rows = $this->csv($entries['data/company_integrations.csv']);
+        $this->assertSame([$row->id], array_map('intval', array_column($rows, 'id')), 'only the rows of this tenant');
+        $this->assertSame('109876543210987', $rows[0]['external_id']);
+        $this->assertStringContainsString('plain-setting-sentinel', $rows[0]['settings']);
+
+        $manifest = json_decode($entries['manifest.json'], true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame(['credentials'], $manifest['omitted_columns']['company_integrations']);
     }
 
     public function test_a_table_larger_than_one_chunk_is_exported_whole_and_in_id_order(): void
@@ -720,7 +767,7 @@ class TenantExportTest extends PurgeTestCase
         $this->assertSame($export->file_size, $platform->properties['file_size']);
 
         $support = Activity::query()->where('log_name', 'support')->where('description', 'tenant.export_completed')->sole();
-        $this->assertSame(['export_id' => $export->id, 'company_id' => $root->id], $support->properties->all());
+        $this->assertSame(['export_id' => $export->id], $support->properties->all());
         $this->assertStringNotContainsString($this->operator->email, json_encode([$platform->properties, $support->properties]));
     }
 
@@ -819,7 +866,7 @@ class TenantExportTest extends PurgeTestCase
         $this->assertSame($root->id, (int) $platform->company_id);
 
         $support = Activity::query()->where('log_name', 'support')->where('description', 'tenant.export_downloaded')->sole();
-        $this->assertSame(['export_id' => $export->id, 'company_id' => $root->id], $support->properties->all());
+        $this->assertSame(['export_id' => $export->id], $support->properties->all());
         $this->assertStringNotContainsString($this->operator->email, json_encode([$platform->properties, $support->properties]));
     }
 

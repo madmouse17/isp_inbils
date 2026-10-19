@@ -41,4 +41,9 @@ class SLATierPolicy
     {
         return $user->can('service.delete') || $user->can('service.manage');
     }
+
+    public function restore(User $user, SLATier $slaTier): bool
+    {
+        return $this->delete($user, $slaTier);
+    }
 }

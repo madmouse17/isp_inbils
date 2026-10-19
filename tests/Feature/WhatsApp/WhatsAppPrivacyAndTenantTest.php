@@ -395,12 +395,16 @@ class WhatsAppPrivacyAndTenantTest extends TestCase
         $this->assertNothingFoundIn(['log output' => $text], [self::PHONE_E164, '081234567890', self::PHONE, '+'.self::PHONE_E164, self::WA_APP_SECRET]);
     }
 
-    // --- tenants: two companies, one phone number -----------------------------------------------------------------
+    // --- tenants: companies on one WhatsApp number -------------------------------------------------------------------
 
-    public function test_two_companies_sharing_a_phone_number_each_get_only_their_own_messages_and_a_stop_reply_silences_both(): void
+    public function test_companies_on_one_number_get_only_their_own_messages_and_a_stop_to_it_silences_both_and_none_on_another_number(): void
     {
         $a = $this->world('PT Contoh Net', self::PHONE, self::TECHNICIAN_PHONE);
         $b = $this->world('CV Lain Net', self::PHONE, '0813-5555-0002');
+        // enableWhatsApp() put a and b on one fake number. The same person is also the customer of a third company, which
+        // sends from a number of its own: a STOP said to the first number is not said to it.
+        $c = $this->world('PT Nomor Sendiri', self::PHONE, '0813-5555-0003');
+        $this->whatsAppIntegration($c['company'], '200000000000002');
 
         $this->fire($a);
         $this->fire($b);
@@ -439,8 +443,9 @@ class WhatsAppPrivacyAndTenantTest extends TestCase
         $this->stopReply('Stop')->assertOk();
 
         foreach ([$a, $b] as $world) {
-            $this->assertNotNull($world['customer']->fresh()->whatsapp_opt_out_at, 'a STOP from the shared number withdraws every company\'s consent');
+            $this->assertNotNull($world['customer']->fresh()->whatsapp_opt_out_at, 'a STOP to the shared number withdraws the consent in every company on it');
         }
+        $this->assertNull($c['customer']->fresh()->whatsapp_opt_out_at, 'and in no company on another number');
         $audit = Activity::query()->where('log_name', 'whatsapp')->where('description', 'opted_out_by_reply')->orderBy('company_id')->get();
         $this->assertSame([(int) $a['company']->id, (int) $b['company']->id], $audit->pluck('company_id')->map(fn ($id): int => (int) $id)->all(), 'each withdrawal is audited in its own company');
         $this->assertStringNotContainsString(self::PHONE_E164, $audit->toJson());

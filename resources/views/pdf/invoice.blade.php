@@ -47,9 +47,15 @@
             </td>
             <td class="right">
                 <strong>Kepada:</strong><br>
-                {{ $invoice->customer->name }}<br>
+                {{ $party['customer_name'] }}<br>
+                @if ($party['customer_address'])
+                    {{ $party['customer_address'] }}<br>
+                @endif
+                @if ($party['customer_tax_id'])
+                    NPWP: {{ $party['customer_tax_id'] }}<br>
+                @endif
                 @if ($invoice->subscription)
-                    {{ $invoice->subscription->code }} - {{ $invoice->subscription->servicePackage?->name }}
+                    {{ $invoice->subscription->code }} - {{ $party['package_name'] }}
                 @endif
             </td>
         </tr>

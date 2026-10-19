@@ -33,14 +33,15 @@ class CustomerStatusRecalculator
 
     /**
      * Recompute and persist one customer's status, auditing only a real change. The customer row is
-     * locked before the subscriptions are read, so concurrent transitions of one customer serialize.
+     * locked first and the subscriptions are read with a locking read: a plain read would use the snapshot this
+     * transaction took before it held the lock, and miss a transition that committed in between.
      */
     public static function recalculate(int $customerId): string
     {
         return DB::transaction(function () use ($customerId): string {
             $customer = Customer::query()->lockForUpdate()->findOrFail($customerId);
             $from = $customer->customer_status;
-            $to = self::expected($customer);
+            $to = self::derive($customer->subscriptions()->lockForUpdate()->pluck('status')->all());
 
             if ($from !== $to) {
                 $customer->forceFill(['customer_status' => $to])->save();

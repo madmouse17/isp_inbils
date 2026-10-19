@@ -4,6 +4,7 @@ namespace App\Http\Requests\Auth;
 
 use App\Models\User;
 use App\Services\Core\CompanyService;
+use App\Support\SecurityTrail;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Auth\SessionGuard;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -15,6 +16,9 @@ use Illuminate\Validation\ValidationException;
 
 class LoginRequest extends FormRequest
 {
+    /** Failed sign-ins one address may make per minute whatever the typed email: a rotated email starts no fresh budget. */
+    private const FAILURES_PER_ADDRESS = 20;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -52,7 +56,10 @@ class LoginRequest extends FormRequest
         // is_active is part of the lookup: an inactive user fails exactly like a wrong password, with the
         // same message, so the form does not say which accounts exist or which are switched off.
         if (! $guard->validate([...$this->only('email', 'password'), 'is_active' => true])) {
+            // The account the typed address named, when it is active. An inactive one is not looked up, so it counts as unknown.
+            SecurityTrail::failedLogin((string) $this->input('email'), $this->is('api/*') ? 'api' : 'web', $guard->getLastAttempted());
             RateLimiter::hit($this->throttleKey());
+            RateLimiter::hit($this->addressKey());
 
             throw ValidationException::withMessages([
                 'email' => trans('auth.failed'),
@@ -79,13 +86,18 @@ class LoginRequest extends FormRequest
      */
     public function ensureIsNotRateLimited(): void
     {
-        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+        $key = $this->exhaustedKey();
+
+        if ($key === null) {
             return;
         }
 
-        event(new Lockout($this));
+        // Only an account lockout is an event: an address-wide refusal would write one row per rotated email.
+        if ($key === $this->throttleKey()) {
+            event(new Lockout($this));
+        }
 
-        $seconds = RateLimiter::availableIn($this->throttleKey());
+        $seconds = RateLimiter::availableIn($key);
 
         throw ValidationException::withMessages([
             'email' => trans('auth.throttle', [
@@ -93,6 +105,21 @@ class LoginRequest extends FormRequest
                 'minutes' => ceil($seconds / 60),
             ]),
         ]);
+    }
+
+    /** The failure budget this request has used up, if any. Successes never count, so a busy office NAT signs in freely. */
+    protected function exhaustedKey(): ?string
+    {
+        return match (true) {
+            RateLimiter::tooManyAttempts($this->throttleKey(), 5) => $this->throttleKey(),
+            RateLimiter::tooManyAttempts($this->addressKey(), self::FAILURES_PER_ADDRESS) => $this->addressKey(),
+            default => null,
+        };
+    }
+
+    private function addressKey(): string
+    {
+        return 'login-address|'.$this->ip();
     }
 
     /**

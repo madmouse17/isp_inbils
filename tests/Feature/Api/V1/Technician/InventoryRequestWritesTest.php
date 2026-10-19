@@ -7,14 +7,18 @@ use App\Models\User;
 use App\Services\Core\CompanyService;
 use App\Support\PublicId;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
 use Modules\Inventory\Models\Category;
 use Modules\Inventory\Models\InventoryRequest;
 use Modules\Inventory\Models\InventoryRequestItem;
 use Modules\Inventory\Models\Product;
 use Modules\Inventory\Models\Unit;
 use Modules\Inventory\Notifications\InventoryRequestSubmittedNotification;
+use Modules\SPK\Database\Factories\WorkOrderFactory;
+use Modules\SPK\Models\WorkOrder;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -150,6 +154,103 @@ class InventoryRequestWritesTest extends TestCase
         $this->assertSame(0, InventoryRequestItem::withoutCompany()->count());
     }
 
+    public function test_a_request_for_the_technicians_active_spk_is_linked_to_it(): void
+    {
+        $technician = $this->technicianLogin();
+        $warehouse = $this->location($technician);
+        $cable = $this->product($technician, 'Drop Cable', 'mtr');
+        $token = $this->issueToken($technician, 'technician');
+        $body = fn (WorkOrder $workOrder, array $extra = []): array => [
+            'warehouse_location_id' => $warehouse->public_id,
+            'work_order_id' => $workOrder->public_id,
+            'items' => [['product_id' => $cable->public_id, 'quantity_requested' => 5]],
+            ...$extra,
+        ];
+
+        // Assigned or in progress is active; a blank reason names the SPK, a given one is kept.
+        foreach ([['assigned', []], ['in_progress', ['reason' => 'Tambahan kabel']]] as [$status, $extra]) {
+            $workOrder = $this->workOrder($technician, $status);
+
+            $response = $this->api('POST', 'technician/inventory-requests', $body($workOrder, $extra), $token)
+                ->assertCreated()
+                ->assertJsonPath('data.status', 'submitted')
+                ->assertJsonPath('data.work_order.id', $workOrder->public_id)
+                ->assertJsonPath('data.work_order.code', $workOrder->code);
+            $this->assertSame(['id', 'code', 'status', 'items', 'work_order', 'updated_at', 'actions'], array_keys($response->json('data')));
+
+            $request = InventoryRequest::withoutCompany()->where('public_id', $response->json('data.id'))->sole();
+            $this->assertSame('work_order', $request->source_type);
+            $this->assertSame($workOrder->id, $request->source_id);
+            $this->assertSame($extra['reason'] ?? 'Permintaan material untuk SPK '.$workOrder->code, $request->reason);
+
+            $this->api('GET', 'technician/inventory-requests', token: $token)
+                ->assertOk()
+                ->assertJsonPath('data.0.work_order.id', $workOrder->public_id);
+        }
+    }
+
+    public function test_a_request_naming_another_technicians_or_a_closed_spk_is_refused(): void
+    {
+        $technician = $this->technicianLogin();
+        $colleague = User::factory()->create(['company_id' => $technician->company_id]);
+        $foreigner = $this->technicianLogin();
+        $deleted = $this->workOrder($technician, 'assigned');
+        $deleted->delete();
+        $token = $this->issueToken($technician, 'technician');
+        $message = 'SPK harus SPK aktif (ditugaskan atau dikerjakan) milik Anda.';
+
+        $named = [
+            'a colleague\'s active SPK' => $this->workOrder($technician, 'in_progress', $colleague)->public_id,
+            'another company\'s active SPK' => $this->workOrder($foreigner, 'in_progress')->public_id,
+            'an SPK that was deleted' => $deleted->public_id,
+            'an unknown id' => PublicId::new(),
+            'an integer id' => 9999999,
+            'free text' => 'x',
+            'a list' => ['x'],
+        ];
+        foreach (['draft', 'generated', 'waiting_review', 'rejected', 'completed', 'cancelled'] as $status) {
+            $named["an own SPK that is {$status}"] = $this->workOrder($technician, $status)->public_id;
+        }
+
+        foreach ($named as $what => $workOrderId) {
+            $response = $this->api('POST', 'technician/inventory-requests', [
+                'warehouse_location_id' => $this->location($technician)->public_id,
+                'work_order_id' => $workOrderId,
+                'items' => [['product_id' => $this->product($technician, 'Drop Cable '.Str::random(4), 'mtr')->public_id, 'quantity_requested' => 5]],
+            ], $token)
+                ->assertStatus(422)
+                ->assertJsonPath('code', 'validation_failed');
+
+            $this->assertSame($message, $response->json('errors.work_order_id.0'), $what);
+        }
+
+        $this->assertSame(0, InventoryRequest::withoutCompany()->count());
+        $this->assertSame(0, InventoryRequestItem::withoutCompany()->count());
+    }
+
+    public function test_a_request_without_an_spk_still_works(): void
+    {
+        $technician = $this->technicianLogin();
+        $this->workOrder($technician, 'in_progress');
+        $warehouse = $this->location($technician);
+        $cable = $this->product($technician, 'Drop Cable', 'mtr');
+        $token = $this->issueToken($technician, 'technician');
+
+        // An app build from before the field omits it, and a van-stock request sends none.
+        foreach ([[], ['work_order_id' => null]] as $extra) {
+            $this->api('POST', 'technician/inventory-requests', [
+                'warehouse_location_id' => $warehouse->public_id,
+                'items' => [['product_id' => $cable->public_id, 'quantity_requested' => 5]],
+                ...$extra,
+            ], $token)
+                ->assertCreated()
+                ->assertJsonPath('data.work_order', null);
+        }
+
+        $this->assertSame([null, null], InventoryRequest::withoutCompany()->orderBy('id')->pluck('source_type')->all());
+        $this->assertSame([null, null], InventoryRequest::withoutCompany()->orderBy('id')->pluck('source_id')->all());
+    }
+
     public function test_a_login_without_the_permission_to_ask_is_refused(): void
     {
         $technician = $this->technicianLogin();
@@ -241,10 +342,11 @@ class InventoryRequestWritesTest extends TestCase
         $uri = "technician/inventory-requests/{$request->public_id}/cancel";
         $unknown = $this->api('POST', 'technician/inventory-requests/'.PublicId::new().'/cancel', token: $this->issueToken($technician, 'technician'))->assertNotFound()->assertJsonPath('code', 'not_found');
 
-        // The answer is the unknown id's, byte for byte, and it comes before the body is read (a 1001-character reason would be a 422).
+        // The answer is the unknown id's, byte for byte but for the id of its own request, and it comes before the body is read (a 1001-character reason would be a 422).
+        $answer = fn (TestResponse $response): array => Arr::except($response->json(), ['request_id']);
         foreach ([[], ['cancellation_reason' => str_repeat('a', 1001)]] as $body) {
-            $this->assertSame($unknown->getContent(), $this->api('POST', $uri, $body, $this->issueToken($colleague, 'technician'))->assertNotFound()->getContent());
-            $this->assertSame($unknown->getContent(), $this->api('POST', $uri, $body, $this->issueToken($stranger, 'technician'))->assertNotFound()->getContent());
+            $this->assertSame($answer($unknown), $answer($this->api('POST', $uri, $body, $this->issueToken($colleague, 'technician'))->assertNotFound()));
+            $this->assertSame($answer($unknown), $answer($this->api('POST', $uri, $body, $this->issueToken($stranger, 'technician'))->assertNotFound()));
         }
 
         // Whatever the status says: a request the warehouse has taken up must not show a colleague that it exists either.
@@ -334,5 +436,18 @@ class InventoryRequestWritesTest extends TestCase
         ]);
 
         return $request;
+    }
+
+    /** An SPK of $technician's company, assigned to $assignee (default: $technician). */
+    private function workOrder(User $technician, string $status, ?User $assignee = null): WorkOrder
+    {
+        CompanyService::useCompanyForTests((int) $technician->company_id);
+
+        return WorkOrderFactory::new()->create([
+            'company_id' => $technician->company_id,
+            'status' => $status,
+            'assigned_to' => ($assignee ?? $technician)->id,
+            'created_by' => $technician->id,
+        ]);
     }
 }

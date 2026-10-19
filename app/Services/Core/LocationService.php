@@ -7,7 +7,6 @@ use App\Support\RecordNotFound;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class LocationService
@@ -160,31 +159,6 @@ class LocationService
         });
     }
 
-    public static function delete(Location $location): bool
-    {
-        $companyId = CompanyService::currentId();
-        abort_if($companyId === null, 403, 'Company context is required.');
-
-        return DB::transaction(function () use ($location, $companyId) {
-            $location = Location::withoutCompany()
-                ->whereKey($location->id)
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            self::assertCompany($location, $companyId);
-
-            if ($location->children()->exists()) {
-                throw ValidationException::withMessages(['location' => 'Lokasi masih punya lokasi turunan.']);
-            }
-
-            if (self::hasActiveReference('network_assets', $location->id) || self::hasActiveReference('stocks', $location->id)) {
-                throw ValidationException::withMessages(['location' => 'Lokasi masih dipakai oleh aset atau stok yang aktif.']);
-            }
-
-            return (bool) $location->delete();
-        });
-    }
-
     public static function tree(): Collection
     {
         $companyId = CompanyService::currentId();
@@ -311,29 +285,6 @@ class LocationService
                 ]);
             }
         }
-    }
-
-    private static function hasActiveReference(string $table, int $locationId): bool
-    {
-        if (! Schema::hasTable($table) || ! Schema::hasColumn($table, 'location_id')) {
-            return false;
-        }
-
-        $query = DB::table($table)->where('location_id', $locationId);
-
-        if (Schema::hasColumn($table, 'company_id') && CompanyService::currentId() !== null) {
-            $query->where('company_id', CompanyService::currentId());
-        }
-
-        if (Schema::hasColumn($table, 'is_active')) {
-            $query->where('is_active', true);
-        }
-
-        if (Schema::hasColumn($table, 'deleted_at')) {
-            $query->whereNull('deleted_at');
-        }
-
-        return $query->exists();
     }
 
     private static function nest(EloquentCollection $locations, ?int $parentId = null): Collection

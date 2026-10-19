@@ -148,7 +148,7 @@ class InvoicesTest extends TestCase
         $item = $this->list()->assertOk()->json('data.0');
 
         $this->assertEqualsCanonicalizing(
-            ['id', 'number', 'subscription_id', 'issue_date', 'due_date', 'billing_period', 'status', 'subtotal', 'tax_amount', 'discount_amount', 'total', 'paid_amount', 'sisa'],
+            ['id', 'number', 'subscription_id', 'customer_name', 'customer_address', 'package_name', 'issue_date', 'due_date', 'billing_period', 'status', 'subtotal', 'tax_amount', 'discount_amount', 'total', 'paid_amount', 'sisa'],
             array_keys($item),
         );
         $this->assertNull($item['subscription_id']);

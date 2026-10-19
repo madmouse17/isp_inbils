@@ -5,6 +5,7 @@ namespace App\Models\Core;
 use App\Models\User;
 use App\Services\Core\ApiTokenService;
 use App\Services\Core\CompanyService;
+use App\Support\AuditProperties;
 use App\Traits\HasPublicId;
 use Database\Factories\CompanyFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Spatie\Activitylog\Contracts\Activity as ActivityContract;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\MediaLibrary\HasMedia;
@@ -93,7 +95,6 @@ class Company extends Model implements HasMedia
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('logo')
-            ->singleFile()
             ->useDisk('public');
     }
 
@@ -142,5 +143,11 @@ class Company extends Model implements HasMedia
             ->logFillable()
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
+    }
+
+    /** The diff of the company settings says that the bank account changed, never to what. */
+    public function tapActivity(ActivityContract $activity, string $eventName): void
+    {
+        AuditProperties::maskValues($activity, ['settings.bank_account_info']);
     }
 }

@@ -8,6 +8,7 @@ use App\Rules\PublicIdExists;
 use App\Services\Core\CompanyService;
 use App\Support\PublicId;
 use Closure;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
@@ -23,6 +24,10 @@ use Modules\Ticketing\Models\TicketCategory;
 
 class ReportFilterRequest extends FormRequest
 {
+    private const AUDIT_DEFAULT_DAYS = 7;
+
+    private const AUDIT_MAX_DAYS = 92;
+
     /** @var array<string, array{id: int, public_id: string}|null> */
     private array $records = [];
 
@@ -35,6 +40,47 @@ class ReportFilterRequest extends FormRequest
         $report = ReportType::fromRouteName($this->route()?->getName());
 
         return $report !== null && ($this->user()?->can($report->permission()) ?? false);
+    }
+
+    /** Without a start, the audit log covers the 7 days up to its end: the table is too big to be open-ended. */
+    protected function prepareForValidation(): void
+    {
+        if (! $this->isAuditRange() || filled($this->input('date_from'))) {
+            return;
+        }
+
+        $to = $this->input('date_to');
+        $anchor = is_string($to) && Carbon::canBeCreatedFromFormat($to, 'Y-m-d') ? Carbon::parse($to) : $this->companyToday();
+
+        $this->merge(['date_from' => $anchor->subDays(self::AUDIT_DEFAULT_DAYS - 1)->toDateString()]);
+    }
+
+    /** @return list<Closure(Validator): void> */
+    public function after(): array
+    {
+        return [function (Validator $validator): void {
+            if (! $this->isAuditRange() || $validator->errors()->hasAny(['date_from', 'date_to'])) {
+                return;
+            }
+
+            $from = Carbon::parse($this->input('date_from'))->startOfDay();
+            $to = filled($this->input('date_to')) ? Carbon::parse($this->input('date_to'))->startOfDay() : $this->companyToday();
+
+            if ((int) $from->diffInDays($to, true) + 1 > self::AUDIT_MAX_DAYS) {
+                $validator->errors()->add('date_from', 'Periode log audit paling lama 92 hari. Persempit periode.');
+            }
+        }];
+    }
+
+    private function isAuditRange(): bool
+    {
+        return $this->routeIs('admin.reports.audit-log', 'admin.reports.audit-log.export');
+    }
+
+    /** Midnight of the company's calendar day, as a naive date so it compares with the parsed inputs. */
+    private function companyToday(): Carbon
+    {
+        return Carbon::parse(now(CompanyService::current()?->timezone ?: config('app.timezone'))->toDateString());
     }
 
     /** @return array<string, mixed> */

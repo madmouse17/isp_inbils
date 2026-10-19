@@ -225,7 +225,8 @@ class TwoFactorEnrollmentTest extends TestCase
         $codes = $this->get(route('profile.edit'))->inertiaPage()['flash']['two_factor']['recovery_codes'];
         $this->delete(route('two-factor.disable'));
 
-        $rows = Activity::query()->where('log_name', 'security')->orderBy('id')->get();
+        // The fixture's role grant is a security row too (role.attached); this test is about the second factor's own events.
+        $rows = Activity::query()->where('log_name', 'security')->where('description', 'like', 'two_factor.%')->orderBy('id')->get();
 
         $this->assertSame(['two_factor.enrollment_started', 'two_factor.enabled', 'two_factor.disabled'], $rows->pluck('description')->all());
         $this->assertSame([$this->user->id], $rows->pluck('causer_id')->unique()->all());

@@ -41,4 +41,9 @@ class ProductPolicy
     {
         return $user->can('inventory.delete');
     }
+
+    public function restore(User $user, Product $product): bool
+    {
+        return $this->delete($user, $product);
+    }
 }

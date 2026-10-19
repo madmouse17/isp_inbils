@@ -13,19 +13,7 @@ import {
     Textarea,
     type GeocodeResult,
 } from '@/Components/ui';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@/Components/ui/alert-dialog';
-import { buttonVariants } from '@/Components/ui/Button';
-import { Spinner } from '@/Components/ui/Spinner';
-import { cn } from '@/lib/utils';
+import { ConfirmDialog } from '@/Components/composite/ConfirmDialog';
 import { useMapDefault } from '@/hooks/useMapDefault';
 import {
     IndonesiaRegionFields,
@@ -107,6 +95,7 @@ export function CustomerAddressEditor({
     const [editingId, setEditingId] = useState<string | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<CustomerAddress | null>(null);
     const [deleteProcessing, setDeleteProcessing] = useState(false);
+    const [deleteError, setDeleteError] = useState<string>();
     const [regionLoading, setRegionLoading] = useState(false);
     const [geocodeSearching, setGeocodeSearching] = useState(false);
     // Stale guards: ignore finishing events from superseded requests.
@@ -236,17 +225,21 @@ export function CustomerAddressEditor({
         }
     };
 
+    const closeDelete = () => {
+        setDeleteTarget(null);
+        setDeleteError(undefined);
+    };
+
     const confirmDelete = () => {
         if (!deleteTarget) return;
         if (processing || deleteProcessing) return;
         setDeleteProcessing(true);
+        setDeleteError(undefined);
         destroy(route('admin.customers.addresses.destroy', [customerId, deleteTarget.id]), {
             preserveScroll: true,
             onFinish: () => setDeleteProcessing(false),
-            onSuccess: () => {
-                setDeleteTarget(null);
-                setDeleteProcessing(false);
-            },
+            onSuccess: closeDelete,
+            onError: (refusal) => setDeleteError(refusal.lifecycle ?? Object.values(refusal)[0]),
         });
     };
 
@@ -444,37 +437,17 @@ export function CustomerAddressEditor({
                 </Card>
             ) : null}
 
-            <AlertDialog
+            <ConfirmDialog
                 open={deleteTarget !== null}
-                onOpenChange={(open) => {
-                    if (!open && !deleteProcessing) setDeleteTarget(null);
-                }}
-            >
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>
-                            Hapus alamat {deleteTarget?.label ? `"${deleteTarget.label}"` : ''}?
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Alamat ini akan dihapus permanen dari pelanggan.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel disabled={deleteProcessing}>Batal</AlertDialogCancel>
-                        <AlertDialogAction
-                            className={cn(buttonVariants({ variant: 'destructive' }), 'gap-2')}
-                            onClick={(event) => {
-                                event.preventDefault();
-                                confirmDelete();
-                            }}
-                            disabled={deleteProcessing}
-                        >
-                            {deleteProcessing ? <Spinner size="sm" /> : null}
-                            Hapus
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+                title={`Hapus alamat${deleteTarget?.label ? ` "${deleteTarget.label}"` : ''}?`}
+                description="Alamat yang belum pernah dipakai langganan dihapus permanen."
+                confirmLabel="Hapus"
+                tone="danger"
+                processing={deleteProcessing}
+                error={deleteError}
+                onConfirm={confirmDelete}
+                onClose={closeDelete}
+            />
         </div>
     );
 }

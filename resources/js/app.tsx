@@ -1,7 +1,7 @@
 import '../css/app.css';
 import './bootstrap';
 
-import { createInertiaApp } from '@inertiajs/react';
+import { createInertiaApp, router } from '@inertiajs/react';
 import FilePondPluginFileValidateSize from 'filepond-plugin-file-validate-size';
 import FilePondPluginFileValidateType from 'filepond-plugin-file-validate-type';
 import FilePondPluginImagePreview from 'filepond-plugin-image-preview';
@@ -20,11 +20,27 @@ registerPlugin(
     FilePondPluginImagePreview,
 );
 
+// A write names the company its page was rendered in; the server refuses it when another tab switched company since.
+let renderedCompanyId: string | null = null;
+const rememberCompany = (props: { company?: { id?: string } | null }) => {
+    renderedCompanyId = props.company?.id ?? null;
+};
+router.on('navigate', (event) => rememberCompany(event.detail.page.props));
+router.on('success', (event) => rememberCompany(event.detail.page.props));
+
 void createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
+    defaults: {
+        visitOptions: (_href, options) =>
+            renderedCompanyId && options.method && options.method !== 'get'
+                ? { headers: { ...options.headers, 'X-Inbils-Company': renderedCompanyId } }
+                : {},
+    },
     resolve: (name) =>
         resolvePageComponent(`./Pages/${name}.tsx`, import.meta.glob('./Pages/**/*.tsx')),
     setup({ el, App, props }) {
+        rememberCompany(props.initialPage.props);
+
         const root = createRoot(el);
 
         root.render(

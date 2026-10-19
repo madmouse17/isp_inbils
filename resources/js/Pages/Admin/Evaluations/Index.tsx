@@ -5,6 +5,7 @@ import {
     DataTableActions,
     PageHeader,
     RemoteSearchSelect,
+    StatusFilter,
 } from '@/Components/composite';
 import type { DataTableColumn, RemoteOption } from '@/Components/composite';
 import { Button, EnumBadge, Input, NativeSelect } from '@/Components/ui';
@@ -12,10 +13,16 @@ import { useCompany } from '@/hooks/useCompany';
 import { useServerTable, type ServerTableFilters } from '@/hooks/useServerTable';
 import { formatDateTime } from '@/lib/format';
 import { toPagination } from '@/lib/pagination';
-import { EVALUATION_REFERENCE_TYPE, optionsOf } from '@/lib/statuses';
+import {
+    EVALUATION_REFERENCE_TYPE,
+    LIFECYCLE_STATE,
+    lifecycleStateOf,
+    optionsOf,
+} from '@/lib/statuses';
 import type { PaginationMeta } from '@/types';
+import type { LifecycleFields } from '@/types/models';
 
-interface EvalRow {
+interface EvalRow extends LifecycleFields {
     id: string;
     reference_type: string;
     reference_id: string;
@@ -35,7 +42,7 @@ interface IndexProps extends Record<string, unknown> {
     employeeOptions?: RemoteOption[];
     selectedEmployee?: RemoteOption | null;
     filters: ServerTableFilters;
-    can: { create: boolean };
+    can: { create: boolean; delete: boolean };
 }
 
 export default function Index({
@@ -103,13 +110,31 @@ export default function Index({
             cell: (row) => formatDateTime(row.evaluated_at, company),
         },
         {
+            key: 'status',
+            header: 'Status',
+            cell: (row) => <EnumBadge map={LIFECYCLE_STATE} value={lifecycleStateOf(row)} />,
+        },
+        {
             key: 'actions',
             header: 'Aksi',
-            cell: (row) => <DataTableActions showHref={route('admin.evaluations.show', row.id)} />,
+            cell: (row) => (
+                <DataTableActions
+                    showHref={route('admin.evaluations.show', row.id)}
+                    lifecycle={{
+                        row,
+                        name: row.employee?.name ?? 'evaluasi',
+                        noun: 'Evaluasi',
+                        routeBase: 'admin.evaluations',
+                        can: { delete: can.delete },
+                    }}
+                />
+            ),
         },
     ];
 
-    const hasFilters = Boolean(params.search || params.employee_id || params.reference_type);
+    const hasFilters = Boolean(
+        params.search || params.employee_id || params.reference_type || params.status,
+    );
     const create = can.create ? (
         <Button asChild variant="primary" size="sm">
             <Link href={route('admin.evaluations.create')}>Buat evaluasi</Link>
@@ -158,6 +183,14 @@ export default function Index({
                             ...optionsOf(EVALUATION_REFERENCE_TYPE),
                         ]}
                     />
+                    {can.delete ? (
+                        <StatusFilter
+                            id="evaluation-status"
+                            value={params.status ?? ''}
+                            onChange={(value) => set('status', value)}
+                            wrapperClassName="w-full sm:w-52"
+                        />
+                    ) : null}
                 </div>
 
                 <DataTable
@@ -171,7 +204,13 @@ export default function Index({
                     loading={processing}
                     hasFilters={hasFilters}
                     onResetFilters={() =>
-                        setMany({ search: '', employee_id: '', reference_type: '', page: 1 })
+                        setMany({
+                            search: '',
+                            employee_id: '',
+                            reference_type: '',
+                            status: '',
+                            page: 1,
+                        })
                     }
                     itemLabel="evaluasi"
                     emptyTitle="Belum ada evaluasi"

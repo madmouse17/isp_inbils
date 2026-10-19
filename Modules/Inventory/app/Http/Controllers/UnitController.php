@@ -4,6 +4,7 @@ namespace Modules\Inventory\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
+use App\Services\Core\LifecycleService;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -29,15 +30,18 @@ class UnitController extends Controller
         Gate::authorize('viewAny', Unit::class);
 
         $units = $this->filteredQuery($request)
+            ->withReferenceCounts()
             ->paginate($this->perPage($request))
             ->withQueryString();
 
         return Inertia::render('Admin/Inventory/Units/Index', [
             'units' => UnitResource::collection($units),
-            'filters' => $request->only(['search', 'sort', 'direction', 'per_page']),
+            'filters' => $request->only(['status', 'search', 'sort', 'direction', 'per_page']),
             'can' => [
                 'create' => $request->user()?->can('inventory.create') ?? false,
                 'export' => $request->user()?->can('inventory.export') ?? false,
+                'update' => $request->user()?->can('inventory.update') ?? false,
+                'delete' => $request->user()?->can('inventory.delete') ?? false,
             ],
         ]);
     }
@@ -61,14 +65,9 @@ class UnitController extends Controller
     public function destroy(Unit $unit): RedirectResponse
     {
         Gate::authorize('delete', $unit);
+        LifecycleService::destroyIfUnreferenced($unit);
 
-        if ($unit->products()->exists() || $unit->categories()->exists()) {
-            return back()->withErrors(['unit' => 'Satuan tidak dapat dihapus karena masih dipakai barang atau kategori.']);
-        }
-
-        $unit->delete();
-
-        return back()->with('success', 'Satuan berhasil dihapus.');
+        return back()->with('success', 'Satuan dihapus permanen.');
     }
 
     public function export(Request $request): Response|StreamedResponse
@@ -104,6 +103,7 @@ class UnitController extends Controller
     private function filteredQuery(Request $request): Builder
     {
         $query = Unit::query()
+            ->lifecycleStatus($request->input('status'))
             ->when($request->input('search'), function (Builder $q, string $v): void {
                 $term = trim($v);
                 if ($term === '') {

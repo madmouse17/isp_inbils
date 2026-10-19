@@ -112,7 +112,7 @@ class PlatformAdminTest extends TestCase
             $row = Activity::query()->findOrFail($activity->getKey());
             $this->assertSame($log, $row->log_name);
             $this->assertSame($company->id, (int) $row->company_id);
-            $this->assertSame($company->id, $row->properties['company_id']);
+            $this->assertArrayNotHasKey('company_id', $row->properties->all(), 'the company lives in its column');
             $this->assertSame(PlatformAdmin::class, $row->causer_type);
         }
     }

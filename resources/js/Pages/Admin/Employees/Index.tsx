@@ -3,11 +3,13 @@ import { useCallback, useMemo, useState } from 'react';
 import { useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
+    ConflictBanner,
     DataTable,
     DataTableActions,
     PageHeader,
     RemoteSearchSelect,
     SequenceCodeField,
+    StatusFilter,
     type CodeSequence,
     type DataTableColumn,
     type RemoteOption,
@@ -15,8 +17,9 @@ import {
 import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
-import { EMPLOYEE_STATUS, optionsOf } from '@/lib/statuses';
+import { EMPLOYEE_STATUS, LIFECYCLE_STATE, optionsOf } from '@/lib/statuses';
 import type { Paginated } from '@/types';
+import type { LifecycleFields } from '@/types/models';
 import {
     Button,
     Card,
@@ -30,7 +33,8 @@ import {
     Textarea,
 } from '@/Components/ui';
 
-interface EmpRow {
+interface EmpRow extends LifecycleFields {
+    updated_at: string;
     id: string;
     user_id: string;
     organization_id: string | null;
@@ -73,7 +77,7 @@ interface IndexProps extends Record<string, unknown> {
         direction?: string;
         per_page?: string | number;
     };
-    can: { create: boolean; export: boolean };
+    can: { create: boolean; export: boolean; update: boolean; delete: boolean };
     codeSequence: CodeSequence;
 }
 
@@ -86,6 +90,8 @@ interface EmployeeForm {
     hire_date: string;
     status: string;
     notes: string;
+    /** Row version the edit started from; blank on create, where the server ignores it. */
+    expected_updated_at: string;
 }
 
 const emptyForm: EmployeeForm = {
@@ -97,6 +103,7 @@ const emptyForm: EmployeeForm = {
     hire_date: '',
     status: 'active',
     notes: '',
+    expected_updated_at: '',
 };
 
 export default function Index({
@@ -165,6 +172,7 @@ export default function Index({
                 hire_date: employee.hire_date ?? '',
                 status: employee.status,
                 notes: employee.notes ?? '',
+                expected_updated_at: employee.updated_at,
             });
             setEditing(employee);
             setModalOpen(true);
@@ -173,11 +181,11 @@ export default function Index({
     );
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        transform(({ user_id, employee_number, ...values }) => ({
+        transform(({ user_id, employee_number, expected_updated_at, ...values }) => ({
             ...values,
             // The user is picked once, on create. A locked number is generated on create and never
             // changes on update, so it is not sent either.
-            ...(editing ? {} : { user_id }),
+            ...(editing ? { expected_updated_at } : { user_id }),
             ...(codeSequence.manual ? { employee_number } : {}),
         }));
         const onSuccess = () => setModalOpen(false);
@@ -199,7 +207,15 @@ export default function Index({
                 sortable: true,
                 sortKey: 'employee_number',
                 cell: (employee) => (
-                    <span className="font-mono text-sm">{employee.employee_number}</span>
+                    <span
+                        className={
+                            employee.deleted_at
+                                ? 'font-mono text-sm text-muted-foreground'
+                                : 'font-mono text-sm'
+                        }
+                    >
+                        {employee.employee_number}
+                    </span>
                 ),
             },
             {
@@ -207,7 +223,15 @@ export default function Index({
                 header: 'Nama',
                 cell: (employee) => (
                     <div>
-                        <p className="font-medium text-foreground">{employee.user?.name ?? '-'}</p>
+                        <p
+                            className={
+                                employee.deleted_at
+                                    ? 'font-medium text-muted-foreground'
+                                    : 'font-medium text-foreground'
+                            }
+                        >
+                            {employee.user?.name ?? '-'}
+                        </p>
                         <p className="mt-1 text-xs text-muted-foreground">
                             {employee.user?.email ?? '-'}
                         </p>
@@ -229,16 +253,31 @@ export default function Index({
                 header: 'Status',
                 sortable: true,
                 sortKey: 'status',
-                cell: (employee) => <EnumBadge map={EMPLOYEE_STATUS} value={employee.status} />,
+                cell: (employee) =>
+                    employee.deleted_at ? (
+                        <EnumBadge map={LIFECYCLE_STATE} value="dihapus" />
+                    ) : (
+                        <EnumBadge map={EMPLOYEE_STATUS} value={employee.status} />
+                    ),
             },
             {
                 key: 'actions',
                 header: 'Aksi',
-                cell: (employee) =>
-                    can.create ? <DataTableActions onEdit={() => openEdit(employee)} /> : null,
+                cell: (employee) => (
+                    <DataTableActions
+                        onEdit={can.update ? () => openEdit(employee) : undefined}
+                        lifecycle={{
+                            row: employee,
+                            name: employee.employee_number,
+                            noun: 'Karyawan',
+                            routeBase: 'admin.employees',
+                            can: { update: can.update, delete: can.delete },
+                        }}
+                    />
+                ),
             },
         ],
-        [can.create, openEdit],
+        [can.update, can.delete, openEdit],
     );
 
     return (
@@ -282,14 +321,12 @@ export default function Index({
                                 placeholder="Semua organisasi"
                                 emptyText="Organisasi tidak ditemukan."
                             />
-                            <NativeSelect
-                                label="Status"
+                            <StatusFilter
+                                id="employee-status"
                                 value={params.status ?? ''}
-                                onChange={(event) => set('status', event.target.value)}
-                                options={[
-                                    { value: '', label: 'Semua status' },
-                                    ...optionsOf(EMPLOYEE_STATUS),
-                                ]}
+                                onChange={(value) => set('status', value)}
+                                statuses={EMPLOYEE_STATUS}
+                                wrapperClassName="w-full"
                             />
                         </div>
                         <DataTable
@@ -324,6 +361,7 @@ export default function Index({
                     title={editing ? 'Ubah Karyawan' : 'Buat Karyawan'}
                 >
                     <form onSubmit={submit} className="space-y-4">
+                        {editing ? <ConflictBanner /> : null}
                         <div className="grid gap-4 md:grid-cols-2">
                             {editing ? (
                                 <Input

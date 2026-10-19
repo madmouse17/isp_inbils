@@ -25,6 +25,7 @@ class CustomerService
                 'password' => Str::password(32),
                 'is_active' => $customer->is_active,
             ]);
+            $user->isCustomerAccount = true;
             $user->forceFill([
                 'company_id' => CompanyService::currentId(),
                 'email_verified_at' => now(),

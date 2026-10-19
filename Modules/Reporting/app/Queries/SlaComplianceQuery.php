@@ -32,10 +32,10 @@ class SlaComplianceQuery
         $judged = $responseOnTime + $responseBreached;
 
         $byCategory = SlaSources::resolvedByCategory($companyId)
-            ->select('ticket_categories.name',
+            ->select(DB::raw(SlaSources::CATEGORY_LABEL.' as name'),
                 DB::raw('count(*) as total'),
                 DB::raw('SUM(CASE WHEN tickets.resolved_at <= tickets.sla_deadline THEN 1 ELSE 0 END) as compliant'))
-            ->groupBy('ticket_categories.name')->get()
+            ->groupByRaw(SlaSources::CATEGORY_LABEL)->get()
             ->map(fn ($r) => ['name' => $r->name, 'total' => $r->total, 'compliant' => $r->compliant,
                 'rate' => $r->total > 0 ? round(($r->compliant / $r->total) * 100, 1) : 0])->toArray();
 

@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Operations;
 
+use Dotenv\Dotenv;
+use Symfony\Component\Yaml\Yaml;
 use Tests\TestCase;
 
 class OperationsArtifactsTest extends TestCase
@@ -101,5 +103,37 @@ class OperationsArtifactsTest extends TestCase
         $this->assertStringContainsString('/up', $body);
         $this->assertStringContainsString('/ready', $body);
         $this->assertStringContainsString('migrate:fresh', $body);
+    }
+
+    public function test_every_compose_service_caps_its_json_logs(): void
+    {
+        $services = Yaml::parseFile(base_path('compose.yaml'))['services'];
+
+        $this->assertNotEmpty($services);
+
+        foreach ($services as $name => $service) {
+            $this->assertSame(
+                ['driver' => 'json-file', 'options' => ['max-size' => '10m', 'max-file' => '5']],
+                $service['logging'] ?? null,
+                "service [{$name}] must cap its Docker logs: json-file keeps every line until the disk is full",
+            );
+        }
+    }
+
+    public function test_the_deploy_env_logs_json_to_stderr_and_daily_files(): void
+    {
+        $env = Dotenv::parse((string) file_get_contents(base_path('.env.docker.example')));
+
+        $this->assertSame('stack', $env['LOG_CHANNEL']);
+        $this->assertSame('stderr,daily', $env['LOG_STACK']);
+        $this->assertSame('14', $env['LOG_DAILY_DAYS']);
+        $this->assertSame('info', $env['LOG_LEVEL']);
+        $this->assertSame('Monolog\Formatter\JsonFormatter', $env['LOG_STDERR_FORMATTER']);
+
+        $this->assertTrue(class_exists($env['LOG_STDERR_FORMATTER']), 'the formatter class must exist');
+
+        foreach (explode(',', $env['LOG_STACK']) as $channel) {
+            $this->assertArrayHasKey($channel, config('logging.channels'), "LOG_STACK names an unknown channel [{$channel}]");
+        }
     }
 }

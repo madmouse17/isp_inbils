@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
+use App\Support\Money;
 use App\Support\PublicId;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -21,6 +22,8 @@ use Modules\Inventory\Notifications\InventoryRequestApprovedNotification;
 use Modules\Inventory\Notifications\InventoryRequestReadyNotification;
 use Modules\Inventory\Notifications\InventoryRequestRejectedNotification;
 use Modules\Inventory\Notifications\InventoryRequestSubmittedNotification;
+use Modules\Inventory\Support\InventoryRequestSources;
+use Modules\SPK\Models\WorkOrder;
 
 class InventoryRequestService
 {
@@ -197,7 +200,7 @@ class InventoryRequestService
             }
 
             return $request->fresh(['items.product', 'items.sourceLocation', 'requester', 'warehouseLocation']);
-        });
+        }, 3);
     }
 
     /**
@@ -234,7 +237,7 @@ class InventoryRequestService
             });
 
             return $req->fresh(['items.product', 'items.sourceLocation', 'requester', 'warehouseLocation']);
-        });
+        }, 3);
     }
 
     /**
@@ -288,19 +291,20 @@ class InventoryRequestService
                 );
                 abort_unless(! empty($sourceLocationId), 422, 'Lokasi gudang sumber wajib ditentukan untuk reservasi.');
 
-                // Check available stock with lock
+                // A plain read keeps the friendly message (SKU, location, available, requested). It takes no lock: reserve()
+                // below locks Product, Location, then the stock row and checks again, and a stock lock taken first inverts that order.
                 $stock = Stock::withoutCompany()
                     ->where('company_id', $companyId)
                     ->where('product_id', $item->product_id)
                     ->where('location_id', $sourceLocationId)
-                    ->lockForUpdate()
                     ->first();
 
-                $available = $stock ? ((float) $stock->quantity - (float) $stock->reserved_quantity) : 0;
-                if ($available < $approvedQty) {
+                $available = $stock ? Money::sub($stock->quantity, $stock->reserved_quantity) : '0';
+                if (Money::compare($available, $approvedQty) < 0) {
                     $product = Product::withoutCompany()->find($item->product_id);
                     $location = Location::withoutCompany()->find($sourceLocationId);
-                    abort(422, "Stok tidak mencukupi untuk {$product?->sku} di {$location?->code}. Tersedia: {$available}, Diminta: {$approvedQty}.");
+                    $availableQuantity = (float) $available;
+                    abort(422, "Stok tidak mencukupi untuk {$product?->sku} di {$location?->code}. Tersedia: {$availableQuantity}, Diminta: {$approvedQty}.");
                 }
 
                 // Reserve using StockService
@@ -339,7 +343,7 @@ class InventoryRequestService
             });
 
             return $req->fresh(['items.product', 'items.sourceLocation', 'requester', 'warehouseLocation', 'approver']);
-        });
+        }, 3);
     }
 
     /**
@@ -370,7 +374,7 @@ class InventoryRequestService
             ], $req);
 
             return $req->fresh(['items.product', 'items.sourceLocation', 'requester', 'warehouseLocation', 'preparer']);
-        });
+        }, 3);
     }
 
     /**
@@ -407,18 +411,23 @@ class InventoryRequestService
             });
 
             return $req->fresh(['items.product', 'items.sourceLocation', 'requester', 'warehouseLocation', 'readyUser']);
-        });
+        }, 3);
     }
 
     /**
      * Issue/Handover items to technician atomically:
      * Releases reservation and issues stock via StockService.
+     * A request made for an SPK is handed over only while that SPK is open.
      */
     public static function issue(InventoryRequest $request, User $issuer): InventoryRequest
     {
         $companyId = CompanyService::currentId() ?? CompanyService::idFor($issuer);
 
         return DB::transaction(function () use ($request, $issuer, $companyId) {
+            // Lock order: SPK, request, its items, then stock. SPK approval holds the SPK row while it reads which requests
+            // were issued, so a handover takes that row first too and waits for the approval.
+            $workOrder = self::lockedSourceWorkOrder($request, $companyId);
+
             $req = InventoryRequest::withoutCompany()
                 ->where('company_id', $companyId)
                 ->lockForUpdate()
@@ -427,6 +436,11 @@ class InventoryRequestService
             abort_unless($req->status === 'ready_for_pickup', 422, 'Hanya permintaan berstatus siap diambil yang dapat diserahterimakan.');
             abort_if((int) $req->requested_by === (int) $issuer->id, 403, 'Maker-checker: pemohon tidak boleh melakukan serah terima barang kepada dirinya sendiri.');
             abort_if((int) $req->approved_by === (int) $issuer->id, 403, 'Maker-checker: penyetujui tidak boleh melakukan serah terima barang.');
+            abort_if(
+                $req->source_type === 'work_order' && ($workOrder === null || in_array($workOrder->status, InventoryRequestSources::CLOSED_WORK_ORDER_STATUSES, true)),
+                422,
+                'SPK sumber sudah selesai atau dibatalkan; barang tidak bisa diserahterimakan.'
+            );
 
             /** @var Collection<int, InventoryRequestItem> $items */
             $items = $req->items()->lockForUpdate()->get();
@@ -478,7 +492,7 @@ class InventoryRequestService
             ], $req);
 
             return $req->fresh(['items.product', 'items.sourceLocation', 'requester', 'warehouseLocation', 'issuer']);
-        });
+        }, 3);
     }
 
     /**
@@ -517,7 +531,7 @@ class InventoryRequestService
             });
 
             return $req->fresh(['items.product', 'items.sourceLocation', 'requester', 'warehouseLocation', 'rejecter']);
-        });
+        }, 3);
     }
 
     /**
@@ -549,7 +563,25 @@ class InventoryRequestService
             ], $req);
 
             return $req->fresh(['items.product', 'items.sourceLocation', 'requester', 'warehouseLocation', 'canceller']);
-        });
+        }, 3);
+    }
+
+    /**
+     * The SPK a request was made for, locked. The source of a request never changes, so a plain read says which row to lock
+     * before the request row itself. Null when the request has no SPK, or when it is gone.
+     */
+    private static function lockedSourceWorkOrder(InventoryRequest $request, int $companyId): ?WorkOrder
+    {
+        $source = InventoryRequest::withoutCompany()
+            ->where('company_id', $companyId)
+            ->whereKey($request->id)
+            ->first(['source_type', 'source_id']);
+
+        if ($source?->source_type !== 'work_order' || $source->source_id === null) {
+            return null;
+        }
+
+        return WorkOrder::withoutCompany()->where('company_id', $companyId)->lockForUpdate()->find($source->source_id);
     }
 
     private static function notifyWarehouseOfSubmission(InventoryRequest $request): void

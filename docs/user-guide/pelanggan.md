@@ -396,6 +396,7 @@ Jenis notifikasi untuk pelanggan:
 | Teknisi dalam perjalanan | Teknisi menekan **Saya berangkat** di aplikasinya. Isinya "Teknisi {nama depan} sedang menuju lokasi Anda." Ketuk untuk membuka detail kunjungannya. Pesan ini hanya muncul di aplikasi, tidak di WhatsApp. | Ya |
 | Kunjungan teknisi selesai | Teknisi selesai mengerjakan kunjungan di alamat Anda. Isinya "Kunjungan teknisi untuk layanan Anda sudah selesai." Ketuk untuk membuka detail kunjungannya. | Ya |
 | Pengumuman baru | ISP menerbitkan pengumuman Gangguan atau Pemeliharaan untuk area atau paket Anda. Isi notifikasi adalah judul pengumuman. Ketuk untuk membuka pengumumannya. | Ya |
+| Notifikasi uji | Anda mengetuk **Kirim notifikasi uji** di **Akun** → **Notifikasi uji** (bagian berikut). Isinya "Notifikasi uji dari {nama ISP}." Tidak membuka layar apa pun. | Ya, hanya ke ponsel yang mengirimnya |
 
 Kolom **Push** menunjukkan notifikasi yang juga masuk ke layar ponsel (bagian berikut). Semua notifikasi, termasuk yang tidak dikirim sebagai push, tetap ada di daftar lonceng.
 
@@ -414,6 +415,26 @@ Saat **Keluar**, aplikasi menghapus pendaftaran ponsel ini, sehingga tidak ada p
 
 Bila push tidak muncul, pastikan izin notifikasi menyala, ponsel punya internet dan Anda masih masuk di aplikasi ini. ISP juga harus sudah mengaktifkan push di servernya. Bila ISP belum mengaktifkannya, notifikasi tetap muncul di lonceng.
 
+## Notifikasi uji
+
+Layar **Notifikasi uji** memeriksa apakah ponsel ini bisa menerima push dari ISP Anda, dan bila tidak, apa yang harus diperbaiki. Pakai saat notifikasi tagihan atau kunjungan tidak muncul di layar ponsel, atau sesudah masuk di ponsel baru.
+
+1. Buka tab **Akun**, lalu ketuk **Notifikasi uji**. Layar ini butuh internet.
+2. Baca tiga pemeriksaan dari atas ke bawah. Tiap pemeriksaan punya ikon dan teks hasil, jadi tidak bergantung pada warna:
+   - **Izin notifikasi**: **Diizinkan**, **Belum ditanyakan** (ketuk **Izinkan** untuk memunculkan pertanyaan Android), atau **Diblokir di pengaturan HP** (ketuk **Buka pengaturan**, lalu nyalakan notifikasi aplikasi Inbils). Bila pengaturan tidak terbuka, aplikasi menulis "Pengaturan tidak bisa dibuka. Buka Pengaturan HP, lalu Aplikasi, Inbils, Notifikasi." Aplikasi memeriksa izin lagi saat Anda kembali dari pengaturan.
+   - **Token terdaftar di server**: awalnya **Belum diperiksa**. Hasilnya **Terdaftar** diikuti nama ponsel ini, atau **Belum terdaftar** (ketuk **Daftarkan ulang**, lalu kirim notifikasi uji lagi). Bila server belum memasang Firebase, hasilnya "Notifikasi push belum aktif di server" dengan saran **Perbaiki** "Hubungi admin ISP Anda: Firebase server belum dipasang."
+   - **Pesan diterima**: **Belum dikirim**, lalu "Menunggu pesan… N dtk" dengan hitungan mundur 30 detik, lalu "Diterima dalam N dtk" atau "Pesan tidak datang dalam 30 detik".
+3. Ketuk **Kirim notifikasi uji**. Tombol aktif bila izin sudah **Diizinkan**, token tidak **Belum terdaftar**, dan tidak ada pengiriman yang sedang berjalan. Aplikasi memeriksa izin dan token, lalu meminta server mengirim satu pesan ke ponsel ini saja, bukan ke ponsel lain di akun Anda.
+4. Tetap di layar ini selama hitungan mundur. Pesan uji muncul sebagai banner di atas layar dan pemeriksaan **Pesan diterima** menjadi hijau dengan lama kedatangannya. Pesan yang sama tersimpan di daftar lonceng dengan judul "Notifikasi uji".
+
+Bila **Pesan diterima** gagal, baca saran **Perbaiki** di bawahnya: "Periksa internet dan mode hemat baterai, lalu coba lagi. Bila tetap gagal, minta admin memeriksa status Firebase di Pengaturan → Integrasi." Hubungi ISP Anda untuk langkah terakhir itu: admin ISP melihat status Firebase di halaman web **Integrasi**. Mode hemat baterai di beberapa ponsel menahan push untuk aplikasi yang tertutup. Keluarkan Inbils dari pembatasan baterai di pengaturan Android bila itu terjadi.
+
+Kesalahan umum:
+
+- "Terlalu banyak percobaan. Coba lagi dalam N detik.": satu akun boleh mengirim 3 notifikasi uji per menit. Tombol aktif lagi setelah hitungan itu.
+- Tombol **Kirim notifikasi uji** tidak bisa diketuk: lihat pemeriksaan **Izin notifikasi** dan **Token terdaftar di server**. Selesaikan saran di bawahnya.
+- "Tidak ada koneksi internet. Periksa sinyal, lalu coba lagi.": ponsel tidak punya internet, jadi server tidak bisa menjawab. Nyalakan internet, lalu kirim lagi.
+
 ## Notifikasi WhatsApp
 
 Selain di aplikasi, ISP dapat mengirim pesan WhatsApp untuk kejadian yang sama. Pesan WhatsApp hanya dikirim bila **semua** syarat ini terpenuhi:
@@ -424,7 +445,7 @@ Selain di aplikasi, ISP dapat mengirim pesan WhatsApp untuk kejadian yang sama. 
 
 Pesan yang dikirim: tagihan terbit, pengingat jatuh tempo (3 hari dan 1 hari sebelum, serta 1 hari sesudah jatuh tempo), pembayaran diterima, tiket dibuat, tiket mulai ditangani, tiket selesai, dan jadwal kunjungan teknisi. Pesan tagihan dan pengingat ditahan di jam tenang (bawaan 21.00-07.00); pesan kejadian lain dikirim segera. Isi pesan memakai templat tetap yang disetujui Meta.
 
-Untuk berhenti, balas pesan dari ISP dengan **STOP** atau **BERHENTI**. Setelah itu tidak ada pesan lagi sampai petugas mencatat persetujuan baru. Tautan atau kata sandi tidak pernah dikirim lewat WhatsApp.
+Untuk berhenti, balas pesan dari ISP dengan **STOP** atau **BERHENTI**. Setelah itu tidak ada pesan lagi dari ISP yang Anda balas sampai petugasnya mencatat persetujuan baru. Balasan itu hanya berlaku untuk ISP pemilik nomor WhatsApp yang mengirim pesannya, bukan untuk ISP lain yang melayani Anda. Tautan atau kata sandi tidak pernah dikirim lewat WhatsApp.
 
 Nomor yang dipakai adalah nomor telepon di profil Anda. Anda bisa mengubahnya di **Ubah profil** (bab 8); persetujuan WhatsApp tetap tercatat pada data pelanggan.
 
@@ -441,7 +462,7 @@ Isi layar dari atas ke bawah:
 3. Kartu **Hubungi {nama ISP}**: kontak ISP yang diisi di profil perusahaan. Baris yang mungkin ada: **WhatsApp**, **Telepon**, **Email**, **Situs web**, dan **Jam layanan**. Ketuk **WhatsApp** untuk membuka percakapan di WhatsApp, **Telepon** untuk membuka pemanggil, **Email** untuk menulis email, dan **Situs web** untuk membuka peramban. **Jam layanan** hanya teks, misalnya "Senin sampai Sabtu 08.00 sampai 20.00". Bagian yang belum diisi ISP tidak tampil, dan kartunya hilang bila ISP belum mengisi satu pun. Bila ponsel tidak punya aplikasi untuk tautan itu, muncul "Tidak bisa membuka WhatsApp." (atau nama kanal lain).
 4. **Profil pelanggan** (hanya dibaca): email untuk masuk, email, telepon, dan narahubung. Data yang kosong tertulis "Belum diisi". Tertulis "Hubungi CS untuk mengubah data."
 5. **Alamat** dengan penanda "Utama" dan "Titik pemasangan". Nama tagihan, alamat, dan email hanya bisa diubah oleh ISP.
-6. Baris menu: **Langganan**, **Riwayat pembayaran**, **Kunjungan teknisi**, lalu **Ubah profil**, **Ganti kata sandi**, **Perangkat**, **Tentang aplikasi**, dan **Keluar**.
+6. Baris menu: **Langganan**, **Riwayat pembayaran**, **Kunjungan teknisi**, lalu **Ubah profil**, **Ganti kata sandi**, **Perangkat**, **Notifikasi uji**, **Tentang aplikasi**, dan **Keluar**.
 
 Warna aplikasi mengikuti warna merek ISP, jadi tiap ISP bisa tampak berbeda. Warna itu dikirim dari server saat aplikasi memuat data akun.
 
@@ -535,5 +556,7 @@ Anda harus masuk lagi untuk memakai aplikasi.
 **Berapa lama saya tetap masuk?** Sampai Anda keluar, mengganti kata sandi, atau mengeluarkan perangkat; paling lama 90 hari, dan aplikasi memperbarui sesi sendiri bila dipakai.
 
 **Mengapa saya tidak menerima WhatsApp?** Mungkin ISP belum mengaktifkan WhatsApp, belum mencatat persetujuan Anda, nomor Anda bukan nomor seluler Indonesia yang valid, atau Anda pernah membalas STOP. Pemberitahuan di aplikasi tetap tersedia lewat ikon lonceng. Hubungi ISP untuk mengubahnya.
+
+**Notifikasi aplikasi tidak muncul di layar ponsel.** Buka **Akun** → **Notifikasi uji**, ketuk **Kirim notifikasi uji**, dan ikuti saran **Perbaiki** pada pemeriksaan yang gagal (bab 7). Hubungi ISP bila izin dan token sudah benar tetapi pesan uji tetap tidak datang.
 
 **Foto saya memuat lokasi?** Tidak. Aplikasi membuang data lokasi (EXIF) dan mengecilkan foto sebelum mengunggahnya.

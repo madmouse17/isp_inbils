@@ -3,7 +3,6 @@ import { MoreHorizontal } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Button, buttonVariants } from '@/Components/ui/Button';
 import { IconButton } from '@/Components/ui/IconButton';
-import { Input } from '@/Components/ui/Input';
 import { Spinner } from '@/Components/ui/Spinner';
 import {
     DropdownMenu,
@@ -150,8 +149,6 @@ export interface DataTableActionsProps {
     deleteHref?: string;
     deleteMessage?: string;
     deleteDescription?: string;
-    /** The row's code; when set, Hapus stays disabled until the user types it. */
-    deleteConfirmCode?: string;
     onDeleteSuccess?: () => void;
     /**
      * Master lifecycle (Nonaktifkan, Aktifkan, Pulihkan, Hapus permanen). A trashed row drops the
@@ -181,7 +178,6 @@ export function DataTableActions({
     deleteHref,
     deleteMessage = 'Hapus data ini?',
     deleteDescription,
-    deleteConfirmCode,
     onDeleteSuccess,
     lifecycle,
 }: DataTableActionsProps) {
@@ -189,7 +185,6 @@ export function DataTableActions({
     const trashed = Boolean(lifecycle?.row.deleted_at);
     const lifecycleActions = lifecycle ? lifecycleActionsOf(lifecycle) : [];
     const [confirmOpen, setConfirmOpen] = useState(false);
-    const [typedCode, setTypedCode] = useState('');
     const [deleteProcessing, setDeleteProcessing] = useState(false);
     // Synchronous in-flight guard: prevents double-submit from a same-tick
     // double-click before React re-renders the disabled state.
@@ -209,7 +204,6 @@ export function DataTableActions({
             },
             onSuccess: () => {
                 setConfirmOpen(false);
-                setTypedCode('');
                 onDeleteSuccess?.();
             },
         });
@@ -283,7 +277,6 @@ export function DataTableActions({
                                 // cancel when idle) may close it.
                                 if (deleteInFlight.current && !open) return;
                                 setConfirmOpen(open);
-                                if (!open) setTypedCode('');
                             }}
                         >
                             <AlertDialogContent>
@@ -295,14 +288,6 @@ export function DataTableActions({
                                         </AlertDialogDescription>
                                     ) : null}
                                 </AlertDialogHeader>
-                                {deleteConfirmCode ? (
-                                    <Input
-                                        label={`Ketik ${deleteConfirmCode} untuk menghapus`}
-                                        value={typedCode}
-                                        onChange={(event) => setTypedCode(event.target.value)}
-                                        autoComplete="off"
-                                    />
-                                ) : null}
                                 <AlertDialogFooter>
                                     <AlertDialogCancel disabled={deleteProcessing}>
                                         Batal
@@ -316,11 +301,7 @@ export function DataTableActions({
                                             event.preventDefault();
                                             confirmDelete();
                                         }}
-                                        disabled={
-                                            deleteProcessing ||
-                                            (deleteConfirmCode !== undefined &&
-                                                typedCode.trim() !== deleteConfirmCode)
-                                        }
+                                        disabled={deleteProcessing}
                                     >
                                         {deleteProcessing ? <Spinner size="sm" /> : null}
                                         Hapus

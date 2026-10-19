@@ -1,16 +1,20 @@
 import { Link } from '@inertiajs/react';
 import { useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { DataTableActions, PageHeader } from '@/Components/composite';
+import { DataTableActions, PageHeader, StatusFilter } from '@/Components/composite';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
+import { UsageLine } from '@/Components/composite/UsageLine';
 import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { Button } from '@/Components/ui/Button';
+import { EnumBadge } from '@/Components/ui/EnumBadge';
 import { Input } from '@/Components/ui/Input';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
 import { formatDate, formatNumber } from '@/lib/format';
+import { LIFECYCLE_STATE, lifecycleStateOf } from '@/lib/statuses';
+import type { LifecycleFields } from '@/types/models';
 
-type Row = {
+type Row = LifecycleFields & {
     id: string;
     name: string;
     response_time_hours?: number | string | null;
@@ -31,11 +35,12 @@ type Props = {
     };
     filters: {
         search?: string;
+        status?: string;
         sort?: string;
         direction?: string;
         per_page?: string | number;
     };
-    can: { create: boolean; export: boolean };
+    can: { create: boolean; update: boolean; delete: boolean; export: boolean };
 };
 
 export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
@@ -54,12 +59,19 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
                 sortable: true,
                 sortKey: 'name',
                 cell: (row) => (
-                    <Link
-                        href={route('admin.sla-tiers.edit', row.id)}
-                        className="font-medium text-primary-text hover:underline"
-                    >
-                        {row.name}
-                    </Link>
+                    <div className="space-y-0.5">
+                        {row.deleted_at ? (
+                            <span className="font-medium text-muted-foreground">{row.name}</span>
+                        ) : (
+                            <Link
+                                href={route('admin.sla-tiers.edit', row.id)}
+                                className="font-medium text-primary-text hover:underline"
+                            >
+                                {row.name}
+                            </Link>
+                        )}
+                        <UsageLine references={row.references} />
+                    </div>
                 ),
             },
             {
@@ -110,19 +122,28 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
                 cell: (row) => formatDate(row.created_at),
             },
             {
+                key: 'status',
+                header: 'Status',
+                cell: (row) => <EnumBadge map={LIFECYCLE_STATE} value={lifecycleStateOf(row)} />,
+            },
+            {
                 key: 'actions',
                 header: 'Aksi',
                 cell: (row) => (
                     <DataTableActions
                         editHref={route('admin.sla-tiers.edit', row.id)}
-                        deleteHref={route('admin.sla-tiers.destroy', row.id)}
-                        deleteMessage={`Hapus ${row.name}?`}
-                        deleteDescription={`Tingkat SLA "${row.name}" akan dihapus permanen.`}
+                        lifecycle={{
+                            row,
+                            name: row.name,
+                            noun: 'Tingkat SLA',
+                            routeBase: 'admin.sla-tiers',
+                            can: { update: can.update, delete: can.delete },
+                        }}
                     />
                 ),
             },
         ],
-        [],
+        [can.update, can.delete],
     );
 
     const createButton = can.create ? (
@@ -152,13 +173,21 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
                     }
                 />
 
-                <div className="max-w-sm">
-                    <Input
-                        id="sla-search"
-                        label="Cari"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Nama tingkat"
+                <div className="flex flex-wrap items-end gap-3">
+                    <div className="min-w-56 flex-1 sm:max-w-sm">
+                        <Input
+                            id="sla-search"
+                            label="Cari"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Nama tingkat"
+                        />
+                    </div>
+                    <StatusFilter
+                        id="sla-status"
+                        value={params.status ?? ''}
+                        onChange={(value) => set('status', value)}
+                        deactivatable
                     />
                 </div>
 
@@ -172,8 +201,8 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
                     onPerPageChange={(perPage) => set('per_page', perPage)}
                     loading={processing}
                     itemLabel="tingkat SLA"
-                    hasFilters={Boolean(params.search)}
-                    onResetFilters={() => setMany({ search: '' })}
+                    hasFilters={Boolean(params.search || params.status)}
+                    onResetFilters={() => setMany({ search: '', status: '' })}
                     emptyTitle="Belum ada tingkat SLA"
                     emptyDescription="Tingkat SLA menetapkan target respons dan penyelesaian tiket untuk paket layanan."
                     emptyAction={createButton}

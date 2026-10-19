@@ -148,15 +148,46 @@ receive:     from=null, to=location, qty>0, balance_after update
 issue:       from=location, to=null, qty<0, balance_after update (SPK consume)
 transfer:    from=A, to=B, 2 rows (A: issue qty<0, B: receive qty>0)
 adjustment:  from=to=location, delta ±, note wajib
-reserve (SPK):    from=null, to=location, reserved_qty++ (no qty change)
-release (SPK cancel): reserved_qty--
+reserve (permintaan barang disetujui): from=null, to=location, reserved_qty++ (no qty change)
+release (serah terima permintaan barang): reserved_qty--, disusul issue
 return:      from=null, to=location, qty>0 (SPK material return)
 ```
 
-### SPK stock reservation mode (Setting `spk.stock_reservation_mode`)
-- `reserve_on_assign` (default): reserve saat SPK assigned, consume saat
-  completed.
-- `consume_on_complete` (opsional): tidak reserve, consume saat completed.
+### Stok dan SPK
+- Item SPK (`work_order_items`) tidak mereservasi stok. Setting
+  `spk.stock_reservation_mode` tidak dibaca kode lagi, dan SPK yang ditugaskan
+  atau dibatalkan tidak menggerakkan stok. SPK mengeluarkan stok hanya saat
+  approve (`CompleteSpkAction::consumeStock`, `StockService::issue`).
+- Reserve dan release hanya dipakai permintaan barang: persetujuan
+  mereservasi (`approved_reserved`), serah terima melepas reserve lalu issue.
+
+### Permintaan barang untuk SPK (`source_type=work_order`)
+- Permintaan boleh menyebut SPK sebagai sumber (`source_type=work_order`,
+  `source_id`). Dari web, SPK dipilih di form permintaan dari SPK yang belum
+  `completed` atau `cancelled` dan terlihat oleh pembuatnya. Dari aplikasi
+  teknisi, `POST /api/v1/technician/inventory-requests` menerima
+  `work_order_id` (public id, opsional). SPK itu harus milik teknisi yang
+  meminta dengan status `assigned` atau `in_progress`; selain itu 422
+  "SPK harus SPK aktif (ditugaskan atau dikerjakan) milik Anda." untuk semua
+  penyebab (SPK tidak ada, milik rekan, atau sudah ditutup). Tanpa
+  `work_order_id` permintaan tidak punya SPK.
+- Alasan yang dikosongkan diisi "Permintaan material untuk SPK {kode}".
+- Serah terima mengunci SPK sumbernya lebih dulu, dan menolak (422) bila SPK
+  sudah `completed` atau `cancelled`: "SPK sumber sudah selesai atau dibatalkan;
+  barang tidak bisa diserahterimakan."
+- Saat SPK disetujui, barang yang sudah diserahkan lewat permintaan `issued`
+  untuk SPK itu tidak dikeluarkan lagi (dicatat `stock_consumption_skipped_ir_backed`).
+  Selisih jumlah terpakai di atas jumlah yang diserahkan dikeluarkan dari
+  lokasi sumber item permintaan (atau gudang permintaan), bukan dari lokasi SPK.
+  Barang yang tidak pernah diminta keluar dari lokasi SPK.
+
+### Aturan hitung ulang (penyesuaian stok)
+- Permintaan penyesuaian menyimpan `old_quantity`, stok saat hitungan diambil.
+  Saat disetujui, `StockService::adjust` membaca stok di bawah kunci dan
+  membandingkannya dengan `old_quantity`. Beda berarti 409 "Stok berubah sejak
+  dihitung; hitung ulang." dan permintaan tetap `pending`. Penyesuaian
+  langsung oleh admin (`/admin/stocks/adjust/direct`) tidak membawa
+  `old_quantity` dan tidak dibandingkan.
 
 ### Low stock alert
 - Threshold: `products.min_stock`. Saat movement: jika
@@ -225,21 +256,33 @@ Lihat `docs/API.md` Section 5 (Inventory group). Ringkas:
    POP-JKT01 quantity=70, POP-BDG01 quantity=30.
 4. Issue 20 meter (SPK reference): POP-JKT01 quantity=50, movement_type=out.
 
-### Reserve/release (SPK)
-1. SPK assigned, reserve 15 meter at POP-JKT01: reserved_quantity=15
+### Reserve/release (permintaan barang)
+1. Permintaan barang 15 meter disetujui, gudang POP-JKT01: reserved_quantity=15
    (quantity tetap 70). movement_type=reserve.
-2. SPK completed, consume: reserved_quantity=0, quantity=55 (70-15).
-   movement_type=out qty=-15.
-3. SPK cancelled after reserve: reserved_quantity=0, quantity tetap 70.
-   movement_type=release.
+2. Serah terima: reserve dilepas (reserved_quantity=0, movement_type=release),
+   lalu issue: quantity=55 (70-15), movement_type=issue qty=-15.
+3. Permintaan yang dibatalkan hanya saat draft atau submitted, sebelum ada
+   reserve, jadi tidak ada release.
+
+### SPK dan stok
+1. SPK dengan item kabel 20 meter ditugaskan: tidak ada reserve, stok tidak
+   berubah.
+2. Teknisi meminta 15 meter lewat aplikasi untuk SPK itu (`work_order_id`);
+   permintaan disetujui dan diserahkan seperti di atas (quantity 70 menjadi 55).
+3. SPK disetujui dengan item kabel terpakai 20 meter: 15 meter tercakup
+   permintaan barang dan tidak dikeluarkan lagi; 5 meter dikeluarkan dari
+   gudang permintaan itu (quantity 55 menjadi 50).
 
 ### Validation
 1. Issue 200 meter (stock 70) → 422 InsufficientStockException.
 2. Reserve 80 (stock 70, reserved 0) → 422.
 3. Adjust quantity 60 (from 55, note "physical count"): staff mengajukan →
-   request `pending`, stok tetap 55; manager lain menyetujui →
-   movement_type=adjustment, delta +5 (dihitung dari stok saat disetujui),
-   created_by = approver, note = alasan pemohon.
+   request `pending` dengan `old_quantity` 55, stok tetap 55; manager lain
+   menyetujui → movement_type=adjustment, delta +5, created_by = approver,
+   note = alasan pemohon. Bila stok sudah berubah sejak dihitung (mis. 55
+   menjadi 50 karena issue lain) → 409 "Stok berubah sejak dihitung; hitung
+   ulang.", request tetap `pending`, stok tidak berubah; pemohon mengajukan
+   hitungan baru.
 4. Delete product with stock > 0 → 422.
 
 ### Item Finder
@@ -256,7 +299,7 @@ Lihat `docs/API.md` Section 5 (Inventory group). Ringkas:
 - [ ] CRUD product/category/unit sesuai.
 - [ ] Stock movement 7 type (receive/issue/transfer/adjustment/reserve/
   release/return) dengan from/to location + balance_after snapshot.
-- [ ] Reserve/release/consume flow (reserve_on_assign default).
+- [ ] Reserve/release/consume flow: reserve saat permintaan barang disetujui, release + issue saat serah terima; SPK tidak reserve.
 - [ ] Stok constraint (quantity >= 0, reserved <= quantity) DB check.
 - [ ] InsufficientStockException saat reserve/issue melebihi available.
 - [ ] Item Finder search consumable → locations + qty.
@@ -279,10 +322,11 @@ Lihat `docs/API.md` Section 5 (Inventory group). Ringkas:
 
 - **Depends on (Phase 1):** Core (Company, User, Role, Permission,
   ActivityLog, Setting), Location (shared Core — stocks per location_id).
-- **Consumed by (Phase 4):** SPK (IssueStockAction consume saat complete,
-  reserve saat assign, release saat cancel; stock_movements.reference
-  polymorphic WorkOrder). Billing (rare — invoice barang keluar via
-  IssueStockAction, reference Invoice).
+- **Consumed by (Phase 4):** SPK (CompleteSpkAction consume saat approve lewat
+  StockService::issue, hanya untuk bagian yang belum dikeluarkan permintaan
+  barang `source_type=work_order`; SPK tidak reserve dan tidak release;
+  stock_movements.reference polymorphic WorkOrderItem). Kode Billing tidak
+  memanggil StockService.
 - **Product cross-module:** network_assets.product_id nullable FK→products.id
   (NetworkAsset references Product untuk catalog model/spec info — mirror
   Product relation). Allowed (catalog FK like ServicePackage).

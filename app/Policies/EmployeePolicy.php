@@ -36,4 +36,9 @@ class EmployeePolicy
     {
         return $user->can('employee.manage');
     }
+
+    public function restore(User $user, EmployeeProfile $profile): bool
+    {
+        return $this->delete($user, $profile);
+    }
 }

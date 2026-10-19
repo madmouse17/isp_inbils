@@ -7,8 +7,10 @@ use App\Models\User;
 use App\Queries\Admin\DashboardAdminStatsQuery;
 use App\Queries\Admin\DashboardQuery;
 use App\Services\Core\AuditService;
+use App\Support\PublicId;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -341,11 +343,22 @@ class DashboardPersonaTest extends TestCase
         // The Activity saving hook only keeps a company it can prove, so the rows carry a company-owned subject.
         AuditService::log('dashboard', 'visible-activity', [], $this->fixtureCreator($company));
         AuditService::log('dashboard', 'foreign-activity', [], $this->fixtureCreator($other));
+        // Only the column says whose a row is: a legacy JSON copy that names this company does not make it theirs.
+        DB::table('activity_log')->insert([
+            'public_id' => PublicId::new(),
+            'company_id' => $other->id,
+            'log_name' => 'dashboard',
+            'description' => 'json-copy-activity',
+            'properties' => json_encode(['company_id' => $company->id]),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         $feed = collect($this->dashboard($admin)->inertiaProps('admin.recentActivity'));
 
         $this->assertContains('visible-activity', $feed->pluck('description')->all());
         $this->assertNotContains('foreign-activity', $feed->pluck('description')->all());
+        $this->assertNotContains('json-copy-activity', $feed->pluck('description')->all());
         $this->assertLessThanOrEqual(10, $feed->count());
         $this->assertSame(['id', 'log_name', 'description', 'created_at'], array_keys($feed->firstWhere('description', 'visible-activity')));
     }

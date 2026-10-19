@@ -5,6 +5,7 @@ namespace Modules\Inventory\Services;
 use App\Models\Core\Location;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
+use App\Support\Money;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Auth;
@@ -59,7 +60,7 @@ class StockService
             ]);
 
             return $movement;
-        });
+        }, 3);
     }
 
     public static function issue(int $productId, int $locationId, float $quantity, ?string $note = null, ?string $refType = null, ?int $refId = null): StockMovement
@@ -77,10 +78,10 @@ class StockService
             }
 
             $stock = self::lockedStock($productId, $locationId);
-            $available = (float) $stock->quantity - (float) $stock->reserved_quantity;
+            $available = Money::sub($stock->quantity, $stock->reserved_quantity);
 
-            if ($available < $quantity) {
-                throw InsufficientStockException::forIssue($quantity, $available);
+            if (Money::compare($available, $quantity) < 0) {
+                throw InsufficientStockException::forIssue($quantity, (float) $available);
             }
 
             $stock->quantity -= $quantity;
@@ -107,7 +108,7 @@ class StockService
             ]);
 
             return $movement;
-        });
+        }, 3);
     }
 
     public static function transfer(int $productId, int $fromLocationId, int $toLocationId, float $quantity, ?string $note = null): array
@@ -124,10 +125,10 @@ class StockService
             $fromStock = $stocks[$fromLocationId];
             $toStock = $stocks[$toLocationId];
 
-            $available = (float) $fromStock->quantity - (float) $fromStock->reserved_quantity;
+            $available = Money::sub($fromStock->quantity, $fromStock->reserved_quantity);
 
-            if ($available < $quantity) {
-                throw InsufficientStockException::forIssue($quantity, $available);
+            if (Money::compare($available, $quantity) < 0) {
+                throw InsufficientStockException::forIssue($quantity, (float) $available);
             }
 
             $fromStock->quantity -= $quantity;
@@ -174,22 +175,25 @@ class StockService
             ]);
 
             return [$out, $in];
-        });
+        }, 3);
     }
 
     /**
      * @param  array<string, mixed>  $evidence  Extra audit properties (maker-checker ids, break-glass marker).
+     * @param  ?string  $expectedQuantity  The stock quantity the new count was taken against. An approval passes the request's
+     *                                     old_quantity, and a stock that moved since is refused (409), so it never writes a count older than the stock.
      */
-    public static function adjust(int $productId, int $locationId, float $newQuantity, string $note, array $evidence = []): StockMovement
+    public static function adjust(int $productId, int $locationId, float $newQuantity, string $note, array $evidence = [], ?string $expectedQuantity = null): StockMovement
     {
         abort_if(empty($note), 422, 'Catatan wajib diisi untuk penyesuaian stok.');
         abort_if($newQuantity < 0, 422, 'Jumlah tidak boleh negatif.');
         self::assertProductLocation($productId, $locationId);
 
-        return DB::transaction(function () use ($productId, $locationId, $newQuantity, $note, $evidence) {
+        return DB::transaction(function () use ($productId, $locationId, $newQuantity, $note, $evidence, $expectedQuantity) {
             self::assertProductLocation($productId, $locationId);
             $stock = self::lockedStock($productId, $locationId);
-            if ($newQuantity < (float) $stock->reserved_quantity) {
+            abort_if($expectedQuantity !== null && Money::compare($stock->quantity, $expectedQuantity) !== 0, 409, 'Stok berubah sejak dihitung; hitung ulang.');
+            if (Money::compare($newQuantity, $stock->reserved_quantity) < 0) {
                 throw InsufficientStockException::forIssue((float) $stock->reserved_quantity, $newQuantity);
             }
 
@@ -222,7 +226,7 @@ class StockService
             ]);
 
             return $movement;
-        });
+        }, 3);
     }
 
     public static function requestAdjustment(int $productId, int $locationId, float $newQuantity, string $reason, ?int $requesterId = null): StockAdjustmentRequest
@@ -265,7 +269,7 @@ class StockService
             ], $adjustmentRequest);
 
             return $adjustmentRequest;
-        });
+        }, 3);
     }
 
     public static function approveAdjustment(StockAdjustmentRequest $adjustmentRequest, ?int $approverId = null): StockMovement
@@ -286,6 +290,7 @@ class StockService
                     'requested_by' => $pending->requested_by,
                     'approved_by' => $approverId,
                 ],
+                (string) $pending->old_quantity,
             );
 
             $pending->update([
@@ -295,7 +300,7 @@ class StockService
             ]);
 
             return $movement;
-        });
+        }, 3);
     }
 
     public static function rejectAdjustment(StockAdjustmentRequest $adjustmentRequest, string $rejectionReason, ?int $rejecterId = null): StockAdjustmentRequest
@@ -324,7 +329,7 @@ class StockService
             ], $pending);
 
             return $pending;
-        });
+        }, 3);
     }
 
     /** Re-read under lock so concurrent approve/reject cannot both pass the pending check. */
@@ -353,10 +358,10 @@ class StockService
             }
 
             $stock = self::lockedStock($productId, $locationId);
-            $available = (float) $stock->quantity - (float) $stock->reserved_quantity;
+            $available = Money::sub($stock->quantity, $stock->reserved_quantity);
 
-            if ($available < $quantity) {
-                throw InsufficientStockException::forReserve($quantity, $available);
+            if (Money::compare($available, $quantity) < 0) {
+                throw InsufficientStockException::forReserve($quantity, (float) $available);
             }
 
             $stock->reserved_quantity += $quantity;
@@ -374,7 +379,7 @@ class StockService
                 'reference_id' => $refId,
                 'created_by' => Auth::id(),
             ]);
-        });
+        }, 3);
     }
 
     public static function release(int $productId, int $locationId, float $quantity, ?string $refType = null, ?int $refId = null): StockMovement
@@ -392,7 +397,7 @@ class StockService
             }
 
             $stock = self::lockedStock($productId, $locationId);
-            if ((float) $stock->reserved_quantity < $quantity) {
+            if (Money::compare($stock->reserved_quantity, $quantity) < 0) {
                 throw InsufficientStockException::forReserve($quantity, (float) $stock->reserved_quantity);
             }
 
@@ -411,7 +416,7 @@ class StockService
                 'reference_id' => $refId,
                 'created_by' => Auth::id(),
             ]);
-        });
+        }, 3);
     }
 
     public static function returnStock(int $productId, int $locationId, float $quantity, ?string $note = null, ?string $refType = null, ?int $refId = null): StockMovement
@@ -445,7 +450,7 @@ class StockService
                 'note' => $note,
                 'created_by' => Auth::id(),
             ]);
-        });
+        }, 3);
     }
 
     public static function stockMovement(
@@ -500,9 +505,9 @@ class StockService
 
             if ($fromLocationId !== null) {
                 $fromStock = $stocks[$fromLocationId];
-                $available = (float) $fromStock->quantity - (float) $fromStock->reserved_quantity;
-                if ($available < $quantity) {
-                    throw InsufficientStockException::forIssue($quantity, $available);
+                $available = Money::sub($fromStock->quantity, $fromStock->reserved_quantity);
+                if (Money::compare($available, $quantity) < 0) {
+                    throw InsufficientStockException::forIssue($quantity, (float) $available);
                 }
                 $fromStock->quantity -= $quantity;
                 $fromStock->save();
@@ -541,7 +546,7 @@ class StockService
             ]);
 
             return $movement;
-        });
+        }, 3);
     }
 
     private static function lockedStock(int $productId, int $locationId): Stock

@@ -17,6 +17,9 @@
     <div class="meta">
         Baris: {{ count($rows) }}@if(!empty($capped)) (dibatasi sampai {{ $maxRows }})@endif
     </div>
+    @if(!empty($capped))
+        <div class="meta">PDF dibatasi {{ $maxRows }} baris. Untuk data lengkap, unduh CSV atau persempit periode.</div>
+    @endif
     <table>
         <thead>
             <tr>

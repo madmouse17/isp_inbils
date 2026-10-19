@@ -16,6 +16,12 @@ final class MetricRegistry
     /** @var list<MetricDefinition>|null */
     private static ?array $definitions = null;
 
+    /** Caveat of every figure the Kategori paket filter narrows (Business and Sales): which category a subscription is in. */
+    private const PACKAGE_CATEGORY_FILTER = 'Filter Kategori paket memakai kategori paket saat langganan dijual (kategori versi paket langganan): memindahkan paket ke kategori lain tidak memindahkan langganan yang sudah terjual. Tagihan dan SPK mengikuti kategori langganannya.';
+
+    /** Caveat of the by-category breakdowns (SLA and Technician): which name a ticket's category has. */
+    private const TICKET_CATEGORY_NAME = 'Tiket yang sudah ditutup memakai nama kategori saat ditutup, sehingga mengganti nama kategori tidak memindahkan tiket lama; tiket yang belum ditutup memakai nama kategori saat ini.';
+
     /** @return list<MetricDefinition> */
     public static function all(): array
     {
@@ -118,6 +124,7 @@ final class MetricRegistry
                 dateBasis: DateBasis::Snapshot,
                 sources: ['service_subscriptions.mrc_amount', 'service_subscriptions.status'],
                 statuses: ['active'],
+                caveats: [self::PACKAGE_CATEGORY_FILTER],
             ),
             new MetricDefinition(
                 report: ReportType::Business,
@@ -129,6 +136,7 @@ final class MetricRegistry
                 dateBasis: DateBasis::Snapshot,
                 sources: ['service_subscriptions.status'],
                 statuses: ['active'],
+                caveats: [self::PACKAGE_CATEGORY_FILTER],
             ),
             new MetricDefinition(
                 report: ReportType::Business,
@@ -140,6 +148,7 @@ final class MetricRegistry
                 dateBasis: DateBasis::Snapshot,
                 sources: ['service_subscriptions.status'],
                 statuses: ['suspended'],
+                caveats: [self::PACKAGE_CATEGORY_FILTER],
             ),
             new MetricDefinition(
                 report: ReportType::Business,
@@ -151,7 +160,10 @@ final class MetricRegistry
                 dateBasis: DateBasis::Snapshot,
                 sources: ['service_subscriptions.status'],
                 statuses: ['terminated'],
-                caveats: ['Total sepanjang waktu; pakai Churn untuk langganan yang berhenti dalam periode terpilih.'],
+                caveats: [
+                    'Total sepanjang waktu; pakai Churn untuk langganan yang berhenti dalam periode terpilih.',
+                    self::PACKAGE_CATEGORY_FILTER,
+                ],
             ),
             new MetricDefinition(
                 report: ReportType::Business,
@@ -166,6 +178,7 @@ final class MetricRegistry
                 caveats: [
                     'Bernilai 0 bila Dari dan Sampai sama-sama kosong.',
                     'Menghitung langganan dengan status apa pun, termasuk yang sudah tidak aktif.',
+                    self::PACKAGE_CATEGORY_FILTER,
                 ],
             ),
             new MetricDefinition(
@@ -183,6 +196,7 @@ final class MetricRegistry
                 caveats: [
                     'Jumlah langganan yang berhenti, bukan persentase: versi v1 tidak memiliki pembagi untuk tingkat churn.',
                     'Bernilai 0 bila Dari dan Sampai sama-sama kosong.',
+                    self::PACKAGE_CATEGORY_FILTER,
                 ],
             ),
             new MetricDefinition(
@@ -201,6 +215,7 @@ final class MetricRegistry
                     'Dihitung menurut tanggal terbit tagihan, bukan tanggal pembayaran.',
                     'Tagihan yang dibayar sebagian tidak termasuk: tagihan itu sendiri harus berstatus paid.',
                     $periodRule,
+                    self::PACKAGE_CATEGORY_FILTER,
                 ],
             ),
             new MetricDefinition(
@@ -214,7 +229,11 @@ final class MetricRegistry
                 sources: ['invoices.paid_amount', 'invoices.status', 'invoices.issue_date', 'invoices.type'],
                 dateColumn: 'invoices.issue_date',
                 statuses: ['paid'],
-                caveats: ['Dihitung menurut tanggal terbit tagihan, bukan tanggal pembayaran.', $periodRule],
+                caveats: [
+                    'Dihitung menurut tanggal terbit tagihan, bukan tanggal pembayaran.',
+                    $periodRule,
+                    self::PACKAGE_CATEGORY_FILTER,
+                ],
             ),
             new MetricDefinition(
                 report: ReportType::Business,
@@ -227,7 +246,11 @@ final class MetricRegistry
                 sources: ['invoices.paid_amount', 'invoices.status', 'invoices.issue_date', 'invoices.type'],
                 dateColumn: 'invoices.issue_date',
                 statuses: ['paid'],
-                caveats: ['Dihitung menurut tanggal terbit tagihan, bukan tanggal pembayaran.', $periodRule],
+                caveats: [
+                    'Dihitung menurut tanggal terbit tagihan, bukan tanggal pembayaran.',
+                    $periodRule,
+                    self::PACKAGE_CATEGORY_FILTER,
+                ],
             ),
             new MetricDefinition(
                 report: ReportType::Business,
@@ -239,6 +262,7 @@ final class MetricRegistry
                 dateBasis: DateBasis::Snapshot,
                 sources: ['invoices.total', 'invoices.paid_amount', 'invoices.status'],
                 statuses: ['sent', 'partial', 'overdue'],
+                caveats: [self::PACKAGE_CATEGORY_FILTER],
             ),
             new MetricDefinition(
                 report: ReportType::Business,
@@ -280,6 +304,7 @@ final class MetricRegistry
                 caveats: [
                     $periodRule,
                     'Menghitung SPK, berbeda dengan installation_count di Pemanfaatan Aset yang menghitung catatan pemasangan aset.',
+                    self::PACKAGE_CATEGORY_FILTER,
                 ],
             ),
         ];
@@ -337,6 +362,7 @@ final class MetricRegistry
                     'Langganan tanpa tanggal aktivasi (pending) tidak pernah dihitung.',
                     'Langganan milik pelanggan yang sudah dihapus tetap dihitung; langganan yang sudah dihapus tidak pernah dihitung.',
                     $periodRule,
+                    self::PACKAGE_CATEGORY_FILTER,
                 ],
             ),
             new MetricDefinition(
@@ -359,6 +385,7 @@ final class MetricRegistry
                 caveats: [
                     $attribution,
                     'Langganan milik pelanggan yang sudah dihapus tetap dihitung; langganan yang sudah dihapus tidak pernah dihitung.',
+                    self::PACKAGE_CATEGORY_FILTER,
                 ],
             ),
             new MetricDefinition(
@@ -386,6 +413,7 @@ final class MetricRegistry
                     'Dihitung menurut tanggal terbit tagihan, bukan tanggal pembayaran.',
                     'Tagihan draf, dibatalkan, dan yang sudah dihapus tidak pernah dihitung; tagihan milik pelanggan yang sudah dihapus tetap dihitung.',
                     $periodRule,
+                    self::PACKAGE_CATEGORY_FILTER,
                 ],
             ),
             new MetricDefinition(
@@ -416,6 +444,7 @@ final class MetricRegistry
                     'Tidak sama dengan Pendapatan terbayar di Metrik Bisnis, yang menjumlahkan paid_amount tagihan lunas menurut tanggal terbit '
                         .'dan mengabaikan pembayaran sebagian.',
                     $periodRule,
+                    self::PACKAGE_CATEGORY_FILTER,
                 ],
             ),
             new MetricDefinition(
@@ -440,6 +469,7 @@ final class MetricRegistry
                     $attribution,
                     'Tagihan draf, dibatalkan, dan yang sudah dihapus tidak pernah menjadi piutang; tagihan milik pelanggan yang sudah dihapus tetap dihitung.',
                     'Bila dijumlahkan untuk semua petugas penjualan dan Tanpa petugas, hasilnya sama dengan Piutang di Metrik Bisnis.',
+                    self::PACKAGE_CATEGORY_FILTER,
                 ],
             ),
             new MetricDefinition(
@@ -467,6 +497,7 @@ final class MetricRegistry
                         .'yang berbeda dan persentasenya bisa melebihi 100 persen.',
                     'Kosong bila Ditagihkan bernilai 0, walaupun ada pembayaran masuk pada periode itu.',
                     $periodRule,
+                    self::PACKAGE_CATEGORY_FILTER,
                 ],
             ),
         ];
@@ -634,12 +665,13 @@ final class MetricRegistry
                 key: 'by_category',
                 label: 'Tiket selesai per kategori',
                 definition: 'Tiket selesai dan kepatuhan SLA untuk setiap kategori tiket.',
-                formula: 'Per ticket_categories.name: COUNT tiket dengan resolved_at terisi, COUNT yang memiliki '
-                    .'resolved_at <= sla_deadline, dan rate = ROUND(100 * compliant / total, 1).',
+                formula: 'Per kategori tiket (tickets.category_name_snapshot, atau ticket_categories.name selama tiket belum ditutup): '
+                    .'COUNT tiket dengan resolved_at terisi, COUNT yang memiliki resolved_at <= sla_deadline, dan rate = ROUND(100 * compliant / total, 1).',
                 unit: MetricUnit::Breakdown,
                 dateBasis: DateBasis::Snapshot,
                 sources: [
                     'tickets.category_id',
+                    'tickets.category_name_snapshot',
                     'tickets.resolved_at',
                     'tickets.sla_deadline',
                     'ticket_categories.name',
@@ -648,6 +680,7 @@ final class MetricRegistry
                     'Mengabaikan filter Dari/Sampai dan filter kategori, sehingga bisa berbeda dengan angka di atasnya '
                         .'untuk periode yang sama.',
                     'Kategori dengan nama yang sama digabung menjadi satu baris.',
+                    self::TICKET_CATEGORY_NAME,
                 ],
             ),
         ];
@@ -920,7 +953,7 @@ final class MetricRegistry
                 label: 'Tiket per kategori',
                 definition: 'Tiket yang diselesaikan atau ditutup dalam periode terpilih, dikelompokkan menurut kategori.',
                 formula: 'COUNT tickets yang ditugaskan ke teknisi dengan status resolved atau closed dan resolved_at dalam '
-                    .'rentang, dikelompokkan menurut ticket_categories.name.',
+                    .'rentang, dikelompokkan menurut kategori tiket (tickets.category_name_snapshot, atau ticket_categories.name selama tiket belum ditutup).',
                 unit: MetricUnit::Breakdown,
                 dateBasis: DateBasis::Period,
                 sources: [
@@ -928,12 +961,17 @@ final class MetricRegistry
                     'tickets.status',
                     'tickets.resolved_at',
                     'tickets.category_id',
+                    'tickets.category_name_snapshot',
                     'ticket_categories.name',
                 ],
                 dateColumn: 'tickets.resolved_at',
                 statuses: ['resolved', 'closed'],
                 scope: $scope,
-                caveats: ['Kategori dengan nama yang sama digabung menjadi satu baris.', $periodRule],
+                caveats: [
+                    'Kategori dengan nama yang sama digabung menjadi satu baris.',
+                    self::TICKET_CATEGORY_NAME,
+                    $periodRule,
+                ],
             ),
         ];
     }

@@ -21,6 +21,7 @@ import {
     TR,
 } from '@/Components/ui';
 import { PageHeader, RemoteSearchSelect, type RemoteOption } from '@/Components/composite';
+import { AssetPanelCard } from '@/Components/composite/hardware-panel/AssetPanelCard';
 import { usePermission } from '@/hooks/usePermission';
 import { formatDateTime } from '@/lib/format';
 import {
@@ -175,6 +176,7 @@ export default function Show({ asset, locationOptions }: ShowProps) {
                         </>
                     }
                 />
+                <AssetPanelCard assetId={a.id} assetType={a.asset_type} />
                 <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
                     <Card>
                         <CardHeader>

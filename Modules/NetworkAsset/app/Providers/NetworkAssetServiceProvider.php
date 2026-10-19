@@ -8,6 +8,8 @@ use App\Support\NumberSequences\NumberSequenceRegistry;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
 use Modules\NetworkAsset\Console\SyncNetworkDevices;
 use Nwidart\Modules\Support\ModuleServiceProvider;
@@ -56,6 +58,17 @@ class NetworkAssetServiceProvider extends ModuleServiceProvider
             return Company::query()->where('code', $code)->where('is_active', true)->exists()
                 ? Limit::perMinute(600)->by('isolir|'.$code.'|'.$request->ip())
                 : Limit::perMinute(20)->by('isolir-miss|'.$request->ip());
+        });
+
+        // A worker lives for hours and keeps every database link it opened. The link of one company must not serve the next
+        // job, and a row saved in the web process (host, database, user) is only purged there: the worker starts each loop
+        // from the rows. A listener that returns a value would stop the other `Looping` listeners, so this returns nothing.
+        Queue::looping(function (): void {
+            foreach (array_keys(DB::getConnections()) as $name) {
+                if (str_starts_with($name, 'radius_')) {
+                    DB::purge($name);
+                }
+            }
         });
 
         $this->app->make(NumberSequenceRegistry::class)->register(

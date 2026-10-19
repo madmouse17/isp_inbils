@@ -58,6 +58,8 @@ interface TData {
     network_asset?: { code: string; name: string } | null;
     location?: { name: string; path?: string } | null;
     assignee?: { name: string } | null;
+    category_name_snapshot?: string | null;
+    assignee_name_snapshot?: string | null;
     comments?: {
         id: string;
         body: string;
@@ -112,6 +114,20 @@ function Detail({ label, children }: { label: string; children: React.ReactNode 
 
 export default function Show({ ticket, handlers }: ShowProps) {
     const t = ticket.data;
+    // A closed ticket keeps the category and assignee it closed with; other statuses follow the live record.
+    const closed = t.status === 'closed';
+    const categoryName =
+        closed && t.category_name_snapshot ? t.category_name_snapshot : t.category?.name;
+    const categoryChanged =
+        closed &&
+        Boolean(t.category_name_snapshot) &&
+        t.category_name_snapshot !== t.category?.name;
+    const assigneeName =
+        closed && t.assignee_name_snapshot ? t.assignee_name_snapshot : t.assignee?.name;
+    const assigneeChanged =
+        closed &&
+        Boolean(t.assignee_name_snapshot) &&
+        t.assignee_name_snapshot !== t.assignee?.name;
     const company = useCompany();
     const sourceLabel =
         t.deadline_source.type === 'tier'
@@ -241,7 +257,15 @@ export default function Show({ ticket, handlers }: ShowProps) {
                         </CardHeader>
                         <CardContent>
                             <dl className="grid gap-x-6 gap-y-4 text-sm md:grid-cols-2">
-                                <Detail label="Kategori">{t.category?.name ?? '-'}</Detail>
+                                <Detail label="Kategori">
+                                    {categoryName ?? '-'}
+                                    {categoryChanged && (
+                                        <span className="text-xs font-normal text-muted-foreground">
+                                            {' '}
+                                            (saat ditutup)
+                                        </span>
+                                    )}
+                                </Detail>
                                 <Detail label="Sumber">
                                     <EnumBadge map={TICKET_SOURCE} value={t.source} />
                                 </Detail>
@@ -251,7 +275,15 @@ export default function Show({ ticket, handlers }: ShowProps) {
                                     {t.network_asset?.name ?? '-'}
                                 </Detail>
                                 <Detail label="Lokasi">{t.location?.name ?? '-'}</Detail>
-                                <Detail label="Petugas">{t.assignee?.name ?? '-'}</Detail>
+                                <Detail label="Petugas">
+                                    {assigneeName ?? '-'}
+                                    {assigneeChanged && (
+                                        <span className="text-xs font-normal text-muted-foreground">
+                                            {' '}
+                                            (saat ditutup)
+                                        </span>
+                                    )}
+                                </Detail>
                                 {t.description && (
                                     <div className="md:col-span-2">
                                         <Detail label="Deskripsi">{t.description}</Detail>

@@ -31,4 +31,9 @@ class CustomerAddressPolicy
     {
         return $user->can('customer.address.manage');
     }
+
+    public function restore(User $user, CustomerAddress $customerAddress): bool
+    {
+        return $this->delete($user, $customerAddress);
+    }
 }

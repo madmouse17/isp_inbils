@@ -26,7 +26,11 @@ async function deleteRow(page: Page, text: string) {
     const row = await findRow(page, text);
     await row.getByRole('button', { name: 'Aksi lainnya' }).click();
     await page.getByRole('menuitem', { name: 'Hapus' }).click();
-    await page.getByRole('alertdialog').getByRole('button', { name: 'Hapus', exact: true }).click();
+    // A record nobody uses is deleted for good, so the dialog confirms with "Hapus permanen"; the plain list dialog says "Hapus".
+    await page
+        .getByRole('alertdialog')
+        .getByRole('button', { name: /^Hapus( permanen)?$/ })
+        .click();
     await expect(row).toBeHidden({ timeout: 15_000 });
 }
 

@@ -46,7 +46,7 @@ class OdnSplitter extends Model
     /** @return BelongsTo<NetworkAsset, $this> */
     public function asset(): BelongsTo
     {
-        return $this->belongsTo(NetworkAsset::class, 'network_asset_id');
+        return $this->belongsTo(NetworkAsset::class, 'network_asset_id')->withTrashed();
     }
 
     /** @return BelongsTo<OdnPort, $this> */

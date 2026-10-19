@@ -3,7 +3,7 @@
     "info": {
         "title": "Inbils Mobile API",
         "version": "1.1.0",
-        "description": "Contract of the Inbils customer and technician mobile apps. The apps hand-write their models from this document.\nRegenerate it with `php artisan scramble:export` after any change to an `api/v1` route, request or resource.\n\n## Authentication\n\nEvery endpoint except `POST auth/login`, `POST auth/two-factor` and `POST auth/forgot-password` needs\n`Authorization: Bearer <token>`. A token belongs to one app install and carries one ability, `customer` or\n`technician`, picked by the `app` field at login. A token expires 90 days (customer) or 30 days (technician) after it\nis issued. `POST auth/token/refresh` swaps it for a new one; refresh when fewer than 7 days remain. Any 401 means\n\"sign in again\". Logout, a password change, deactivation, a 2FA change and `DELETE devices/{id}` revoke tokens.\n\nA user with confirmed two-factor authentication gets `202` from `POST auth/login` with a `challenge_id` (valid 300 s,\n5 attempts) and no token. `POST auth/two-factor` with a TOTP or recovery code then issues the token.\n\n## Errors\n\nEvery error under `api/v1` is JSON: `{\"message\": string, \"code\": string, \"errors\"?: {field: [string]}}`.\n`message` is for developers and may be English or Indonesian; show your own text per `code`. `errors` appears only\nwith `validation_failed`. A 429 carries `Retry-After` (seconds).\n\n| Status | `code` |\n|---|---|\n| 400 | `bad_request` |\n| 401 | `unauthenticated` (missing, expired or revoked token), `account_inactive` (the token is deleted) |\n| 403 | `forbidden` (wrong app ability or no permission), `app_not_allowed` (the account may not use this app), `password_reset_required` |\n| 404 | `not_found` (also another customer's or company's record), `payment_unavailable` (online payment is off) |\n| 405 | `method_not_allowed` |\n| 408 | `request_timeout` |\n| 409 | `conflict`, `idempotency_in_progress` |\n| 413 | `payload_too_large` |\n| 415 | `unsupported_media_type` |\n| 422 | `validation_failed`, `unprocessable` (a well-formed request the business rules refuse), `idempotency_conflict`, `invoice_not_payable`, `challenge_expired` |\n| 428 | `precondition_required`, `idempotency_key_required` |\n| 429 | `too_many_requests` |\n| 500 | `server_error` |\n| other 4xx | `client_error` |\n\n## Idempotency\n\nEvery `POST`, `PUT`, `PATCH` and `DELETE` except the three public auth endpoints needs `Idempotency-Key: <UUID>`\n(missing: 428 `idempotency_key_required`; not a UUID: 422 `validation_failed`). Generate one key per user action and\nreuse it for every retry of that action. For 24 hours the server stores the response per user and key:\n\n- a retry with the same request gets the stored status and body again, with the header `Idempotent-Replayed: true`;\n- the same key with a different request is 422 `idempotency_conflict`;\n- the same key while the first request still runs is 409 `idempotency_in_progress`;\n- 5xx and 429 responses are not stored, so retry them with the same key.\n\n## Identifiers\n\nEvery `id` and every field that names another record (`customer_id`, `subscription_id`, ...) is an opaque string: a\n26-character lowercase ULID such as `01m5441c2q1sqrw67nr4dwyakz`. Keep it as a string, never parse or order it as a\nnumber, and send it back unchanged in paths and bodies. Version 1.1 replaced the integer ids of 1.0. An integer or\nunknown id in a path answers 404 `not_found`; in a body it is 422 `validation_failed`. A notification's `id` is a UUID.\n\n## Pagination\n\nList endpoints answer `{data, links, meta}` (Laravel paginator). `?page=` starts at 1. `?per_page=` defaults to 20,\nat most 50. One record is `{data}`.\n\n## Rate limits\n\n120 requests a minute per token, 20 sign-ins a minute per IP, 6 password-reset requests a minute per IP, 6 payment\nstarts, 30 uploads and 30 promo banner taps a minute per user."
+        "description": "Contract of the Inbils customer and technician mobile apps. The apps hand-write their models from this document.\nRegenerate it with `php artisan scramble:export` after any change to an `api/v1` route, request or resource.\n\n## Authentication\n\nEvery endpoint except `POST auth/login`, `POST auth/two-factor` and `POST auth/forgot-password` needs\n`Authorization: Bearer <token>`. A token belongs to one app install and carries one ability, `customer` or\n`technician`, picked by the `app` field at login. A token expires 90 days (customer) or 30 days (technician) after it\nis issued. `POST auth/token/refresh` swaps it for a new one; refresh when fewer than 7 days remain. Any 401 means\n\"sign in again\". Logout, a password change, deactivation, a 2FA change and `DELETE devices/{id}` revoke tokens.\n\nA user with confirmed two-factor authentication gets `202` from `POST auth/login` with a `challenge_id` (valid 300 s,\n5 attempts) and no token. `POST auth/two-factor` with a TOTP or recovery code then issues the token.\n\n## Errors\n\nEvery error under `api/v1` is JSON: `{\"message\": string, \"code\": string, \"errors\"?: {field: [string]}, \"request_id\": string}`.\n`message` is for developers and may be English or Indonesian; show your own text per `code`. `errors` appears only\nwith `validation_failed`. `request_id` equals the `X-Request-Id` response header: quote it when you report a problem,\nand the server log can be searched by it. A 429 carries `Retry-After` (seconds).\n\n| Status | `code` |\n|---|---|\n| 400 | `bad_request` |\n| 401 | `unauthenticated` (missing, expired or revoked token), `account_inactive` (the token is deleted) |\n| 403 | `forbidden` (wrong app ability or no permission), `app_not_allowed` (the account may not use this app), `password_reset_required` |\n| 404 | `not_found` (also another customer's or company's record), `payment_unavailable` (online payment is off) |\n| 405 | `method_not_allowed` |\n| 408 | `request_timeout` |\n| 409 | `conflict`, `idempotency_in_progress`, `push_token_not_registered` (this install's push token is not registered for this sign-in) |\n| 413 | `payload_too_large` |\n| 415 | `unsupported_media_type` |\n| 422 | `validation_failed`, `unprocessable` (a well-formed request the business rules refuse), `idempotency_conflict`, `invoice_not_payable`, `challenge_expired` |\n| 428 | `precondition_required`, `idempotency_key_required` |\n| 429 | `too_many_requests` |\n| 500 | `server_error` |\n| 503 | `push_unavailable` (push notifications are off on the server) |\n| other 4xx | `client_error` |\n\n## Idempotency\n\nEvery `POST`, `PUT`, `PATCH` and `DELETE` except the three public auth endpoints needs `Idempotency-Key: <UUID>`\n(missing: 428 `idempotency_key_required`; not a UUID: 422 `validation_failed`). Generate one key per user action and\nreuse it for every retry of that action. For 24 hours the server stores the response per user and key:\n\n- a retry with the same request gets the stored status and body again, with the header `Idempotent-Replayed: true`;\n- the same key with a different request is 422 `idempotency_conflict`;\n- the same key while the first request still runs is 409 `idempotency_in_progress`;\n- 5xx and 429 responses are not stored, so retry them with the same key.\n\n## Identifiers\n\nEvery `id` and every field that names another record (`customer_id`, `subscription_id`, ...) is an opaque string: a\n26-character lowercase ULID such as `01m5441c2q1sqrw67nr4dwyakz`. Keep it as a string, never parse or order it as a\nnumber, and send it back unchanged in paths and bodies. Version 1.1 replaced the integer ids of 1.0. An integer or\nunknown id in a path answers 404 `not_found`; in a body it is 422 `validation_failed`. A notification's `id` is a UUID.\n\n## Pagination\n\nList endpoints answer `{data, links, meta}` (Laravel paginator). `?page=` starts at 1. `?per_page=` defaults to 20,\nat most 50. One record is `{data}`.\n\n## Rate limits\n\n120 requests a minute per token, 20 sign-ins a minute per IP, 6 password-reset requests a minute per IP, 6 payment\nstarts, 30 uploads and 30 promo banner taps a minute per user, 3 push tests a minute per user."
     },
     "servers": [
         {
@@ -742,6 +742,7 @@
             },
             "post": {
                 "operationId": "v1.technician.inventory-requests.store",
+                "description": "Naming an SPK (`work_order_id`, already checked to be the caller's own active SPK) makes it the material of that SPK.",
                 "summary": "A request from the app is queued for the warehouse at once: the app has no draft step",
                 "tags": [
                     "InventoryRequest"
@@ -1077,6 +1078,21 @@
                                                         "null"
                                                     ]
                                                 },
+                                                "customer_name": {
+                                                    "type": "string"
+                                                },
+                                                "customer_address": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "package_name": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
                                                 "issue_date": {
                                                     "type": "string"
                                                 },
@@ -1255,6 +1271,9 @@
                                                 "id",
                                                 "number",
                                                 "subscription_id",
+                                                "customer_name",
+                                                "customer_address",
+                                                "package_name",
                                                 "issue_date",
                                                 "due_date",
                                                 "billing_period",
@@ -2794,6 +2813,86 @@
                                 }
                             }
                         }
+                    }
+                }
+            }
+        },
+        "/me/push-test": {
+            "post": {
+                "operationId": "v1.me.push-test",
+                "description": "Writes a `push_test` notification in the bell and pushes it to the install that holds `token`, never to the user's\nother phones. 202: the push is queued, the app waits `wait_seconds` for it. 409 `push_token_not_registered`: the\nserver does not know this token for this sign-in (register it with `POST me/device-token` and retry), 503\n`push_unavailable`: push is off on the server. At most 3 a minute per user.",
+                "summary": "Send a test push to this install",
+                "tags": [
+                    "PushTest"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PushTestRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "integer",
+                                    "const": 202
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -4949,10 +5048,7 @@
                         ]
                     },
                     "package": {
-                        "type": [
-                            "object",
-                            "null"
-                        ],
+                        "type": "object",
                         "properties": {
                             "id": {
                                 "type": "string"
@@ -4982,11 +5078,8 @@
                                 "type": "integer"
                             },
                             "speed_label": {
-                                "type": [
-                                    "string",
-                                    "null"
-                                ],
-                                "description": "Marketing speed, e.g. \"Hingga 50 Mbps\": speed profile max download, else bandwidth download; null when neither profile exists."
+                                "type": "string",
+                                "description": "Marketing speed, e.g. \"Hingga 50 Mbps\": the maximum download of the speed profile."
                             }
                         },
                         "required": [
@@ -4999,11 +5092,8 @@
                         ]
                     },
                     "sla_tier": {
-                        "type": [
-                            "object",
-                            "null"
-                        ],
-                        "description": "The package's service level; null when the package has none.",
+                        "type": "object",
+                        "description": "The service level the package was sold with.",
                         "properties": {
                             "name": {
                                 "type": "string"
@@ -6274,6 +6364,7 @@
                             "material_return_exception",
                             "material_return_rejected",
                             "announcement_published",
+                            "push_test",
                             "unknown"
                         ]
                     },
@@ -6308,6 +6399,7 @@
                             "Pengembalian material bermasalah",
                             "Pengembalian material ditolak",
                             "Pengumuman baru",
+                            "Notifikasi uji",
                             "Notifikasi baru"
                         ]
                     },
@@ -6379,6 +6471,24 @@
                             "null"
                         ],
                         "description": "The subscription this invoice bills; null when it belongs to no single subscription."
+                    },
+                    "customer_name": {
+                        "type": "string",
+                        "description": "The customer's name as printed when the invoice was issued; a later rename does not change it."
+                    },
+                    "customer_address": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The customer's address as printed when the invoice was issued; null when the customer had none."
+                    },
+                    "package_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The package name as printed when the invoice was issued; null for an invoice without a subscription."
                     },
                     "issue_date": {
                         "type": "string"
@@ -6507,6 +6617,9 @@
                     "id",
                     "number",
                     "subscription_id",
+                    "customer_name",
+                    "customer_address",
+                    "package_name",
                     "issue_date",
                     "due_date",
                     "billing_period",
@@ -6519,6 +6632,19 @@
                     "sisa"
                 ],
                 "title": "PortalInvoiceResource"
+            },
+            "PushTestRequest": {
+                "type": "object",
+                "properties": {
+                    "token": {
+                        "type": "string",
+                        "maxLength": 4096
+                    }
+                },
+                "required": [
+                    "token"
+                ],
+                "title": "PushTestRequest"
             },
             "ResolveTicketRequest": {
                 "type": "object",
@@ -6689,6 +6815,13 @@
                 "properties": {
                     "warehouse_location_id": {
                         "type": "string"
+                    },
+                    "work_order_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The caller's own SPK, assigned or in progress, by its public id. The request is then the material of that SPK:\nwhat the warehouse hands over is counted against it, so SPK approval does not take the same material again.\nOmit it, or send null, for a request that belongs to no SPK."
                     },
                     "reason": {
                         "type": [
@@ -7994,12 +8127,17 @@
                                 "code": {
                                     "type": "string",
                                     "description": "Stable error code; see the API description."
+                                },
+                                "request_id": {
+                                    "type": "string",
+                                    "description": "Equals the X-Request-Id response header; quote it when reporting a problem."
                                 }
                             },
                             "required": [
                                 "message",
                                 "errors",
-                                "code"
+                                "code",
+                                "request_id"
                             ]
                         }
                     }
@@ -8019,11 +8157,16 @@
                                 "code": {
                                     "type": "string",
                                     "description": "Stable error code; see the API description."
+                                },
+                                "request_id": {
+                                    "type": "string",
+                                    "description": "Equals the X-Request-Id response header; quote it when reporting a problem."
                                 }
                             },
                             "required": [
                                 "message",
-                                "code"
+                                "code",
+                                "request_id"
                             ]
                         }
                     }
@@ -8043,11 +8186,16 @@
                                 "code": {
                                     "type": "string",
                                     "description": "Stable error code; see the API description."
+                                },
+                                "request_id": {
+                                    "type": "string",
+                                    "description": "Equals the X-Request-Id response header; quote it when reporting a problem."
                                 }
                             },
                             "required": [
                                 "message",
-                                "code"
+                                "code",
+                                "request_id"
                             ]
                         }
                     }
@@ -8067,11 +8215,16 @@
                                 "code": {
                                     "type": "string",
                                     "description": "Stable error code; see the API description."
+                                },
+                                "request_id": {
+                                    "type": "string",
+                                    "description": "Equals the X-Request-Id response header; quote it when reporting a problem."
                                 }
                             },
                             "required": [
                                 "message",
-                                "code"
+                                "code",
+                                "request_id"
                             ]
                         }
                     }

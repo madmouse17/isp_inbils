@@ -3,6 +3,7 @@
 namespace Modules\Billing\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Services\Core\CompanyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
@@ -13,9 +14,10 @@ use Modules\Billing\Services\PaymentAttemptService;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Midtrans HTTP notification. No session and no CSRF: the signature is the credential. The
- * notification only says which attempt to look at; the state that gets applied is re-fetched from the
- * Status API, so a replayed, reordered or tampered notification cannot book anything by itself.
+ * Midtrans HTTP notification. No session and no CSRF: the signature is the credential, and each company has its own
+ * (its server key), so the company comes first: from the URL, or on the legacy URL from the order. The notification
+ * only says which attempt to look at; the state that gets applied is re-fetched from the Status API, so a replayed,
+ * reordered or tampered notification cannot book anything by itself.
  */
 class MidtransWebhookController extends Controller
 {
@@ -24,13 +26,9 @@ class MidtransWebhookController extends Controller
 
     public function __invoke(Request $request, MidtransGateway $gateway, PaymentAttemptService $attempts): Response
     {
-        if (! $gateway->isEnabled()) {
-            return response()->noContent(404);
-        }
-
         $notification = $request->json()->all();
 
-        // Nothing is looked up, let alone written, before the sender has proved who it is.
+        // Nothing is written, and Midtrans is not called, before the sender has proved who it is.
         if (! is_string($notification['signature_key'] ?? null)) {
             return response()->noContent(403);
         }
@@ -41,12 +39,32 @@ class MidtransWebhookController extends Controller
             }
         }
 
+        $companyId = MidtransGateway::companyIdForNotification($request);
+
+        if ($companyId === null) {
+            return response()->noContent(404);
+        }
+
+        return CompanyService::runAs($companyId, fn (): Response => $this->receive($notification, $gateway, $attempts));
+    }
+
+    /**
+     * Inside the company's scope: its gateway, its key, its attempts.
+     *
+     * @param  array<string, mixed>  $notification
+     */
+    private function receive(array $notification, MidtransGateway $gateway, PaymentAttemptService $attempts): Response
+    {
+        if (! $gateway->isEnabled()) {
+            return response()->noContent(404);
+        }
+
         if (! $gateway->isValidSignature($notification)) {
             return response()->noContent(403);
         }
 
-        // The tenant is whatever the stored attempt says, never anything in the payload.
-        $attempt = PaymentAttempt::withoutCompany()->where('order_id', $notification['order_id'])->first();
+        // The company is the one whose key signed, so the lookup is scoped to it: another company's order is simply not here.
+        $attempt = PaymentAttempt::query()->where('order_id', $notification['order_id'])->first();
 
         if ($attempt === null) {
             return response()->noContent(404);

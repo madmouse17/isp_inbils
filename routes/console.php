@@ -20,8 +20,8 @@ Schedule::command('tickets:sla')->everyFifteenMinutes()->withoutOverlapping(10);
 // ten minutes, per active company. A no-op while no Midtrans server key is configured.
 Schedule::command('midtrans:reconcile')->everyFifteenMinutes()->withoutOverlapping(10);
 
-// Re-queues RADIUS accounts that are pending, owe a Disconnect, failed over an hour ago or drifted, and writes
-// NAS client rows that are not in RADIUS yet. Does nothing while RADIUS_ENABLED is off.
+// Queues one sync job per company with RADIUS configured (Pengaturan → Integrasi): each re-queues pending, drifted or
+// failed accounts and writes missing NAS client rows. Does nothing when no company has RADIUS enabled.
 Schedule::command('network:sync')->everyFifteenMinutes()->withoutOverlapping(10);
 
 // Scheduler heartbeat — keeps the /ready scheduler probe green.
@@ -43,3 +43,10 @@ Schedule::command('model:prune', ['--model' => [WhatsAppMessage::class, WhatsApp
 // Mobile app tokens carry their own expires_at (90 days customer, 30 technician); this drops the ones that
 // expired more than a day ago.
 Schedule::command('sanctum:prune-expired', ['--hours' => 24])->daily();
+
+// Audit retention (config/activitylog.php): 365 days, 730 for the security, platform and support logs.
+// 19:30 UTC is 02:30 in Jakarta, the quietest hour for the audit table.
+Schedule::command('inbils:activity-log:prune')->dailyAt('19:30')->withoutOverlapping(120);
+
+// failed_jobs keeps 30 days (720 hours), long enough to diagnose and retry a job; nothing else ever empties the table.
+Schedule::command('queue:prune-failed', ['--hours' => 720])->daily();

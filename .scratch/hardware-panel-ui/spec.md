@@ -1,6 +1,6 @@
 # Hardware panel UI: devices drawn like the physical unit (ports, slots, links)
 
-Status: ready-for-agent
+Status: done
 Ledger: `docs/plans/INBILS_OMP_BACKLOG.md` → "ISP roadmap lanes (2026-10-12)" row `hardware-panel-ui`
 Source: owner 2026-10-17: "improve untuk ui nas/router/mikrotik atau hardware lainnya buat lebih bagus, kalau bisa menyerupai hardwarenya kalau ada colokan atau port-portnya, biar lebih bagus informatif dan user jaringan gampang memahami jadi UI bisa dibuat seperti fisiknya kalau bisa".
 

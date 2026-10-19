@@ -7,11 +7,13 @@ import {
     DataTableActions,
     type DataTableColumn,
     PageHeader,
+    StatusFilter,
 } from '@/Components/composite';
+import { UsageLine } from '@/Components/composite/UsageLine';
 import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { useServerTable } from '@/hooks/useServerTable';
 import { type PaginationLike, toPagination } from '@/lib/pagination';
-import { ACTIVE_STATE } from '@/lib/statuses';
+import { LIFECYCLE_STATE, lifecycleStateOf } from '@/lib/statuses';
 import {
     Button,
     Card,
@@ -24,7 +26,10 @@ import {
     Switch,
     Textarea,
 } from '@/Components/ui';
+import type { LifecycleFields } from '@/types/models';
 import type { Category, Unit } from '@/types/inventory';
+
+type CategoryRow = Category & LifecycleFields;
 
 /** A category as the parent picker needs it: every category, not only the page of the table. */
 interface CategoryOption {
@@ -34,11 +39,17 @@ interface CategoryOption {
 }
 
 interface IndexProps extends Record<string, unknown> {
-    categories: PaginationLike<Category>;
+    categories: PaginationLike<CategoryRow>;
     units: { data: Unit[] };
     categoryOptions: CategoryOption[];
-    filters: { search?: string; sort?: string; direction?: string; per_page?: string | number };
-    can: { create: boolean; export: boolean };
+    filters: {
+        search?: string;
+        status?: string;
+        sort?: string;
+        direction?: string;
+        per_page?: string | number;
+    };
+    can: { create: boolean; export: boolean; update: boolean; delete: boolean };
 }
 
 export default function Index({ categories, units, categoryOptions, filters, can }: IndexProps) {
@@ -49,7 +60,7 @@ export default function Index({ categories, units, categoryOptions, filters, can
         only: ['categories', 'filters', 'can'],
     });
     const [modalOpen, setModalOpen] = useState(false);
-    const [editing, setEditing] = useState<Category | null>(null);
+    const [editing, setEditing] = useState<CategoryRow | null>(null);
     const { data, setData, post, put, processing, errors, reset } = useForm({
         name: '',
         code: '',
@@ -63,6 +74,13 @@ export default function Index({ categories, units, categoryOptions, filters, can
         value: String(unit.id),
         label: `${unit.name} (${unit.symbol})`,
     }));
+    // The picker lists active units only; the category's own unit may be inactive and must still show.
+    const editingUnit = editing?.unit
+        ? {
+              value: String(editing.unit.id),
+              label: `${editing.unit.name} (${editing.unit.symbol})`,
+          }
+        : null;
     // A category cannot be its own parent, so the one being edited is not offered.
     const parentChoices = categoryOptions
         .filter((category) => !editing || String(category.id) !== String(editing.id))
@@ -78,7 +96,7 @@ export default function Index({ categories, units, categoryOptions, filters, can
 
     const resetFilters = () => {
         setSearch('');
-        table.visit({ search: '' });
+        table.visit({ search: '', status: '' });
     };
 
     const openCreate = () => {
@@ -87,7 +105,7 @@ export default function Index({ categories, units, categoryOptions, filters, can
         setModalOpen(true);
     };
 
-    const openEdit = (c: Category) => {
+    const openEdit = (c: CategoryRow) => {
         setEditing(c);
         setData({
             name: c.name,
@@ -119,7 +137,7 @@ export default function Index({ categories, units, categoryOptions, filters, can
         }
     };
 
-    const columns: DataTableColumn<Category>[] = [
+    const columns: DataTableColumn<CategoryRow>[] = [
         {
             key: 'code',
             header: 'Kode',
@@ -127,7 +145,20 @@ export default function Index({ categories, units, categoryOptions, filters, can
             sortKey: 'code',
             cell: (c) => <span className="font-mono text-sm">{c.code}</span>,
         },
-        { key: 'name', header: 'Nama', sortable: true, sortKey: 'name' },
+        {
+            key: 'name',
+            header: 'Nama',
+            sortable: true,
+            sortKey: 'name',
+            cell: (c) => (
+                <div className="space-y-0.5">
+                    <span className={c.deleted_at ? 'text-muted-foreground' : undefined}>
+                        {c.name}
+                    </span>
+                    <UsageLine references={c.references} />
+                </div>
+            ),
+        },
         {
             key: 'unit',
             header: 'Satuan',
@@ -139,9 +170,9 @@ export default function Index({ categories, units, categoryOptions, filters, can
             cell: (c) => Number(c.children_count ?? 0),
         },
         {
-            key: 'is_active',
+            key: 'status',
             header: 'Status',
-            cell: (c) => <EnumBadge map={ACTIVE_STATE} value={c.is_active} />,
+            cell: (c) => <EnumBadge map={LIFECYCLE_STATE} value={lifecycleStateOf(c)} />,
         },
         {
             key: 'actions',
@@ -149,9 +180,13 @@ export default function Index({ categories, units, categoryOptions, filters, can
             cell: (c) => (
                 <DataTableActions
                     onEdit={() => openEdit(c)}
-                    deleteHref={route('admin.categories.destroy', c.id)}
-                    deleteMessage={`Hapus ${c.name}?`}
-                    deleteDescription={`Kategori "${c.name}" akan dihapus dari daftar. Kategori yang masih punya sub-kategori atau barang tidak bisa dihapus.`}
+                    lifecycle={{
+                        row: c,
+                        name: c.name,
+                        noun: 'Kategori barang',
+                        routeBase: 'admin.categories',
+                        can: { update: can.update, delete: can.delete },
+                    }}
                 />
             ),
         },
@@ -190,6 +225,12 @@ export default function Index({ categories, units, categoryOptions, filters, can
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder="Nama atau kode"
                             />
+                            <StatusFilter
+                                id="category-status"
+                                value={table.params.status ?? ''}
+                                onChange={(value) => table.set('status', value)}
+                                deactivatable
+                            />
                             <Button type="submit" variant="secondary">
                                 Filter
                             </Button>
@@ -206,7 +247,7 @@ export default function Index({ categories, units, categoryOptions, filters, can
                             itemLabel="kategori"
                             emptyDescription="Buat kategori lebih dulu, lalu pilih kategori itu saat membuat barang."
                             emptyAction={createButton}
-                            hasFilters={Boolean(filters.search)}
+                            hasFilters={Boolean(filters.search || filters.status)}
                             onResetFilters={resetFilters}
                         />
                     </CardContent>
@@ -238,6 +279,7 @@ export default function Index({ categories, units, categoryOptions, filters, can
                         value={data.unit_id}
                         onChange={(value) => setData('unit_id', value)}
                         options={unitChoices}
+                        selected={editingUnit}
                         placeholder="Cari satuan"
                         emptyText="Tidak ada satuan yang cocok."
                         error={errors.unit_id}

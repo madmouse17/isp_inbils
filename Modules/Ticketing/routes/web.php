@@ -1,13 +1,16 @@
 <?php
 
+use App\Http\Controllers\Admin\LifecycleController;
 use Illuminate\Support\Facades\Route;
 use Modules\Ticketing\Http\Controllers\TicketCategoryController;
 use Modules\Ticketing\Http\Controllers\TicketController;
+use Modules\Ticketing\Models\Ticket;
 
 Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->prefix('admin')->name('admin.')->whereUlid(['ticket', 'attachment', 'ticket_category'])->group(function () {
     Route::get('tickets/export', [TicketController::class, 'export'])->name('tickets.export');
     Route::resource('ticket-categories', TicketCategoryController::class)->only(['index', 'update']);
     Route::resource('tickets', TicketController::class);
+    LifecycleController::routes('tickets', Ticket::class, ['restore']);
     Route::post('tickets/{ticket}/assign', [TicketController::class, 'assign'])->name('tickets.assign');
     Route::post('tickets/{ticket}/start', [TicketController::class, 'start'])->name('tickets.start');
     Route::post('tickets/{ticket}/resolve', [TicketController::class, 'resolve'])->name('tickets.resolve');

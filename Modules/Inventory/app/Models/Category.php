@@ -3,6 +3,7 @@
 namespace Modules\Inventory\Models;
 
 use App\Traits\BelongsToCompany;
+use App\Traits\HasLifecycle;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -17,6 +18,7 @@ class Category extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasLifecycle;
     use HasPublicId;
     use LogsActivity;
     use SoftDeletes;
@@ -34,9 +36,27 @@ class Category extends Model
         'is_active' => 'boolean',
     ];
 
+    public static function lifecycleNoun(): string
+    {
+        return 'Kategori barang';
+    }
+
+    public static function lifecycleFilters(): array
+    {
+        return self::ACTIVE_FILTERS;
+    }
+
+    public static function lifecycleReferences(): ?array
+    {
+        return [
+            'sub-kategori' => ['categories.parent_id'],
+            'barang' => ['products.category_id'],
+        ];
+    }
+
     public function parent(): BelongsTo
     {
-        return $this->belongsTo(self::class, 'parent_id');
+        return $this->belongsTo(self::class, 'parent_id')->withTrashed();
     }
 
     public function children(): HasMany
@@ -46,7 +66,7 @@ class Category extends Model
 
     public function unit(): BelongsTo
     {
-        return $this->belongsTo(Unit::class);
+        return $this->belongsTo(Unit::class)->withTrashed();
     }
 
     public function products(): HasMany

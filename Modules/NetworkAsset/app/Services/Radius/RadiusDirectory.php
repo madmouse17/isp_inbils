@@ -2,17 +2,25 @@
 
 namespace Modules\NetworkAsset\Services\Radius;
 
+use App\Models\Core\CompanyIntegration;
+use App\Services\Core\IntegrationConfig;
 use DateTimeInterface;
 use Illuminate\Database\Connection;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use PDO;
+use PDOException;
 use Throwable;
 
 /**
- * The only code that touches the `radius` connection: the stock FreeRADIUS 3.2 tables (`radcheck`,
- * `radreply`, `radusergroup`, `radgroupreply`, `nas`; `radacct` read-only). Primitives in, so it does not
- * know Inbils models. Query builder only, so SQLite (tests) and MySQL behave the same. Every method refuses
- * with kind `disabled` before any query while `services.radius.enabled` is off.
+ * The only code that touches a RADIUS database: the stock FreeRADIUS 3.2 tables (`radcheck`, `radreply`,
+ * `radusergroup`, `radgroupreply`, `nas`; `radacct` read-only). Every company has its own database, named by its
+ * `radius` integration row (Pengaturan → Integrasi) and reached through the connection `radius_{companyId}`; the
+ * company the request, job or command acts in decides which one. The data methods take primitives, so they do not
+ * know Inbils models: only connection() and check() know the integration row. Query builder only, so SQLite (tests)
+ * and MySQL behave the same. Every data method refuses with kind `disabled` before any query while that company has
+ * no enabled row, or while the host of its row is refused by the host policy (connection()).
  *
  * Limit: `nasname` is IPv4 only because `radacct.nasipaddress` is varchar(15).
  */
@@ -22,6 +30,109 @@ class RadiusDirectory
     private const STALE_AFTER_MINUTES = 15;
 
     private const MAX_SESSIONS = 100;
+
+    /** The tables FreeRADIUS and Inbils need; "Uji koneksi" names the ones a database lacks. */
+    private const TABLES = ['radcheck', 'radreply', 'radusergroup', 'radgroupreply', 'nas', 'radacct'];
+
+    /** Seconds the driver waits to connect (MySQL) or for a lock (SQLite). */
+    private const CONNECT_TIMEOUT = 5;
+
+    public static function connectionName(int $companyId): string
+    {
+        return "radius_{$companyId}";
+    }
+
+    /**
+     * The company's connection to its own RADIUS database: the one already open, else a new one built from the row on
+     * top of the `radius` template of config/database.php (driver, charset, options). It is registered with its
+     * configuration (DB::build), so a dropped link reconnects to the same target. Saving the row purges it
+     * (IntegrationConfig::forget) and so does the worker before each job (NetworkAssetServiceProvider).
+     *
+     * A new link is only built for a host the policy allows, resolved now (CompanyIntegration::hostRefusal): the one
+     * that is refused behaves as a RADIUS that is not configured, and the row says why.
+     */
+    public static function connection(CompanyIntegration $row): Connection
+    {
+        $name = self::connectionName((int) $row->company_id);
+
+        if (array_key_exists($name, DB::getConnections())) {
+            return DB::connection($name);
+        }
+
+        if (! $row->allowsConnection()) {
+            throw RadiusException::disabled();
+        }
+
+        return self::buildConnection($row);
+    }
+
+    /** A new link from the row, without the host policy: "Uji koneksi" opens it after TestCompanyIntegration applied the policy. */
+    private static function buildConnection(CompanyIntegration $row): Connection
+    {
+        $name = self::connectionName((int) $row->company_id);
+        $template = config('database.connections.radius');
+
+        DB::build([
+            ...$template,
+            'host' => (string) $row->setting('host'),
+            'port' => $row->setting('port', 3306),
+            'database' => (string) $row->setting('database'),
+            'username' => (string) $row->setting('username'),
+            'password' => (string) $row->secret('password'),
+            'name' => $name,
+            // `+` keeps the integer keys of the PDO options; array_merge would renumber them.
+            'options' => [PDO::ATTR_TIMEOUT => self::CONNECT_TIMEOUT] + ($template['options'] ?? []),
+        ]);
+
+        return DB::connection($name);
+    }
+
+    /**
+     * "Uji koneksi": can the row reach its database, and does that database hold the FreeRADIUS tables? The answer is a
+     * message for the admin, never the driver's text (it carries the host, the user and the bindings); null means it
+     * works. A row that is still switched off can be tested. The link is built from this row and closed afterwards, so
+     * neither an older link nor this one outlives the check. The host policy is the caller's to apply first
+     * (TestCompanyIntegration): this method dials the host the row names.
+     */
+    public function check(CompanyIntegration $integration): ?string
+    {
+        if (blank($integration->setting('host')) || blank($integration->setting('database')) || blank($integration->setting('username'))) {
+            return 'Isi host, nama database, dan nama pengguna RADIUS dulu.';
+        }
+
+        $name = self::connectionName((int) $integration->company_id);
+        DB::purge($name);
+
+        try {
+            $db = self::buildConnection($integration);
+            $db->select('select 1');
+            $schema = $db->getSchemaBuilder();
+            $missing = array_values(array_filter(self::TABLES, fn (string $table): bool => ! $schema->hasTable($table)));
+        } catch (Throwable $e) {
+            return self::failureMessage($e, $integration);
+        } finally {
+            DB::purge($name);
+        }
+
+        return $missing === [] ? null : 'Tabel FreeRADIUS tidak lengkap: '.implode(', ', $missing).'.';
+    }
+
+    /**
+     * What a failed connection or query means to the admin. It reads the driver's error number and never repeats the
+     * driver's text. MySQL answers 1044 (not 1049) for a database that does not exist when the user has no privileges
+     * on every database, which is the usual grant of a RADIUS user.
+     */
+    public static function failureMessage(Throwable $e, CompanyIntegration $row): string
+    {
+        $database = (string) $row->setting('database');
+
+        return match (self::driverCode($e)) {
+            1045 => 'Login database RADIUS ditolak. Periksa nama pengguna dan kata sandi.',
+            1049 => "Database {$database} tidak ada di server RADIUS.",
+            1044 => "Pengguna database RADIUS tidak punya akses ke database {$database}, atau database itu tidak ada.",
+            default => 'Database RADIUS tidak dapat dihubungi dalam 5 detik ('.$row->setting('host').':'.$row->setting('port', 3306).').',
+        };
+    }
 
     /**
      * One transaction: the user's check row (Cleartext-Password :=), group (priority 1) and, for a static address, its
@@ -148,6 +259,22 @@ class RadiusDirectory
     }
 
     /**
+     * Which of these users have an open, not stale session: one query for the whole list. Usernames come back as
+     * RADIUS stores them, whose case may differ from the caller's (MySQL compares them without case).
+     *
+     * @param  list<string>  $usernames
+     * @return list<string>
+     */
+    public function onlineAmong(array $usernames): array
+    {
+        return $this->run(fn (Connection $db): array => $this->open($db->table('radacct')->whereIn('username', $usernames))
+            ->distinct()
+            ->pluck('username')
+            ->map(fn (mixed $username): string => (string) $username)
+            ->all());
+    }
+
+    /**
      * Octets of the sessions started on or after `$from` (the stock 3.2 queries already fold the gigawords in).
      *
      * @return array{input_octets: int, output_octets: int}
@@ -178,9 +305,7 @@ class RadiusDirectory
     /** @return list<array<string, mixed>> */
     private function sessions(Builder $query, int $limit, bool $withUsername): array
     {
-        return $query
-            ->whereNull('acctstoptime')
-            ->whereRaw('COALESCE(acctupdatetime, acctstarttime) >= ?', [now()->subMinutes(self::STALE_AFTER_MINUTES)->format('Y-m-d H:i:s')])
+        return $this->open($query)
             ->orderByDesc('acctstarttime')
             ->orderByDesc('radacctid')
             ->limit($limit)
@@ -195,6 +320,14 @@ class RadiusDirectory
             ->all();
     }
 
+    /** Open and not stale: the 15-minute rule exists here once, for the session lists and the online check. */
+    private function open(Builder $query): Builder
+    {
+        return $query
+            ->whereNull('acctstoptime')
+            ->whereRaw('COALESCE(acctupdatetime, acctstarttime) >= ?', [now()->subMinutes(self::STALE_AFTER_MINUTES)->format('Y-m-d H:i:s')]);
+    }
+
     private function deleteUserRows(Connection $db, string $username): void
     {
         foreach (['radcheck', 'radreply', 'radusergroup'] as $table) {
@@ -202,9 +335,30 @@ class RadiusDirectory
         }
     }
 
+    /** The driver's own error number, from the PDO exception somewhere in the chain; null for anything else. */
+    private static function driverCode(Throwable $e): ?int
+    {
+        for ($cause = $e; $cause !== null; $cause = $cause->getPrevious()) {
+            if (! $cause instanceof PDOException) {
+                continue;
+            }
+
+            if (is_int($cause->errorInfo[1] ?? null)) {
+                return $cause->errorInfo[1];
+            }
+
+            // A failed connect has no errorInfo: the number is only in the message, "SQLSTATE[HY000] [1045] Access denied ...".
+            if (preg_match('/^SQLSTATE\[[^\]]+\] \[(\d+)\]/', $cause->getMessage(), $found) === 1) {
+                return (int) $found[1];
+            }
+        }
+
+        return null;
+    }
+
     /**
-     * Run one unit of work on the `radius` connection. The driver exception is dropped, not chained: its message
-     * carries the host, user and bindings (subscriber and NAS secrets), and a failed job stores the whole chain.
+     * Run one unit of work on the connection of the company in scope. The driver exception is dropped, not chained: its
+     * message carries the host, user and bindings (subscriber and NAS secrets), and a failed job stores the whole chain.
      *
      * @template T
      *
@@ -213,15 +367,19 @@ class RadiusDirectory
      */
     private function run(callable $work): mixed
     {
-        if (! config('services.radius.enabled')) {
+        $row = app(IntegrationConfig::class)->current('radius');
+
+        if ($row?->is_enabled !== true) {
             throw RadiusException::disabled();
         }
 
         try {
-            return $work(DB::connection('radius'));
+            return $work(self::connection($row));
         } catch (RadiusException $e) {
             throw $e;
-        } catch (Throwable) {
+        } catch (Throwable $e) {
+            // Class only: the message names the host.
+            Log::warning('radius.unavailable', ['error' => $e::class]);
             throw RadiusException::unavailable();
         }
     }

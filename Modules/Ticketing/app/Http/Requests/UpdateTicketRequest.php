@@ -2,6 +2,7 @@
 
 namespace Modules\Ticketing\Http\Requests;
 
+use App\Support\OptimisticLock;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateTicketRequest extends FormRequest
@@ -18,6 +19,7 @@ class UpdateTicketRequest extends FormRequest
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'priority' => ['nullable', 'string', 'in:low,medium,high,urgent'],
+            OptimisticLock::FIELD => OptimisticLock::rules(),
         ];
     }
 }

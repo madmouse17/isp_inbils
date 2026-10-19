@@ -52,6 +52,7 @@ class SchedulerLockTest extends TestCase
             'billing:suspend-overdue' => 120,
             'billing:whatsapp-reminders' => 120,
             'promo-banners:cleanup-images' => 120,
+            'inbils:activity-log:prune' => 120,
         ];
 
         $events = collect($this->app->make(Schedule::class)->events());
@@ -66,6 +67,21 @@ class SchedulerLockTest extends TestCase
         ksort($expected);
         ksort($locked);
         $this->assertSame($expected, $locked, 'Overlap lock TTL (minutes) per scheduled command');
+    }
+
+    public function test_the_activity_log_prune_runs_at_02_30_jakarta(): void
+    {
+        // The scheduler runs in UTC, so 19:30 is 02:30 the next morning in Jakarta: nobody is using the audit page.
+        $this->assertSame('UTC', config('app.timezone'));
+        $this->assertSame('30 19 * * *', $this->scheduled('inbils:activity-log:prune')->expression);
+    }
+
+    public function test_failed_jobs_are_pruned_after_30_days(): void
+    {
+        $event = $this->scheduled('queue:prune-failed');
+
+        $this->assertStringEndsWith(' queue:prune-failed --hours=720', (string) $event->command, '720 hours are 30 days');
+        $this->assertSame('0 0 * * *', $event->expression);
     }
 
     public function test_the_scheduler_container_clears_stale_locks_on_boot(): void
@@ -89,5 +105,15 @@ class SchedulerLockTest extends TestCase
         return $event->mutexName() !== null
             && property_exists($event, 'expiresAt')
             && $event->expiresAt !== null;
+    }
+
+    private function scheduled(string $command): Event
+    {
+        $event = collect($this->app->make(Schedule::class)->events())
+            ->first(fn (Event $e): bool => str_contains((string) $e->command, " {$command}"));
+
+        $this->assertNotNull($event, "{$command} is not scheduled");
+
+        return $event;
     }
 }

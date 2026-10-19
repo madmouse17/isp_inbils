@@ -68,17 +68,17 @@ class StockMovement extends Model
 
     public function product(): BelongsTo
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(Product::class)->withTrashed();
     }
 
     public function fromLocation(): BelongsTo
     {
-        return $this->belongsTo(Location::class, 'from_location_id');
+        return $this->belongsTo(Location::class, 'from_location_id')->withTrashed();
     }
 
     public function toLocation(): BelongsTo
     {
-        return $this->belongsTo(Location::class, 'to_location_id');
+        return $this->belongsTo(Location::class, 'to_location_id')->withTrashed();
     }
 
     public function creator(): BelongsTo

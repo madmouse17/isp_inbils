@@ -23,10 +23,14 @@ docs/user-guide/
 ## 1. Screenshot web
 
 Layar yang diambil didaftar di `scripts/docs-screenshots.json` (`slug`, `url`, `auth: false` untuk layar tamu,
-`actions` opsional: `click` dan `waitFor` dengan selektor Playwright, `fill` dengan selektor dan nilai). Viewport
-1280×800, tema terang, login sebagai admin demo. Datanya dari `tests/e2e/setup.php`: `migrate:fresh --seed` (peran,
-izin, pengaturan sistem), `DemoUserSeeder`, lalu `E2eFixtureSeeder`; seeder `database/seeders/Demo/*` tidak ikut,
-jadi layar yang butuh data harus memakai baris dari seeder itu.
+`phone: true` untuk layar yang diambil di ponsel, `actions` opsional: `click`, `hover`, dan `waitFor` dengan selektor
+Playwright, `fill` dengan selektor dan nilai). Viewport 1280×800, tema terang, login sebagai admin demo. Layar
+`phone` memakai ukuran `phone` di berkas yang sama (390×844), konteks sentuh dan piksel 2×. Setiap aksi dibatasi 30
+detik, jadi selektor yang tidak lagi cocok masuk daftar gagal alih-alih menahan seluruh proses. Penunjuk mouse
+diparkir di pojok sebelum gambar diambil, kecuali layar itu memakai `hover`, supaya tooltip port tidak ikut tergambar.
+Datanya dari `tests/e2e/setup.php`: `migrate:fresh --seed` (peran, izin, pengaturan sistem), `DemoUserSeeder`, lalu
+`E2eFixtureSeeder`; seeder `database/seeders/Demo/*` tidak ikut, jadi layar yang butuh data harus memakai baris dari
+seeder itu.
 
 ```bash
 npm run build

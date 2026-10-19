@@ -76,24 +76,6 @@ class OrganizationService
         });
     }
 
-    public static function delete(OrganizationUnit $unit): bool
-    {
-        if ($unit->children()->exists()) {
-            throw ValidationException::withMessages(['organization' => 'Unit masih punya sub-unit. Pindahkan atau hapus sub-unitnya dulu.']);
-        }
-
-        if ($unit->employees()->exists()) {
-            throw ValidationException::withMessages(['organization' => 'Unit masih punya karyawan. Pindahkan karyawannya ke unit lain dulu.']);
-        }
-
-        return DB::transaction(function () use ($unit) {
-            AuditService::log('organization_unit', 'deleted', ['code' => $unit->code]);
-            $unit->delete();
-
-            return true;
-        });
-    }
-
     public static function recomputePath(OrganizationUnit $unit): string
     {
         $parentPath = $unit->parent_id

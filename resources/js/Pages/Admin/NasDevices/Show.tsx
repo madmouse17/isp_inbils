@@ -17,6 +17,8 @@ import { DataTable, PageHeader, type DataTableColumn } from '@/Components/compos
 import { ConfirmRequestDialog } from '@/Components/composite/ConfirmRequestDialog';
 import { CopyButton } from '@/Components/composite/CopyButton';
 import { NasStatusBadge } from '@/Components/composite/NetworkAccessBadges';
+import { AssetPanelCard } from '@/Components/composite/hardware-panel/AssetPanelCard';
+import { usePermission } from '@/hooks/usePermission';
 import { formatDateTime } from '@/lib/format';
 import type { NasDevice, NasDeviceSession } from '@/types/network-asset';
 
@@ -40,6 +42,7 @@ function Detail({ label, children }: { label: string; children: React.ReactNode 
 
 export default function Show({ nasDevice, sessions, isolirUrl, radiusEnabled, can }: ShowProps) {
     const [removing, setRemoving] = useState(false);
+    const canOpenIntegrations = usePermission().can('company.integrations.manage');
 
     const asset = nasDevice.network_asset;
     const assetCode = asset?.code ?? `#${nasDevice.id}`;
@@ -122,9 +125,16 @@ export default function Show({ nasDevice, sessions, isolirUrl, radiusEnabled, ca
 
                 {!radiusEnabled ? (
                     <Alert variant="warning">
-                        <AlertDescription>
-                            RADIUS dimatikan untuk instalasi ini. Tidak ada yang ditulis ke
-                            FreeRADIUS dan tidak ada sesi yang ditampilkan.
+                        <AlertDescription className="flex flex-wrap items-center gap-3">
+                            RADIUS belum dikonfigurasi untuk perusahaan ini. Perubahan disimpan
+                            tetapi tidak dikirim ke FreeRADIUS.
+                            {canOpenIntegrations ? (
+                                <Button asChild variant="outline" size="sm">
+                                    <Link href={route('admin.company.integrations.edit')}>
+                                        Atur di Pengaturan → Integrasi
+                                    </Link>
+                                </Button>
+                            ) : null}
                         </AlertDescription>
                     </Alert>
                 ) : null}
@@ -192,6 +202,10 @@ export default function Show({ nasDevice, sessions, isolirUrl, radiusEnabled, ca
                         </CardContent>
                     </Card>
                 </div>
+
+                {asset ? (
+                    <AssetPanelCard assetId={asset.id} assetType="router" title="Panel router" />
+                ) : null}
 
                 <Card>
                     <CardHeader>

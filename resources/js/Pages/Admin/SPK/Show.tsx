@@ -58,14 +58,15 @@ interface WoData {
     rejection_reason?: string | null;
     customer?: { name: string; code: string } | null;
     subscription?: { code: string } | null;
-    location?: { name: string; path?: string } | null;
+    location?: { name: string; code?: string; path?: string } | null;
     assigned_to?: string | null;
     updated_at?: string | null;
     assignee?: { name: string } | null;
+    technician_name_snapshot?: string | null;
+    location_code_snapshot?: string | null;
     items?: {
         id: string;
         product_id: string;
-        quantity_reserved: string;
         quantity_used: string;
         note?: string | null;
         product?: {
@@ -160,13 +161,16 @@ const ACTION_CONFIRM: Record<ActionModal, string> = {
     addItem: 'Tambah',
 };
 
-const ADD_ITEM_KEYS = [
-    'product_id',
-    'network_asset_id',
-    'quantity_reserved',
-    'quantity_used',
-    'note',
-];
+const ADD_ITEM_KEYS = ['product_id', 'network_asset_id', 'quantity_used', 'note'];
+
+// Mirrors SpkService::ITEM_EDITABLE_STATUSES: items are frozen once the SPK waits for review or ends.
+const ITEM_EDITABLE_STATUSES = ['draft', 'generated', 'assigned', 'in_progress', 'rejected'];
+
+const ITEM_LOCK_REASON: Record<string, string | undefined> = {
+    waiting_review: 'Item dikunci selama SPK menunggu review.',
+    completed: 'SPK selesai, item tidak bisa diubah.',
+    cancelled: 'SPK dibatalkan, item tidak bisa diubah.',
+};
 
 function Detail({ label, children }: { label: string; children: React.ReactNode }) {
     return (
@@ -203,7 +207,6 @@ export default function Show({
         reason: '',
         product_id: '',
         network_asset_id: '',
-        quantity_reserved: '',
         quantity_used: '',
         note: '',
     });
@@ -220,7 +223,21 @@ export default function Show({
     const selectedUnit = selectedProduct?.unit
         ? `${selectedProduct.unit.name} (${selectedProduct.unit.symbol})`
         : null;
-    const canChange = !['completed', 'cancelled'].includes(w.status);
+    const canChange = ITEM_EDITABLE_STATUSES.includes(w.status);
+    const canCancel = !['completed', 'cancelled'].includes(w.status);
+    // A completed SPK keeps the technician and location code it finished with; other statuses follow the live record.
+    const completed = w.status === 'completed';
+    const technicianName =
+        completed && w.technician_name_snapshot ? w.technician_name_snapshot : w.assignee?.name;
+    const technicianChanged =
+        completed &&
+        Boolean(w.technician_name_snapshot) &&
+        w.technician_name_snapshot !== w.assignee?.name;
+    const locationChanged =
+        completed &&
+        Boolean(w.location_code_snapshot) &&
+        w.location_code_snapshot !== w.location?.code;
+    const locationLabel = locationChanged ? w.location_code_snapshot : w.location?.name;
 
     // The server answers with the picked product's kind and unit, and the free assets of that product.
     const pickProduct = (value: string) => {
@@ -259,13 +276,7 @@ export default function Show({
         post(actionUrl, {
             onSuccess: () => {
                 if (actionModal === 'addItem') {
-                    reset(
-                        'product_id',
-                        'network_asset_id',
-                        'quantity_reserved',
-                        'quantity_used',
-                        'note',
-                    );
+                    reset('product_id', 'network_asset_id', 'quantity_used', 'note');
                 }
                 setActionModal(null);
             },
@@ -358,7 +369,15 @@ export default function Show({
                                 </Detail>
                                 <Detail label="Pelanggan">{w.customer?.name ?? '-'}</Detail>
                                 <Detail label="Langganan">{w.subscription?.code ?? '-'}</Detail>
-                                <Detail label="Lokasi">{w.location?.name ?? '-'}</Detail>
+                                <Detail label="Lokasi">
+                                    {locationLabel ?? '-'}
+                                    {locationChanged && (
+                                        <span className="text-xs font-normal text-muted-foreground">
+                                            {' '}
+                                            (saat selesai)
+                                        </span>
+                                    )}
+                                </Detail>
                                 {dropPort && (
                                     <Detail label="Port drop">
                                         <Link
@@ -378,7 +397,15 @@ export default function Show({
                                         )}
                                     </Detail>
                                 )}
-                                <Detail label="Teknisi">{w.assignee?.name ?? '-'}</Detail>
+                                <Detail label="Teknisi">
+                                    {technicianName ?? '-'}
+                                    {technicianChanged && (
+                                        <span className="text-xs font-normal text-muted-foreground">
+                                            {' '}
+                                            (saat selesai)
+                                        </span>
+                                    )}
+                                </Detail>
                                 <Detail label="Jadwal">
                                     {formatDate(w.scheduled_date, company)}
                                 </Detail>
@@ -468,7 +495,7 @@ export default function Show({
                                             Tolak
                                         </Button>
                                     )}
-                                    {canChange && (
+                                    {canCancel && (
                                         <Button
                                             type="button"
                                             variant="destructive-outline"
@@ -499,7 +526,7 @@ export default function Show({
                 <Card>
                     <CardHeader className="space-y-0 flex-row items-center justify-between">
                         <CardTitle>Item</CardTitle>
-                        {canChange && (
+                        {canChange ? (
                             <Button
                                 type="button"
                                 variant="secondary"
@@ -507,6 +534,10 @@ export default function Show({
                             >
                                 Tambah item
                             </Button>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">
+                                {ITEM_LOCK_REASON[w.status]}
+                            </p>
                         )}
                     </CardHeader>
                     <CardContent>
@@ -516,7 +547,6 @@ export default function Show({
                                     <TH>Barang</TH>
                                     <TH>Aset jaringan</TH>
                                     <TH>Satuan</TH>
-                                    <TH>Dicadangkan</TH>
                                     <TH>Terpakai</TH>
                                     <TH>Catatan</TH>
                                 </TR>
@@ -525,7 +555,7 @@ export default function Show({
                                 {(w.items ?? []).length === 0 ? (
                                     <TR>
                                         <TD
-                                            colSpan={6}
+                                            colSpan={5}
                                             className="py-8 text-center text-muted-foreground"
                                         >
                                             Belum ada barang di SPK ini.
@@ -552,7 +582,6 @@ export default function Show({
                                                     i.product?.unit?.name ??
                                                     '-'}
                                             </TD>
-                                            <TD>{i.quantity_reserved}</TD>
                                             <TD>{i.quantity_used}</TD>
                                             <TD>{i.note ?? '-'}</TD>
                                         </TR>
@@ -760,18 +789,6 @@ export default function Show({
                                         required
                                     />
                                 )}
-                                <Input
-                                    label={
-                                        selectedUnit
-                                            ? `Jumlah dicadangkan - ${selectedUnit}`
-                                            : 'Jumlah dicadangkan'
-                                    }
-                                    type="number"
-                                    step="0.01"
-                                    value={data.quantity_reserved}
-                                    onChange={(e) => setData('quantity_reserved', e.target.value)}
-                                    error={errors.quantity_reserved}
-                                />
                                 <Input
                                     label={
                                         selectedUnit

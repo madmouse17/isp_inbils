@@ -2,9 +2,12 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Core\EmployeeProfile;
+use App\Support\OptimisticLock;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin EmployeeProfile */
 class EmployeeResource extends JsonResource
 {
     public function toArray(Request $request): array
@@ -20,6 +23,8 @@ class EmployeeResource extends JsonResource
             'status' => $this->status,
             'skills' => $this->skills,
             'notes' => $this->notes,
+            ...$this->lifecycleAttributes(),
+            'updated_at' => OptimisticLock::version($this->resource),
             'user' => new UserResource($this->whenLoaded('user')),
             'organization' => new OrganizationResource($this->whenLoaded('organization')),
             'vehicle' => new VehicleResource($this->whenLoaded('vehicle')),

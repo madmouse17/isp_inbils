@@ -36,7 +36,8 @@ class CreateInvoiceFromSpkAction
 
             CompleteSpkAction::reconcileUsedQuantitiesFromMaterialReturns($wo);
             $wo->load(['subscription', 'items.product']);
-            $subscription = $wo->subscription;
+            // The relation still returns a deleted subscription, for the history pages: its installation fee is not billed.
+            $subscription = $wo->subscription?->trashed() ? null : $wo->subscription;
             $taxRate = BillingService::taxRateFor($wo->company_id);
 
             $invoice = Invoice::create([
@@ -53,6 +54,7 @@ class CreateInvoiceFromSpkAction
             ]);
 
             foreach ($wo->items as $item) {
+                // A product deleted since is still billed: its materials were used (the relation keeps it for history).
                 /** @var WorkOrderItem $item */
                 /** @var Product|null $product */
                 $product = $item->product;

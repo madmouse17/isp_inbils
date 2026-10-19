@@ -3,6 +3,7 @@
 namespace App\Notifications\Platform;
 
 use App\Models\Core\Company;
+use App\Notifications\Contracts\SentByPlatform;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -15,7 +16,7 @@ use Illuminate\Support\Facades\Password;
  * rolled-back tenant invites nobody. It carries the company id only and the reset token is minted at send time:
  * neither a name nor a token sits in the jobs/failed_jobs payload (the id also attributes a failed job to its tenant).
  */
-class TenantAdminInvitation extends Notification implements ShouldQueueAfterCommit
+class TenantAdminInvitation extends Notification implements SentByPlatform, ShouldQueueAfterCommit
 {
     use Queueable;
 

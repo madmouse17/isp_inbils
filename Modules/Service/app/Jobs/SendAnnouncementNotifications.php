@@ -11,9 +11,11 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Modules\Service\Models\Announcement;
 use Modules\Service\Notifications\AnnouncementPublishedNotification;
 use Modules\Service\Queries\CustomerAudienceQuery;
+use Throwable;
 
 class SendAnnouncementNotifications implements ShouldBeUnique, ShouldQueue
 {
@@ -76,5 +78,11 @@ class SendAnnouncementNotifications implements ShouldBeUnique, ShouldQueue
 
             Announcement::query()->whereKey($current)->whereNull('notified_at')->update(['notified_at' => now()]);
         });
+    }
+
+    /** The queue listener reports the exception itself; this line names the announcement whose customers may not all have been told. */
+    public function failed(Throwable $e): void
+    {
+        Log::warning('announcement.notify_failed', ['announcement_id' => $this->announcementId]);
     }
 }

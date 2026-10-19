@@ -2,11 +2,15 @@
 
 namespace Tests\Unit;
 
+use App\Models\Core\Company;
+use App\Services\Core\CompanyService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\NetworkAsset\Services\Radius\DisconnectResult;
 use Modules\NetworkAsset\Services\Radius\RadiusDisconnectClient;
 use Modules\NetworkAsset\Services\Radius\RadiusException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
+use Tests\Traits\InteractsWithRadius;
 
 /**
  * Byte vectors were computed once with an independent implementation (Python hashlib + struct, RFC 5176 §2.3
@@ -15,6 +19,9 @@ use Tests\TestCase;
  */
 class RadiusDisconnectClientTest extends TestCase
 {
+    use InteractsWithRadius;
+    use RefreshDatabase;
+
     private const SECRET = 'fake-secret';
 
     private const REQUEST = '2807003065e067f39b28b66a78417d56713f0bbe010c616c6963654061636d652c0a38313030303030310406c000020a';
@@ -39,6 +46,16 @@ class RadiusDisconnectClientTest extends TestCase
         $head = pack('CCn', $code, $id, 20 + strlen($attributes));
 
         return $head.md5($head.$this->requestAuthenticator().$attributes.$secret, true).$attributes;
+    }
+
+    /** The sender asks the RADIUS row of the company it acts for: put one in scope, with a row unless told not to. */
+    private function actAsACompany(bool $withRadius = true): void
+    {
+        if ($withRadius) {
+            $this->fakeRadius();
+        }
+
+        CompanyService::useCompanyForTests((int) Company::factory()->create(['is_active' => true])->id);
     }
 
     public function test_encode_matches_independent_vector(): void
@@ -118,7 +135,8 @@ class RadiusDisconnectClientTest extends TestCase
 
     public function test_times_out_when_nobody_answers(): void
     {
-        config(['services.radius.enabled' => true, 'services.radius.coa_timeout' => 1]);
+        $this->actAsACompany();
+        config(['services.radius.coa_timeout' => 1]);
         $socket = stream_socket_server('udp://127.0.0.1:0', $errno, $error, STREAM_SERVER_BIND);
         $port = (int) substr(strrchr(stream_socket_get_name($socket, false), ':'), 1);
 
@@ -130,11 +148,22 @@ class RadiusDisconnectClientTest extends TestCase
         $this->assertLessThanOrEqual(2.0, microtime(true) - $started);
     }
 
-    public function test_switch_off_refuses_without_opening_a_socket(): void
+    /** @return array<string, array{0: bool}> */
+    public static function companiesWithoutAnEnabledRadius(): array
     {
-        config(['services.radius.enabled' => false]);
-        // Port 1 would refuse or time out; a refusal before any socket work is the only way to get the exception.
+        return ['no row at all' => [false], 'a row switched off' => [true]];
+    }
 
+    #[DataProvider('companiesWithoutAnEnabledRadius')]
+    public function test_a_company_without_an_enabled_radius_refuses_without_opening_a_socket(bool $hasRow): void
+    {
+        $this->actAsACompany($hasRow);
+
+        if ($hasRow) {
+            $this->disableRadius();
+        }
+
+        // Port 1 would refuse or time out; a refusal before any socket work is the only way to get the exception.
         try {
             (new RadiusDisconnectClient())->disconnect('127.0.0.1', 1, self::SECRET, $this->attributes());
             $this->fail('RadiusException expected');

@@ -93,6 +93,8 @@ test('the words decided with the owner are the words the maps use', () => {
         ['TENANT_EXPORT_STATUS', 'ready', 'Siap diunduh', 'success'],
         ['TENANT_EXPORT_STATUS', 'failed', 'Gagal', 'danger'],
         ['TENANT_EXPORT_STATUS', 'expired', 'Kedaluwarsa', 'neutral'],
+        ['INTEGRATION_STATE', 'failed', 'Galat', 'danger'],
+        ['INTEGRATION_STATE', 'verified', 'Terverifikasi', 'success'],
     ];
     for (const [name, value, label, tone] of fixed) {
         assert.deepEqual(statuses[name][value], { label, tone }, `${name}.${value}`);
@@ -325,6 +327,14 @@ test('maps list exactly the cases and constants of the remaining backend sources
     assert.deepEqual(
         keysOf(statuses.PLATFORM_TENANT_STATUS),
         phpConstant('app/Queries/Platform/PlatformTenantListQuery.php', 'STATUSES').sort(),
+    );
+    assert.deepEqual(
+        keysOf(statuses.INTEGRATION_STATE),
+        phpConstant('app/Models/Core/CompanyIntegration.php', 'STATES').sort(),
+    );
+    assert.deepEqual(
+        keysOf(statuses.INTEGRATION_PROVIDER),
+        phpConstant('app/Models/Core/CompanyIntegration.php', 'PROVIDERS').sort(),
     );
     const tenantExport = read('app/Models/Platform/TenantExport.php');
     const tenantExportStatuses = [

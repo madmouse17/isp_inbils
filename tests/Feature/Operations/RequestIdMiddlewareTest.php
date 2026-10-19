@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Operations;
 
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Context;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class RequestIdMiddlewareTest extends TestCase
@@ -51,22 +53,23 @@ class RequestIdMiddlewareTest extends TestCase
         );
     }
 
-    public function test_binds_request_id_into_log_context(): void
+    public function test_rejects_an_id_outside_the_token_alphabet_or_over_128_characters(): void
     {
-        Log::shouldReceive('shareContext')
-            ->once()
-            ->withArgs(function (array $context): bool {
-                return ($context['request_id'] ?? null) === 'req-log-bind';
-            });
+        foreach (['has space', 'semi;colon', '<script>', 'quo"te', str_repeat('a', 129)] as $unsafe) {
+            $id = $this->get('/ready', ['X-Request-Id' => $unsafe])->headers->get('X-Request-Id');
 
-        // Allow any other Log calls during request
-        Log::shouldReceive('withContext')->zeroOrMoreTimes();
-        Log::shouldReceive('info')->zeroOrMoreTimes();
-        Log::shouldReceive('debug')->zeroOrMoreTimes();
-        Log::shouldReceive('error')->zeroOrMoreTimes();
-        Log::shouldReceive('warning')->zeroOrMoreTimes();
-        Log::shouldReceive('channel')->zeroOrMoreTimes()->andReturnSelf();
+            $this->assertNotSame($unsafe, $id);
+            $this->assertTrue(Str::isUuid($id));
+        }
 
-        $this->get('/ready', ['X-Request-Id' => 'req-log-bind']);
+        $this->get('/ready', ['X-Request-Id' => 'Svc.a_b:c-1'])->assertHeader('X-Request-Id', 'Svc.a_b:c-1');
+    }
+
+    public function test_request_id_is_put_in_the_context(): void
+    {
+        // The Context reaches every log line (extra.request_id) and the jobs the request dispatches.
+        Route::get('/__request-id-probe', fn (): string => (string) Context::get('request_id'));
+
+        $this->get('/__request-id-probe', ['X-Request-Id' => 'req-log-bind'])->assertContent('req-log-bind');
     }
 }

@@ -37,6 +37,7 @@ class ThrottleMatrixTest extends TestCase
             'technician.work-orders.evidence.store' => 'api-upload',
             'customer.tickets.attachments.store' => 'api-upload',
             'technician.tickets.attachments.store' => 'api-upload',
+            'me.push-test' => 'api-push-test',
         ];
 
         foreach ($this->apiRoutes() as $route) {

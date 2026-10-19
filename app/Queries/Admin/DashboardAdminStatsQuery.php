@@ -63,7 +63,7 @@ final class DashboardAdminStatsQuery
             'roleCount' => Role::query()->count(),
             'permissionCount' => Permission::query()->count(),
             'recentActivity' => Activity::query()
-                ->where('properties->company_id', $companyId)
+                ->where('company_id', $companyId)
                 ->where(fn ($logs) => $logs->whereNull('log_name')->orWhere('log_name', '<>', PlatformAuditService::PLATFORM_LOG))
                 ->latest()
                 ->limit(self::RECENT_ACTIVITY_LIMIT)

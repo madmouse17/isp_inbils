@@ -198,7 +198,7 @@ class NetworkAccountHttpTest extends TestCase
         Schema::connection('radius')->drop('radacct');
         $this->show()->assertOk()->assertInertia(fn (Assert $page) => $page->where('session', null)->where('usage', null)->where('radiusEnabled', true)->where('account.username', "alice@{$this->realm}"));
 
-        config(['services.radius.enabled' => false]);
+        $this->disableRadius();
         $this->show()->assertOk()->assertInertia(fn (Assert $page) => $page->where('session', null)->where('usage', null)->where('radiusEnabled', false));
     }
 
@@ -247,7 +247,7 @@ class NetworkAccountHttpTest extends TestCase
 
     public function test_store_with_the_switch_off_saves_the_account_pending_and_writes_nothing(): void
     {
-        config(['services.radius.enabled' => false]);
+        $this->disableRadius();
 
         $this->post(route('admin.subscriptions.network-account.store', $this->subscription), $this->storePayload())->assertRedirect();
 
