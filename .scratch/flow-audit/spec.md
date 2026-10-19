@@ -1,6 +1,6 @@
 # End-to-end flow audit of the ISP operation (report to the owner)
 
-Status: needs-owner-approval (flows run and report delivered 2026-10-17; waits on the owner's answers K1-K37)
+Status: done
 Ledger: `docs/plans/INBILS_OMP_BACKLOG.md` → "ISP roadmap lanes (2026-10-12)" row `flow-audit`
 Source: owner 2026-10-16: "setelah task ini semua, lakukan pengujian e2e satu persatu flow nya, dari awal sampai akhir, dan audit juga dan catat untuk dilaporkan ke saya adakah kejanggalan atau flow yang perlu diperbaiki, biar lebih smooth dan bagus terkait flow nya sesuai dengan company isp yang ada".
 

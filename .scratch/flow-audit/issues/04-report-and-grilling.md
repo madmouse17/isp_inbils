@@ -1,6 +1,6 @@
 # ORCHESTRATOR: consolidated report and grilling round
 
-Status: needs-owner-approval (report `docs/plans/FLOW_AUDIT_2026-10-17.md` delivered; the owner has not answered the round K1-K37 in section 4)
+Status: done
 Role: orchestrator
 Blocked by: 02, 03
 Spec: `../spec.md`
@@ -11,6 +11,6 @@ Merge findings, rank, propose fixes, present to the owner as numbered questions 
 
 ## Acceptance criteria
 
-- [ ] Owner has the report and answered the round.
+- [x] Owner has the report and answered the round. (2026-10-19: every recommendation accepted; lane `.scratch/flow-audit-fixes`.)
 
 ## Comments

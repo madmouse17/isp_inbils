@@ -343,6 +343,8 @@ Isi laporan: [1. Putusan](#1-putusan) · [2. Defect di seluruh alur](#2-defect-d
 
 37 keputusan (K1 sampai K37) mencakup semua temuan yang ditandai "ya" di kolom keputusan owner (37 defect), dua rekomendasi UX yang ditandai di ringkasan (F2-U11 dan F1-U06), dan satu pertanyaan metode uji dari FlowAudit5. Tiap baris memuat rekomendasi auditor yang bisa diterima atau diganti. Dikelompokkan menurut tema.
 
+**Jawaban owner 2026-10-19:** semua rekomendasi diterima ("saya ikut saran rekomendasi anda saja"). Pilihan yang dibiarkan terbuka diputuskan dengan rekomendasi orkestrator; rincian per nomor dan lane perbaikannya ada di `.scratch/flow-audit-fixes/spec.md`. K36 sudah dikerjakan (empat berkas dihapus dari git).
+
 ### Pembulatan tagihan
 
 | No | ID | Keputusan yang diminta | Rekomendasi auditor |
