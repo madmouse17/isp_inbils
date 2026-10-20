@@ -83,6 +83,12 @@ test.describe('@lifecycle ticket', () => {
         await expect(page.getByText('Diselesaikan').first()).toBeVisible({ timeout: 15_000 });
         await expect(page.getByText(comment)).toBeVisible();
         await expect(page.getByText(resolution)).toBeVisible();
+        // The technician's public reply says who wrote it, and the page never mixes it up with the customer.
+        const commentCard = page
+            .getByText(comment)
+            .locator('xpath=ancestor::div[contains(@class, "rounded-lg")][1]');
+        await expect(commentCard.getByText('Petugas', { exact: true })).toBeVisible();
+        await expect(commentCard.getByText('Pelanggan', { exact: true })).toHaveCount(0);
 
         const firstResponse = await detailValue(page, 'Respons pertama');
         expect(firstResponse).not.toBe('');
@@ -97,6 +103,9 @@ test.describe('@lifecycle ticket', () => {
         const resolvedAt = parseDate(resolvedText);
         expect(resolvedAt.getTime()).toBeLessThanOrEqual(deadline.getTime());
         await expect(page.getByText('Penyelesaian terlambat')).toHaveCount(0);
+        // Both targets are met or no longer owed, so no countdown runs on a resolved ticket.
+        expect(await detailValue(page, 'Target respons')).not.toMatch(/\b(sisa|lewat)\b/);
+        expect(await detailValue(page, 'Target penyelesaian')).not.toMatch(/\b(sisa|lewat)\b/);
 
         // --- Close: the manager (checker, not the handler) closes the technician's work ---
         await settleAppChunks(page);
@@ -139,6 +148,104 @@ test.describe('@lifecycle ticket', () => {
         const wo = spkProps?.props?.workOrder?.data;
         expect(wo?.source).toBe('ticket');
         expect(wo?.title).toContain('SPK dari tiket');
+    });
+
+    test('queue chips filter the list through the URL and a new ticket counts down its targets', async ({
+        page,
+    }) => {
+        const title = `E2E ticket queue ${runId}`;
+
+        await loginAs(page, 'admin');
+        const ticketId = await createTicketViaUi(page, title);
+        await settleAppChunks(page);
+        await page.goto(`/admin/tickets?search=${encodeURIComponent(title)}`);
+
+        // Nobody has the new ticket yet and its first response is owed: the row says both in words.
+        const main = page.getByRole('main');
+        const row = main.getByRole('row').filter({ hasText: title });
+        await expect(row).toContainText('Belum ditugaskan');
+        await expect(row).toContainText(/sisa /);
+
+        // The chip is a toggle that lists the unassigned queue, and the address bar holds it.
+        const unassigned = main.getByRole('button', { name: 'Belum ditugaskan', exact: true });
+        await expect(unassigned).toHaveAttribute('aria-pressed', 'false');
+        await unassigned.click();
+        await expect(unassigned).toHaveAttribute('aria-pressed', 'true');
+        await expect(page).toHaveURL(/[?&]unassigned=1/);
+        await expect(row).toBeVisible();
+        await page.reload();
+        await expect(
+            main.getByRole('button', { name: 'Belum ditugaskan', exact: true }),
+        ).toHaveAttribute('aria-pressed', 'true');
+        await expect(main.getByRole('row').filter({ hasText: title })).toBeVisible();
+
+        // Once it has a handler it leaves the queue, and its page counts both targets down.
+        await settleAppChunks(page);
+        await page.goto(`/admin/tickets/${ticketId}`);
+        await assignToHandlerViaUi(page, 'Demo Technician');
+        const response = await detailValue(page, 'Target respons');
+        expect(response).toMatch(/sisa /);
+        expect(response).toContain('Dihitung sejak tiket dibuat:');
+        expect(await detailValue(page, 'Target penyelesaian')).toMatch(/sisa /);
+        await settleAppChunks(page);
+        await page.goto(`/admin/tickets?unassigned=1&search=${encodeURIComponent(title)}`);
+        await expect(main.getByRole('row').filter({ hasText: title })).toHaveCount(0);
+
+        // The customer is a link and a phone line for whoever may open customers, with the address row beside them.
+        await page.goto(`/admin/tickets/${ticketId}`);
+        await expect(main.getByRole('link', { name: e2eCustomerName })).toHaveAttribute(
+            'href',
+            /\/admin\/customers\//,
+        );
+        await expect(main.locator('dt', { hasText: /^Telepon$/ })).toBeVisible();
+        await expect(main.locator('dt', { hasText: /^Alamat$/ })).toBeVisible();
+    });
+
+    test('a queue chip with nothing in it says so and offers the whole list again', async ({
+        page,
+    }) => {
+        // The manager closes tickets but is no handler, so no ticket is ever assigned to them.
+        await loginAs(page, 'manager');
+        await settleAppChunks(page);
+        await page.goto('/admin/tickets');
+
+        const main = page.getByRole('main');
+        await main.getByRole('button', { name: 'Tiket saya', exact: true }).click();
+        await expect(page).toHaveURL(/[?&]assigned_to=/);
+        await expect(main.getByText('Tidak ada tiket yang ditugaskan kepada Anda.')).toBeVisible();
+
+        await main.getByRole('button', { name: 'Lihat semua tiket' }).click();
+        await expect(page).not.toHaveURL(/assigned_to=/);
+        await expect(main.getByRole('button', { name: 'Tiket saya', exact: true })).toHaveAttribute(
+            'aria-pressed',
+            'false',
+        );
+    });
+
+    test('Evaluasi teknisi on the closed ticket opens the form with the handler and the ticket chosen', async ({
+        page,
+    }) => {
+        await loginAs(page, 'admin');
+        const ticketId = await findTicketId(page, `E2E ticket lifecycle ${runId}`);
+        await settleAppChunks(page);
+        await page.goto(`/admin/tickets/${ticketId}`);
+        await expectDetail(page, 'Status', 'Ditutup');
+
+        const main = page.getByRole('main');
+        await main.getByRole('link', { name: 'Evaluasi teknisi' }).click();
+        await expect(page).toHaveURL(new RegExp(`/admin/evaluations/create\\?ticket=${ticketId}`));
+        await expect(main.getByRole('heading', { name: 'Buat Evaluasi' })).toBeVisible();
+
+        // The handler and the ticket come with the click; the score is left to the evaluator.
+        await expect(main.getByRole('combobox', { name: /^Karyawan/ })).toHaveValue(
+            'Demo Technician',
+        );
+        await expect(main.getByRole('combobox', { name: /^Tiket/ })).not.toHaveValue('');
+        await expect(main.getByLabel('Nilai (1,0 sampai 5,0)')).toHaveValue('');
+
+        await main.getByRole('button', { name: 'Simpan', exact: true }).click();
+        await expect(main.getByText('Pilih nilai 1 sampai 5.')).toBeVisible();
+        await expect(page).toHaveURL(/\/admin\/evaluations\/create/);
     });
 });
 

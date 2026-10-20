@@ -34,7 +34,7 @@ class SupportActionsController extends Controller
         $this->ensureReach($company, $user, $support);
         $support->unlockLogin($this->admin($request), $user);
 
-        return $this->shown($company, 'Kunci autentikasi dua langkah pengguna dibuka.');
+        return $this->shown($company, 'Kunci masuk pengguna dibuka.');
     }
 
     private function ensureReach(Company $company, User $user, SupportToolsService $support): void

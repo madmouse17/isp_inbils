@@ -9,10 +9,38 @@ import {
     AlertDialogTitle,
 } from '@/Components/ui/alert-dialog';
 
-interface ConfirmDialogProps {
+interface ConfirmDescriptionProps {
+    description: string;
+    /** What the action does, one line each, read together with the description. */
+    details?: readonly string[];
+}
+
+/**
+ * The description of a confirmation and, under it, the lines naming what the action does. Both sit in one
+ * description region, so a screen reader reads them together; the list never nests inside a paragraph.
+ */
+export function ConfirmDescription({ description, details }: ConfirmDescriptionProps) {
+    if (!details?.length) {
+        return <AlertDialogDescription>{description}</AlertDialogDescription>;
+    }
+
+    return (
+        <AlertDialogDescription asChild>
+            <div className="space-y-2">
+                <p>{description}</p>
+                <ul className="space-y-1 list-disc pl-5 text-left">
+                    {details.map((line) => (
+                        <li key={line}>{line}</li>
+                    ))}
+                </ul>
+            </div>
+        </AlertDialogDescription>
+    );
+}
+
+interface ConfirmDialogProps extends ConfirmDescriptionProps {
     open: boolean;
     title: string;
-    description: string;
     confirmLabel: string;
     /** `danger` for actions that cannot be taken back; the confirm button then names the object. */
     tone?: 'primary' | 'danger';
@@ -31,6 +59,7 @@ export function ConfirmDialog({
     open,
     title,
     description,
+    details,
     confirmLabel,
     tone = 'primary',
     processing = false,
@@ -48,7 +77,7 @@ export function ConfirmDialog({
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>{title}</AlertDialogTitle>
-                    <AlertDialogDescription>{description}</AlertDialogDescription>
+                    <ConfirmDescription description={description} details={details} />
                 </AlertDialogHeader>
                 {error ? (
                     <Alert variant="danger">

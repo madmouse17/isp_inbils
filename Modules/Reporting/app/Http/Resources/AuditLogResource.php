@@ -5,7 +5,9 @@ namespace Modules\Reporting\Http\Resources;
 use App\Models\Core\Company;
 use App\Models\PlatformAdmin;
 use App\Models\User;
+use App\Services\Platform\PlatformAuditService;
 use App\Support\AuditProperties;
+use App\Support\SupportActionText;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -64,6 +66,8 @@ class AuditLogResource extends JsonResource
             'company_id' => $this->resource->relationLoaded('company') ? $this->resource->getRelation('company')?->public_id : null,
             'log_name' => $this->resource->log_name,
             'description' => $this->resource->description,
+            // The one sentence of a support row, so the page, the search and the export word it the same.
+            'support_text' => $this->resource->log_name === PlatformAuditService::SUPPORT_LOG ? SupportActionText::for($this->resource) : null,
             'event' => $this->resource->event,
             'causer_id' => $causer instanceof User ? $causer->public_id : null,
             'causer_type' => $this->resource->causer_type,

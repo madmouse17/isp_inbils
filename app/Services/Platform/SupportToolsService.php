@@ -2,12 +2,15 @@
 
 namespace App\Services\Platform;
 
+use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\TwoFactorChallengeRequest;
 use App\Models\Core\Company;
 use App\Models\PlatformAdmin;
 use App\Models\User;
 use App\Notifications\Platform\TenantAdminInvitation;
 use App\Queries\Platform\PlatformTenantListQuery;
 use App\Services\Core\TwoFactorService;
+use App\Support\SecurityTrail;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
@@ -47,7 +50,7 @@ class SupportToolsService
 
     public function resendInvitation(PlatformAdmin $actor, User $user): void
     {
-        if (! $user->is_active || $user->last_login_at !== null || ! $user->hasRole('admin')) {
+        if (! $this->canResendInvitation($user)) {
             throw ValidationException::withMessages([
                 'invitation' => 'Undangan hanya dapat dikirim kepada admin aktif yang belum pernah masuk.',
             ]);
@@ -65,14 +68,71 @@ class SupportToolsService
             );
         }
 
-        $user->notify(new TenantAdminInvitation((int) $user->company_id));
+        $user->notify(new TenantAdminInvitation((int) $user->company_id, $user->id));
         $this->record($actor, $user, 'user.invitation_resent');
     }
 
+    /** The one predicate behind resendInvitation() and the "Kirim ulang undangan" button. */
+    public function canResendInvitation(User $user): bool
+    {
+        return $user->is_active && $user->last_login_at === null && $user->hasRole('admin');
+    }
+
+    /**
+     * Takes every lock that keeps this user from signing in: the password budget of each address the security trail
+     * saw for them, and the second-factor budgets of those addresses and of the account. The budget of an address
+     * itself (`login-address|ip`) guards the address, not the user, so it stays. The audit rows count the addresses and
+     * never name them.
+     */
     public function unlockLogin(PlatformAdmin $actor, User $user): void
     {
-        RateLimiter::clear('two-factor-user|'.$user->id);
-        $this->record($actor, $user, 'user.login_unlocked');
+        $addresses = $this->trailAddresses([$user->id])[$user->id] ?? [];
+
+        foreach ($addresses as $ip) {
+            RateLimiter::clear(LoginRequest::throttleKeyFor($user->email, $ip));
+            RateLimiter::clear(TwoFactorChallengeRequest::addressKeyFor($user, $ip));
+        }
+
+        RateLimiter::clear(TwoFactorChallengeRequest::accountKeyFor($user));
+        $this->record($actor, $user, 'user.login_unlocked', ['addresses' => count($addresses)]);
+    }
+
+    /**
+     * The users of this list who cannot sign in right now, with what keeps them out and for how long: the lock that
+     * lasts longest, read from the same limiter keys the sign-in and the challenge use.
+     *
+     * @param  Collection<int, User>  $users
+     * @return array<int, array{reason: 'password'|'two_factor', seconds: int}> keyed by user id, locked users only
+     */
+    public function loginLocks(Collection $users): array
+    {
+        $addresses = $this->trailAddresses($users->pluck('id')->all());
+        $locks = [];
+
+        foreach ($users as $user) {
+            $budgets = [[TwoFactorChallengeRequest::accountKeyFor($user), TwoFactorChallengeRequest::ATTEMPTS_PER_ACCOUNT, 'two_factor']];
+
+            foreach ($addresses[$user->id] ?? [] as $ip) {
+                $budgets[] = [LoginRequest::throttleKeyFor($user->email, $ip), LoginRequest::ATTEMPTS_PER_ACCOUNT, 'password'];
+                $budgets[] = [TwoFactorChallengeRequest::addressKeyFor($user, $ip), TwoFactorChallengeRequest::ATTEMPTS_PER_ADDRESS, 'two_factor'];
+            }
+
+            $lock = null;
+
+            foreach ($budgets as [$key, $attempts, $reason]) {
+                $seconds = RateLimiter::tooManyAttempts($key, $attempts) ? RateLimiter::availableIn($key) : 0;
+
+                if ($seconds > ($lock['seconds'] ?? 0)) {
+                    $lock = ['reason' => $reason, 'seconds' => $seconds];
+                }
+            }
+
+            if ($lock !== null) {
+                $locks[$user->id] = $lock;
+            }
+        }
+
+        return $locks;
     }
 
     /** @return LengthAwarePaginator<int, array{uuid: mixed, queue: mixed, job: mixed, exception: string, company: array{id: string, code: string}, failed_at: string}> */
@@ -172,9 +232,41 @@ class SupportToolsService
             ->keyBy('id');
     }
 
-    private function record(PlatformAdmin $actor, User $user, string $action): void
+    /**
+     * The client addresses the security trail saw wrong passwords or wrong second-factor codes from, per user id, in the
+     * last counting window: one query for the whole list. The trail is how a limiter key that holds an address is found
+     * again; a lock from a typed address that named no active account is no user's lock and is not found. A run of wrong
+     * passwords only raises the count of the window's first row, so a row counts by its last update.
+     * shortcut: no cap on the addresses of one user, so a spray from thousands of addresses makes the page read thousands
+     * of limiter keys; cap it when that is seen.
+     *
+     * @param  list<int>  $userIds
+     * @return array<int, list<string>>
+     */
+    private function trailAddresses(array $userIds): array
     {
-        $properties = ['user_id' => $user->id];
+        if ($userIds === []) {
+            return [];
+        }
+
+        return DB::table('activity_log')
+            ->where('log_name', 'security')
+            ->whereIn('description', ['login.failed', 'two_factor.challenge_failed'])
+            ->where('subject_type', User::class)
+            ->whereIn('subject_id', $userIds)
+            ->whereNotNull('ip_address')
+            ->where('updated_at', '>=', now()->subSeconds(SecurityTrail::WINDOW_SECONDS))
+            ->distinct()
+            ->get(['subject_id', 'ip_address'])
+            ->groupBy('subject_id')
+            ->map(fn (Collection $rows): array => $rows->pluck('ip_address')->all())
+            ->all();
+    }
+
+    /** @param  array<string, int>  $extra  counts only: both rows, the tenant's included, hold ids and numbers and never an address */
+    private function record(PlatformAdmin $actor, User $user, string $action, array $extra = []): void
+    {
+        $properties = ['user_id' => $user->id, ...$extra];
         $this->audit->platform($action, $properties, $user, $actor);
         $this->audit->support($action, $properties, $user, $actor);
     }

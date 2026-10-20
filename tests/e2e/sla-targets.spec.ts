@@ -67,7 +67,13 @@ type TicketData = {
     created_at: string;
     sla_deadline: string;
     response_deadline: string | null;
-    deadline_source: { type: 'tier' | 'category'; name: string };
+    deadline_source: {
+        type: 'tier' | 'category';
+        name: string;
+        response_hours: number | null;
+        resolution_hours: number;
+        urgent_halved: boolean;
+    };
 };
 
 async function ticketData(page: Page, id: string) {
@@ -179,7 +185,13 @@ test.describe('@sla-targets', () => {
             const id = await createTicketViaUi(page, title);
             const ticket = await ticketData(page, id);
 
-            expect(ticket.deadline_source).toEqual({ type: 'category', name: 'Device Issue' });
+            expect(ticket.deadline_source).toEqual({
+                type: 'category',
+                name: 'Device Issue',
+                response_hours: 2,
+                resolution_hours: 5,
+                urgent_halved: false,
+            });
             expect(hoursBetween(ticket.created_at, ticket.sla_deadline)).toBeCloseTo(5, 1);
             expect(hoursBetween(ticket.created_at, ticket.response_deadline as string)).toBeCloseTo(
                 2,

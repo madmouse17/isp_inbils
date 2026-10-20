@@ -16,6 +16,9 @@ use Illuminate\Validation\ValidationException;
 
 class LoginRequest extends FormRequest
 {
+    /** Failures one account may make from one address before it is locked. The unlock tool and the lock badge read it too. */
+    public const ATTEMPTS_PER_ACCOUNT = 5;
+
     /** Failed sign-ins one address may make per minute whatever the typed email: a rotated email starts no fresh budget. */
     private const FAILURES_PER_ADDRESS = 20;
 
@@ -111,7 +114,7 @@ class LoginRequest extends FormRequest
     protected function exhaustedKey(): ?string
     {
         return match (true) {
-            RateLimiter::tooManyAttempts($this->throttleKey(), 5) => $this->throttleKey(),
+            RateLimiter::tooManyAttempts($this->throttleKey(), self::ATTEMPTS_PER_ACCOUNT) => $this->throttleKey(),
             RateLimiter::tooManyAttempts($this->addressKey(), self::FAILURES_PER_ADDRESS) => $this->addressKey(),
             default => null,
         };
@@ -127,6 +130,12 @@ class LoginRequest extends FormRequest
      */
     public function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->string('email')).'|'.$this->ip());
+        return self::throttleKeyFor($this->string('email')->toString(), (string) $this->ip());
+    }
+
+    /** The failure budget of one typed email from one address. Support clears it without a request, so the key lives in one place. */
+    public static function throttleKeyFor(string $email, string $ip): string
+    {
+        return Str::transliterate(Str::lower($email).'|'.$ip);
     }
 }

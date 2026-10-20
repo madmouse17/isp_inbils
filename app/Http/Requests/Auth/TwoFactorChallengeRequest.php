@@ -18,12 +18,12 @@ use Illuminate\Validation\ValidationException;
 class TwoFactorChallengeRequest extends FormRequest
 {
     /** Per account and address, as the password step is per email and address. */
-    private const ATTEMPTS_PER_ADDRESS = 5;
+    public const ATTEMPTS_PER_ADDRESS = 5;
 
     private const ADDRESS_WINDOW_SECONDS = 60;
 
     /** Per account across every address: six digits are guessable by someone who holds the password and rotates addresses. */
-    private const ATTEMPTS_PER_ACCOUNT = 10;
+    public const ATTEMPTS_PER_ACCOUNT = 10;
 
     private const ACCOUNT_WINDOW_SECONDS = 900;
 
@@ -100,10 +100,22 @@ class TwoFactorChallengeRequest extends FormRequest
 
     private function addressKey(User|PlatformAdmin $account): string
     {
-        return ($account instanceof PlatformAdmin ? 'platform-two-factor' : 'two-factor').'|'.$account->getKey().'|'.$this->ip();
+        return self::addressKeyFor($account, (string) $this->ip());
     }
 
     private function accountKey(User|PlatformAdmin $account): string
+    {
+        return self::accountKeyFor($account);
+    }
+
+    /** The budget of one account from one address. The web and the app challenge share it, and support clears it without a request. */
+    public static function addressKeyFor(User|PlatformAdmin $account, string $ip): string
+    {
+        return ($account instanceof PlatformAdmin ? 'platform-two-factor' : 'two-factor').'|'.$account->getKey().'|'.$ip;
+    }
+
+    /** The budget of one account across every address. */
+    public static function accountKeyFor(User|PlatformAdmin $account): string
     {
         return ($account instanceof PlatformAdmin ? 'platform-two-factor-admin' : 'two-factor-user').'|'.$account->getKey();
     }

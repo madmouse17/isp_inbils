@@ -19,6 +19,9 @@ use Illuminate\Support\Str;
  * setup wizard, in one transaction. The admin gets a random 32-character password nobody knows and verified e-mail;
  * the invitation mail to set a password and, when asked, the sample-data job are queued once the transaction has
  * committed, so a failure anywhere leaves no company, no user and no mail.
+ *
+ * The operator also picks what the company starts with (`catalog`, see CompanySeeder): the starter catalog or an empty
+ * one. Sample data goes on top of the starter catalog; the job adds its own stock and assets.
  */
 class ProvisionTenantAction
 {
@@ -33,8 +36,9 @@ class ProvisionTenantAction
     public function execute(PlatformAdmin $actor, array $validated): Company
     {
         $demoData = (bool) ($validated['demo_data'] ?? false);
+        $catalog = (string) $validated['catalog'];
 
-        [$company, $admin] = DB::transaction(function () use ($actor, $validated, $demoData): array {
+        [$company, $admin] = DB::transaction(function () use ($actor, $validated, $demoData, $catalog): array {
             $admin = new User([
                 'name' => $validated['admin_name'],
                 'email' => $validated['admin_email'],
@@ -47,18 +51,19 @@ class ProvisionTenantAction
                 ...Arr::only($validated, ['name', 'code', 'timezone', 'currency', 'logo', 'admin_name']),
                 'date_format' => SettingService::get('default_date_format', 'd M Y'),
                 'datetime_format' => 'd M Y H:i',
-            ]);
+            ], $catalog);
 
             $this->audit->platform('tenant.provisioned', [
                 'code' => $company->code,
                 'admin_user_id' => $admin->id,
+                'catalog' => $catalog,
                 'demo_data' => $demoData,
             ], $company, $actor);
 
             return [$company, $admin];
         });
 
-        $admin->notify(new TenantAdminInvitation($company->id));
+        $admin->notify(new TenantAdminInvitation($company->id, $admin->id));
 
         if ($demoData) {
             SeedTenantDemoDataJob::dispatch($company->id, $admin->id, $actor->id)->afterCommit();

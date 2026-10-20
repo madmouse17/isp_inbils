@@ -56,7 +56,9 @@ test('@platform support access shows the banner, enforces read-only, switches to
 
     await page.goto('/admin/reports/audit-log');
     const main = page.getByRole('main');
-    await expect(main.getByText('Akses dukungan oleh tim Inbils').first()).toBeVisible();
+    await expect(
+        main.getByText('Tim dukungan Inbils masuk sebagai E2E Suspend Admin').first(),
+    ).toBeVisible();
     await expect(main.getByText('E2E Platform Operator')).toHaveCount(0);
 
     await banner.getByRole('button', { name: 'Keluar' }).click();

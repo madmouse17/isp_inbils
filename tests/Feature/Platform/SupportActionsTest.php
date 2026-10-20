@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Platform;
 
+use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\TwoFactorChallengeRequest;
 use App\Models\Core\Company;
 use App\Models\User;
 use App\Notifications\Platform\TenantAdminInvitation;
@@ -59,6 +61,22 @@ class SupportActionsTest extends TestCase
     private function unlock(Company $root, User $user): TestResponse
     {
         return $this->asOperator(false)->post(route('platform.companies.users.unlock', [$root, $user]));
+    }
+
+    /** A sign-in from $ip as the person at that address would type it; each call starts a fresh browser session. */
+    private function signIn(User $user, string $ip, string $password = 'password'): TestResponse
+    {
+        $this->flushSession();
+
+        return $this->asTenantVisitor()->withServerVariables(['REMOTE_ADDR' => $ip])->post('/login', ['email' => $user->email, 'password' => $password]);
+    }
+
+    /** Wrong passwords from $ip: the security trail learns the address, the limiter learns the lock. */
+    private function wrongPasswords(User $user, string $ip, int $times = 5): void
+    {
+        for ($attempt = 1; $attempt <= $times; $attempt++) {
+            $this->signIn($user, $ip, 'wrong-password');
+        }
     }
 
     private function sessionRow(User $user): string
@@ -342,7 +360,7 @@ class SupportActionsTest extends TestCase
         $this->assertSame([$this->operator::class, $this->operator->id], [$platform->causer_type, (int) $platform->causer_id]);
         $support = Activity::query()->where('log_name', 'support')->where('description', 'user.login_unlocked')->sole();
         $this->assertSame($this->alpha['root']->id, (int) $support->company_id);
-        $this->assertSame(['user_id' => $user->id], $support->properties->all());
+        $this->assertSame(['user_id' => $user->id, 'addresses' => 0], $support->properties->all());
     }
 
     public function test_after_an_unlock_the_real_login_challenge_accepts_the_users_code_again(): void
@@ -364,6 +382,98 @@ class SupportActionsTest extends TestCase
 
         $this->asTenantVisitor()->post(route('two-factor.login'), ['code' => $this->totp($secret)])->assertSessionHasNoErrors();
         $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_unlock_clears_password_lock_of_recorded_addresses(): void
+    {
+        $user = $this->alpha['staff'];
+        $colleague = $this->alpha['admin'];
+        $this->wrongPasswords($user, '10.1.1.1');
+        $this->wrongPasswords($user, '10.2.2.2');
+        $this->wrongPasswords($colleague, '10.1.1.1');
+
+        $this->signIn($user, '10.1.1.1')->assertSessionHasErrors('email');
+        $this->assertStringContainsString('Terlalu banyak', session('errors')->first('email'), 'the right password is refused while the lock stands');
+
+        $this->unlock($this->alpha['root'], $user)->assertSessionHas('success');
+
+        $this->assertSame(0, RateLimiter::attempts(LoginRequest::throttleKeyFor($user->email, '10.1.1.1')));
+        $this->assertSame(0, RateLimiter::attempts(LoginRequest::throttleKeyFor($user->email, '10.2.2.2')));
+        $this->assertSame(5, RateLimiter::attempts(LoginRequest::throttleKeyFor($colleague->email, '10.1.1.1')), 'a colleague on the same address stays locked');
+
+        foreach (['10.1.1.1', '10.2.2.2'] as $ip) {
+            $this->signIn($user, $ip)->assertSessionHasNoErrors();
+            $this->assertAuthenticatedAs($user);
+        }
+    }
+
+    public function test_unlock_clears_two_factor_counters(): void
+    {
+        $user = $this->alpha['staff'];
+        ['secret' => $secret] = $this->enrollTwoFactor($user);
+        $this->travel(30)->seconds();
+
+        $this->signIn($user, '10.1.1.1')->assertRedirect(route('two-factor.login'));
+
+        for ($attempt = 1; $attempt <= 5; $attempt++) {
+            $this->post(route('two-factor.login'), ['code' => '000000'])->assertSessionHasErrors('code');
+        }
+
+        // The sixth attempt is refused by the budget of the address, even with the right code, before the account's budget is touched.
+        $this->post(route('two-factor.login'), ['code' => $this->totp($secret)])->assertSessionHasErrors('code');
+        $this->assertStringContainsString('Terlalu banyak', session('errors')->first('code'));
+        $this->assertSame(6, RateLimiter::attempts(TwoFactorChallengeRequest::addressKeyFor($user, '10.1.1.1')));
+        $this->assertSame(5, RateLimiter::attempts(TwoFactorChallengeRequest::accountKeyFor($user)));
+
+        $this->unlock($this->alpha['root'], $user)->assertSessionHas('success');
+
+        $this->assertSame(0, RateLimiter::attempts(TwoFactorChallengeRequest::addressKeyFor($user, '10.1.1.1')), 'the budget of that address');
+        $this->assertSame(0, RateLimiter::attempts(TwoFactorChallengeRequest::accountKeyFor($user)), 'and the budget of the account');
+
+        $this->asTenantVisitor()->post(route('two-factor.login'), ['code' => $this->totp($secret)])->assertSessionHasNoErrors();
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_unlock_audit_row_counts_addresses_only(): void
+    {
+        $user = $this->alpha['staff'];
+        $this->wrongPasswords($user, '10.1.1.1', 2);
+        $this->wrongPasswords($user, '10.2.2.2', 2);
+
+        $this->unlock($this->alpha['root'], $user)->assertSessionHas('success');
+
+        foreach (['platform', 'support'] as $log) {
+            $row = Activity::query()->where('log_name', $log)->where('description', 'user.login_unlocked')->sole();
+
+            $this->assertSame(['user_id' => $user->id, 'addresses' => 2], $row->properties->all(), $log);
+            $this->assertStringNotContainsString('10.1.1.1', (string) json_encode($row->properties), $log);
+            $this->assertStringNotContainsString('10.2.2.2', (string) json_encode($row->properties), $log);
+        }
+    }
+
+    public function test_address_budget_is_not_cleared(): void
+    {
+        $user = $this->alpha['staff'];
+        $this->wrongPasswords($user, '10.1.1.1');
+        $this->assertSame(5, RateLimiter::attempts('login-address|10.1.1.1'));
+
+        $this->unlock($this->alpha['root'], $user)->assertSessionHas('success');
+
+        $this->assertSame(5, RateLimiter::attempts('login-address|10.1.1.1'), 'the budget of an address guards the address, not the user');
+    }
+
+    public function test_a_lock_from_an_address_the_trail_never_saw_stays(): void
+    {
+        $user = $this->alpha['staff'];
+        $key = LoginRequest::throttleKeyFor($user->email, '10.9.9.9');
+
+        for ($attempt = 1; $attempt <= 5; $attempt++) {
+            RateLimiter::hit($key);
+        }
+
+        $this->unlock($this->alpha['root'], $user)->assertSessionHas('success');
+
+        $this->assertTrue(RateLimiter::tooManyAttempts($key, LoginRequest::ATTEMPTS_PER_ACCOUNT), 'only the addresses the security trail recorded for the user are found again');
     }
 
     // ---------------------------------------------------------------------------------------------

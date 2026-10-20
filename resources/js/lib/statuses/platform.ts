@@ -16,6 +16,14 @@ export const TENANT_EXPORT_STATUS = {
     expired: { label: 'Kedaluwarsa', tone: 'neutral' },
 } satisfies StatusMap;
 
+/** Where the set-password mail of a first admin stands on the company page. A label leads into the time the state began ("Antre sejak 18.17"); an expired link has no time. */
+export const PLATFORM_INVITATION_STATE = {
+    queued: { label: 'Antre sejak', tone: 'neutral' },
+    sent: { label: 'Terkirim', tone: 'info' },
+    expired: { label: 'Tautan kedaluwarsa', tone: 'warning' },
+    failed: { label: 'Gagal terkirim', tone: 'danger' },
+} satisfies StatusMap;
+
 /** Operator and tenant-visible audit channels. */
 export const PLATFORM_LOG = {
     platform: { label: 'Platform', tone: 'neutral' },
@@ -60,6 +68,7 @@ export const PLATFORM_AUDIT_ACTION = {
     'user.two_factor_reset': { label: '2FA pengguna diatur ulang', tone: 'warning' },
     'user.invitation_resent': { label: 'Undangan dikirim ulang', tone: 'info' },
     'user.login_unlocked': { label: 'Kunci masuk dibuka', tone: 'info' },
+    'user.invitation_failed': { label: 'Undangan gagal terkirim', tone: 'danger' },
     'impersonation.started': { label: 'Akses dukungan dimulai', tone: 'warning' },
     'impersonation.mode_changed': { label: 'Mode akses diubah', tone: 'warning' },
     'impersonation.write': { label: 'Perubahan saat akses dukungan', tone: 'warning' },

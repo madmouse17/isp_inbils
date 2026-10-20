@@ -5,6 +5,7 @@ namespace Modules\Reporting\Queries;
 use App\Models\User;
 use App\Services\Core\CompanyService;
 use App\Services\Platform\PlatformAuditService;
+use App\Support\SupportActionText;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -78,19 +79,34 @@ class AuditLogQuery
 
         if ($search !== null && trim($search) !== '') {
             $term = trim($search);
-            $query->where(function (Builder $sub) use ($term, $resolvedCompanyId) {
+            // The members of this company whose name or email matches: the people a row names as its actor or its subject.
+            $matchingMembers = function ($userQuery) use ($term, $resolvedCompanyId) {
+                $userQuery->select('id')
+                    ->from('users')
+                    ->whereIn('id', fn ($members) => $members->select('user_id')->from('company_user')->where('company_id', (int) $resolvedCompanyId))
+                    ->where(function ($uq) use ($term) {
+                        $uq->where('name', 'like', "%{$term}%")
+                            ->orWhere('email', 'like', "%{$term}%");
+                    });
+            };
+            $supportCodes = SupportActionText::codesMatching($term);
+
+            $query->where(function (Builder $sub) use ($term, $matchingMembers, $supportCodes) {
                 $sub->where('description', 'like', "%{$term}%")
                     ->orWhere('log_name', 'like', "%{$term}%")
                     ->orWhere('event', 'like', "%{$term}%")
-                    ->orWhere(function (Builder $causerSub) use ($term, $resolvedCompanyId) {
+                    ->orWhere(function (Builder $causerSub) use ($matchingMembers) {
                         $causerSub->where('causer_type', 'App\\Models\\User')
-                            ->whereIn('causer_id', function ($userQuery) use ($term, $resolvedCompanyId) {
-                                $userQuery->select('id')
-                                    ->from('users')
-                                    ->whereIn('id', fn ($members) => $members->select('user_id')->from('company_user')->where('company_id', (int) $resolvedCompanyId))
-                                    ->where(function ($uq) use ($term) {
-                                        $uq->where('name', 'like', "%{$term}%")
-                                            ->orWhere('email', 'like', "%{$term}%");
+                            ->whereIn('causer_id', $matchingMembers);
+                    })
+                    // A support row reads as a sentence about a person, not as its code: match that sentence and that person.
+                    ->orWhere(function (Builder $supportSub) use ($matchingMembers, $supportCodes) {
+                        $supportSub->where('log_name', PlatformAuditService::SUPPORT_LOG)
+                            ->where(function (Builder $visible) use ($matchingMembers, $supportCodes) {
+                                $visible->whereIn('description', $supportCodes)
+                                    ->orWhere(function (Builder $subjectSub) use ($matchingMembers) {
+                                        $subjectSub->where('subject_type', User::class)
+                                            ->whereIn('subject_id', $matchingMembers);
                                     });
                             });
                     });

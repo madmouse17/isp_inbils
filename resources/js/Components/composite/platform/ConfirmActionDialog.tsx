@@ -7,7 +7,6 @@ import {
     AlertDialog,
     AlertDialogCancel,
     AlertDialogContent,
-    AlertDialogDescription,
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
@@ -15,6 +14,7 @@ import {
     Input,
     Textarea,
 } from '@/Components/ui';
+import { ConfirmDescription } from '@/Components/composite/ConfirmDialog';
 
 export type PlatformConfirmation = {
     reason?: string;
@@ -24,6 +24,8 @@ export type PlatformConfirmation = {
 interface ConfirmActionDialogProps {
     title: string;
     description: string;
+    /** What the action does, one line each: shown under the description. */
+    details?: readonly string[];
     confirmLabel: string;
     onClose: () => void;
     onConfirmed: (confirmation: PlatformConfirmation) => void;
@@ -38,6 +40,7 @@ interface ConfirmActionDialogProps {
 export function ConfirmActionDialog({
     title,
     description,
+    details,
     confirmLabel,
     onClose,
     onConfirmed,
@@ -104,7 +107,7 @@ export function ConfirmActionDialog({
                 <form onSubmit={submit} className="space-y-5">
                     <AlertDialogHeader>
                         <AlertDialogTitle>{title}</AlertDialogTitle>
-                        <AlertDialogDescription>{description}</AlertDialogDescription>
+                        <ConfirmDescription description={description} details={details} />
                     </AlertDialogHeader>
 
                     {generalError ? (

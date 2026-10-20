@@ -169,10 +169,16 @@ class TicketSnapshotTest extends TestCase
 
         $this->assertSame('2026-03-02 15:00:00', $old->sla_deadline->toDateTimeString());
         $this->assertSame('2026-03-02 11:00:00', $old->response_deadline->toDateTimeString());
-        $this->assertSame(['type' => 'tier', 'name' => 'Gold'], TicketService::deadlineSource($old));
+        $this->assertSame(
+            ['type' => 'tier', 'name' => 'Gold', 'response_hours' => 2, 'resolution_hours' => 6, 'urgent_halved' => false],
+            TicketService::deadlineSource($old),
+        );
         $this->assertSame('2026-03-02 11:00:00', $new->sla_deadline->toDateTimeString());
         $this->assertSame('2026-03-02 10:00:00', $new->response_deadline->toDateTimeString());
-        $this->assertSame(['type' => 'tier', 'name' => 'Silver'], TicketService::deadlineSource($new));
+        $this->assertSame(
+            ['type' => 'tier', 'name' => 'Silver', 'response_hours' => 1, 'resolution_hours' => 2, 'urgent_halved' => false],
+            TicketService::deadlineSource($new),
+        );
 
         $urgent = TicketService::update($old, ['priority' => 'urgent'], OptimisticLock::version($old->fresh()));
 

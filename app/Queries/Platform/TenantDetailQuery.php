@@ -7,6 +7,8 @@ use App\Models\Core\CompanyIntegration;
 use App\Models\Platform\TenantExport;
 use App\Models\PlatformAdmin;
 use App\Models\User;
+use App\Services\Platform\PlatformAuditService;
+use App\Services\Platform\SupportToolsService;
 use App\Services\Platform\TenantLifecycleService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -31,11 +33,12 @@ class TenantDetailQuery
     /** The admin summary is the first admins by name; the paginated user list holds everyone. */
     private const ADMINS = 25;
 
-    private const USER_COLUMNS = ['id', 'public_id', 'name', 'email', 'company_id', 'is_active', 'last_login_at', 'two_factor_confirmed_at'];
+    private const USER_COLUMNS = ['id', 'public_id', 'name', 'email', 'company_id', 'is_active', 'created_at', 'last_login_at', 'two_factor_confirmed_at'];
 
     public function __construct(
         private readonly PlatformTenantListQuery $tenants,
         private readonly TenantLifecycleService $lifecycle,
+        private readonly SupportToolsService $support,
     ) {}
 
     /**
@@ -167,7 +170,8 @@ class TenantDetailQuery
     /**
      * The user row of design §5.2. Impersonation (ticket 04) needs an active user, an active tenant and a company the
      * user can enter: their home, or an active membership when the home is inactive (CompanyService::canEnter).
-     * "Invitation pending" is a user who never signed in and was sent a set-password link that is still on file, expired or not.
+     * The support tools add what stops a person from signing in (`login_lock`) and where the set-password mail of
+     * someone who never signed in stands (`invitation`), both read in bulk for the rows of the list.
      *
      * @param  Collection<int, User>  $users
      * @param  Collection<int, Company>  $companies  the tenant's companies by id, the head first
@@ -176,18 +180,18 @@ class TenantDetailQuery
     private function userRows(Collection $users, Collection $companies): array
     {
         $tenantActive = (bool) $companies->first()?->is_active;
-        $emails = $users->pluck('email')->all();
         $strandedIds = $users->reject(fn (User $user): bool => $companies[$user->company_id]->is_active)->pluck('id')->all();
 
-        $invited = $emails === [] ? [] : array_flip(DB::table($this->resetTokenTable())->whereIn('email', $emails)->pluck('email')->all());
         $enterable = $strandedIds === [] ? [] : array_flip(DB::table('company_user')
             ->join('companies', 'companies.id', '=', 'company_user.company_id')
             ->whereIn('company_user.user_id', $strandedIds)
             ->where('companies.is_active', true)
             ->pluck('company_user.user_id')
             ->all());
+        $invitations = $this->invitations($users);
+        $locks = $this->support->loginLocks($users);
 
-        return $users->map(function (User $user) use ($companies, $tenantActive, $invited, $enterable): array {
+        return $users->map(function (User $user) use ($companies, $tenantActive, $enterable, $invitations, $locks): array {
             $home = $companies[$user->company_id];
 
             return [
@@ -200,14 +204,66 @@ class TenantDetailQuery
                 'last_login_at' => Carbon::make($user->last_login_at)?->toIso8601String(),
                 'two_factor_enabled' => $user->hasTwoFactorEnabled(),
                 'can_impersonate' => $user->is_active && $tenantActive && ($home->is_active || isset($enterable[$user->id])),
-                'invitation_pending' => $user->last_login_at === null && isset($invited[$user->email]),
+                'login_lock' => $locks[$user->id] ?? null,
+                'invitation' => $invitations[$user->id] ?? null,
+                'can_resend_invitation' => $this->support->canResendInvitation($user),
             ];
         })->values()->all();
     }
 
-    private function resetTokenTable(): string
+    /**
+     * Where the invitation of each user who never signed in stands, by user id; the rest are left out. In this order:
+     * a failure row newer than the reset token says `failed`; a token says `sent`, or `expired` once it is older than
+     * the broker lets it live; no token and no failure says `queued` for a user an invitation can still go to (an
+     * active admin), since the mail may be waiting for a queue worker. Two reads whatever the list holds: the tokens
+     * and the invitation rows of the platform log.
+     *
+     * @param  Collection<int, User>  $users
+     * @return array<int, array{state: 'queued'|'sent'|'expired'|'failed', at: string}>
+     */
+    private function invitations(Collection $users): array
     {
-        return (string) config('auth.passwords.'.config('auth.defaults.passwords').'.table');
+        $waiting = $users->filter(fn (User $user): bool => $user->last_login_at === null);
+
+        if ($waiting->isEmpty()) {
+            return [];
+        }
+
+        $tokens = DB::table((string) $this->resetTokenConfig('table'))->whereIn('email', $waiting->pluck('email')->all())->pluck('created_at', 'email');
+        $latest = DB::table('activity_log')
+            ->where('log_name', PlatformAuditService::PLATFORM_LOG)
+            ->whereIn('description', ['user.invitation_failed', 'user.invitation_resent'])
+            ->where('subject_type', User::class)
+            ->whereIn('subject_id', $waiting->pluck('id')->all())
+            ->groupBy('subject_id', 'description')
+            ->get(['subject_id', 'description', DB::raw('MAX(created_at) AS latest_at')])
+            ->mapWithKeys(fn (object $row): array => [$row->subject_id.'|'.$row->description => Carbon::make($row->latest_at)]);
+        $lifetime = (int) $this->resetTokenConfig('expire');
+        $invitations = [];
+
+        foreach ($waiting as $user) {
+            $token = Carbon::make($tokens[$user->email] ?? null);
+            $failed = $latest[$user->id.'|user.invitation_failed'] ?? null;
+            $queuedAt = collect([Carbon::make($user->created_at), $latest[$user->id.'|user.invitation_resent'] ?? null])->filter()->max();
+
+            $invitation = match (true) {
+                $failed !== null && ($token === null || $failed->gte($token)) => ['failed', $failed],
+                $token !== null => [$token->copy()->addMinutes($lifetime)->isPast() ? 'expired' : 'sent', $token],
+                $queuedAt !== null && $this->support->canResendInvitation($user) => ['queued', $queuedAt],
+                default => null,
+            };
+
+            if ($invitation !== null) {
+                $invitations[$user->id] = ['state' => $invitation[0], 'at' => $invitation[1]->toIso8601String()];
+            }
+        }
+
+        return $invitations;
+    }
+
+    private function resetTokenConfig(string $key): mixed
+    {
+        return config('auth.passwords.'.config('auth.defaults.passwords').'.'.$key);
     }
 
     /**

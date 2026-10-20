@@ -15,13 +15,39 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
+use Modules\NetworkAsset\Services\NetworkAssetService;
 use Modules\Service\Models\ServicePackageCategory;
 use Modules\Service\Services\ServicePackageVersionBackfill;
 
+/**
+ * The defaults a new company starts with. `$catalog` picks how much:
+ *
+ * - `empty`: units, package categories and ticket categories, what no company works without.
+ * - `starter`: `empty` plus SLA tiers, the Default Region/Area/POP, bandwidth and speed profiles, packages, inventory
+ *   categories and products. No stock rows and no network assets, so real stock never mixes with sample quantities.
+ * - `demo`: `starter` plus stock rows and ten sample network assets, coded by the Penomoran sequence. The dev and E2E
+ *   fixture company and the sample data of a trial tenant stand on them.
+ *
+ * A run never adds a second copy of a row, so it can repeat or grow from a smaller catalog to a larger one.
+ */
 class CompanySeeder extends Seeder
 {
-    public function runFor(Company $company): void
+    public const CATALOG_EMPTY = 'empty';
+
+    public const CATALOG_STARTER = 'starter';
+
+    public const CATALOG_DEMO = 'demo';
+
+    /** @var list<string> */
+    public const CATALOGS = [self::CATALOG_EMPTY, self::CATALOG_STARTER, self::CATALOG_DEMO];
+
+    public function runFor(Company $company, string $catalog = self::CATALOG_STARTER): void
     {
+        if (! in_array($catalog, self::CATALOGS, true)) {
+            throw new InvalidArgumentException("Unknown catalog [{$catalog}]: use ".implode(', ', self::CATALOGS).'.');
+        }
+
         $previousUser = Auth::user();
         $actingUser = ($previousUser?->company_id === (int) $company->id)
             ? $previousUser
@@ -48,18 +74,26 @@ class CompanySeeder extends Seeder
 
         try {
             // The seeds act in the company they seed, whoever is signed in.
-            CompanyService::runAs((int) $company->id, function () use ($company): void {
+            CompanyService::runAs((int) $company->id, function () use ($company, $catalog): void {
                 $this->seedUnits($company);
                 $this->seedTicketCategories($company);
+                $this->seedPackageCategories($company);
+
+                if ($catalog === self::CATALOG_EMPTY) {
+                    return;
+                }
+
                 $this->seedSlaTiers($company);
                 $this->seedLocations($company);
-                $this->seedPackageCategories($company);
                 $this->seedBandwidthProfiles($company);
                 $this->seedSpeedProfiles($company);
                 $this->seedServicePackages($company);
                 $this->seedInventoryCategories($company);
-                $this->seedProductStocks($company);
-                $this->seedNetworkAssets($company);
+
+                if ($catalog === self::CATALOG_DEMO) {
+                    $this->seedProductStocks($company);
+                    $this->seedNetworkAssets($company);
+                }
             });
         } finally {
             if ($actingUser !== $previousUser) {
@@ -421,17 +455,14 @@ class CompanySeeder extends Seeder
             ['name' => 'Rack 42U Server', 'asset_type' => 'rack', 'serial_number' => 'RCK-42U-001', 'vendor' => null, 'model' => '42U Standard'],
         ];
 
-        $sequence = (int) DB::table('network_assets')->where('company_id', $company->id)->count();
-
-        foreach ($assets as $index => $a) {
+        foreach ($assets as $a) {
             DB::table('network_assets')->insert([
                 ...$a,
                 'public_id' => PublicId::new(),
                 'company_id' => $company->id,
                 'product_id' => null,
-                // Sequential per company: random codes collide inside a single seed
-                // run and violate network_assets_company_id_code_unique.
-                'code' => 'AST-'.date('Y').'-'.str_pad((string) ($sequence + $index + 1), 5, '0', STR_PAD_LEFT),
+                // The Penomoran sequence, like every asset made in the app: one code scheme in one list.
+                'code' => NetworkAssetService::generateCode(),
                 'mac_address' => null,
                 'ip_address' => null,
                 'management_ip' => null,

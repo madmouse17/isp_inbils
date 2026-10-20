@@ -72,6 +72,10 @@ class DemoDataSeeder extends Seeder
      * Fills a company with the sample ISP as a trial. $admin is the company's real admin: homed there and holding the
      * admin role. Refuses a company that already has customers, subscriptions, jobs, invoices or tickets, unless an
      * earlier run marked it (then only the idempotent parts are topped up). All or nothing, in one transaction.
+     *
+     * The story stands on the stock rows and sample assets that the starter catalog leaves out, so the company's catalog
+     * goes up to the demo one first, inside the same transaction. A company that has them keeps them and gets no second
+     * copy, so every caller (the queued job, the tests) can hand over a company on any catalog.
      */
     public function seedFor(Company $company, User $admin): void
     {
@@ -79,17 +83,22 @@ class DemoDataSeeder extends Seeder
             throw new InvalidArgumentException("Sample data for {$company->code} needs the admin of that company; user {$admin->getKey()} is not one.");
         }
 
-        $this->inside($company, function () use ($company, $admin): void {
+        DB::transaction(function () use ($company, $admin): void {
             $seeded = $this->hasMarker($company);
 
             if (! $seeded && $this->hasOperatingData($company)) {
                 throw new RuntimeException("Company {$company->code} already has customers, jobs or invoices: sample data only goes into an empty company.");
             }
 
-            $c = new DemoContext($company, trial: true);
-            $c->addUser('admin', $admin);
+            // Before inside(): runFor resets the company scope it finds, so it must not run inside the one inside() opens.
+            app(CompanySeeder::class)->runFor($company, CompanySeeder::CATALOG_DEMO);
 
-            $seeded ? $this->topUp($c) : $this->seed($c);
+            $this->inside($company, function () use ($company, $admin, $seeded): void {
+                $c = new DemoContext($company, trial: true);
+                $c->addUser('admin', $admin);
+
+                $seeded ? $this->topUp($c) : $this->seed($c);
+            });
         });
     }
 

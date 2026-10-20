@@ -124,7 +124,7 @@ class TicketService
     public static function computeDeadlines(Ticket $ticket): array
     {
         $target = self::slaTarget($ticket);
-        $urgent = ($ticket->priority ?? $ticket->category->default_priority) === 'urgent';
+        $urgent = self::isUrgent($ticket);
         $from = ($ticket->created_at ?? now())->toImmutable();
         $within = static fn (int $hours): CarbonImmutable => $from->addHours($urgent ? (int) ceil($hours / 2) : $hours);
 
@@ -135,15 +135,17 @@ class TicketService
     }
 
     /**
-     * Where the targets of the ticket come from, as the ticket page names it: an SLA tier or a category.
+     * Where the targets of the ticket come from, as the ticket page words them: an SLA tier or a category, the hours it
+     * sets, and whether priority urgent halves them. The hours are the live ones of the tier or category, so a category
+     * edited after the ticket was made can differ from the deadline stored on the ticket.
      *
-     * @return array{type: 'tier'|'category', name: string}
+     * @return array{type: 'tier'|'category', name: string, response_hours: ?int, resolution_hours: int, urgent_halved: bool}
      */
     public static function deadlineSource(Ticket $ticket): array
     {
-        ['type' => $type, 'name' => $name] = self::slaTarget($ticket);
+        $target = self::slaTarget($ticket);
 
-        return ['type' => $type, 'name' => $name];
+        return [...$target, 'urgent_halved' => self::isUrgent($ticket)];
     }
 
     /**
@@ -169,6 +171,12 @@ class TicketService
             'response_hours' => $ticket->category->default_response_hours,
             'resolution_hours' => $ticket->category->default_sla_hours,
         ];
+    }
+
+    /** Priority urgent, or no priority yet on a category whose default is urgent. Expects the category loaded. */
+    private static function isUrgent(Ticket $ticket): bool
+    {
+        return ($ticket->priority ?? $ticket->category->default_priority) === 'urgent';
     }
 
     public static function assign(Ticket $ticket, int $handlerId, int $assignedBy, mixed $expectedAssignedTo = self::MISSING_EXPECTED_ASSIGNED_TO, mixed $expectedUpdatedAt = self::MISSING_EXPECTED_UPDATED_AT): Ticket

@@ -6,7 +6,7 @@ use App\Http\Resources\CustomerResource;
 use App\Http\Resources\LocationResource;
 use App\Http\Resources\MediaResource;
 use App\Http\Resources\SubscriptionResource;
-use App\Http\Resources\UserResource;
+use App\Models\Core\EmployeeEvaluation;
 use App\Support\FieldCheckIn;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -18,9 +18,13 @@ use Modules\Ticketing\Services\TicketService;
 /** @mixin Ticket */
 class TicketResource extends JsonResource
 {
-    /** @return array<string, mixed> */
+    /** @return array<int|string, mixed> */
     public function toArray(Request $request): array
     {
+        // The list reads none of the records behind the ids below, and naming each would load one record per row.
+        $detail = ! $request->routeIs('admin.tickets.index');
+        $show = $request->routeIs('admin.tickets.show');
+
         return [
             'id' => $this->public_id,
             'code' => $this->code,
@@ -31,11 +35,14 @@ class TicketResource extends JsonResource
             'status' => $this->status,
             'priority' => $this->priority,
             'customer_id' => $this->customer?->public_id,
-            'subscription_id' => $this->subscription?->public_id,
-            'network_asset_id' => $this->networkAsset?->public_id,
-            'location_id' => $this->location?->public_id,
+            $this->mergeWhen($detail, fn (): array => [
+                'subscription_id' => $this->subscription?->public_id,
+                'network_asset_id' => $this->networkAsset?->public_id,
+                'location_id' => $this->location?->public_id,
+                'spawned_spk_id' => $this->spawnedSpk?->public_id,
+                'created_by' => $this->creator?->public_id,
+            ]),
             'assigned_to' => $this->assignee?->public_id,
-            'spawned_spk_id' => $this->spawnedSpk?->public_id,
             'sla_deadline' => $this->sla_deadline,
             'response_deadline' => $this->response_deadline,
             'first_response_at' => $this->first_response_at,
@@ -46,7 +53,6 @@ class TicketResource extends JsonResource
             'resolution_note' => $this->resolution_note,
             'is_sla_breached' => $this->is_sla_breached,
             'is_response_breached' => $this->is_response_breached,
-            'created_by' => $this->creator?->public_id,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at?->utc()->format('Y-m-d\TH:i:s.v\Z'),
             // Written when the ticket closes: the page prefers them to the live category and assignee, which follow renames.
@@ -58,20 +64,23 @@ class TicketResource extends JsonResource
             'subscription' => new SubscriptionResource($this->whenLoaded('subscription')),
             'network_asset' => new NetworkAssetResource($this->whenLoaded('networkAsset')),
             'location' => new LocationResource($this->whenLoaded('location')),
-            'assignee' => new UserResource($this->whenLoaded('assignee')),
+            // A name is all a page shows of the handler; the full user record would carry roles, 2FA state and policy checks per row.
+            'assignee' => $this->whenLoaded('assignee', fn (): array => ['id' => $this->assignee->public_id, 'name' => $this->assignee->name]),
             'comments' => TicketCommentResource::collection($this->whenLoaded('comments')),
-            'attachments' => MediaResource::collection($this->getMedia('attachments')),
+            // Show page only: the list does not read them, and a file list costs a media and an uploader query per row.
+            'attachments' => $this->when($show, fn () => MediaResource::collection($this->getMedia('attachments'))),
             // Show page only: naming the source loads the subscription's package and tier.
-            'deadline_source' => $this->when($request->routeIs('admin.tickets.show'), fn (): array => TicketService::deadlineSource($this->resource)),
+            'deadline_source' => $this->when($show, fn (): array => TicketService::deadlineSource($this->resource)),
             // Show page only: the page words the check-in itself, and the technician's own coordinates stay out of it.
-            'check_in' => $this->when($request->routeIs('admin.tickets.show'), fn (): ?array => ($record = FieldCheckIn::recordFor($this->resource, 'ticket')) === null ? null : Arr::only($record, ['status', 'distance_m', 'accuracy_m', 'reason'])),
+            'check_in' => $this->when($show, fn (): ?array => ($record = FieldCheckIn::recordFor($this->resource, 'ticket')) === null ? null : Arr::only($record, ['status', 'distance_m', 'accuracy_m', 'reason'])),
             // Show page only: lists and exports skip the per-row policy checks. A button shows only for what the click would do.
-            'can' => $this->when($request->routeIs('admin.tickets.show'), fn (): array => [
+            'can' => $this->when($show, fn (): array => [
                 'start' => (bool) $request->user()?->can('start', $this->resource),
                 'close' => (bool) $request->user()?->can('close', $this->resource),
                 'resolve' => (bool) $request->user()?->can('resolve', $this->resource),
                 'spawn_spk' => $this->mayShowSpawnSpk($request),
                 'comment' => $this->mayComment($request),
+                'evaluate' => $this->mayEvaluate($request),
             ]),
         ];
     }
@@ -93,5 +102,13 @@ class TicketResource extends JsonResource
             && $user !== null
             && $user->can('ticket.comment.create')
             && $user->can('comment', $this->resource);
+    }
+
+    /** The Evaluasi form opens from a closed ticket that had a handler, for whoever the form's own page lets in. */
+    private function mayEvaluate(Request $request): bool
+    {
+        return $this->status === 'closed'
+            && $this->assigned_to !== null
+            && (bool) $request->user()?->can('create', EmployeeEvaluation::class);
     }
 }

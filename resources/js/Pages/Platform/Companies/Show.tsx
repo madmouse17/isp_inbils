@@ -6,7 +6,6 @@ import {
     Alert,
     AlertDescription,
     AlertTitle,
-    Badge,
     Card,
     CardContent,
     CardDescription,
@@ -17,7 +16,6 @@ import {
 import { formatDateTime, formatNumber } from '@/lib/format';
 import { formatBytes } from '@/lib/platform';
 import {
-    ACTIVE_STATE,
     INTEGRATION_PROVIDER,
     INTEGRATION_STATE,
     PLATFORM_TENANT_STATUS,
@@ -31,6 +29,7 @@ import type {
 import { LifecycleActions } from './components/LifecycleActions';
 import { SubsidiariesSection } from './components/SubsidiariesSection';
 import { UsersSection } from './components/UsersSection';
+import { AccountStatusCell, LastLoginCell } from './components/UserSignInState';
 import { ActivitySections } from './components/ActivitySections';
 import { ExportsSection } from './components/ExportsSection';
 
@@ -68,7 +67,7 @@ export default function Show({
             {
                 key: 'is_active',
                 header: 'Status',
-                cell: (admin) => <EnumBadge map={ACTIVE_STATE} value={admin.is_active} />,
+                cell: (admin) => <AccountStatusCell user={admin} />,
             },
             {
                 key: 'two_factor_enabled',
@@ -83,14 +82,7 @@ export default function Show({
             {
                 key: 'last_login_at',
                 header: 'Masuk terakhir',
-                cell: (admin) =>
-                    admin.last_login_at ? (
-                        formatDateTime(admin.last_login_at)
-                    ) : admin.invitation_pending ? (
-                        <Badge variant="warning">Undangan belum dipakai</Badge>
-                    ) : (
-                        <span className="text-muted-foreground">Belum pernah</span>
-                    ),
+                cell: (admin) => <LastLoginCell user={admin} />,
             },
         ],
         [],

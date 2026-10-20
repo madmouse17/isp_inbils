@@ -1,15 +1,19 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { Link, router, useForm } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
+import { AlertTriangle, ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
+    Alert,
+    AlertDescription,
+    AlertTitle,
     Button,
     Card,
     CardContent,
     CardDescription,
     CardHeader,
     CardTitle,
+    DatePicker,
     EmptyCell,
     EnumBadge,
     Input,
@@ -22,9 +26,15 @@ import {
     THead,
     TR,
 } from '@/Components/ui';
-import { PageHeader, RefundAttemptDialog, type RefundTarget } from '@/Components/composite';
+import {
+    MoneyInput,
+    PageHeader,
+    RefundAttemptDialog,
+    type RefundTarget,
+} from '@/Components/composite';
 import { ConfirmDialog } from '@/Components/composite/ConfirmDialog';
 import { useCompany } from '@/hooks/useCompany';
+import { todayInZone } from '@/lib/dateRange';
 import {
     formatDate,
     formatDateTime,
@@ -60,11 +70,38 @@ interface ShowProps extends Record<string, unknown> {
 // Staff record these; `midtrans` is written only by the payment gateway (RecordPaymentRequest).
 const MANUAL_METHODS = optionsOf(PAYMENT_METHOD).filter((option) => option.value !== 'midtrans');
 
+const PAYMENT_METHOD_KEY = 'inbils.payment.method';
+
+const FUTURE_PAID_AT = 'Tanggal bayar tidak boleh setelah hari ini.';
+
+/** The method the last payment was booked with, while it is still one staff can pick; cash otherwise. */
+function rememberedPaymentMethod(): string {
+    try {
+        const stored = window.localStorage.getItem(PAYMENT_METHOD_KEY);
+
+        return MANUAL_METHODS.find((option) => option.value === stored)?.value ?? 'cash';
+    } catch {
+        // Storage can be blocked (browser policy); the dialog must still open, just without a memory.
+        return 'cash';
+    }
+}
+
+function rememberPaymentMethod(method: string): void {
+    try {
+        window.localStorage.setItem(PAYMENT_METHOD_KEY, method);
+    } catch {
+        // Blocked storage: the next payment starts from cash.
+    }
+}
+
 export default function Show({ invoice, onlinePayments, can }: ShowProps) {
     const inv = invoice.data;
     const attempts = onlinePayments.attempts.data;
+    // Newest first: recording a payment closes every pending page, so any of them is a warning.
+    const openPage = attempts.find((attempt) => attempt.status === 'pending');
     const items = inv.items ?? [];
     const company = useCompany();
+    const today = todayInZone(company?.timezone);
     const [paymentModal, setPaymentModal] = useState(false);
     const [itemModal, setItemModal] = useState(false);
     const [cancelModal, setCancelModal] = useState(false);
@@ -74,9 +111,10 @@ export default function Show({ invoice, onlinePayments, can }: ShowProps) {
     const [removing, setRemoving] = useState(false);
     const [sendOpen, setSendOpen] = useState(false);
     const [sending, setSending] = useState(false);
-    const { data, setData, post, processing, reset, errors } = useForm({
+    const { data, setData, post, processing, reset, errors, clearErrors } = useForm({
         amount: '',
         method: 'cash',
+        paid_at: '',
         reference: '',
         notes: '',
         description: '',
@@ -106,10 +144,18 @@ export default function Show({ invoice, onlinePayments, can }: ShowProps) {
     // The server refuses a draft with nothing to bill; the button says why before it is pressed.
     const nothingToSend = isDraft && (items.length === 0 || Number(inv.total) <= 0);
 
+    // The balance changes after every payment, so the form takes its values when it opens, not when the page loads.
+    const openPayment = () => {
+        clearErrors();
+        setData({ ...data, amount: inv.sisa, method: rememberedPaymentMethod(), paid_at: today });
+        setPaymentModal(true);
+    };
+
     const submitPayment = (e: FormEvent) => {
         e.preventDefault();
         post(route('admin.invoices.payments.store', inv.id), {
             onSuccess: () => {
+                rememberPaymentMethod(data.method);
                 setPaymentModal(false);
                 reset();
             },
@@ -315,11 +361,7 @@ export default function Show({ invoice, onlinePayments, can }: ShowProps) {
                                     </div>
                                 )}
                                 {canRecordPayment && (
-                                    <Button
-                                        type="button"
-                                        variant="primary"
-                                        onClick={() => setPaymentModal(true)}
-                                    >
+                                    <Button type="button" variant="primary" onClick={openPayment}>
                                         Catat pembayaran
                                     </Button>
                                 )}
@@ -349,7 +391,12 @@ export default function Show({ invoice, onlinePayments, can }: ShowProps) {
                 <ConfirmDialog
                     open={sendOpen}
                     title={`Kirim tagihan ${inv.number}?`}
-                    description="Tagihan diterbitkan ke pelanggan. Item tidak bisa ditambah lagi."
+                    description="Pelanggan menerima notifikasi di aplikasi Inbils, juga lewat WhatsApp bila aktif. Item tidak bisa diubah lagi."
+                    details={[
+                        `Pelanggan: ${customerName ?? '-'}`,
+                        `Jumlah: ${formatRupiah(inv.total, company)}`,
+                        `Jatuh tempo: ${formatDate(inv.due_date, company)}`,
+                    ]}
                     confirmLabel="Kirim tagihan"
                     processing={sending}
                     onConfirm={() =>
@@ -611,17 +658,57 @@ export default function Show({ invoice, onlinePayments, can }: ShowProps) {
                     title="Catat pembayaran"
                 >
                     <form onSubmit={submitPayment} className="space-y-4">
-                        <div className="text-sm text-muted-foreground">
-                            Sisa tagihan: {formatRupiah(inv.sisa, company)}
+                        {openPage && (
+                            <Alert variant="warning" role="status">
+                                <AlertTriangle aria-hidden="true" className="size-4" />
+                                <AlertTitle>Ada pembayaran online yang masih terbuka</AlertTitle>
+                                <AlertDescription>
+                                    <p>
+                                        Halaman bayar{' '}
+                                        <span className="font-mono break-all">
+                                            {openPage.order_id}
+                                        </span>{' '}
+                                        dibuat {formatDateTime(openPage.created_at, company)}.
+                                        Mencatat pembayaran ini menutup halaman itu. Bila pelanggan
+                                        tetap membayar online, pembayarannya masuk daftar Perlu
+                                        dicek di Tunggakan.
+                                    </p>
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                        <div className="space-y-2">
+                            <MoneyInput
+                                id="payment-amount"
+                                label="Jumlah"
+                                value={data.amount === '' ? null : Number(data.amount)}
+                                onChange={(value) =>
+                                    setData('amount', value === null ? '' : String(value))
+                                }
+                                hint={`Sisa tagihan: ${formatRupiah(inv.sisa, company)}`}
+                                error={errors.amount}
+                                required
+                            />
+                            {Number(data.amount) !== Number(inv.sisa) && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setData('amount', inv.sisa)}
+                                >
+                                    Lunas penuh
+                                </Button>
+                            )}
                         </div>
-                        <Input
-                            label="Jumlah"
-                            type="number"
-                            step="0.01"
-                            value={data.amount}
-                            onChange={(e) => setData('amount', e.target.value)}
-                            error={errors.amount}
-                            required
+                        <DatePicker
+                            id="payment-paid-at"
+                            label="Tanggal bayar"
+                            value={data.paid_at}
+                            onChange={(value) => setData('paid_at', value)}
+                            hint="Ubah bila uang diterima sebelum hari ini."
+                            error={
+                                errors.paid_at ??
+                                (data.paid_at > today ? FUTURE_PAID_AT : undefined)
+                            }
                         />
                         <NativeSelect
                             label="Metode"

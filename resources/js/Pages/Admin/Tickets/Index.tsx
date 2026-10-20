@@ -1,16 +1,27 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { Plus } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { DataTable, DataTableActions, PageHeader, StatusFilter } from '@/Components/composite';
 import type { DataTableColumn } from '@/Components/composite';
-import { Button, EnumBadge, ExportMenu, Input, NativeSelect } from '@/Components/ui';
+import { DeadlineBadge } from '@/Components/composite/DeadlineBadge';
+import {
+    Badge,
+    Button,
+    EmptyCell,
+    EnumBadge,
+    ExportMenu,
+    Input,
+    NativeSelect,
+} from '@/Components/ui';
 import { useCan } from '@/hooks/useCan';
 import { useCompany } from '@/hooks/useCompany';
+import { useNow } from '@/hooks/useNow';
 import { useTableQuery } from '@/hooks/useTableQuery';
 import { formatDateTime } from '@/lib/format';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
 import { LIFECYCLE_STATE, optionsOf, PRIORITY, TICKET_STATUS } from '@/lib/statuses';
+import type { PageProps } from '@/types';
 
 type Row = {
     id: string;
@@ -18,6 +29,8 @@ type Row = {
     title: string;
     priority: string;
     status: string;
+    response_deadline: string | null;
+    first_response_at: string | null;
     created_at: string | null;
     customer?: { id: string; name: string } | null;
     assignee?: { id: string; name: string } | null;
@@ -30,17 +43,53 @@ type Props = {
         search?: string;
         priority?: string;
         status?: string;
+        assigned_to?: string;
+        unassigned?: string;
+        due_soon?: string;
+        awaiting_reply?: string;
         sort_by?: string;
         sort_dir?: string;
         per_page?: string | number;
     };
 };
 
+type QueueKey = 'unassigned' | 'due_soon' | 'awaiting_reply' | 'mine';
+
+/** The queues staff work from. Each is one toggle in the address bar, so a queue can be shared as a link. */
+const QUEUES: { key: QueueKey; label: string; hint: string; empty: string }[] = [
+    {
+        key: 'unassigned',
+        label: 'Belum ditugaskan',
+        hint: 'Tiket yang belum punya petugas.',
+        empty: 'Tidak ada tiket yang belum ditugaskan.',
+    },
+    {
+        key: 'due_soon',
+        label: 'Hampir terlampaui',
+        hint: 'Target respons atau penyelesaian jatuh tempo dalam 30 menit.',
+        empty: 'Tidak ada tiket yang hampir terlampaui.',
+    },
+    {
+        key: 'awaiting_reply',
+        label: 'Pelanggan membalas',
+        hint: 'Balasan terakhir ditulis pelanggan dan belum dijawab petugas.',
+        empty: 'Tidak ada balasan pelanggan yang menunggu.',
+    },
+    {
+        key: 'mine',
+        label: 'Tiket saya',
+        hint: 'Tiket yang ditugaskan kepada Anda.',
+        empty: 'Tidak ada tiket yang ditugaskan kepada Anda.',
+    },
+];
+
 export default function TicketsIndex({ tickets, filters }: Props) {
     const can = useCan();
     const company = useCompany();
+    const now = useNow();
+    const ownId = usePage<PageProps>().props.auth.user?.id ?? '';
     const pagination = toPagination(tickets);
-    const { params, set, sortBy, sortDir, onSort, processing } = useTableQuery(
+    const { params, set, setMany, sortBy, sortDir, onSort, processing } = useTableQuery(
         {
             ...filters,
             search: filters.search ?? '',
@@ -104,6 +153,42 @@ export default function TicketsIndex({ tickets, filters }: Props) {
                 cell: (row) => row.customer?.name ?? '-',
             },
             {
+                key: 'assignee',
+                header: 'Petugas',
+                cell: (row) => {
+                    if (row.assignee) return row.assignee.name;
+                    if (row.status === 'open' && !row.deleted_at) {
+                        return <Badge variant="warning">Belum ditugaskan</Badge>;
+                    }
+
+                    return <EmptyCell />;
+                },
+            },
+            {
+                key: 'response_deadline',
+                header: 'Respons sebelum',
+                sortable: true,
+                sortKey: 'response_deadline',
+                cell: (row) => {
+                    if (!row.response_deadline) return <EmptyCell />;
+                    if (row.first_response_at) {
+                        return <span className="text-muted-foreground">Sudah dijawab</span>;
+                    }
+
+                    const dueAt = formatDateTime(row.response_deadline, company);
+                    if (row.status === 'resolved' || row.status === 'closed') {
+                        return <span className="text-muted-foreground">{dueAt}</span>;
+                    }
+
+                    return (
+                        <div className="flex flex-col items-start gap-1">
+                            <DeadlineBadge deadline={row.response_deadline} now={now} />
+                            <span className="text-xs text-muted-foreground">{dueAt}</span>
+                        </div>
+                    );
+                },
+            },
+            {
                 key: 'created_at',
                 header: 'Dibuat',
                 sortable: true,
@@ -126,14 +211,34 @@ export default function TicketsIndex({ tickets, filters }: Props) {
                 ),
             },
         ],
-        [company, can],
+        [company, can, now],
     );
 
-    const hasFilters = Boolean(params.search || params.priority || params.status);
+    const isOn = (key: QueueKey) =>
+        key === 'mine'
+            ? ownId !== '' && params.assigned_to === ownId
+            : params[key] === '1' || params[key] === 'true';
+    const toggle = (key: QueueKey) => {
+        const on = isOn(key);
+
+        if (key === 'mine') set('assigned_to', on ? '' : ownId);
+        else set(key, on ? '' : '1');
+    };
+    const activeQueues = QUEUES.filter((queue) => isOn(queue.key));
+    const hasTextFilters = Boolean(params.search || params.priority || params.status);
+    // One queue and nothing else: an empty page then answers for that queue, not for "your filters".
+    const loneQueue = !hasTextFilters && activeQueues.length === 1 ? activeQueues[0] : null;
+    const hasFilters = (hasTextFilters || activeQueues.length > 0) && loneQueue === null;
     const resetFilters = () => {
-        set('search', '');
-        set('priority', '');
-        set('status', '');
+        setMany({
+            search: '',
+            priority: '',
+            status: '',
+            unassigned: '',
+            due_soon: '',
+            awaiting_reply: '',
+            assigned_to: '',
+        });
     };
     const create = can('ticket.create') ? (
         <Button asChild size="sm" variant="primary">
@@ -163,39 +268,85 @@ export default function TicketsIndex({ tickets, filters }: Props) {
                     }
                 />
 
-                <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:flex-wrap md:items-end">
-                    <div className="min-w-48 flex-1">
-                        <Input
-                            id="tk-search"
-                            label="Cari"
-                            value={params.search ?? ''}
-                            onChange={(e) => set('search', e.target.value)}
-                            placeholder="Nomor atau judul..."
+                <div className="flex flex-col gap-3 rounded-lg border bg-card p-3">
+                    <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-end">
+                        <div className="min-w-48 flex-1">
+                            <Input
+                                id="tk-search"
+                                label="Cari"
+                                value={params.search ?? ''}
+                                onChange={(e) => set('search', e.target.value)}
+                                placeholder="Nomor atau judul..."
+                            />
+                        </div>
+                        <NativeSelect
+                            id="tk-priority"
+                            label="Prioritas"
+                            wrapperClassName="w-full sm:w-48"
+                            value={params.priority ?? ''}
+                            onChange={(e) => set('priority', e.target.value)}
+                            options={[
+                                { value: '', label: 'Semua prioritas' },
+                                ...optionsOf(PRIORITY),
+                            ]}
+                        />
+                        <StatusFilter
+                            id="tk-status"
+                            value={params.status ?? ''}
+                            onChange={(value) => set('status', value)}
+                            statuses={TICKET_STATUS}
+                            wrapperClassName="w-full sm:w-52"
                         />
                     </div>
-                    <NativeSelect
-                        id="tk-priority"
-                        label="Prioritas"
-                        wrapperClassName="w-full sm:w-48"
-                        value={params.priority ?? ''}
-                        onChange={(e) => set('priority', e.target.value)}
-                        options={[{ value: '', label: 'Semua prioritas' }, ...optionsOf(PRIORITY)]}
-                    />
-                    <StatusFilter
-                        id="tk-status"
-                        value={params.status ?? ''}
-                        onChange={(value) => set('status', value)}
-                        statuses={TICKET_STATUS}
-                        wrapperClassName="w-full sm:w-52"
-                    />
+                    <div className="flex flex-col gap-2">
+                        <div
+                            role="group"
+                            aria-label="Antrean tiket"
+                            className="flex flex-wrap gap-2"
+                        >
+                            {QUEUES.map((queue) => {
+                                const on = isOn(queue.key);
+
+                                return (
+                                    <Button
+                                        key={queue.key}
+                                        type="button"
+                                        size="sm"
+                                        variant={on ? 'primary' : 'outline'}
+                                        aria-pressed={on}
+                                        onClick={() => toggle(queue.key)}
+                                    >
+                                        {queue.label}
+                                    </Button>
+                                );
+                            })}
+                        </div>
+                        {activeQueues.length > 0 && (
+                            <p className="text-sm text-muted-foreground">
+                                {activeQueues.map((queue) => queue.hint).join(' ')}
+                            </p>
+                        )}
+                    </div>
                 </div>
 
                 <DataTable
                     columns={columns}
                     data={tickets.data}
-                    emptyTitle="Belum ada tiket"
-                    emptyDescription="Tiket baru dari pelanggan, NOC, atau tim internal muncul di sini."
-                    emptyAction={create}
+                    emptyTitle={loneQueue ? loneQueue.empty : 'Belum ada tiket'}
+                    emptyDescription={
+                        loneQueue
+                            ? 'Tiket yang masuk antrean ini muncul di sini.'
+                            : 'Tiket baru dari pelanggan, NOC, atau tim internal muncul di sini.'
+                    }
+                    emptyAction={
+                        loneQueue ? (
+                            <Button type="button" variant="outline" onClick={resetFilters}>
+                                Lihat semua tiket
+                            </Button>
+                        ) : (
+                            create
+                        )
+                    }
                     hasFilters={hasFilters}
                     onResetFilters={resetFilters}
                     itemLabel="tiket"

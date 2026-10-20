@@ -42,19 +42,21 @@ class TicketController extends Controller
 {
     use HasIndexQuery;
 
-    private const SORTABLE = ['code', 'title', 'source', 'status', 'priority', 'sla_deadline', 'created_at'];
+    private const SORTABLE = ['code', 'title', 'source', 'status', 'priority', 'sla_deadline', 'response_deadline', 'created_at'];
 
     public function index(Request $request): InertiaResponse
     {
         Gate::authorize('viewAny', Ticket::class);
 
+        // The list names each row's customer through CustomerResource, which reads the portal account and the coverage area.
         $tickets = $this->applySort($this->filteredQuery($request), $request, 'created_at', 'desc')
+            ->with(['customer.user:id,public_id', 'customer.areaCoverage:id,public_id'])
             ->paginate($this->perPage($request))
             ->withQueryString();
 
         return Inertia::render('Admin/Tickets/Index', [
             'tickets' => TicketResource::collection($tickets),
-            'filters' => $request->only(['search', 'priority', 'status', 'source', 'category_id', 'assigned_to', 'sla_breached', 'sort_by', 'sort_dir', 'per_page']),
+            'filters' => $request->only(['search', 'priority', 'status', 'source', 'category_id', 'assigned_to', 'sla_breached', 'unassigned', 'due_soon', 'awaiting_reply', 'sort_by', 'sort_dir', 'per_page']),
             'can' => [
                 'create' => $request->user()?->can('ticket.create') ?? false,
                 'update' => $request->user()?->can('ticket.update') ?? false,
@@ -82,6 +84,8 @@ class TicketController extends Controller
             'Prioritas' => 'priority',
             'Status' => 'status',
             'Pelanggan' => 'customer.name',
+            'Petugas' => 'assignee.name',
+            'Respons sebelum' => 'response_deadline',
             'Dibuat' => 'created_at',
         ];
 
@@ -92,6 +96,8 @@ class TicketController extends Controller
                 'Prioritas' => $ticket->priority,
                 'Status' => $ticket->status,
                 'Pelanggan' => data_get($ticket, 'customer.name', ''),
+                'Petugas' => $ticket->assignee->name ?? '',
+                'Respons sebelum' => $ticket->response_deadline?->toDateTimeString(),
                 'Dibuat' => optional($ticket->created_at)?->toDateTimeString(),
             ];
         };
@@ -116,7 +122,10 @@ class TicketController extends Controller
             ->when($request->input('source'), fn (Builder $q, string $v) => $q->where('source', $v))
             ->when($request->input('category_id'), fn (Builder $q, string $v) => $q->where('category_id', PublicId::resolveOne(TicketCategory::class, $v) ?? 0))
             ->when($request->input('assigned_to'), fn (Builder $q, string $v) => $q->where('assigned_to', PublicId::resolveOne(User::class, $v) ?? 0))
-            ->when($request->boolean('sla_breached'), fn (Builder $q) => $q->where('sla_deadline', '<', now())->whereNotIn('status', ['resolved', 'closed']))
+            ->when($request->boolean('sla_breached'), fn (Builder $q) => $q->where('sla_deadline', '<', now())->whereNotIn('status', Ticket::FINISHED_STATUSES))
+            ->when($request->boolean('unassigned'), fn (Builder $q) => $q->whereNull('assigned_to')->whereNotIn('status', Ticket::FINISHED_STATUSES))
+            ->when($request->boolean('due_soon'), fn (Builder $q) => $q->dueSoon())
+            ->when($request->boolean('awaiting_reply'), fn (Builder $q) => $q->awaitingStaffReply())
             ->when($request->input('search'), function (Builder $q, string $v): void {
                 $term = trim($v);
 
@@ -217,11 +226,18 @@ class TicketController extends Controller
 
         $hideInternal = (bool) request()->user()?->hasRole('customer');
 
-        $ticket->load([
+        $relations = [
             'category', 'customer', 'subscription', 'networkAsset', 'location', 'assignee', 'media',
             'comments' => fn ($query) => $query->when($hideInternal, fn ($q) => $q->where('is_internal', false)),
             'comments.author',
-        ]);
+        ];
+
+        if ($request->user()?->can('customer.view')) {
+            // One address is all the page reads: where the service is installed, else the primary one.
+            $relations['customer.addresses'] = fn ($query) => $query->orderByDesc('is_installation_point')->orderByDesc('is_primary')->orderBy('id')->limit(1);
+        }
+
+        $ticket->load($relations);
 
         return Inertia::render('Admin/Tickets/Show', [
             'ticket' => new TicketResource($ticket),

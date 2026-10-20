@@ -53,6 +53,53 @@ test('@platform operator creates a tenant', async ({ page }) => {
     ).toBeVisible();
     // The new admin is listed twice: under "Admin perusahaan" and among the users.
     await expect(page.getByText(email)).toHaveCount(2);
+    // The invitation went out on the sync queue of the E2E app, so the admin card says where it stands (F1-D05).
+    await expect(
+        page
+            .getByRole('main')
+            .getByText(/^(Antre sejak|Terkirim) /)
+            .first(),
+    ).toBeVisible();
+
+    // The menu of the users table is there for a person without 2FA too, and unlocking says what it did (F11-U02, F11-D02).
+    await page.getByRole('button', { name: 'Aksi lain untuk E2E Created Admin' }).click();
+    await expect(page.getByRole('menuitem', { name: 'Kirim ulang undangan' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Atur ulang 2FA' })).toHaveCount(0);
+    await page.getByRole('menuitem', { name: 'Buka kunci masuk' }).click();
+    const unlock = page.getByRole('alertdialog');
+    await expect(unlock).toContainText('Buka kunci masuk E2E Created Admin?');
+    await unlock.getByRole('button', { name: 'Buka kunci masuk' }).click();
+    await expect(page.getByText('Kunci masuk pengguna dibuka.')).toBeVisible();
+});
+
+test('@platform operator creates an empty tenant from the Kosong choice', async ({ page }) => {
+    test.setTimeout(90_000);
+    await loginAsPlatformOperator(page);
+    await page.getByRole('main').getByRole('link', { name: 'Perusahaan baru' }).click();
+    const code = `E2E-EMPTY-${Date.now()}`;
+    const email = `admin-${Date.now()}@platform-empty.example.test`;
+
+    const choice = page.getByRole('radiogroup', { name: 'Isi awal' });
+    await expect(choice.getByRole('radio', { name: 'Katalog awal' })).toBeChecked();
+    const sample = page.getByLabel('Isi data contoh');
+    await sample.check();
+    await expect(choice.getByRole('radio', { name: 'Kosong' })).toBeDisabled();
+    await expect(
+        page.getByText('Data contoh memakai Katalog awal, jadi pilihan Kosong tidak tersedia.'),
+    ).toBeVisible();
+    await sample.uncheck();
+    await choice.getByRole('radio', { name: 'Kosong' }).check();
+
+    await page.getByLabel('Nama perusahaan').fill('E2E Platform Empty');
+    await page.getByLabel('Kode perusahaan').fill(code);
+    await page.getByLabel('Nama admin').fill('E2E Empty Admin');
+    await page.getByLabel('Email admin').fill(email);
+    await page.getByRole('button', { name: 'Buat perusahaan' }).click();
+
+    await expect(page).toHaveURL(/\/platform\/companies\/[0-9A-HJKMNP-TV-Z]{26}$/i);
+    await expect(
+        page.getByRole('main').getByRole('heading', { name: 'E2E Platform Empty' }),
+    ).toBeVisible();
 });
 
 test('@platform suspend blocks tenant login and reactivate restores it', async ({
@@ -95,6 +142,12 @@ test('@platform suspend blocks tenant login and reactivate restores it', async (
     await tenantPage.getByLabel(/^Kata sandi( \*)?$/).fill(platformFixture.tenantAdminPassword!);
     await tenantPage.getByRole('button', { name: 'Masuk' }).click();
     await expect(tenantPage).toHaveURL(/\/admin\/dashboard$/);
+
+    // The tenant's own audit log says what support did, in words that the search finds (F11-U01, F11-D03).
+    await tenantPage.goto('/admin/reports/audit-log?search=menangguhkan');
+    await expect(
+        tenantPage.getByText('Tim dukungan Inbils menangguhkan perusahaan ini').first(),
+    ).toBeVisible();
     await tenantContext.close();
 });
 

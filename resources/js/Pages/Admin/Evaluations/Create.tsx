@@ -1,4 +1,5 @@
 import type { FormEvent } from 'react';
+import { useRef } from 'react';
 import { Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
@@ -20,21 +21,43 @@ interface CreateProps extends Record<string, unknown> {
     employeeOptions?: RemoteOption[];
     ticketOptions?: RemoteOption[];
     workOrderOptions?: RemoteOption[];
+    /** From "Evaluasi teknisi" on a closed ticket: the ticket and its handler, ready to be rated. */
+    prefill?: {
+        employee: RemoteOption | null;
+        reference_type: 'Ticket';
+        reference: RemoteOption;
+    } | null;
 }
 
-export default function Create({ employeeOptions, ticketOptions, workOrderOptions }: CreateProps) {
-    const { data, setData, post, processing, errors } = useForm({
-        employee_id: '',
+export default function Create({
+    employeeOptions,
+    ticketOptions,
+    workOrderOptions,
+    prefill,
+}: CreateProps) {
+    const { data, setData, post, processing, errors, setError, clearErrors } = useForm({
+        employee_id: prefill?.employee?.value ?? '',
         reference_type: 'Ticket',
-        reference_id: '',
-        score: '5.0',
+        reference_id: prefill?.reference.value ?? '',
+        // Empty on purpose: the score is the evaluator's judgement, so the form never suggests one.
+        score: '',
         customer_rating: '',
         comment: '',
     });
+    const scoreInput = useRef<HTMLInputElement>(null);
     const isTicket = data.reference_type === 'Ticket';
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
+        const score = Number(data.score);
+
+        if (data.score.trim() === '' || Number.isNaN(score) || score < 1 || score > 5) {
+            setError('score', 'Pilih nilai 1 sampai 5.');
+            scoreInput.current?.focus();
+
+            return;
+        }
+
         post(route('admin.evaluations.store'));
     };
 
@@ -60,7 +83,7 @@ export default function Create({ employeeOptions, ticketOptions, workOrderOption
                     }
                 />
 
-                <form onSubmit={submit} className="space-y-6">
+                <form onSubmit={submit} noValidate className="space-y-6">
                     <Card>
                         <CardHeader>
                             <CardTitle>Data evaluasi</CardTitle>
@@ -70,6 +93,7 @@ export default function Create({ employeeOptions, ticketOptions, workOrderOption
                                 field="employee"
                                 label="Karyawan"
                                 options={employeeOptions}
+                                selected={prefill?.employee}
                                 value={data.employee_id}
                                 onChange={(value) => setData('employee_id', value)}
                                 placeholder="Cari nama atau Email karyawan"
@@ -89,6 +113,7 @@ export default function Create({ employeeOptions, ticketOptions, workOrderOption
                                 field={isTicket ? 'ticket' : 'workOrder'}
                                 label={isTicket ? 'Tiket' : 'SPK'}
                                 options={isTicket ? ticketOptions : workOrderOptions}
+                                selected={isTicket ? prefill?.reference : undefined}
                                 value={data.reference_id}
                                 onChange={(value) => setData('reference_id', value)}
                                 placeholder={
@@ -105,13 +130,17 @@ export default function Create({ employeeOptions, ticketOptions, workOrderOption
                                 required
                             />
                             <Input
+                                ref={scoreInput}
                                 label="Nilai (1,0 sampai 5,0)"
                                 type="number"
                                 step="0.1"
                                 min="1"
                                 max="5"
                                 value={data.score}
-                                onChange={(event) => setData('score', event.target.value)}
+                                onChange={(event) => {
+                                    setData('score', event.target.value);
+                                    if (errors.score) clearErrors('score');
+                                }}
                                 error={errors.score}
                                 required
                             />

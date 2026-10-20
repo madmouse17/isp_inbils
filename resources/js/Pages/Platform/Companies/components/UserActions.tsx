@@ -26,12 +26,10 @@ interface UserActionsProps {
     user: PlatformCompanyUser;
 }
 
-/** What the operator can do for one person: support access, and the three account repairs of the support tools. */
+/** What the operator can do for one person: support access, and the account repairs of the support tools. */
 export function UserActions({ tenant, user }: UserActionsProps) {
     const [action, setAction] = useState<UserAction | null>(null);
     const { processing, errors, post, clearErrors } = usePlatformAction();
-    const canResend = user.invitation_pending && user.is_active;
-    const hasMenu = user.two_factor_enabled || canResend;
 
     const close = () => {
         setAction(null);
@@ -58,33 +56,29 @@ export function UserActions({ tenant, user }: UserActionsProps) {
                     Masuk sebagai
                 </Button>
             ) : null}
-            {hasMenu ? (
-                // Not modal: a modal menu and the confirm dialog would both lock the page.
-                <DropdownMenu modal={false}>
-                    <DropdownMenuTrigger asChild>
-                        <IconButton label={`Aksi lain untuk ${user.name}`} size="sm">
-                            <Ellipsis className="size-4" aria-hidden="true" />
-                        </IconButton>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        {user.two_factor_enabled ? (
-                            <>
-                                <DropdownMenuItem onSelect={() => setAction('two-factor')}>
-                                    Atur ulang 2FA
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onSelect={() => setAction('unlock')}>
-                                    Buka kunci masuk
-                                </DropdownMenuItem>
-                            </>
-                        ) : null}
-                        {canResend ? (
-                            <DropdownMenuItem onSelect={() => setAction('invitation')}>
-                                Kirim ulang undangan
-                            </DropdownMenuItem>
-                        ) : null}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            ) : null}
+            {/* Not modal: a modal menu and the confirm dialog would both lock the page. */}
+            <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                    <IconButton label={`Aksi lain untuk ${user.name}`} size="sm">
+                        <Ellipsis className="size-4" aria-hidden="true" />
+                    </IconButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={() => setAction('unlock')}>
+                        Buka kunci masuk
+                    </DropdownMenuItem>
+                    {user.two_factor_enabled ? (
+                        <DropdownMenuItem onSelect={() => setAction('two-factor')}>
+                            Atur ulang 2FA
+                        </DropdownMenuItem>
+                    ) : null}
+                    {user.can_resend_invitation ? (
+                        <DropdownMenuItem onSelect={() => setAction('invitation')}>
+                            Kirim ulang undangan
+                        </DropdownMenuItem>
+                    ) : null}
+                </DropdownMenuContent>
+            </DropdownMenu>
 
             {action === 'impersonate' ? (
                 <ConfirmActionDialog
@@ -108,7 +102,7 @@ export function UserActions({ tenant, user }: UserActionsProps) {
                 <ConfirmActionDialog
                     {...dialog}
                     title={`Buka kunci masuk ${user.name}?`}
-                    description="Hitungan kode 2FA yang salah dihapus. Pengguna dapat mencoba masuk lagi tanpa menunggu 15 menit."
+                    description="Kunci karena salah kata sandi dan salah kode 2FA dihapus. Pengguna bisa langsung mencoba masuk lagi."
                     confirmLabel="Buka kunci masuk"
                     requirePassword={false}
                 />

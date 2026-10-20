@@ -2,16 +2,21 @@
 
 namespace Tests\Feature\Platform;
 
+use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\TwoFactorChallengeRequest;
 use App\Models\Core\Company;
 use App\Models\Core\CompanyIntegration;
 use App\Models\Core\Customer;
 use App\Models\Platform\TenantExport;
 use App\Models\User;
+use App\Notifications\Platform\TenantAdminInvitation;
 use App\Services\Core\AuditService;
 use App\Services\Platform\PlatformAuditService;
+use App\Support\PublicId;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
@@ -149,7 +154,9 @@ class TenantDetailTest extends TestCase
                 'last_login_at' => '2026-10-19T08:00:00+00:00',
                 'two_factor_enabled' => true,
                 'can_impersonate' => true,
-                'invitation_pending' => false,
+                'login_lock' => null,
+                'invitation' => null,
+                'can_resend_invitation' => false,
             ])
             ->where('admins.1.name', 'Admin Cabang')
             ->where('admins.1.is_active', false)
@@ -205,7 +212,9 @@ class TenantDetailTest extends TestCase
                 'last_login_at' => '2026-10-19T08:00:00+00:00',
                 'two_factor_enabled' => false,
                 'can_impersonate' => true,
-                'invitation_pending' => false,
+                'login_lock' => null,
+                'invitation' => null,
+                'can_resend_invitation' => false,
             ])
             ->where('users.data.1.name', 'Manager ALP-C')
             ->where('users.data.1.company.code', 'ALP-C')
@@ -213,7 +222,7 @@ class TenantDetailTest extends TestCase
             ->where('users.data.2.name', 'Staff ALP')
             ->where('users.data.2.is_active', false)
             ->where('users.data.2.can_impersonate', false)
-            ->where('users.data.2.invitation_pending', true)
+            ->where('users.data.2.invitation.state', 'sent')
             ->where('users.meta.total', 3));
 
         $this->show($this->alpha['root'], ['search' => 'manager'])->assertInertia(fn (Assert $page) => $page->has('users.data', 1)->where('users.data.0.name', 'Manager ALP-C')->where('userFilters.search', 'manager'));
@@ -233,25 +242,180 @@ class TenantDetailTest extends TestCase
         DB::table('password_reset_tokens')->insert(['email' => $user->email, 'token' => Hash::make('t'.$user->id), 'created_at' => now()->subMinutes($minutesAgo)]);
     }
 
-    public function test_an_invitation_is_pending_for_a_user_who_never_signed_in_and_was_sent_a_set_password_link_even_an_expired_one(): void
+    /** A person of the Alpha tenant who never signed in, found on the page by the name given here. */
+    private function invitee(string $name, string $role = 'admin'): User
     {
-        $fresh = $this->tenantUser($this->alpha['root'], 'staff');
-        $fresh->forceFill(['email' => 'fresh@example.test', 'name' => 'Fresh'])->save();
-        $stale = $this->tenantUser($this->alpha['root'], 'staff');
-        $stale->forceFill(['email' => 'stale@example.test', 'name' => 'Stale'])->save();
-        $returning = $this->tenantUser($this->alpha['root'], 'staff');
-        $returning->forceFill(['email' => 'returning@example.test', 'name' => 'Returning', 'last_login_at' => '2026-10-10 08:00:00'])->save();
-        $nobody = $this->tenantUser($this->alpha['root'], 'staff');
-        $nobody->forceFill(['email' => 'nobody@example.test', 'name' => 'Nobody'])->save();
-        $otherTenant = $this->tenantUser($this->beta['root'], 'staff');
-        $this->resetToken($fresh, minutesAgo: 59);
-        $this->resetToken($stale, minutesAgo: 61);
-        $this->resetToken($returning, minutesAgo: 5);
-        $this->resetToken($otherTenant, minutesAgo: 5);
+        $user = $this->tenantUser($this->alpha['root'], $role);
+        $user->forceFill(['name' => $name, 'email' => strtolower($name).'@invite.test'])->save();
 
-        $this->show($this->alpha['root'], ['search' => '@example.test', 'per_page' => 50])->assertInertia(fn (Assert $page) => $page
-            ->where('users.data', fn ($rows): bool => collect($rows)->pluck('invitation_pending', 'name')->only(['Fresh', 'Stale', 'Returning', 'Nobody'])->all()
-                == ['Fresh' => true, 'Stale' => true, 'Returning' => false, 'Nobody' => false]));
+        return $user;
+    }
+
+    /** One field of every person the invitee search lists, by name. @return array<string, mixed> */
+    private function inviteeField(string $field): array
+    {
+        $rows = $this->show($this->alpha['root'], ['search' => '@invite.test', 'per_page' => 50])->inertiaProps('users.data');
+
+        return collect($rows)->pluck($field, 'name')->all();
+    }
+
+    /** Runs $write as if it were $time of the frozen day, then puts the clock back to noon. */
+    private function at(string $time, callable $write): void
+    {
+        $this->travelTo("2026-10-20 {$time}");
+        $write();
+        $this->travelTo('2026-10-20 12:00:00');
+    }
+
+    private function failedInvitation(User $user, string $time): void
+    {
+        $this->at($time, fn () => (new TenantAdminInvitation($user->company_id, $user->id))->failed(new \RuntimeException('Connection refused: smtp.secret-host.test')));
+    }
+
+    public function test_invitation_state_queued_sent_expired_failed(): void
+    {
+        $audit = app(PlatformAuditService::class);
+        $queued = $this->invitee('Queued');
+        $queued->forceFill(['created_at' => '2026-10-20 09:00:00'])->save();
+        $resent = $this->invitee('Resent');
+        $resent->forceFill(['created_at' => '2026-10-20 08:00:00'])->save();
+        $this->at('11:00:00', fn () => $audit->platform('user.invitation_resent', ['user_id' => $resent->id], $resent, $this->operator));
+        $this->resetToken($this->invitee('Fresh'), minutesAgo: 59);
+        $this->resetToken($this->invitee('Stale'), minutesAgo: 61);
+        $lost = $this->invitee('Lost');
+        $this->resetToken($lost, minutesAgo: 10);
+        $this->failedInvitation($lost, '11:55:00');
+        $retried = $this->invitee('Retried');
+        $this->resetToken($retried, minutesAgo: 3);
+        $this->failedInvitation($retried, '11:50:00');
+        $this->failedInvitation($this->invitee('Nomail'), '11:30:00');
+        $this->invitee('Staffer', 'staff');
+        $this->resetToken($this->invitee('Stafftoken', 'staff'), minutesAgo: 5);
+        $returning = $this->invitee('Returning');
+        $returning->forceFill(['last_login_at' => '2026-10-10 08:00:00'])->save();
+        $this->resetToken($returning, minutesAgo: 5);
+        $this->resetToken($this->tenantUser($this->beta['root'], 'admin'), minutesAgo: 5);
+
+        $this->assertEquals([
+            'Queued' => ['queued', '2026-10-20T09:00:00+00:00'],
+            'Resent' => ['queued', '2026-10-20T11:00:00+00:00'],
+            'Fresh' => ['sent', '2026-10-20T11:01:00+00:00'],
+            'Stale' => ['expired', '2026-10-20T10:59:00+00:00'],
+            'Lost' => ['failed', '2026-10-20T11:55:00+00:00'],
+            'Retried' => ['sent', '2026-10-20T11:57:00+00:00'],
+            'Nomail' => ['failed', '2026-10-20T11:30:00+00:00'],
+            'Staffer' => null,
+            'Stafftoken' => ['sent', '2026-10-20T11:55:00+00:00'],
+            'Returning' => null,
+        ], array_map(fn (?array $invitation): ?array => $invitation === null ? null : [$invitation['state'], $invitation['at']], $this->inviteeField('invitation')));
+    }
+
+    public function test_resend_offered_without_token(): void
+    {
+        $this->invitee('Fresh');
+        $this->invitee('Inactive')->forceFill(['is_active' => false])->save();
+        $this->invitee('Signedin')->forceFill(['last_login_at' => now()->subDay()])->save();
+        $this->invitee('Staffer', 'staff');
+
+        $this->assertEquals(
+            ['Fresh' => true, 'Inactive' => false, 'Signedin' => false, 'Staffer' => false],
+            $this->inviteeField('can_resend_invitation'),
+            'an active admin who never signed in can be invited again with no token on file; nobody else',
+        );
+    }
+
+    public function test_login_lock_reports_remaining_seconds(): void
+    {
+        $locked = $this->invitee('Locked', 'staff');
+        $this->invitee('Free', 'staff');
+        $this->trailRow($locked, '10.1.1.1', 'login.failed');
+
+        foreach (range(1, LoginRequest::ATTEMPTS_PER_ACCOUNT) as $attempt) {
+            RateLimiter::hit(LoginRequest::throttleKeyFor($locked->email, '10.1.1.1'));
+        }
+
+        $this->assertEquals(['Locked' => ['reason' => 'password', 'seconds' => 60], 'Free' => null], $this->inviteeField('login_lock'));
+
+        $this->travel(20)->seconds();
+        $this->assertSame(40, $this->inviteeField('login_lock')['Locked']['seconds'], 'the seconds count down');
+
+        $this->travel(41)->seconds();
+        $this->assertNull($this->inviteeField('login_lock')['Locked'], 'and the lock is gone once they have run out');
+    }
+
+    public function test_the_longest_lock_is_the_one_reported(): void
+    {
+        $user = $this->invitee('Locked', 'staff');
+        $this->trailRow($user, '10.1.1.1', 'login.failed');
+        $this->trailRow($user, '10.2.2.2', 'two_factor.challenge_failed');
+
+        foreach (range(1, LoginRequest::ATTEMPTS_PER_ACCOUNT) as $attempt) {
+            RateLimiter::hit(LoginRequest::throttleKeyFor($user->email, '10.1.1.1'));
+        }
+
+        $this->assertSame(['reason' => 'password', 'seconds' => 60], $this->inviteeField('login_lock')['Locked']);
+
+        foreach (range(1, TwoFactorChallengeRequest::ATTEMPTS_PER_ADDRESS) as $attempt) {
+            RateLimiter::hit(TwoFactorChallengeRequest::addressKeyFor($user, '10.2.2.2'), 120);
+        }
+
+        $this->assertSame(['reason' => 'two_factor', 'seconds' => 120], $this->inviteeField('login_lock')['Locked'], 'a second-factor budget of another address that lasts longer is the one reported');
+
+        foreach (range(1, TwoFactorChallengeRequest::ATTEMPTS_PER_ACCOUNT) as $attempt) {
+            RateLimiter::hit(TwoFactorChallengeRequest::accountKeyFor($user), 900);
+        }
+
+        $this->assertSame(['reason' => 'two_factor', 'seconds' => 900], $this->inviteeField('login_lock')['Locked'], 'the budget of the account lasts fifteen minutes and outranks them');
+    }
+
+    public function test_unlock_is_offered_without_two_factor(): void
+    {
+        $user = $this->invitee('Locked', 'staff');
+        $this->trailRow($user, '10.1.1.1', 'login.failed');
+
+        foreach (range(1, LoginRequest::ATTEMPTS_PER_ACCOUNT) as $attempt) {
+            RateLimiter::hit(LoginRequest::throttleKeyFor($user->email, '10.1.1.1'));
+        }
+
+        $this->assertFalse($user->fresh()->hasTwoFactorEnabled());
+        $this->assertSame(['reason' => 'password', 'seconds' => 60], $this->inviteeField('login_lock')['Locked'], 'a person with no second factor is locked and shown as locked');
+
+        $this->asOperator(false)->post(route('platform.companies.users.unlock', [$this->alpha['root'], $user]))->assertSessionHas('success');
+
+        $this->assertNull($this->inviteeField('login_lock')['Locked']);
+    }
+
+    public function test_the_admin_list_carries_the_same_lock_and_invitation_fields(): void
+    {
+        $admin = $this->invitee('Lockedadmin');
+        $this->trailRow($admin, '10.1.1.1', 'login.failed');
+
+        foreach (range(1, LoginRequest::ATTEMPTS_PER_ACCOUNT) as $attempt) {
+            RateLimiter::hit(LoginRequest::throttleKeyFor($admin->email, '10.1.1.1'));
+        }
+
+        $this->show($this->alpha['root'])->assertInertia(fn (Assert $page) => $page
+            ->where('admins', fn ($rows): bool => collect($rows)->firstWhere('name', 'Lockedadmin')['login_lock'] === ['reason' => 'password', 'seconds' => 60]
+                && collect($rows)->firstWhere('name', 'Lockedadmin')['invitation']['state'] === 'queued'
+                && collect($rows)->firstWhere('name', 'Lockedadmin')['can_resend_invitation'] === true));
+    }
+
+    /** A row of the security trail as production writes it: a failed sign-in or second-factor code of $user from $ip. */
+    private function trailRow(User $user, string $ip, string $description): void
+    {
+        DB::table('activity_log')->insert([
+            'public_id' => PublicId::new(),
+            'log_name' => 'security',
+            'description' => $description,
+            'event' => $description,
+            'subject_type' => User::class,
+            'subject_id' => $user->id,
+            'company_id' => $user->company_id,
+            'ip_address' => $ip,
+            'properties' => json_encode(['failures' => 5]),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
     public function test_a_user_of_a_suspended_tenant_cannot_be_impersonated(): void
@@ -439,7 +603,7 @@ class TenantDetailTest extends TestCase
         $audit = app(PlatformAuditService::class);
 
         foreach (range(1, $count) as $i) {
-            $user = $this->tenantUser($i % 2 === 0 ? $this->alpha['root'] : $this->alpha['child'], $i % 3 === 0 ? 'admin' : 'staff');
+            $user = $this->tenantUser($i % 2 === 0 ? $this->alpha['root'] : $this->alpha['child'], $i % 2 === 0 ? 'admin' : 'staff');
             $user->forceFill(['email' => "extra{$i}-".fake()->unique()->numerify('###').'@example.test'])->save();
             DB::table('password_reset_tokens')->insert(['email' => $user->email, 'token' => 'x', 'created_at' => now()]);
             $this->failedJob($this->alpha['root']->id);

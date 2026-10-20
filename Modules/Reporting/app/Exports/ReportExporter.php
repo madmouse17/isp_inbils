@@ -5,9 +5,11 @@ namespace Modules\Reporting\Exports;
 use App\Models\PlatformAdmin;
 use App\Models\User;
 use App\Services\Core\CompanyService;
+use App\Services\Platform\PlatformAuditService;
 use App\Support\AuditProperties;
 use App\Support\ExportQuery;
 use App\Support\RecordNotFound;
+use App\Support\SupportActionText;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -199,7 +201,7 @@ final class ReportExporter
                 'Waktu' => $activity->created_at?->toDateTimeString(),
                 'Modul' => $activity->log_name,
                 'Aksi' => $activity->event,
-                'Deskripsi' => $activity->description,
+                'Deskripsi' => $activity->log_name === PlatformAuditService::SUPPORT_LOG ? SupportActionText::for($activity) : $activity->description,
                 'Pelaku' => $platformCauser ? 'Tim dukungan Inbils' : ($causer instanceof User ? $causer->name : ($activity->causer_id ? 'Pengguna dihapus' : 'Sistem')),
                 'ID pelaku' => $causer instanceof User ? $causer->public_id : null,
                 'Jenis subjek' => $activity->subject_type,

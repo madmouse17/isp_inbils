@@ -9,12 +9,14 @@ use App\Models\User;
 use App\Traits\BelongsToCompany;
 use App\Traits\HasLifecycle;
 use App\Traits\HasPublicId;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Carbon;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\SPK\Models\WorkOrder;
@@ -80,6 +82,9 @@ class Ticket extends Model implements HasMedia
 
     public const STATUSES = ['open', 'assigned', 'on_progress', 'resolved', 'closed'];
 
+    /** A resolved or closed ticket owes no response and no resolution any more. */
+    public const FINISHED_STATUSES = ['resolved', 'closed'];
+
     protected $fillable = [
         'company_id', 'code', 'title', 'description', 'source', 'category_id', 'status', 'priority',
         'customer_id', 'subscription_id', 'network_asset_id', 'location_id',
@@ -141,6 +146,49 @@ class Ticket extends Model implements HasMedia
     public function comments(): HasMany
     {
         return $this->hasMany(TicketComment::class, 'ticket_id');
+    }
+
+    /**
+     * Unfinished tickets whose unanswered first response, or whose resolution, falls due within $minutes from now.
+     * A target already passed is a breach, not a near miss: the `sla_breached` list holds those.
+     *
+     * @param  Builder<Ticket>  $query
+     * @return Builder<Ticket>
+     */
+    public function scopeDueSoon(Builder $query, int $minutes = 30): Builder
+    {
+        $now = now();
+        $limit = now()->addMinutes($minutes);
+
+        return $query
+            ->whereNotIn('status', self::FINISHED_STATUSES)
+            ->where(fn (Builder $due) => $due
+                ->where(fn (Builder $response) => $response->whereNull('first_response_at')->whereBetween('response_deadline', [$now, $limit]))
+                ->orWhereBetween('sla_deadline', [$now, $limit]));
+    }
+
+    /**
+     * Unfinished tickets whose newest public comment was written by the ticket's own customer account, so nobody on
+     * staff has answered since. A comment is newer by its id (they are only ever appended). An internal note is no
+     * answer, a deleted comment is gone, and a customer without an app login never matches.
+     *
+     * @param  Builder<Ticket>  $query
+     * @return Builder<Ticket>
+     */
+    public function scopeAwaitingStaffReply(Builder $query): Builder
+    {
+        return $query
+            ->whereNotIn('status', self::FINISHED_STATUSES)
+            ->whereExists(fn (QueryBuilder $reply) => $reply->from('ticket_comments')
+                ->whereColumn('ticket_comments.ticket_id', 'tickets.id')
+                ->where('ticket_comments.is_internal', false)
+                ->whereNull('ticket_comments.deleted_at')
+                ->whereIn('ticket_comments.author_id', fn (QueryBuilder $account) => $account->from('customers')->select('user_id')->whereColumn('customers.id', 'tickets.customer_id'))
+                ->whereNotExists(fn (QueryBuilder $later) => $later->from('ticket_comments', 'later')
+                    ->whereColumn('later.ticket_id', 'tickets.id')
+                    ->where('later.is_internal', false)
+                    ->whereNull('later.deleted_at')
+                    ->whereColumn('later.id', '>', 'ticket_comments.id')));
     }
 
     public static function lifecycleNoun(): string

@@ -80,6 +80,7 @@ class DemoUserSeeder extends Seeder
         ];
         $company->save();
 
-        (new CompanySeeder())->runFor($company);
+        // The demo company keeps the stock rows and sample assets that the sample data and the E2E fixtures stand on.
+        (new CompanySeeder())->runFor($company, CompanySeeder::CATALOG_DEMO);
     }
 }

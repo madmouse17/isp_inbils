@@ -65,6 +65,11 @@ export type PlatformTenantProfile = {
     created_at: string | null;
 };
 
+/** What keeps a person from signing in right now: too many wrong passwords, or too many wrong second-factor codes. */
+export type PlatformLoginLock = { reason: 'password' | 'two_factor'; seconds: number };
+
+export type PlatformInvitationState = 'queued' | 'sent' | 'expired' | 'failed';
+
 export type PlatformCompanyUser = {
     id: string;
     name: string;
@@ -75,7 +80,10 @@ export type PlatformCompanyUser = {
     last_login_at: string | null;
     two_factor_enabled: boolean;
     can_impersonate: boolean;
-    invitation_pending: boolean;
+    login_lock: PlatformLoginLock | null;
+    /** Where the set-password mail stands; only for people who never signed in. */
+    invitation: { state: PlatformInvitationState; at: string } | null;
+    can_resend_invitation: boolean;
 };
 
 export type PlatformSubsidiary = {

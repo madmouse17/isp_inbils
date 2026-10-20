@@ -2,9 +2,6 @@
 
 namespace App\Providers;
 
-use App\Events\CompanyCreated;
-use App\Listeners\SeedCompanyDefaults;
-use App\Listeners\UpdateLastLoginAt;
 use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\Core\DocumentType;
@@ -43,7 +40,6 @@ use Dedoc\Scramble\Support\Generator\SecurityScheme;
 use Dedoc\Scramble\Support\Generator\Server;
 use Dedoc\Scramble\Support\Generator\Types\StringType;
 use Dedoc\Scramble\Support\RouteInfo;
-use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Cache\RateLimiting\Unlimited;
@@ -172,8 +168,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(NumberSequence::class, NumberSequencePolicy::class);
         Gate::policy(DocumentType::class, DocumentTypePolicy::class);
 
-        Event::listen(Login::class, UpdateLastLoginAt::class);
-        Event::listen(CompanyCreated::class, SeedCompanyDefaults::class);
+        // The listeners in app/Listeners register themselves by the typed first parameter of handle() (event
+        // discovery). A manual Event::listen on top of that runs them twice: check `php artisan event:list`.
         $this->registerWhatsAppRateLimiters();
         $this->registerNumberSequences();
         $this->registerApiRateLimiters();

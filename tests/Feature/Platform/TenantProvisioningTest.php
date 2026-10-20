@@ -45,6 +45,7 @@ class TenantProvisioningTest extends TestCase
             'currency' => 'IDR',
             'admin_name' => 'Rina Pratama',
             'admin_email' => 'rina@nusanet.test',
+            'catalog' => 'starter',
             ...$overrides,
         ];
     }
@@ -126,6 +127,8 @@ class TenantProvisioningTest extends TestCase
         $this->assertSame(4, DB::table('units')->where('company_id', $company->id)->count());
         $this->assertTrue(DB::table('ticket_categories')->where(['company_id' => $company->id, 'code' => 'no_internet'])->exists());
         $this->assertTrue(DB::table('locations')->where(['company_id' => $company->id, 'code' => 'POP-01'])->exists());
+        $this->assertSame(0, DB::table('stocks')->where('company_id', $company->id)->count(), 'the starter catalog has no stock rows');
+        $this->assertSame(0, DB::table('network_assets')->where('company_id', $company->id)->count(), 'and no sample assets');
 
         Notification::assertSentTo($admin, TenantAdminInvitation::class, fn (TenantAdminInvitation $mail, array $channels): bool => $channels === ['mail'] && $mail->companyId === $company->id);
         Notification::assertCount(1);
@@ -149,6 +152,7 @@ class TenantProvisioningTest extends TestCase
         $this->assertSame('NUSA', $row->properties['code']);
         $this->assertSame($admin->id, $row->properties['admin_user_id']);
         $this->assertFalse($row->properties['demo_data']);
+        $this->assertSame('starter', $row->properties['catalog']);
         $this->assertStringNotContainsString('rina@nusanet.test', json_encode($row->properties));
         $this->assertSame(0, Activity::query()->where('log_name', 'support')->count(), 'there is no tenant yet to show a support entry to');
     }
@@ -284,6 +288,9 @@ class TenantProvisioningTest extends TestCase
             ['admin_email' => ''],
             ['admin_email' => 'not-an-email'],
             ['admin_email' => str_repeat('a', 250).'@x.test'],
+            ['catalog' => ''],
+            ['catalog' => 'full'],
+            ['catalog' => 'demo'],
             ['demo_data' => 'maybe'],
             ['logo' => UploadedFile::fake()->create('notes.pdf', 10, 'application/pdf')],
             ['logo' => UploadedFile::fake()->image('big.png')->size(10241)],
@@ -296,7 +303,7 @@ class TenantProvisioningTest extends TestCase
         $this->assertDatabaseMissing('companies', ['code' => 'NUSA']);
         Notification::assertNothingSent();
 
-        foreach (['name', 'code', 'timezone', 'currency', 'admin_name', 'admin_email'] as $required) {
+        foreach (['name', 'code', 'timezone', 'currency', 'admin_name', 'admin_email', 'catalog'] as $required) {
             $this->asOperator(false)->post(route('platform.companies.store'), Arr::except($this->payload(), $required))->assertSessionHasErrors($required);
         }
 

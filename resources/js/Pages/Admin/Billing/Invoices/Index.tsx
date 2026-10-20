@@ -1,6 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite/PageHeader';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
@@ -16,6 +16,9 @@ import { useTableQuery } from '@/hooks/useTableQuery';
 import { formatDate, formatRupiah } from '@/lib/format';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
 import { INVOICE_STATUS, LIFECYCLE_STATE } from '@/lib/statuses';
+
+/** The `online_pending` filter: invoices whose Snap page has stayed unpaid for over an hour. */
+const ONLINE_PENDING_LABEL = 'Pembayaran online tertunda > 1 jam';
 
 type InvoiceRow = {
     id: string;
@@ -38,6 +41,7 @@ type Props = {
         customer_id?: string;
         date_from?: string;
         date_to?: string;
+        online_pending?: string;
         sort_by?: string;
         sort_dir?: string;
         per_page?: string | number;
@@ -63,6 +67,7 @@ export default function InvoicesIndex({
             customer_id: filters.customer_id ?? '',
             date_from: filters.date_from ?? '',
             date_to: filters.date_to ?? '',
+            online_pending: filters.online_pending ?? '',
             sort_by: filters.sort_by ?? '',
             sort_dir: filters.sort_dir ?? '',
             per_page: filters.per_page ?? toPagination(invoices).per_page,
@@ -70,8 +75,14 @@ export default function InvoicesIndex({
         { only: ['invoices', 'filters', 'selectedCustomer'] },
     );
 
+    const onlinePending = params.online_pending === '1';
     const hasFilters = Boolean(
-        params.search || params.status || params.customer_id || params.date_from || params.date_to,
+        params.search ||
+        params.status ||
+        params.customer_id ||
+        params.date_from ||
+        params.date_to ||
+        onlinePending,
     );
 
     const columns: DataTableColumn<InvoiceRow>[] = useMemo(
@@ -245,6 +256,21 @@ export default function InvoicesIndex({
                     </div>
                 </div>
 
+                {onlinePending && (
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            aria-label={`Hapus filter ${ONLINE_PENDING_LABEL}`}
+                            rightIcon={<X className="size-4" aria-hidden="true" />}
+                            onClick={() => set('online_pending', '')}
+                        >
+                            {ONLINE_PENDING_LABEL}
+                        </Button>
+                    </div>
+                )}
+
                 <DataTable
                     columns={columns}
                     data={invoices.data}
@@ -269,6 +295,7 @@ export default function InvoicesIndex({
                             customer_id: '',
                             date_from: '',
                             date_to: '',
+                            online_pending: '',
                         })
                     }
                     loading={processing}

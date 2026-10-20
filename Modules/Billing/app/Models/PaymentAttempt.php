@@ -5,6 +5,7 @@ namespace Modules\Billing\Models;
 use App\Models\User;
 use App\Traits\BelongsToCompany;
 use App\Traits\HasPublicId;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -46,6 +47,9 @@ class PaymentAttempt extends Model
     use HasPublicId;
 
     public const TTL_HOURS = 24;
+
+    /** A page unpaid this long is worth a look: the customer may have given up, or still be paying. */
+    public const STALE_PENDING_MINUTES = 60;
 
     public const STATUS_PENDING = 'pending';
 
@@ -106,6 +110,15 @@ class PaymentAttempt extends Model
     public function grossAmount(): int
     {
         return (int) Str::before((string) $this->amount, '.');
+    }
+
+    /** Pending online payments opened more than an hour ago whose page has not expired. */
+    public function scopeStalePending(Builder $query): Builder
+    {
+        return $query
+            ->where($query->qualifyColumn('status'), self::STATUS_PENDING)
+            ->where($query->qualifyColumn('created_at'), '<=', now()->subMinutes(self::STALE_PENDING_MINUTES))
+            ->where($query->qualifyColumn('expires_at'), '>', now());
     }
 
     /** @return BelongsTo<Invoice, $this> */

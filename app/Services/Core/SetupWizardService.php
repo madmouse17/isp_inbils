@@ -20,13 +20,14 @@ class SetupWizardService
 
     /**
      * Creates a company with its first admin, in the order the wizard always had: the company without automatic events,
-     * its logo, the admin role, the admin homed and made a default member, the audit rows, then the defaults seeder and
-     * CompanyCreated. The admin exists and is homed before seeding, so the seeder acts as them and never falls back to
-     * a system-seed user. Shared by the wizard ($admin = the signed-in user) and platform provisioning (a new user).
+     * its logo, the admin role, the admin homed and made a default member, the audit rows, then CompanyCreated, whose
+     * listener seeds the defaults ($catalog says how much, see CompanySeeder). The admin exists and is homed before
+     * seeding, so the seeder acts as them and never falls back to a system-seed user. Shared by the wizard ($admin =
+     * the signed-in user) and platform provisioning (a new user).
      */
-    public function createFor(User $admin, array $data): Company
+    public function createFor(User $admin, array $data, string $catalog = CompanySeeder::CATALOG_STARTER): Company
     {
-        return DB::transaction(function () use ($admin, $data): Company {
+        return DB::transaction(function () use ($admin, $data, $catalog): Company {
             $user = $admin;
             $logo = $data['logo'] ?? null;
             unset($data['logo']);
@@ -58,8 +59,7 @@ class SetupWizardService
             AuditService::log('company', 'company_created', ['company_id' => $company->id], $company);
             AuditService::log('auth', 'admin_role_assigned', ['user_id' => $user->id, 'company_id' => $company->id], $user);
             CompanyService::resetCache();
-            app(CompanySeeder::class)->runFor($company);
-            CompanyCreated::dispatch($company);
+            CompanyCreated::dispatch($company, $catalog);
 
             return $company->refresh();
         });

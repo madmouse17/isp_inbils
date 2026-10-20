@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Core\CompanyService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Modules\Service\Database\Factories\ServicePackageFactory;
@@ -20,6 +21,7 @@ use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Services\TicketService;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
 
@@ -182,18 +184,67 @@ class TicketDeadlinesTest extends TestCase
         $gold = $this->subscriptionOnTier($user->company_id, responseHours: 2, resolutionHours: 6, tierName: 'Gold');
         $retired = $this->subscriptionOnTier($user->company_id, responseHours: 2, resolutionHours: 6, active: false, tierName: 'Lama');
 
+        $names = static fn (Ticket $ticket): array => Arr::only(TicketService::deadlineSource($ticket), ['type', 'name']);
+
+        $this->assertSame(['type' => 'tier', 'name' => 'Gold'], $names(new Ticket(['category_id' => $category->id, 'subscription_id' => $gold->id])));
+        $this->assertSame(['type' => 'tier', 'name' => 'Lama'], $names(new Ticket(['category_id' => $category->id, 'subscription_id' => $retired->id])));
+        $this->assertSame(['type' => 'category', 'name' => 'Gangguan'], $names(new Ticket(['category_id' => $category->id])));
+    }
+
+    public function test_deadline_source_names_base_hours_and_urgent_halving(): void
+    {
+        $user = $this->createCompanyUser();
+        $this->actingAs($user);
+        $category = $this->category($user, slaHours: 9, responseHours: 5, name: 'Gangguan');
+        $gold = $this->subscriptionOnTier($user->company_id, responseHours: 3, resolutionHours: 7, tierName: 'Gold');
+
         $this->assertSame(
-            ['type' => 'tier', 'name' => 'Gold'],
-            TicketService::deadlineSource(new Ticket(['category_id' => $category->id, 'subscription_id' => $gold->id])),
+            ['type' => 'category', 'name' => 'Gangguan', 'response_hours' => 5, 'resolution_hours' => 9, 'urgent_halved' => false],
+            TicketService::deadlineSource(new Ticket(['category_id' => $category->id, 'priority' => 'medium'])),
         );
         $this->assertSame(
-            ['type' => 'tier', 'name' => 'Lama'],
-            TicketService::deadlineSource(new Ticket(['category_id' => $category->id, 'subscription_id' => $retired->id])),
+            ['type' => 'category', 'name' => 'Gangguan', 'response_hours' => 5, 'resolution_hours' => 9, 'urgent_halved' => true],
+            TicketService::deadlineSource(new Ticket(['category_id' => $category->id, 'priority' => 'urgent'])),
+            'the hours stay the configured ones: the page shows them divided',
         );
         $this->assertSame(
-            ['type' => 'category', 'name' => 'Gangguan'],
-            TicketService::deadlineSource(new Ticket(['category_id' => $category->id])),
+            ['type' => 'tier', 'name' => 'Gold', 'response_hours' => 3, 'resolution_hours' => 7, 'urgent_halved' => true],
+            TicketService::deadlineSource(new Ticket(['category_id' => $category->id, 'subscription_id' => $gold->id, 'priority' => 'urgent'])),
         );
+
+        $urgentByDefault = $this->category($user, slaHours: 4, responseHours: 2, defaultPriority: 'urgent', name: 'Mendesak');
+        $this->assertTrue(
+            TicketService::deadlineSource(new Ticket(['category_id' => $urgentByDefault->id]))['urgent_halved'],
+            'a ticket without a priority follows the default of its category',
+        );
+
+        $category->default_response_hours = null;
+        $withoutTarget = (new Ticket(['priority' => 'medium']))->setRelation('category', $category)->setRelation('subscription', null);
+        $this->assertNull(TicketService::deadlineSource($withoutTarget)['response_hours']);
+    }
+
+    public function test_show_hides_customer_address_without_customer_view(): void
+    {
+        $admin = $this->createCompanyUser();
+        $this->actingAs($admin);
+        $category = $this->category($admin, slaHours: 8, responseHours: 3);
+        $customer = Customer::factory()->create(['company_id' => $admin->company_id, 'phone' => '081234567890']);
+        CustomerAddress::factory()->create(['company_id' => $admin->company_id, 'customer_id' => $customer->id, 'label' => 'Kantor', 'address' => 'Jl. Mawar 5', 'is_primary' => true]);
+        CustomerAddress::factory()->create(['company_id' => $admin->company_id, 'customer_id' => $customer->id, 'label' => 'Rumah', 'address' => 'Jl. Melati 9', 'is_installation_point' => true]);
+        $ticket = Ticket::query()->create([
+            'company_id' => $admin->company_id, 'code' => 'TKT-ADDR', 'title' => 'Internet mati', 'source' => 'customer', 'category_id' => $category->id,
+            'status' => 'open', 'priority' => 'medium', 'customer_id' => $customer->id, 'created_by' => $admin->id, 'sla_deadline' => now()->addDay(),
+        ]);
+        $reader = User::factory()->create(['company_id' => $admin->company_id, 'email_verified_at' => now(), 'is_active' => true]);
+        $reader->assignRole(tap(Role::firstOrCreate(['name' => 'ticket-reader-only', 'guard_name' => 'web']))->syncPermissions(['ticket.view']));
+
+        $dispatcher = $this->get(route('admin.tickets.show', $ticket))->assertOk()->viewData('page')['props']['ticket']['data']['customer'];
+        $this->assertSame('081234567890', $dispatcher['phone']);
+        $this->assertSame(['Jl. Melati 9'], array_column($dispatcher['addresses'], 'address'), 'one address, the installation point before the primary one');
+
+        $limited = $this->actingAs($reader)->get(route('admin.tickets.show', $ticket))->assertOk()->viewData('page')['props']['ticket']['data']['customer'];
+        $this->assertSame('081234567890', $limited['phone'], 'the phone number was always on the page');
+        $this->assertArrayNotHasKey('addresses', $limited);
     }
 
     public function test_creating_a_ticket_stores_both_deadlines_and_loads_the_tier_once(): void
@@ -241,7 +292,10 @@ class TicketDeadlinesTest extends TestCase
         $late = $this->get(route('admin.tickets.show', $ticket))->assertOk()->viewData('page')['props']['ticket']['data'];
 
         $this->assertNotNull($waiting['response_deadline']);
-        $this->assertSame(['type' => 'tier', 'name' => 'Gold'], $waiting['deadline_source']);
+        $this->assertSame(
+            ['type' => 'tier', 'name' => 'Gold', 'response_hours' => 2, 'resolution_hours' => 6, 'urgent_halved' => false],
+            $waiting['deadline_source'],
+        );
         $this->assertFalse($waiting['is_response_breached']);
         $this->assertTrue($late['is_response_breached']);
     }

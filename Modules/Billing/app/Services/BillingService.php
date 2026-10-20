@@ -13,6 +13,7 @@ use App\Support\Money;
 use App\Support\OptimisticLock;
 use App\Support\RecordNotFound;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -309,12 +310,16 @@ class BillingService
         }, 3);
     }
 
-    public static function recordPayment(Invoice $invoice, string|int|float $amount, string $method, ?string $reference = null, ?string $notes = null): Payment
+    /**
+     * Book a payment. `$paidAt` is the instant the money arrived when staff back-date it (RecordPaymentRequest checks the day);
+     * null books it now. Eloquent writes a date in the timezone it carries, so it is converted to the app's first.
+     */
+    public static function recordPayment(Invoice $invoice, string|int|float $amount, string $method, ?string $reference = null, ?string $notes = null, ?CarbonInterface $paidAt = null): Payment
     {
         RecordNotFound::abortUnless($invoice->company_id === (int) CompanyService::currentId());
         abort_if(Money::compare($amount, '0') <= 0, 422, 'Jumlah pembayaran harus lebih dari nol.');
 
-        return DB::transaction(function () use ($invoice, $amount, $method, $reference, $notes) {
+        return DB::transaction(function () use ($invoice, $amount, $method, $reference, $notes, $paidAt) {
             $invoice = Invoice::withoutCompany()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
             RecordNotFound::abortUnless($invoice->company_id === (int) CompanyService::currentId());
             abort_unless(in_array($invoice->status, ['sent', 'partial', 'overdue'], true), 422, 'Tagihan tidak menerima pembayaran pada statusnya saat ini.');
@@ -335,7 +340,7 @@ class BillingService
                 'amount' => Money::round($amount),
                 'method' => $method,
                 'reference' => $reference,
-                'paid_at' => now(),
+                'paid_at' => $paidAt?->copy()->setTimezone((string) config('app.timezone')) ?? now(),
                 'received_by' => Auth::id(),
                 'notes' => $notes,
             ]);
@@ -352,6 +357,8 @@ class BillingService
 
             AuditService::log('invoice', 'payment_recorded', [
                 'number' => $invoice->number, 'amount' => $amount, 'method' => $method,
+                // A back-dated payment says so here: auditors read the audit log, not the payments table.
+                ...($paidAt === null ? [] : ['paid_at' => $payment->paid_at->toIso8601String()]),
             ], $invoice);
 
             PaymentRecorded::dispatch($invoice->company_id, $invoice->id, $payment->id);

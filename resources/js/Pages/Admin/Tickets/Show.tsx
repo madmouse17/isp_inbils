@@ -13,6 +13,7 @@ import {
     CardContent,
     CardHeader,
     CardTitle,
+    EmptyCell,
     EnumBadge,
     FileUpload,
     Modal,
@@ -24,13 +25,16 @@ import {
 } from '@/Components/ui';
 import { MediaPreview, PageHeader } from '@/Components/composite';
 import { ConfirmDialog } from '@/Components/composite/ConfirmDialog';
+import { DeadlineBadge } from '@/Components/composite/DeadlineBadge';
+import { useCan } from '@/hooks/useCan';
 import { useCompany } from '@/hooks/useCompany';
+import { useNow } from '@/hooks/useNow';
+import { targetHoursText } from '@/lib/deadline';
 import { formatDateTime } from '@/lib/format';
 import { PRIORITY, TICKET_SOURCE, TICKET_STATUS } from '@/lib/statuses';
 import type { PageProps } from '@/types';
+import type { TicketCustomer, TicketDeadlineSource } from '@/types/ticketing';
 import { checkInText, type CheckInRecord } from './components/checkIn';
-
-type DeadlineSource = { type: 'tier' | 'category'; name: string };
 
 interface TData {
     id: string;
@@ -48,11 +52,12 @@ interface TData {
         resolve: boolean;
         spawn_spk: boolean;
         comment: boolean;
+        evaluate: boolean;
     };
     is_sla_breached: boolean;
     sla_deadline?: string | null;
     response_deadline: string | null;
-    deadline_source: DeadlineSource;
+    deadline_source: TicketDeadlineSource;
     is_response_breached: boolean;
     first_response_at?: string | null;
     first_response_source?: 'reply' | 'start' | null;
@@ -62,7 +67,7 @@ interface TData {
     resolution_note?: string | null;
     check_in?: CheckInRecord | null;
     category?: { name: string; code: string } | null;
-    customer?: { name: string; code: string } | null;
+    customer?: TicketCustomer | null;
     subscription?: { code: string } | null;
     network_asset?: { code: string; name: string } | null;
     location?: { name: string; path?: string } | null;
@@ -71,6 +76,7 @@ interface TData {
     assignee_name_snapshot?: string | null;
     comments?: {
         id: string;
+        author_id: string | null;
         body: string;
         is_internal: boolean;
         created_at: string;
@@ -82,6 +88,7 @@ interface TData {
         file_path: string;
         original_name?: string | null;
         mime_type?: string | null;
+        uploaded_by?: string | null;
         created_at: string;
     }[];
 }
@@ -126,6 +133,25 @@ function Detail({ label, children }: { label: string; children: React.ReactNode 
     );
 }
 
+/** Who an entry came from: the customer's own app account, or staff. An entry whose author is unknown gets no badge. */
+function AuthorBadge({
+    userId,
+    customerUserId,
+}: {
+    userId?: string | null;
+    customerUserId: string | null;
+}) {
+    if (!userId) return null;
+
+    const fromCustomer = userId === customerUserId;
+
+    return (
+        <Badge variant={fromCustomer ? 'info' : 'neutral'}>
+            {fromCustomer ? 'Pelanggan' : 'Petugas'}
+        </Badge>
+    );
+}
+
 export default function Show({ ticket, handlers }: ShowProps) {
     const t = ticket.data;
     // A closed ticket keeps the category and assignee it closed with; other statuses follow the live record.
@@ -145,6 +171,14 @@ export default function Show({ ticket, handlers }: ShowProps) {
     // Tugaskan follows the status; every other button follows what the server says this person may do.
     const hasAction = t.status === 'open' || Object.values(t.can ?? {}).some(Boolean);
     const company = useCompany();
+    const can = useCan();
+    const now = useNow();
+    // A target only counts down while it is still owed: a finished ticket owes none, an answered one no response.
+    const finished = t.status === 'resolved' || closed;
+    const responsePending = !t.first_response_at && !finished;
+    const resolutionPending = !finished;
+    const customerUserId = t.customer?.user_id ?? null;
+    const address = t.customer?.addresses?.[0];
     const sourceLabel =
         t.deadline_source.type === 'tier'
             ? `Target ${t.deadline_source.name}`
@@ -287,7 +321,51 @@ export default function Show({ ticket, handlers }: ShowProps) {
                                 <Detail label="Sumber">
                                     <EnumBadge map={TICKET_SOURCE} value={t.source} />
                                 </Detail>
-                                <Detail label="Pelanggan">{t.customer?.name ?? '-'}</Detail>
+                                <Detail label="Pelanggan">
+                                    {t.customer && can('customer.view') ? (
+                                        <Link
+                                            href={route('admin.customers.show', t.customer.id)}
+                                            className="text-primary-text hover:underline"
+                                        >
+                                            {t.customer.name}
+                                        </Link>
+                                    ) : (
+                                        (t.customer?.name ?? <EmptyCell />)
+                                    )}
+                                </Detail>
+                                <Detail label="Telepon">
+                                    {t.customer?.phone ? (
+                                        <a
+                                            href={`tel:${t.customer.phone.replace(/[^\d+]/g, '')}`}
+                                            className="text-primary-text hover:underline"
+                                        >
+                                            {t.customer.phone}
+                                        </a>
+                                    ) : (
+                                        <EmptyCell />
+                                    )}
+                                </Detail>
+                                {can('customer.view') && (
+                                    <div className="md:col-span-2">
+                                        <Detail label="Alamat">
+                                            {address ? (
+                                                <>
+                                                    {[address.address, address.city]
+                                                        .filter(Boolean)
+                                                        .join(', ')}
+                                                    {address.label && (
+                                                        <span className="font-normal text-muted-foreground">
+                                                            {' '}
+                                                            ({address.label})
+                                                        </span>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <EmptyCell />
+                                            )}
+                                        </Detail>
+                                    </div>
+                                )}
                                 <Detail label="Langganan">{t.subscription?.code ?? '-'}</Detail>
                                 <Detail label="Aset jaringan">
                                     {t.network_asset?.name ?? '-'}
@@ -348,11 +426,29 @@ export default function Show({ ticket, handlers }: ShowProps) {
                                             ({sourceLabel})
                                         </span>
                                     )}
-                                    {t.is_response_breached && (
+                                    {t.response_deadline && responsePending && (
+                                        <DeadlineBadge
+                                            deadline={t.response_deadline}
+                                            now={now}
+                                            className="ml-2"
+                                        />
+                                    )}
+                                    {t.is_response_breached && !responsePending && (
                                         <Badge variant="destructive" className="ml-2">
                                             Respons terlambat
                                         </Badge>
                                     )}
+                                    {t.response_deadline &&
+                                        t.deadline_source.response_hours !== null && (
+                                            <span className="block text-xs font-normal text-muted-foreground">
+                                                Dihitung sejak tiket dibuat:{' '}
+                                                {targetHoursText(
+                                                    t.deadline_source.response_hours,
+                                                    t.deadline_source.urgent_halved,
+                                                )}
+                                                .
+                                            </span>
+                                        )}
                                 </Detail>
                                 <Detail label="Respons pertama">
                                     {formatDateTime(t.first_response_at, company)}
@@ -371,10 +467,22 @@ export default function Show({ ticket, handlers }: ShowProps) {
                                             ({sourceLabel})
                                         </span>
                                     )}
-                                    {t.is_sla_breached && (
-                                        <Badge variant="destructive" className="ml-2">
-                                            Penyelesaian terlambat
-                                        </Badge>
+                                    {t.sla_deadline && resolutionPending && (
+                                        <DeadlineBadge
+                                            deadline={t.sla_deadline}
+                                            now={now}
+                                            className="ml-2"
+                                        />
+                                    )}
+                                    {t.sla_deadline && (
+                                        <span className="block text-xs font-normal text-muted-foreground">
+                                            Dihitung sejak tiket dibuat:{' '}
+                                            {targetHoursText(
+                                                t.deadline_source.resolution_hours,
+                                                t.deadline_source.urgent_halved,
+                                            )}
+                                            .
+                                        </span>
                                     )}
                                 </Detail>
                                 <Detail label="Check-in">{checkInText(t.check_in)}</Detail>
@@ -393,7 +501,12 @@ export default function Show({ ticket, handlers }: ShowProps) {
                     <CardHeader>
                         <CardTitle>Tindakan</CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="flex flex-col gap-3">
+                        {closed && (
+                            <p className="text-sm text-muted-foreground">
+                                Tiket sudah ditutup. Komentar baru tidak bisa ditambahkan.
+                            </p>
+                        )}
                         {hasAction ? (
                             <div className="flex flex-wrap gap-2">
                                 {t.status === 'open' && (
@@ -434,13 +547,24 @@ export default function Show({ ticket, handlers }: ShowProps) {
                                         Tambah komentar
                                     </Button>
                                 )}
+                                {t.can?.evaluate && (
+                                    <Button asChild variant="outline">
+                                        <Link
+                                            href={route('admin.evaluations.create', {
+                                                ticket: t.id,
+                                            })}
+                                        >
+                                            Evaluasi teknisi
+                                        </Link>
+                                    </Button>
+                                )}
                             </div>
                         ) : (
-                            <p className="text-sm text-muted-foreground">
-                                {closed
-                                    ? 'Tiket sudah ditutup. Komentar baru tidak bisa ditambahkan.'
-                                    : 'Tidak ada tindakan yang tersedia untuk Anda pada tiket ini.'}
-                            </p>
+                            !closed && (
+                                <p className="text-sm text-muted-foreground">
+                                    Tidak ada tindakan yang tersedia untuk Anda pada tiket ini.
+                                </p>
+                            )
                         )}
                     </CardContent>
                 </Card>
@@ -459,10 +583,16 @@ export default function Show({ ticket, handlers }: ShowProps) {
                         )}
                         {(t.comments ?? []).map((c) => (
                             <div key={c.id} className="rounded-lg border border-border p-3">
-                                <div className="flex items-center justify-between">
-                                    <p className="text-sm font-medium">
-                                        {c.author?.name ?? 'Tidak dikenal'}
-                                    </p>
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <p className="text-sm font-medium">
+                                            {c.author?.name ?? 'Tidak dikenal'}
+                                        </p>
+                                        <AuthorBadge
+                                            userId={c.author_id}
+                                            customerUserId={customerUserId}
+                                        />
+                                    </div>
                                     {c.is_internal && <Badge variant="brand">Internal</Badge>}
                                 </div>
                                 <p className="mt-1 text-sm text-muted-foreground">{c.body}</p>
@@ -517,9 +647,15 @@ export default function Show({ ticket, handlers }: ShowProps) {
                         <div className="grid gap-2 sm:grid-cols-2">
                             {(t.attachments ?? []).map((a) => (
                                 <div key={a.id} className="rounded-lg border border-border p-3">
-                                    <p className="text-sm font-medium">
-                                        {a.original_name ?? a.file_path}
-                                    </p>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <p className="text-sm font-medium">
+                                            {a.original_name ?? a.file_path}
+                                        </p>
+                                        <AuthorBadge
+                                            userId={a.uploaded_by}
+                                            customerUserId={customerUserId}
+                                        />
+                                    </div>
                                     <p className="text-xs text-muted-foreground">
                                         {formatDateTime(a.created_at, company)}
                                     </p>

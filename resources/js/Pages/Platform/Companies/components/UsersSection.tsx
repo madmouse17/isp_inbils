@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { DataTable, RoleBadge, type DataTableColumn } from '@/Components/composite';
 import {
-    Badge,
     Card,
     CardContent,
     CardDescription,
@@ -12,9 +11,8 @@ import {
     NativeSelect,
 } from '@/Components/ui';
 import { useServerTable } from '@/hooks/useServerTable';
-import { formatDateTime } from '@/lib/format';
 import { toPagination } from '@/lib/pagination';
-import { ACTIVE_STATE, TWO_FACTOR_STATE } from '@/lib/statuses';
+import { TWO_FACTOR_STATE } from '@/lib/statuses';
 import type { Paginated } from '@/types';
 import type {
     PlatformCompanyUser,
@@ -22,6 +20,7 @@ import type {
     PlatformUserFilters,
 } from '@/types/platform';
 import { UserActions } from './UserActions';
+import { AccountStatusCell, LastLoginCell } from './UserSignInState';
 
 interface UsersSectionProps {
     tenant: PlatformTenantProfile;
@@ -78,7 +77,7 @@ export function UsersSection({ tenant, users, filters }: UsersSectionProps) {
             {
                 key: 'is_active',
                 header: 'Status',
-                cell: (user) => <EnumBadge map={ACTIVE_STATE} value={user.is_active} />,
+                cell: (user) => <AccountStatusCell user={user} />,
             },
             {
                 key: 'two_factor_enabled',
@@ -93,14 +92,7 @@ export function UsersSection({ tenant, users, filters }: UsersSectionProps) {
             {
                 key: 'last_login_at',
                 header: 'Masuk terakhir',
-                cell: (user) =>
-                    user.last_login_at ? (
-                        formatDateTime(user.last_login_at)
-                    ) : user.invitation_pending ? (
-                        <Badge variant="warning">Undangan belum dipakai</Badge>
-                    ) : (
-                        <span className="text-muted-foreground">Belum pernah</span>
-                    ),
+                cell: (user) => <LastLoginCell user={user} />,
             },
             {
                 key: 'actions',

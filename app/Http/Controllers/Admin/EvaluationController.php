@@ -150,7 +150,36 @@ class EvaluationController extends Controller
                     'description' => $workOrder->title,
                 ],
             ),
+            // Lazy: the option searches reload this page for every keystroke and have no use for it.
+            'prefill' => fn (): ?array => $this->ticketPrefill($request),
         ]);
+    }
+
+    /**
+     * The form as a closed ticket opens it: the ticket and its handler, ready to be rated. Anything else (no ticket asked
+     * for, one that is unknown, of another company, unfinished or unassigned) is the plain form, never an error. A handler
+     * the form cannot rate (gone, inactive, no evaluable role) leaves the employee to be picked.
+     *
+     * @return array{employee: array{value: string, label: string, description: string}|null, reference_type: 'Ticket', reference: array{value: string, label: string, description: string}}|null
+     */
+    private function ticketPrefill(Request $request): ?array
+    {
+        $ticket = Ticket::query()
+            ->with('assignee')
+            ->wherePublicId($request->query('ticket'))
+            ->where('status', 'closed')
+            ->whereNotNull('assigned_to')
+            ->first();
+
+        if ($ticket === null) {
+            return null;
+        }
+
+        return [
+            'employee' => $this->employeeOption($this->employeeQuery(), $ticket->assignee?->public_id),
+            'reference_type' => 'Ticket',
+            'reference' => ['value' => $ticket->public_id, 'label' => $ticket->code, 'description' => $ticket->title],
+        ];
     }
 
     public function store(StoreEvaluationRequest $request): RedirectResponse

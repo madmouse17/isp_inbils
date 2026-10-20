@@ -81,7 +81,11 @@ class InvoiceController extends Controller
                 $customerKey,
             ),
             'selectedCustomer' => $selectedCustomer ? $this->presentCustomer($selectedCustomer) : null,
-            'filters' => $request->only(['type', 'status', 'source', 'customer_id', 'search', 'date_from', 'date_to', 'sort_by', 'sort_dir', 'per_page']),
+            'filters' => [
+                ...$request->only(['type', 'status', 'source', 'customer_id', 'search', 'date_from', 'date_to', 'sort_by', 'sort_dir', 'per_page']),
+                // Normalised, so the page shows its chip exactly when the list is filtered.
+                'online_pending' => $request->boolean('online_pending') ? '1' : null,
+            ],
             'can' => [
                 'create' => $request->user()?->can('billing.create') ?? false,
                 'export' => $request->user()?->can('billing.export') ?? false,
@@ -103,7 +107,8 @@ class InvoiceController extends Controller
             ->when($request->input('date_to'), fn ($query, $value) => $query->whereDate('issue_date', '<=', $value))
             ->when($request->input('search'), fn ($query, $value) => $query->where(fn ($search) => $search
                 ->where('number', 'like', "%{$value}%")
-                ->orWhereHas('customer', fn ($customer) => $customer->where('name', 'like', "%{$value}%"))));
+                ->orWhereHas('customer', fn ($customer) => $customer->where('name', 'like', "%{$value}%"))))
+            ->when($request->boolean('online_pending'), fn (Builder $query) => $query->whereHas('paymentAttempts', fn (Builder $attempts) => $attempts->stalePending()));
     }
 
     public function create(Request $request): InertiaResponse
@@ -375,6 +380,7 @@ class InvoiceController extends Controller
             $request->input('method'),
             $request->input('reference'),
             $request->input('notes'),
+            $request->paidAt(),
         );
 
         return back()->with('success', 'Pembayaran dicatat.');

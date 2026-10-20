@@ -9,6 +9,6 @@ class SeedCompanyDefaults
 {
     public function handle(CompanyCreated $event): void
     {
-        app(CompanySeeder::class)->runFor($event->company);
+        app(CompanySeeder::class)->runFor($event->company, $event->catalog);
     }
 }

@@ -119,4 +119,18 @@ class InvoiceOnlinePaymentsPanelTest extends TestCase
 
         $this->assertSame(['admin.payment-attempts.refund'], $names->filter(fn (string $name): bool => str_contains($name, 'attempt'))->values()->all());
     }
+
+    public function test_a_pending_page_gives_the_payment_dialog_its_order_id_and_opening_time(): void
+    {
+        $invoice = $this->invoice();
+        PaymentAttemptFactory::new()->forInvoice($invoice)->status('expired')->create(['created_at' => '2026-10-19 09:00:00']);
+        $open = PaymentAttemptFactory::new()->forInvoice($invoice)->create(['created_at' => '2026-10-20 09:15:00']);
+
+        // The invoice page warns before cash is booked: newest attempt first, so the open page leads.
+        $this->actingAs($this->admin)->get(route('admin.invoices.show', $invoice))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('onlinePayments.attempts.data.0.status', 'pending')
+                ->where('onlinePayments.attempts.data.0.order_id', $open->order_id)
+                ->where('onlinePayments.attempts.data.0.created_at', '2026-10-20T09:15:00+00:00'));
+    }
 }

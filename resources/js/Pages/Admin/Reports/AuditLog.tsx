@@ -70,6 +70,8 @@ export interface AuditLogRow extends Record<string, unknown> {
     company_id: string | null;
     log_name: string;
     description: string;
+    /** The sentence the server words for a support entry; null for every other entry. */
+    support_text: string | null;
     event: string | null;
     causer_id: string | null;
     causer_type: string | null;
@@ -135,27 +137,15 @@ function isPlainObject(val: unknown): val is Record<string, unknown> {
     return val !== null && typeof val === 'object' && !Array.isArray(val);
 }
 
-// The tenant query masks these rows (log `support`, causer "Tim dukungan Inbils"); their raw action key is not for tenants.
+// The tenant query masks the operator of a `support` entry as "Tim dukungan Inbils"; the server words the entry itself.
 const MODULES = {
     ...AUDIT_MODULE,
     support: { label: 'Akses dukungan', tone: 'neutral' },
 } satisfies StatusMap;
 
-const SUPPORT_ENTRY = 'Akses dukungan oleh tim Inbils';
-
-const SUPPORT_ACTION: Readonly<Record<string, string>> = {
-    'impersonation.started': 'masuk sebagai pengguna',
-    'impersonation.mode_changed': 'mengubah mode akses',
-    'impersonation.write': 'mengubah data',
-    'impersonation.ended': 'keluar dari akun pengguna',
-};
-
+/** What the entry says: the sentence of a support entry, the stored description of any other. */
 function entryText(row: AuditLogRow): string {
-    if (row.log_name !== 'support') return row.description ?? '';
-
-    const action = SUPPORT_ACTION[row.description];
-
-    return action ? `${SUPPORT_ENTRY}: ${action}` : SUPPORT_ENTRY;
+    return row.support_text ?? row.description ?? '';
 }
 
 function ModuleBadge({ value }: { value: string | null | undefined }) {

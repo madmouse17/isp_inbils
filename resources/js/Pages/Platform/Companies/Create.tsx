@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useForm } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Info } from 'lucide-react';
 import PlatformLayout from '@/Layouts/PlatformLayout';
 import { PageHeader } from '@/Components/composite';
 import {
@@ -18,6 +18,8 @@ import {
     Input,
     NativeSelect,
     Progress,
+    Radio,
+    RadioGroup,
     SearchSelect,
 } from '@/Components/ui';
 
@@ -26,6 +28,22 @@ interface CreateProps {
     timezones: string[];
     currencies: string[];
 }
+
+type Catalog = 'starter' | 'empty';
+
+const CATALOG_OPTIONS: ReadonlyArray<{ value: Catalog; label: string; description: string }> = [
+    {
+        value: 'starter',
+        label: 'Katalog awal',
+        description:
+            'Paket, profil kecepatan, tingkat SLA, kategori tiket, barang dan lokasi contoh yang bisa diubah. Tanpa stok dan tanpa aset.',
+    },
+    {
+        value: 'empty',
+        label: 'Kosong',
+        description: 'Hanya satuan barang, kategori paket, dan kategori tiket.',
+    },
+];
 
 export default function Create({ defaults, timezones, currencies }: CreateProps) {
     const form = useForm({
@@ -36,6 +54,7 @@ export default function Create({ defaults, timezones, currencies }: CreateProps)
         currency: defaults.currency,
         admin_name: '',
         admin_email: '',
+        catalog: 'starter' as Catalog,
         demo_data: false,
     });
     const timezoneOptions = useMemo(
@@ -171,10 +190,52 @@ export default function Create({ defaults, timezones, currencies }: CreateProps)
 
                 <Card>
                     <CardHeader>
+                        <CardTitle>Isi awal</CardTitle>
+                        <CardDescription>
+                            Data bawaan yang langsung ada di perusahaan baru. Admin bisa mengubahnya
+                            kapan saja.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <RadioGroup
+                            name="catalog"
+                            label="Isi awal"
+                            hideLabel
+                            value={form.data.catalog}
+                            error={form.errors.catalog}
+                            onChange={(value) =>
+                                form.setData('catalog', value === 'empty' ? 'empty' : 'starter')
+                            }
+                        >
+                            {CATALOG_OPTIONS.map((option) => (
+                                <Radio
+                                    key={option.value}
+                                    value={option.value}
+                                    label={option.label}
+                                    description={option.description}
+                                    disabled={form.data.demo_data && option.value === 'empty'}
+                                />
+                            ))}
+                        </RadioGroup>
+                        {form.data.demo_data ? (
+                            <Alert variant="info" role="status">
+                                <Info className="size-4" aria-hidden="true" />
+                                <AlertDescription>
+                                    Data contoh memakai Katalog awal, jadi pilihan Kosong tidak
+                                    tersedia.
+                                </AlertDescription>
+                            </Alert>
+                        ) : null}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
                         <CardTitle>Data contoh</CardTitle>
                         <CardDescription>
-                            Isi pelanggan, tagihan, SPK, tiket, dan inventaris contoh lewat antrean.
-                            Tidak membuat perangkat jaringan atau pesan WhatsApp.
+                            Isi pelanggan, tagihan, SPK, tiket, stok barang, dan aset jaringan
+                            contoh lewat antrean, di atas Katalog awal. Tidak membuat router NAS,
+                            akun jaringan, atau pesan WhatsApp.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -184,7 +245,12 @@ export default function Create({ defaults, timezones, currencies }: CreateProps)
                             checked={form.data.demo_data}
                             error={form.errors.demo_data}
                             onCheckedChange={(checked) =>
-                                form.setData('demo_data', checked === true)
+                                form.setData((data) => ({
+                                    ...data,
+                                    demo_data: checked === true,
+                                    // Sample data stands on the starter catalog, so it takes the choice over.
+                                    catalog: checked === true ? 'starter' : data.catalog,
+                                }))
                             }
                         />
                     </CardContent>
