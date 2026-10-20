@@ -61,3 +61,28 @@ export interface WorkOrderEvidence {
     uploaded_by: string;
     uploaded_at: string;
 }
+
+/**
+ * What is left to do on a completed installation SPK (`SpkApprovalImpact::nextSteps`). Each part only reaches the people
+ * who may see it: without `billing.view` the invoice is not sent and `can_view_invoice` is false.
+ */
+export interface SpkNextSteps {
+    /** The invoice the approval left (a live one first, else the cancelled one). */
+    invoice: {
+        id: string;
+        number: string;
+        status: string;
+        total: string;
+        due_date: string | null;
+    } | null;
+    can_view_invoice: boolean;
+    /** No invoice yet and the SPK bills something (the fee or the materials): one can still be made. */
+    billable: boolean;
+    can_send_invoice: boolean;
+    can_create_invoice: boolean;
+    /** The subscription's PPPoE account. */
+    network_account: { username: string } | null;
+    /** The viewer may open network accounts, and the company serves RADIUS or the account exists: else the row is no step. */
+    can_view_network_account: boolean;
+    can_manage_network_account: boolean;
+}

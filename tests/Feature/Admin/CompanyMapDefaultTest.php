@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Models\Core\Company;
 use App\Models\Core\Setting;
 use App\Models\User;
+use App\Services\Core\CompanyService;
 use App\Services\Core\SettingService;
 use App\Support\OptimisticLock;
 use Database\Seeders\DemoUserSeeder;
@@ -68,6 +69,13 @@ class CompanyMapDefaultTest extends TestCase
         return $this->actingAs($this->admin)->get(route('admin.company.settings.edit'));
     }
 
+    /** The next request reads the address from the row: a write that bypasses the service leaves the request-scoped copy stale. */
+    private function profileAddress(?string $address): void
+    {
+        $this->company->update(['address' => $address]);
+        CompanyService::resetCache();
+    }
+
     public function test_company_map_falls_back_to_the_system_default_then_to_hardcoded(): void
     {
         $this->sharedMap()->assertInertia(fn (Assert $page) => $page
@@ -95,7 +103,7 @@ class CompanyMapDefaultTest extends TestCase
         $this->save(['map_city_code' => '3372', 'map_lat' => '-7.5579', 'map_lng' => '110.8231', 'map_zoom' => '12'])->assertRedirect();
 
         $this->sharedMap()->assertInertia(fn (Assert $page) => $page
-            ->where('company.map', ['lat' => -7.5579, 'lng' => 110.8231, 'zoom' => 12, 'city_code' => '3372', 'city_name' => 'KOTA SURAKARTA'])
+            ->where('company.map', ['lat' => -7.5579, 'lng' => 110.8231, 'zoom' => 12, 'city_code' => '3372', 'city_name' => 'Kota Surakarta'])
             ->where('settings.map_city_code', '3372')
             ->where('settings.map_zoom', '12'));
     }
@@ -104,9 +112,32 @@ class CompanyMapDefaultTest extends TestCase
     {
         $this->sharedMap()->assertInertia(fn (Assert $page) => $page
             ->where('cities', [
-                ['code' => '3174', 'name' => 'KOTA ADMINISTRASI JAKARTA SELATAN', 'province_name' => 'DAERAH KHUSUS IBUKOTA JAKARTA', 'lat' => -6.2726, 'lng' => 106.81],
-                ['code' => '3372', 'name' => 'KOTA SURAKARTA', 'province_name' => 'JAWA TENGAH', 'lat' => -7.5579, 'lng' => 110.8231],
+                ['code' => '3174', 'name' => 'Kota Administrasi Jakarta Selatan', 'province_name' => 'Daerah Khusus Ibukota Jakarta', 'lat' => -6.2726, 'lng' => 106.81],
+                ['code' => '3372', 'name' => 'Kota Surakarta', 'province_name' => 'Jawa Tengah', 'lat' => -7.5579, 'lng' => 110.8231],
             ]));
+    }
+
+    public function test_map_city_name_is_title_case(): void
+    {
+        $this->save(['map_city_code' => '3174', 'map_lat' => -6.2726, 'map_lng' => 106.81, 'map_zoom' => 12])->assertRedirect();
+
+        $this->sharedMap()->assertInertia(fn (Assert $page) => $page
+            ->where('company.map.city_name', 'Kota Administrasi Jakarta Selatan')
+            ->where('company.map.city_code', '3174'));
+    }
+
+    public function test_settings_suggest_city_from_profile(): void
+    {
+        $this->sharedMap()->assertInertia(fn (Assert $page) => $page->where('suggestedCity', null));
+
+        $this->profileAddress('Jl. Slamet Riyadi 10, Surakarta, Jawa Tengah 57141');
+        $this->sharedMap()->assertInertia(fn (Assert $page) => $page->where('suggestedCity', ['code' => '3372', 'name' => 'Kota Surakarta']));
+
+        $this->profileAddress('Jl. Mawar 1, Jakarta Selatan');
+        $this->sharedMap()->assertInertia(fn (Assert $page) => $page->where('suggestedCity', ['code' => '3174', 'name' => 'Kota Administrasi Jakarta Selatan']));
+
+        $this->profileAddress('Jl. Tanpa Kota 9');
+        $this->sharedMap()->assertInertia(fn (Assert $page) => $page->where('suggestedCity', null));
     }
 
     public function test_manual_point_without_a_city_is_stored_as_sent(): void

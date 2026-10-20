@@ -54,6 +54,10 @@ export function AssignIpDialog({ onClose, subscription, pools }: AssignIpDialogP
     return (
         <Modal open onClose={onClose} title={`Berikan IP statis ke ${subscription.code}`}>
             <form onSubmit={submit} className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                    Bila pelanggan sedang online lewat RADIUS, sesinya diputus sebentar lalu
+                    tersambung lagi dengan alamat baru.
+                </p>
                 {subscriptionError && (
                     <Alert variant="danger">
                         <AlertDescription>{subscriptionError}</AlertDescription>

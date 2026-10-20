@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
+use Modules\Ipam\Services\IpAssignmentService;
+use Modules\Ipam\Services\IpPrefixService;
 use Modules\NetworkAsset\Jobs\ApplyNetworkAccountJob;
 use Modules\NetworkAsset\Models\NasDevice;
 use Modules\NetworkAsset\Models\NetworkAccount;
@@ -101,6 +103,7 @@ class NetworkAccountHttpTest extends TestCase
             ->where('account', null)
             ->where('session', null)
             ->where('usage', null)
+            ->where('staticAddress', null)
             ->where('realm', $this->realm)
             ->where('desiredState', 'enabled')
             ->where('isolatedBecause', [])
@@ -116,6 +119,46 @@ class NetworkAccountHttpTest extends TestCase
             ->missing('nasOptions')
             ->missing('installEnabled'));
         $this->assertSame(['id', 'code', 'status', 'blocked_at', 'customer', 'speed_profile', 'serving_pop'], array_keys($response->inertiaProps()['subscription']));
+    }
+
+    public function test_show_names_expected_static_address_and_prefix(): void
+    {
+        $pool = IpPrefixService::create(['cidr' => '10.99.0.0/26', 'usage' => 'customer_static']);
+        $v6 = IpPrefixService::create(['cidr' => '2001:db8:62::/48', 'usage' => 'customer_static']);
+        IpAssignmentService::assignToSubscription($this->subscription, $v6, '2001:db8:62::1');
+        IpAssignmentService::assignToSubscription($this->subscription, $pool, '10.99.0.1');
+
+        $this->show()->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('staticAddress', ['address' => '10.99.0.1', 'prefix' => '10.99.0.0/26']));
+    }
+
+    public function test_show_without_assignment_has_no_static_address(): void
+    {
+        $this->show()->assertOk()->assertInertia(fn (Assert $page) => $page->where('staticAddress', null));
+
+        // Another subscription's address and an IPv6-only assignment are not the one RADIUS hands out.
+        $pool = IpPrefixService::create(['cidr' => '10.99.1.0/26', 'usage' => 'customer_static']);
+        IpAssignmentService::assignToSubscription($this->packaged(), $pool, '10.99.1.1');
+        $v6 = IpPrefixService::create(['cidr' => '2001:db8:63::/48', 'usage' => 'customer_static']);
+        IpAssignmentService::assignToSubscription($this->subscription, $v6, '2001:db8:63::1');
+
+        $this->show()->assertInertia(fn (Assert $page) => $page->where('staticAddress', null));
+    }
+
+    public function test_show_names_the_pool_only_to_a_holder_of_ipam_view(): void
+    {
+        $pool = IpPrefixService::create(['cidr' => '10.99.2.0/26', 'usage' => 'customer_static']);
+        IpAssignmentService::assignToSubscription($this->subscription, $pool, '10.99.2.1');
+        $viewer = $this->userWithPermissions($this->company, 'network_asset.account.view');
+        $withIpam = $this->userWithPermissions($this->company, 'network_asset.account.view', 'ipam.view');
+
+        $this->actingAs($viewer);
+        $this->show()->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('staticAddress', ['address' => '10.99.2.1', 'prefix' => null]));
+
+        $this->actingAs($withIpam);
+        $this->show()->assertInertia(fn (Assert $page) => $page
+            ->where('staticAddress', ['address' => '10.99.2.1', 'prefix' => '10.99.2.0/26']));
     }
 
     public function test_the_desired_state_and_the_reasons_follow_the_subscription(): void

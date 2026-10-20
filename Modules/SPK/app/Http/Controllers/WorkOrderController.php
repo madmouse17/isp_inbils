@@ -41,6 +41,7 @@ use Modules\SPK\Http\Resources\WorkOrderResource;
 use Modules\SPK\Models\WorkOrder;
 use Modules\SPK\Models\WorkOrderItem;
 use Modules\SPK\Services\SpkService;
+use Modules\SPK\Support\SpkApprovalImpact;
 use Modules\SPK\Support\TripSteps;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -202,6 +203,12 @@ class WorkOrderController extends Controller
             // The four steps the apps show, and the one the visit is at.
             'steps' => TripSteps::of($wo),
             'currentStep' => TripSteps::current($wo),
+            // What approving does, line by line, for the confirmation: only for someone who may approve this SPK while it waits for review.
+            'approvalImpact' => $wo->status === 'waiting_review' && ($request->user()?->can('approve', $wo) ?? false)
+                ? SpkApprovalImpact::for($wo)
+                : null,
+            // What is left to do on a completed installation (its invoice, its PPPoE account), only the part the person may see or act on.
+            'nextSteps' => $request->user() === null ? null : SpkApprovalImpact::nextSteps($wo, $request->user()),
             // The drop reserved for the customer (read-only), so the technician connects the right ODP port.
             'dropPort' => $wo->type === 'installation' && $wo->subscription !== null && Gate::allows('odn.view')
                 ? OdnService::dropPortFor($wo->subscription)

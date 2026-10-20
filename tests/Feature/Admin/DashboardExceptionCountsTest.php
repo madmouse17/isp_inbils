@@ -3,20 +3,27 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\Core\Company;
+use App\Models\Core\Customer;
 use App\Models\Core\Location;
 use App\Models\User;
 use App\Queries\Admin\ApprovalInboxQuery;
 use App\Queries\Admin\DispatchQueueQuery;
 use App\Queries\Admin\MyWorkQuery;
+use App\Services\Core\CompanyService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
+use Modules\Billing\Database\Factories\PaymentAttemptFactory;
+use Modules\Billing\Models\Invoice;
+use Modules\Billing\Models\PaymentAttempt;
 use Modules\Billing\Services\BillingService;
 use Modules\Inventory\Services\InventoryRequestService;
 use Modules\Inventory\Services\MaterialReturnService;
+use Modules\Ticketing\Models\Ticket;
+use Modules\Ticketing\Models\TicketComment;
 use Tests\TestCase;
 use Tests\Traits\BuildsDashboardFixtures;
 
@@ -272,6 +279,103 @@ class DashboardExceptionCountsTest extends TestCase
         $this->assertSame(2, $this->actingAs($staff)->get($section['href'])->inertiaProps('tickets.meta.total'));
     }
 
+    public function test_due_soon_counts_unanswered_response_and_resolution_targets_inside_half_an_hour_like_the_ticket_list(): void
+    {
+        $company = $this->makeCompany();
+        $other = $this->makeCompany();
+        $manager = $this->userWithRole($company, 'manager');
+        $answered = ['first_response_at' => now()->subMinutes(5)];
+
+        $this->ticket($company, ['response_deadline' => now()->addMinutes(20)]);
+        $this->ticket($company, ['status' => 'assigned', 'response_deadline' => now()->addMinutes(30)]);
+        $this->ticket($company, ['status' => 'on_progress', 'sla_deadline' => now()->addMinutes(25), ...$answered]);
+        $this->ticket($company, ['response_deadline' => now()->addMinutes(20), ...$answered]);
+        $this->ticket($company, ['response_deadline' => now()->addMinutes(31)]);
+        $this->ticket($company, ['response_deadline' => now()->subSecond()]);
+        $this->ticket($company, ['status' => 'resolved', 'response_deadline' => now()->addMinutes(10), 'sla_deadline' => now()->addMinutes(10)]);
+        $this->ticket($company, ['status' => 'closed', 'sla_deadline' => now()->addMinutes(10)]);
+        $this->ticket($company, ['response_deadline' => now()->addMinutes(10)])->delete();
+        $this->ticket($other, ['response_deadline' => now()->addMinutes(10)]);
+
+        $section = $this->section($manager, 'sla_due_soon');
+
+        $this->assertSame(3, $section['count'], 'an unanswered response and a resolution inside the window count; an answered, late, far, finished, deleted or foreign one does not');
+        $this->assertSame('Hampir terlampaui (≤ 30 menit)', $section['title']);
+        $this->assertSame('warning', $section['severity']);
+        $this->assertSame('operations', $section['group']);
+        $this->assertSame(route('admin.tickets.index', ['due_soon' => 1]), $section['href']);
+        $this->assertSame($section['count'], $this->actingAs($manager)->get($section['href'])->inertiaProps('tickets.meta.total'));
+    }
+
+    public function test_customer_replied_counts_tickets_whose_newest_public_comment_is_the_customers_like_the_ticket_list(): void
+    {
+        $company = $this->makeCompany();
+        $other = $this->makeCompany();
+        $manager = $this->userWithRole($company, 'manager');
+        [$login, $customer] = $this->portalCustomer($company);
+        [$strangerLogin] = $this->portalCustomer($company);
+        $mine = ['customer_id' => $customer->id];
+
+        $this->comment($this->ticket($company, $mine), $login);
+        $answered = $this->ticket($company, $mine);
+        $this->comment($answered, $login);
+        $this->comment($answered, $manager);
+        $asksAgain = $this->ticket($company, $mine);
+        $this->comment($asksAgain, $manager);
+        $this->comment($asksAgain, $login);
+        $noted = $this->ticket($company, $mine);
+        $this->comment($noted, $login);
+        $this->comment($noted, $manager, internal: true);
+        $this->comment($this->ticket($company, [...$mine, 'status' => 'resolved']), $login);
+        $this->comment($this->ticket($company, $mine), $strangerLogin);
+        [$foreignLogin, $foreignCustomer] = $this->portalCustomer($other);
+        $this->comment($this->ticket($other, ['customer_id' => $foreignCustomer->id]), $foreignLogin);
+
+        $section = $this->section($manager, 'customer_replied');
+
+        $this->assertSame(3, $section['count'], 'unanswered, asked again, and answered by a note only; a staff answer, a finished ticket, a stranger and another company do not count');
+        $this->assertSame('Pelanggan membalas', $section['title']);
+        $this->assertSame('info', $section['severity']);
+        $this->assertSame('operations', $section['group']);
+        $this->assertSame(route('admin.tickets.index', ['awaiting_reply' => 1]), $section['href']);
+        $this->assertSame($section['count'], $this->actingAs($manager)->get($section['href'])->inertiaProps('tickets.meta.total'));
+    }
+
+    public function test_the_due_soon_and_customer_replied_cards_keep_the_handler_scope_of_the_ticket_list(): void
+    {
+        $company = $this->makeCompany();
+        $technician = $this->userWithRole($company, 'technician');
+        $colleague = $this->fixtureCreator($company);
+        [$login, $customer] = $this->portalCustomer($company);
+
+        foreach ([['assigned', $technician], ['assigned', $colleague], ['open', null]] as [$status, $handler]) {
+            $ticket = $this->ticket($company, [
+                'status' => $status,
+                'assigned_to' => $handler?->id,
+                'customer_id' => $customer->id,
+                'response_deadline' => now()->addMinutes(10),
+            ]);
+            $this->comment($ticket, $login);
+        }
+
+        foreach (['sla_due_soon', 'customer_replied'] as $key) {
+            $section = $this->section($technician, $key);
+
+            $this->assertSame(1, $section['count'], $key);
+            $this->assertSame(1, $this->actingAs($technician)->get($section['href'])->inertiaProps('tickets.meta.total'), $key);
+        }
+
+        $inactive = $this->userWithRole($company, 'technician', active: false);
+        $this->ticket($company, ['status' => 'assigned', 'assigned_to' => $inactive->id, 'response_deadline' => now()->addMinutes(10)]);
+
+        foreach (['sla_due_soon', 'customer_replied'] as $key) {
+            $section = $this->section($inactive, $key);
+
+            $this->assertSame(0, $section['count'], $key);
+            $this->assertSame(0, $this->actingAs($inactive)->get($section['href'])->inertiaProps('tickets.meta.total'), $key);
+        }
+    }
+
     public function test_overdue_invoices_are_computed_from_due_date_and_open_balance_not_from_the_status_flip(): void
     {
         $company = $this->makeCompany();
@@ -338,6 +442,64 @@ class DashboardExceptionCountsTest extends TestCase
         $this->assertSame('warning', $section['severity']);
         $this->assertSame('finance', $section['group']);
         $this->assertSame(route('admin.invoices.index', ['status' => 'draft']), $section['href']);
+        $this->assertSame($section['count'], $this->actingAs($manager)->get($section['href'])->inertiaProps('invoices.meta.total'));
+    }
+
+    public function test_online_payment_exceptions_count_the_open_exceptions_of_the_receivables_page_and_ignore_other_companies(): void
+    {
+        $company = $this->makeCompany();
+        $other = $this->makeCompany();
+        $manager = $this->userWithRole($company, 'manager');
+        $attempt = fn (Company $owner, string $status, array $attributes = []): PaymentAttempt => PaymentAttemptFactory::new()
+            ->forInvoice($this->invoice($owner))->status($status)->create($attributes);
+
+        $attempt($company, PaymentAttempt::STATUS_EXCEPTION);
+        $attempt($company, PaymentAttempt::STATUS_EXCEPTION, ['last_notification' => ['transaction_status' => 'settlement']]);
+        $attempt($company, PaymentAttempt::STATUS_EXCEPTION, ['last_notification' => ['transaction_status' => 'refund']]);
+        $attempt($company, PaymentAttempt::STATUS_EXCEPTION, ['last_notification' => ['transaction_status' => 'chargeback']]);
+        $attempt($company, PaymentAttempt::STATUS_REFUNDED);
+        $attempt($company, PaymentAttempt::STATUS_FAILED);
+        $attempt($company, PaymentAttempt::STATUS_PENDING);
+        $attempt($other, PaymentAttempt::STATUS_EXCEPTION);
+
+        $section = $this->section($manager, 'online_payment_exceptions');
+
+        $this->assertSame(2, $section['count'], 'money still to settle; Midtrans took back, refunded, failed, pending and foreign ones are not');
+        $this->assertSame('Pembayaran online bermasalah', $section['title']);
+        $this->assertSame('danger', $section['severity']);
+        $this->assertSame('finance', $section['group']);
+        $this->assertSame(route('admin.billing.receivables'), $section['href']);
+        $this->assertSame($section['count'], $this->actingAs($manager)->get($section['href'])->inertiaProps('paymentExceptions.count'));
+    }
+
+    public function test_online_payment_pending_counts_each_invoice_whose_page_has_been_open_over_an_hour_like_the_invoice_list(): void
+    {
+        $company = $this->makeCompany();
+        $other = $this->makeCompany();
+        $manager = $this->userWithRole($company, 'manager');
+        $page = fn (Company $owner, array $attributes = [], string $status = PaymentAttempt::STATUS_PENDING, ?Invoice $invoice = null): PaymentAttempt => PaymentAttemptFactory::new()
+            ->forInvoice($invoice ?? $this->invoice($owner))->status($status)->create($attributes);
+
+        $page($company, ['created_at' => now()->subHours(2)]);
+        $twice = $this->invoice($company);
+        $page($company, ['created_at' => now()->subHours(3)], invoice: $twice);
+        $page($company, ['created_at' => now()->subHours(2)], invoice: $twice);
+        $page($company, ['created_at' => now()->subMinutes(60)]);
+        $page($company, ['created_at' => now()->subMinutes(59)]);
+        $page($company, ['created_at' => now()->subHours(25), 'expires_at' => now()->subMinute()]);
+        $page($company, ['created_at' => now()->subHours(2)], PaymentAttempt::STATUS_FAILED);
+        $deleted = $this->invoice($company);
+        $page($company, ['created_at' => now()->subHours(2)], invoice: $deleted);
+        $deleted->delete();
+        $page($other, ['created_at' => now()->subHours(2)]);
+
+        $section = $this->section($manager, 'online_payment_pending');
+
+        $this->assertSame(3, $section['count'], 'an invoice counts once, at exactly an hour; a recent, ran-out, failed, deleted or foreign page does not');
+        $this->assertSame('Pembayaran online tertunda > 1 jam', $section['title']);
+        $this->assertSame('warning', $section['severity']);
+        $this->assertSame('finance', $section['group']);
+        $this->assertSame(route('admin.invoices.index', ['online_pending' => 1]), $section['href']);
         $this->assertSame($section['count'], $this->actingAs($manager)->get($section['href'])->inertiaProps('invoices.meta.total'));
     }
 
@@ -536,12 +698,16 @@ class DashboardExceptionCountsTest extends TestCase
             'my_work' => 'info',
             'dispatch_unassigned' => 'warning',
             'sla_breached' => 'danger',
+            'sla_due_soon' => 'neutral',
+            'customer_replied' => 'neutral',
             'approvals' => 'warning',
             'warehouse_requests' => 'info',
             'return_queue' => 'warning',
             'low_stock' => 'warning',
             'overdue_invoices' => 'danger',
+            'online_payment_exceptions' => 'neutral',
             'draft_invoices' => 'neutral',
+            'online_payment_pending' => 'neutral',
         ], $severities);
     }
 
@@ -564,14 +730,19 @@ class DashboardExceptionCountsTest extends TestCase
 
     private function seedVolume(Company $company, User $creator, User $manager, int $rows): void
     {
+        [$login, $customer] = $this->portalCustomer($company);
+
         foreach (range(1, $rows) as $ignored) {
             $this->ticket($company, ['status' => 'open', 'sla_deadline' => now()->subHour()]);
             $this->ticket($company, ['status' => 'assigned', 'assigned_to' => $manager->id]);
+            $this->comment($this->ticket($company, ['customer_id' => $customer->id, 'response_deadline' => now()->addMinutes(10)]), $login);
             $this->workOrder($company, ['status' => 'draft']);
             $this->workOrder($company, ['status' => 'waiting_review', 'created_by' => $creator->id]);
             $this->inventoryRequest($company, $creator, 'submitted');
             $this->returnCase($company, $creator, 'exception_open');
             $this->invoice($company);
+            PaymentAttemptFactory::new()->forInvoice($this->invoice($company))->create(['created_at' => now()->subHours(2)]);
+            PaymentAttemptFactory::new()->forInvoice($this->invoice($company))->status(PaymentAttempt::STATUS_EXCEPTION)->create();
             $this->stockRow($company, '0.00', '1.00');
             $this->notification($manager, ['type' => 'billing_schedule_failed']);
         }
@@ -586,6 +757,24 @@ class DashboardExceptionCountsTest extends TestCase
         DB::disableQueryLog();
 
         return $count;
+    }
+
+    /** @return array{0: User, 1: Customer} a customer of the company and the app login that is theirs */
+    private function portalCustomer(Company $company): array
+    {
+        $login = User::factory()->create(['company_id' => $company->id, 'email_verified_at' => now(), 'is_active' => true]);
+
+        return [$login, Customer::factory()->create(['company_id' => $company->id, 'user_id' => $login->id])];
+    }
+
+    private function comment(Ticket $ticket, User $author, bool $internal = false): TicketComment
+    {
+        return CompanyService::runAs((int) $ticket->company_id, fn (): TicketComment => TicketComment::query()->create([
+            'ticket_id' => $ticket->id,
+            'author_id' => $author->id,
+            'body' => 'Pesan',
+            'is_internal' => $internal,
+        ]));
     }
 
     private function requestFor(User $user): Request

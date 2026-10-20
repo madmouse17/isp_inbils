@@ -11,6 +11,9 @@ use Laravolt\Indonesia\Models\Village;
 
 class IndonesiaRegionService
 {
+    /** The words that say what kind of city a name is, not which one: dropped before a name is looked for in a text. */
+    private const CITY_TYPE_WORDS = ['KOTA', 'KABUPATEN', 'KAB', 'ADMINISTRASI', 'ADM'];
+
     /** @return array{provinces: array<int, array{code: string, name: string}>, cities: array<int, array{code: string, name: string, province_code: string}>, districts: array<int, array{code: string, name: string, city_code: string}>, villages: array<int, array{code: string, name: string, district_code: string}>} */
     public static function options(mixed $provinceCodes = [], mixed $cityCodes = [], mixed $districtCodes = []): array
     {
@@ -78,6 +81,63 @@ class IndonesiaRegionService
         ];
     }
 
+    /**
+     * The kota or kabupaten that a free-text address names (the company profile address), for a suggestion that a
+     * person accepts with one click and that is never applied by itself. A name is matched without KOTA, KABUPATEN and
+     * ADMINISTRASI, as whole words. The longest name wins ("Bandung Barat" over "Bandung"); between two cities of one
+     * name Kabupaten wins only when the text says Kab or Kabupaten, otherwise Kota.
+     *
+     * shortcut: names only, no province, so a street named after a city ("Jl. Batu Ampar") can suggest that city; fine for
+     * a chip a person confirms, upgrade to province-aware matching if it misleads.
+     *
+     * @return object{code: string, name: string}|null
+     */
+    public static function cityInText(?string $address): ?object
+    {
+        $text = self::words((string) $address);
+
+        if ($text === '') {
+            return null;
+        }
+
+        $padded = ' '.$text.' ';
+        $wantsKabupaten = array_intersect(explode(' ', $text), ['KAB', 'KABUPATEN']) !== [];
+        $best = null;
+        $bestRank = null;
+
+        foreach (City::query()->orderBy('code')->pluck('name', 'code') as $code => $name) {
+            $nameWords = explode(' ', self::words($name));
+            $core = implode(' ', array_diff($nameWords, self::CITY_TYPE_WORDS));
+
+            if ($core === '' || ! str_contains($padded, ' '.$core.' ')) {
+                continue;
+            }
+
+            $isKabupaten = array_intersect($nameWords, ['KAB', 'KABUPATEN']) !== [];
+            $rank = [mb_strlen($core), $isKabupaten === $wantsKabupaten ? 1 : 0];
+
+            if ($bestRank === null || $rank > $bestRank) {
+                $best = (object) ['code' => (string) $code, 'name' => $name];
+                $bestRank = $rank;
+            }
+        }
+
+        return $best;
+    }
+
+    /**
+     * How a region name reads on screen: the dataset stores KOTA BANDUNG, people read Kota Bandung. DKI and DI keep
+     * their capitals, and so does Adm. (the dataset also holds names with a trailing space).
+     */
+    public static function displayName(?string $name): ?string
+    {
+        if ($name === null) {
+            return null;
+        }
+
+        return preg_replace(['/\bDki\b/u', '/\bDi\b/u'], ['DKI', 'DI'], mb_convert_case(trim($name), MB_CASE_TITLE, 'UTF-8'));
+    }
+
     /** @return array<int, string> */
     private static function codes(mixed $values, string $pattern): array
     {
@@ -132,5 +192,11 @@ class IndonesiaRegionService
             '',
             mb_strtoupper($name),
         ));
+    }
+
+    /** Upper-case words of a text with everything else as one space: "Kab. Bandung, Jabar" becomes "KAB BANDUNG JABAR". */
+    private static function words(string $text): string
+    {
+        return trim((string) preg_replace('/[^\p{L}\p{N}]+/u', ' ', mb_strtoupper($text)));
     }
 }

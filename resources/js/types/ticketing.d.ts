@@ -52,6 +52,7 @@ export interface TicketCommentEntry {
     body: string;
     is_internal: boolean;
     created_at: string;
+    /** A name and an id: the page reads nothing more of an author, and the server sends nothing more. */
     author?: { id: string; name: string } | null;
 }
 
@@ -84,7 +85,11 @@ export interface TicketCustomerAddress {
     city?: string | null;
 }
 
-/** The customer of a ticket. The one address reaches only holders of `customer.view`; the phone number is always there. */
+/**
+ * The customer of a ticket as the page reads them. A list row carries the id, code and name; the ticket page adds the portal
+ * account and the phone number. Holders of `customer.view` receive the whole customer record there, the addresses among it;
+ * nobody else receives an address, an email, a tax id or notes.
+ */
 export interface TicketCustomer {
     id: string;
     /** The public id of the customer's app account; null when they have none. */

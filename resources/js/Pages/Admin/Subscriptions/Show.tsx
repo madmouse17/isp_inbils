@@ -71,6 +71,8 @@ interface ShowProps extends Record<string, unknown> {
     radiusEnabled: boolean;
     /** The day a reactivation moves the next invoice to (`Y-m-d`); null unless the subscription is suspended. */
     reactivationNextInvoiceDate: string | null;
+    /** What terminating does, one line each; null for a user who may not terminate. */
+    terminateImpact: string[] | null;
     can: { assignIp: boolean; assignDrop: boolean; block: boolean; changePackage: boolean };
 }
 
@@ -234,6 +236,7 @@ export default function Show({
     packageOptions,
     radiusEnabled,
     reactivationNextInvoiceDate,
+    terminateImpact,
     can: { block: canBlock, changePackage: canChangePackage, ...assignable },
 }: ShowProps) {
     const s = subscription.data;
@@ -557,7 +560,8 @@ export default function Show({
                 {pending === 'terminate' ? (
                     <ConfirmActionDialog
                         title={`Hentikan langganan ${s.code}?`}
-                        description="Layanan dihentikan permanen dan port drop dibebaskan. Langganan tidak bisa dipulihkan."
+                        description="Layanan dihentikan permanen. Langganan tidak bisa dipulihkan."
+                        details={terminateImpact ?? undefined}
                         confirmLabel="Hentikan langganan"
                         tone="danger"
                         requirePassword={false}

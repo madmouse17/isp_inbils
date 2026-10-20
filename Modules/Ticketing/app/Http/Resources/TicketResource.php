@@ -60,7 +60,7 @@ class TicketResource extends JsonResource
             'assignee_name_snapshot' => $this->assignee_name_snapshot,
             ...$this->lifecycleAttributes(),
             'category' => new TicketCategoryResource($this->whenLoaded('category')),
-            'customer' => new CustomerResource($this->whenLoaded('customer')),
+            'customer' => $this->whenLoaded('customer', fn (): CustomerResource|array => $this->customerFor($request, $detail)),
             'subscription' => new SubscriptionResource($this->whenLoaded('subscription')),
             'network_asset' => new NetworkAssetResource($this->whenLoaded('networkAsset')),
             'location' => new LocationResource($this->whenLoaded('location')),
@@ -102,6 +102,25 @@ class TicketResource extends JsonResource
             && $user !== null
             && $user->can('ticket.comment.create')
             && $user->can('comment', $this->resource);
+    }
+
+    /**
+     * The customer as this viewer may read them. A list row shows a name, so it gets an id, a code and a name. The ticket
+     * page also needs the portal account (it tells the customer's comments from staff's) and the phone number the
+     * dispatcher calls. The whole record, with the email, tax id and notes, goes only to whoever may open customers.
+     *
+     * @return CustomerResource|array{id: string, code: string, name: string, user_id?: ?string, phone?: ?string}
+     */
+    private function customerFor(Request $request, bool $detail): CustomerResource|array
+    {
+        $customer = $this->customer;
+        $summary = ['id' => $customer->public_id, 'code' => $customer->code, 'name' => $customer->name];
+
+        return match (true) {
+            ! $detail => $summary,
+            (bool) $request->user()?->can('customer.view') => new CustomerResource($customer),
+            default => [...$summary, 'user_id' => data_get($customer, 'user.public_id'), 'phone' => $customer->phone],
+        };
     }
 
     /** The Evaluasi form opens from a closed ticket that had a handler, for whoever the form's own page lets in. */

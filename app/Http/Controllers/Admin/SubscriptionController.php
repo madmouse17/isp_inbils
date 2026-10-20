@@ -22,11 +22,13 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\OptionalProp;
 use Inertia\Response as InertiaResponse;
+use Modules\Ipam\Models\IpAddress;
 use Modules\Ipam\Queries\IpPrefixUtilisationQuery;
 use Modules\Ipam\Services\IpAssignmentService;
 use Modules\NetworkAsset\Models\NetworkAccount;
@@ -95,14 +97,21 @@ class SubscriptionController extends Controller
         ]);
 
         $user = $request->user();
+        $canViewIp = $user?->can('ipam.view') ?? false;
+        $canViewDrop = $user?->can('odn.view') ?? false;
         $canAssignIp = $user?->can('ipam.assign') ?? false;
         $canAssignDrop = $user?->can('odn.assign') ?? false;
         $canChangePackage = $user?->can('customer.subscription.manage') ?? false;
+        $canTerminate = $user?->can('customer.subscription.terminate') ?? false;
+        $radiusEnabled = app(IntegrationConfig::class)->isEnabled('radius');
+        // The panels show these to holders of the view permissions and the terminate confirmation names them to holders of terminate: read once.
+        $addresses = $canViewIp || $canTerminate ? IpAssignmentService::forSubscription($subscription) : collect();
+        $dropPort = $canViewDrop || $canTerminate ? OdnService::dropPortFor($subscription) : null;
 
         return Inertia::render('Admin/Subscriptions/Show', [
             'subscription' => new SubscriptionResource($subscription),
-            'ipAddresses' => ($user?->can('ipam.view') ?? false)
-                ? IpAssignmentService::forSubscription($subscription)->map(fn ($address): array => [
+            'ipAddresses' => $canViewIp
+                ? $addresses->map(fn ($address): array => [
                     'id' => $address->public_id,
                     'family' => $address->family,
                     'address' => $address->address,
@@ -112,12 +121,14 @@ class SubscriptionController extends Controller
                 : [],
             // Pools the NOC can draw a static address from; offered only to holders of ipam.assign.
             ...($canAssignIp ? ['staticPools' => IpPrefixUtilisationQuery::staticPools($subscription->serving_pop_id)] : []),
-            'dropPort' => ($user?->can('odn.view') ?? false) ? OdnService::dropPortFor($subscription) : null,
+            'dropPort' => $canViewDrop ? $dropPort : null,
             // Free ODP ports under the serving POP; evaluated only on a partial reload that asks for it.
             ...($canAssignDrop ? ['dropPortOptions' => OdnOccupancyQuery::dropPortOptions($request, $subscription->serving_pop_id)] : []),
             // The packages a subscription can move to; evaluated only on a partial reload that asks for it.
             ...($canChangePackage ? ['packageOptions' => $this->packageOptions()] : []),
-            'radiusEnabled' => app(IntegrationConfig::class)->isEnabled('radius'),
+            'radiusEnabled' => $radiusEnabled,
+            // What the "Hentikan" confirmation lists (F7-U24); null for a user who may not terminate.
+            'terminateImpact' => $canTerminate ? $this->terminateImpact($subscription, $addresses, $dropPort, $radiusEnabled, namesAddress: $canViewIp, namesPort: $canViewDrop, namesAccount: $user->can('network_asset.account.view')) : null,
             // The date the confirm dialog of "Aktifkan kembali" promises (K27): what reactivating moves the next invoice to.
             'reactivationNextInvoiceDate' => $subscription->status === 'suspended' ? SubscriptionService::nextBillingDate((int) $subscription->billing_day)->toDateString() : null,
             'can' => ['assignIp' => $canAssignIp, 'assignDrop' => $canAssignDrop, 'block' => $user?->can('customer.subscription.block') ?? false, 'changePackage' => $canChangePackage],
@@ -341,6 +352,47 @@ class SubscriptionController extends Controller
         return app(IntegrationConfig::class)->isEnabled('radius')
             ? back()->with('success', $whenOn)
             : back()->with('warning', $whenOff);
+    }
+
+    /**
+     * What terminating does, one line each, for the "Hentikan" confirmation; only what applies to this subscription. Each
+     * identifier (address, account, port) is named only to a user who may view that register: the others read the same line
+     * without it.
+     *
+     * The RADIUS line holds because the status change queues ApplyNetworkAccountJob (ServiceSubscriptionNetworkObserver),
+     * which finds the desired state `absent`, removes the user and cuts the open sessions (ProvisioningFlowTest, terminate);
+     * nothing reaches RADIUS while the company has none. The month of the termination is still billed up to that day, and
+     * later months are not (BillingService::prorationFor, RecurringBillingTest), so the billing line says so.
+     *
+     * @param  Collection<int, IpAddress>  $addresses
+     * @param  ?array{number: int, odp_code: string}  $dropPort
+     * @return list<string>
+     */
+    private function terminateImpact(ServiceSubscription $subscription, Collection $addresses, ?array $dropPort, bool $radiusEnabled, bool $namesAddress, bool $namesPort, bool $namesAccount): array
+    {
+        $lines = [];
+        $account = $radiusEnabled && $subscription->status !== 'terminated'
+            ? NetworkAccount::query()->where('subscription_id', $subscription->id)->first(['service_type', 'username'])
+            : null;
+
+        if ($account !== null) {
+            $kind = $account->service_type === 'hotspot' ? 'Hotspot' : 'PPPoE';
+            $lines[] = "Akun {$kind} ".($namesAccount ? "{$account->username} " : '').'dicabut dari RADIUS dan sesi yang tersambung diputus';
+        }
+
+        if ($addresses->isNotEmpty()) {
+            $lines[] = 'Alamat IP statis '.($namesAddress ? $addresses->pluck('address')->implode(', ').' ' : '').'kembali ke pool IPAM';
+        }
+
+        if ($dropPort !== null) {
+            $lines[] = 'Port drop '.($namesPort ? "{$dropPort['number']} di {$dropPort['odp_code']} " : '').'dibebaskan';
+        }
+
+        if (in_array($subscription->status, ['active', 'suspended'], true)) {
+            $lines[] = 'Tagihan bulanan dihitung sampai hari berhenti, setelah itu tidak dibuat lagi';
+        }
+
+        return $lines;
     }
 
     private function ensureSameCompany(Customer|ServiceSubscription $model): void

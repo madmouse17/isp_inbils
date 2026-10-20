@@ -8,22 +8,31 @@ use App\Models\Core\Customer;
 use App\Models\Core\Location;
 use App\Models\User;
 use App\Queries\Admin\ApprovalInboxQuery;
+use App\Services\Core\AuditService;
 use Carbon\Carbon;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
+use Modules\Inventory\Models\InventoryRequest;
+use Modules\Inventory\Models\InventoryRequestItem;
+use Modules\Inventory\Models\Product;
+use Modules\Inventory\Models\Stock;
 use Modules\SPK\Database\Factories\WorkOrderFactory;
 use Modules\SPK\Models\WorkOrder;
+use Modules\SPK\Models\WorkOrderItem;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
+use Tests\Traits\AsksInertiaForProps;
 use Tests\Traits\WithoutAppOnlyRedirect;
 
 class ApprovalInboxTest extends TestCase
 {
+    use AsksInertiaForProps;
     use RefreshDatabase;
     use WithoutAppOnlyRedirect;
 
@@ -870,6 +879,150 @@ class ApprovalInboxTest extends TestCase
         $this->assertSame([$ani->public_id, $budi->public_id], collect($this->actingAs($manager)->get(route('admin.approvals.index'))->inertiaProps('requesters'))->pluck('id')->all());
 
         Carbon::setTestNow();
+    }
+
+    /** One real PNG, so the evidence has an image the review can show (the helper below only stores text under a .jpg name). */
+    private function photo(WorkOrder $workOrder, User $uploader, ?string $caption): void
+    {
+        $workOrder->addMediaFromString((string) base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='))
+            ->usingFileName('meter.png')
+            ->withCustomProperties(['company_id' => $workOrder->company_id, 'type' => 'photo', 'caption' => $caption, 'uploaded_by' => $uploader->id])
+            ->toMediaCollection('evidence', 'public');
+    }
+
+    /** The `review` prop the sheet asks for, the way it asks: a partial reload that wants nothing else. */
+    private function askForReview(User $actor, string $compositeId): TestResponse
+    {
+        return $this->actingAs($actor)
+            ->withHeaders($this->partialReload('Admin/Approvals/Index', 'review'))
+            ->get(route('admin.approvals.index', ['review' => $compositeId]))
+            ->assertOk();
+    }
+
+    public function test_review_loads_only_on_request(): void
+    {
+        [$company, $manager] = $this->approver();
+        $creator = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
+        $technician = User::factory()->create(['company_id' => $company->id, 'is_active' => true, 'name' => 'Sari Teknisi']);
+        $spk = $this->waitingSpk($company, $creator, ['assigned_to' => $technician->id]);
+        $this->photo($spk, $creator, 'Meter terpasang');
+        $cable = Product::factory()->create(['company_id' => $company->id, 'name' => 'Kabel Drop']);
+        WorkOrderItem::create(['company_id' => $company->id, 'work_order_id' => $spk->id, 'product_id' => $cable->id, 'quantity_used' => 2]);
+        AuditService::log('work_order', 'check_in', ['status' => 'recorded', 'lat' => -6.9, 'lng' => 107.6, 'accuracy_m' => 5, 'distance_m' => 12], $spk);
+
+        // The page itself never carries it: the list is all it needs to draw.
+        $this->actingAs($manager)->get(route('admin.approvals.index', ['review' => "spk:{$spk->public_id}"]))->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->has('items.data', 1)->missing('review'));
+
+        // A reload that asks for the review brings it, and none of the list.
+        $props = $this->askForReview($manager, "spk:{$spk->public_id}")->json('props');
+        $this->assertSame([], array_values(array_intersect(array_keys($props), ['items', 'summary', 'filters', 'types', 'requesters'])));
+        $review = $props['review'];
+        $this->assertSame(['Material terpakai dikurangi dari stok: 1 barang.'], $review['impact']);
+        $this->assertSame(['name' => 'Sari Teknisi'], $review['technician']);
+        $this->assertEquals(['status' => 'recorded', 'distance_m' => 12, 'accuracy_m' => 5], $review['check_in'], 'the technician\'s coordinates stay on the server');
+        $this->assertCount(1, $review['evidence'], 'only images are thumbnails: the text stored under a .jpg name is not one');
+        $this->assertSame('Meter terpasang', $review['evidence'][0]['caption']);
+        $this->assertStringStartsWith('/admin/media/', $review['evidence'][0]['url']);
+        $this->assertSame([['name' => 'Kabel Drop', 'quantity' => '2.00', 'unit' => $cable->fresh('unit')->unit?->symbol, 'available' => null]], $review['items']);
+    }
+
+    public function test_review_shows_at_most_three_photos(): void
+    {
+        [$company, $manager] = $this->approver();
+        $creator = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
+        $spk = $this->waitingSpk($company, $creator);
+
+        foreach (range(1, 4) as $number) {
+            $this->photo($spk, $creator, "Foto {$number}");
+        }
+
+        $review = $this->askForReview($manager, "spk:{$spk->public_id}")->json('props.review');
+
+        $this->assertSame(['Foto 1', 'Foto 2', 'Foto 3'], array_column($review['evidence'], 'caption'));
+        $this->assertNull($review['technician']);
+        $this->assertNull($review['check_in']);
+    }
+
+    public function test_review_of_hidden_or_foreign_item_is_null(): void
+    {
+        [$companyA, $manager] = $this->approver();
+        [$companyB] = $this->approver();
+        $creatorA = User::factory()->create(['company_id' => $companyA->id, 'is_active' => true]);
+        $creatorB = User::factory()->create(['company_id' => $companyB->id, 'is_active' => true]);
+        $mine = $this->waitingSpk($companyA, $creatorA);
+        $foreign = $this->waitingSpk($companyB, $creatorB);
+        $finished = $this->waitingSpk($companyA, $creatorA, ['status' => 'completed']);
+        $madeByMe = $this->waitingSpk($companyA, $manager);
+        $doneByMe = $this->waitingSpk($companyA, $creatorA, ['assigned_to' => $manager->id]);
+
+        $this->assertIsArray($this->askForReview($manager, "spk:{$mine->public_id}")->json('props.review'));
+
+        // Whatever is not the actor's to act on answers the same way: the key is there, and it is null.
+        foreach ([$foreign, $finished, $madeByMe, $doneByMe] as $hidden) {
+            $props = $this->askForReview($manager, "spk:{$hidden->public_id}")->json('props');
+            $this->assertArrayHasKey('review', $props);
+            $this->assertNull($props['review'], "spk {$hidden->code} is not the manager's to review");
+        }
+
+        $junk = ['', 'spk', 'spk:', 'spk:nope', "spk:{$mine->public_id}:x", "ticket:{$mine->public_id}", "inventory_request:{$mine->public_id}", $mine->public_id, '5', 'spk:5'];
+
+        foreach ($junk as $compositeId) {
+            $this->assertNull($this->askForReview($manager, $compositeId)->json('props.review'), "[{$compositeId}]");
+        }
+    }
+
+    public function test_review_is_not_given_to_an_approver_who_may_not_open_the_spk(): void
+    {
+        [$company] = $this->approver();
+        $creator = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
+        $spk = $this->waitingSpk($company, $creator);
+        $approverOnly = User::factory()->create(['company_id' => $company->id, 'email_verified_at' => now(), 'is_active' => true]);
+        $approverOnly->givePermissionTo('spk.approve');
+
+        // The row is in this actor's inbox, so the detail would have been theirs by eligibility alone: the view policy holds it back.
+        $this->actingAs($approverOnly)->get(route('admin.approvals.index'))->assertOk()->assertInertia(fn (Assert $page) => $page->has('items.data', 1));
+        $this->assertNull($this->askForReview($approverOnly, "spk:{$spk->public_id}")->json('props.review'));
+    }
+
+    public function test_review_of_an_inventory_request_lists_items_with_the_stock_that_is_free(): void
+    {
+        [$company, $manager] = $this->approver();
+        $requester = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
+        $warehouse = Location::factory()->create(['company_id' => $company->id, 'type' => 'site', 'is_active' => true]);
+        $cable = Product::factory()->create(['company_id' => $company->id, 'name' => 'Kabel Dropcore']);
+        $connector = Product::factory()->create(['company_id' => $company->id, 'name' => 'Konektor SC']);
+        Stock::create(['company_id' => $company->id, 'product_id' => $cable->id, 'location_id' => $warehouse->id, 'quantity' => 100, 'reserved_quantity' => 10]);
+
+        $request = InventoryRequest::forceCreate([
+            'company_id' => $company->id,
+            'code' => 'REQ-REVIEW-0001',
+            'requested_by' => $requester->id,
+            'warehouse_location_id' => $warehouse->id,
+            'status' => 'submitted',
+            'reason' => 'Pasang baru',
+            'submitted_at' => now(),
+        ]);
+
+        foreach ([[$cable, 95], [$connector, 2]] as [$product, $quantity]) {
+            InventoryRequestItem::forceCreate(['company_id' => $company->id, 'inventory_request_id' => $request->id, 'product_id' => $product->id, 'quantity_requested' => $quantity]);
+        }
+
+        $review = $this->askForReview($manager, "inventory_request:{$request->public_id}")->json('props.review');
+
+        $this->assertSame([], $review['impact']);
+        $this->assertSame([], $review['evidence']);
+        $this->assertNull($review['technician']);
+        $this->assertNull($review['check_in']);
+        $this->assertSame(
+            [['Kabel Dropcore', '95', '90.00'], ['Konektor SC', '2', '0.00']],
+            array_map(fn (array $line): array => [$line['name'], $line['quantity'], $line['available']], $review['items']),
+            'the stock minus what is reserved, and none where the warehouse holds none',
+        );
+
+        // A request the actor made is not theirs to approve, so it is no review for them.
+        $own = InventoryRequest::forceCreate(['company_id' => $company->id, 'code' => 'REQ-REVIEW-0002', 'requested_by' => $manager->id, 'warehouse_location_id' => $warehouse->id, 'status' => 'submitted', 'reason' => 'Milik sendiri', 'submitted_at' => now()]);
+        $this->assertNull($this->askForReview($manager, "inventory_request:{$own->public_id}")->json('props.review'));
     }
 
     private function approver(): array

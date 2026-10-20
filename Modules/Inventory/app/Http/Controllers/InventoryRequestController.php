@@ -4,6 +4,7 @@ namespace Modules\Inventory\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Core\Location;
+use App\Queries\Admin\ApprovalInboxQuery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -93,6 +94,10 @@ class InventoryRequestController extends Controller
 
         $data = [
             'request' => new InventoryRequestResource($inventoryRequest),
+            // What each line can still reserve, only while the request waits for an approver who may approve it.
+            'stockAvailable' => $inventoryRequest->status === 'submitted' && $request->user()->can('approve', $inventoryRequest)
+                ? ApprovalInboxQuery::inventoryStockAvailable($inventoryRequest)
+                : null,
         ];
 
         if ($request->wantsJson()) {

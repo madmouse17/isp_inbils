@@ -4,12 +4,20 @@ namespace App\Queries\Admin;
 
 use App\Models\User;
 use App\Services\Core\CompanyService;
+use App\Support\FieldCheckIn;
+use App\Support\Money;
 use App\Support\PublicId;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Modules\Inventory\Models\InventoryRequest;
+use Modules\Inventory\Models\InventoryRequestItem;
+use Modules\Inventory\Models\Stock;
 use Modules\SPK\Models\WorkOrder;
+use Modules\SPK\Models\WorkOrderItem;
+use Modules\SPK\Support\SpkApprovalImpact;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
  * Read model untuk Approval Inbox (SPK waiting_review dan Inventory Request submitted).
@@ -518,5 +526,127 @@ class ApprovalInboxQuery
                 $q->whereNull('assigned_to')
                     ->orWhere('assigned_to', '!=', $user->id);
             });
+    }
+
+    /**
+     * What the review sheet loads when it opens, for exactly the rows the inbox lists to this actor: the same
+     * eligibility and maker-checker rules (the base queries) and, on top of them, the view policy, because the detail
+     * shows the visit, the check-in and the stock. An unknown id, another company's row, a row that is no longer waiting,
+     * a row the actor may not act on or open: all null, so nothing tells them apart.
+     *
+     * @return array{impact: list<string>, evidence: list<array{id: string, url: string, caption: ?string}>, technician: ?array{name: string}, check_in: ?array<string, mixed>, items: list<array{name: string, quantity: string, unit: ?string, available: ?string}>}|null
+     */
+    public static function review(Request $request, mixed $compositeId): ?array
+    {
+        $user = $request->user();
+
+        if ($user === null || ! is_string($compositeId) || substr_count($compositeId, ':') !== 1) {
+            return null;
+        }
+
+        [$domain, $publicId] = explode(':', $compositeId);
+
+        return match ($domain) {
+            'spk' => self::spkReview($request, $user, $publicId),
+            'inventory_request' => self::inventoryReview($request, $user, $publicId),
+            default => null,
+        };
+    }
+
+    /**
+     * How much of each line of a request can still be reserved: the stock minus what is reserved, at the place the
+     * approval checks (the item's source, else the request's warehouse; InventoryRequestService::approve). Keyed by the
+     * public id of the item; a line with no place to take it from has no entry. One query for the whole request.
+     *
+     * @return array<string, string>
+     */
+    public static function inventoryStockAvailable(InventoryRequest $inventoryRequest): array
+    {
+        $inventoryRequest->loadMissing('items');
+        $placeOf = fn (InventoryRequestItem $item): ?int => $item->source_location_id ?? $inventoryRequest->warehouse_location_id;
+        $items = $inventoryRequest->items->filter(fn (InventoryRequestItem $item): bool => $placeOf($item) !== null);
+
+        if ($items->isEmpty()) {
+            return [];
+        }
+
+        $stocks = Stock::withoutCompany()
+            ->where('company_id', $inventoryRequest->company_id)
+            ->whereIn('product_id', $items->pluck('product_id')->unique())
+            ->whereIn('location_id', $items->map($placeOf)->unique())
+            ->get(['product_id', 'location_id', 'quantity', 'reserved_quantity'])
+            ->keyBy(fn (Stock $stock): string => $stock->product_id.':'.$stock->location_id);
+
+        return $items->mapWithKeys(function (InventoryRequestItem $item) use ($stocks, $placeOf): array {
+            $stock = $stocks->get($item->product_id.':'.$placeOf($item));
+            $available = $stock === null ? '0' : Money::sub($stock->quantity, $stock->reserved_quantity);
+
+            return [$item->public_id => Money::compare($available, '0') < 0 ? '0.00' : Money::round($available)];
+        })->all();
+    }
+
+    /** @return array<string, mixed>|null */
+    private static function spkReview(Request $request, User $user, string $publicId): ?array
+    {
+        /** @var WorkOrder|null $workOrder */
+        $workOrder = self::base($request, false)->wherePublicId($publicId)->first();
+
+        if ($workOrder === null || ! $user->can('view', $workOrder)) {
+            return null;
+        }
+
+        $workOrder->load(['assignee:id,public_id,name', 'items.product.unit']);
+        $checkIn = FieldCheckIn::recordFor($workOrder, 'work_order');
+
+        return [
+            'impact' => SpkApprovalImpact::for($workOrder),
+            // Three thumbnails are enough to judge the work; the rest open on the SPK page.
+            'evidence' => $workOrder->getMedia('evidence')
+                ->filter(fn (Media $media): bool => str_starts_with((string) $media->mime_type, 'image/'))
+                ->take(3)
+                ->map(fn (Media $media): array => [
+                    'id' => (string) $media->getAttribute('public_id'),
+                    'url' => route('admin.media.show', $media, false),
+                    'caption' => $media->getCustomProperty('caption'),
+                ])
+                ->values()
+                ->all(),
+            'technician' => $workOrder->assignee === null ? null : ['name' => $workOrder->assignee->name],
+            // Only what the sheet words itself: the technician's own coordinates never leave the server.
+            'check_in' => $checkIn === null ? null : Arr::only($checkIn, ['status', 'distance_m', 'accuracy_m', 'reason']),
+            'items' => $workOrder->items->map(fn (WorkOrderItem $item): array => [
+                'name' => $item->product?->name ?? '-',
+                'quantity' => (string) $item->quantity_used,
+                'unit' => $item->product?->unit?->symbol ?? $item->product?->unit?->name,
+                'available' => null,
+            ])->values()->all(),
+        ];
+    }
+
+    /** @return array<string, mixed>|null */
+    private static function inventoryReview(Request $request, User $user, string $publicId): ?array
+    {
+        /** @var InventoryRequest|null $inventoryRequest */
+        $inventoryRequest = self::inventoryBase($request, false)->wherePublicId($publicId)->first();
+
+        if ($inventoryRequest === null || ! $user->can('view', $inventoryRequest)) {
+            return null;
+        }
+
+        $inventoryRequest->load('items.product.unit');
+        $available = self::inventoryStockAvailable($inventoryRequest);
+
+        return [
+            'impact' => [],
+            'evidence' => [],
+            'technician' => null,
+            'check_in' => null,
+            'items' => $inventoryRequest->items->map(fn (InventoryRequestItem $item): array => [
+                'name' => $item->product?->name ?? '-',
+                'quantity' => (string) $item->quantity_requested,
+                'unit' => $item->product?->unit?->symbol ?? $item->product?->unit?->name,
+                'available' => $available[$item->public_id] ?? null,
+            ])->values()->all(),
+        ];
     }
 }

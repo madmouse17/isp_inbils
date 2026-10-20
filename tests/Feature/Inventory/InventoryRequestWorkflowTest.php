@@ -301,6 +301,44 @@ class InventoryRequestWorkflowTest extends TestCase
         $this->assertEquals(20, (float) $req->items->first()->quantity_issued);
     }
 
+    public function test_show_gives_available_stock_while_awaiting_approval(): void
+    {
+        Notification::fake();
+        $connector = Product::factory()->create(['company_id' => $this->companyA->id, 'type' => 'consumable', 'is_active' => true]);
+        $otherWarehouse = Location::factory()->create(['company_id' => $this->companyA->id, 'name' => 'Gudang Cadangan A', 'type' => 'site', 'is_active' => true]);
+        Stock::withoutCompany()->where('product_id', $this->cableProduct->id)->where('location_id', $this->warehouseA->id)->update(['reserved_quantity' => 30]);
+        Stock::create(['company_id' => $this->companyA->id, 'product_id' => $connector->id, 'location_id' => $otherWarehouse->id, 'quantity' => 5, 'reserved_quantity' => 0]);
+
+        $created = $this->actingAs($this->technician)->postJson(route('admin.inventory.requests.store'), [
+            'warehouse_location_id' => $this->warehouseA->public_id,
+            'reason' => 'Instalasi baru',
+            'submit' => true,
+            'items' => [
+                ['product_id' => $this->cableProduct->public_id, 'quantity_requested' => 60],
+                ['product_id' => $connector->public_id, 'quantity_requested' => 2],
+            ],
+        ])->assertStatus(201);
+        $req = InventoryRequest::wherePublicId($created->json('data.id'))->firstOrFail();
+        $cable = $req->items()->where('product_id', $this->cableProduct->id)->firstOrFail();
+        $part = $req->items()->where('product_id', $connector->id)->firstOrFail();
+        // The connector is taken from the other warehouse: the place that counts is the item's own, not the request's.
+        $part->update(['source_location_id' => $otherWarehouse->id]);
+
+        $this->actingAs($this->managerApprover)->get(route('admin.inventory.requests.show', $req))->assertOk()
+            ->assertInertia(fn ($page) => $page->where("stockAvailable.{$cable->public_id}", '70.00')->where("stockAvailable.{$part->public_id}", '5.00'));
+
+        // Nobody else gets the figures: the requester and the warehouse cannot approve this request.
+        foreach ([$this->technician, $this->staffWarehouse] as $other) {
+            $this->actingAs($other)->get(route('admin.inventory.requests.show', $req))->assertOk()
+                ->assertInertia(fn ($page) => $page->where('stockAvailable', null));
+        }
+
+        // And no longer once it is approved: the reservation is made, and the stock is whatever it is then.
+        $this->actingAs($this->managerApprover)->postJson(route('admin.inventory.requests.approve', $req), [])->assertOk();
+        $this->actingAs($this->managerApprover)->get(route('admin.inventory.requests.show', $req))->assertOk()
+            ->assertInertia(fn ($page) => $page->where('stockAvailable', null));
+    }
+
     public function test_reject_flow_and_notification(): void
     {
         Notification::fake();

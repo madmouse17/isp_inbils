@@ -136,7 +136,7 @@ test('ReviewSheet behavioral browser lifecycle in Chromium: CTA click, in-flight
                     }));
                     build.onLoad({ filter: /.*/, namespace: 'mock' }, () => ({
                         contents:
-                            'export const router = { post: (url, data, opts) => window.__routerPost?.(url, data, opts) }; export const Link = (props) => props.children; export const usePage = () => ({ props: { company: { settings: { date_format: "d/m/Y" } } } });',
+                            'export const router = { post: (url, data, opts) => window.__routerPost?.(url, data, opts), reload: (opts) => window.__routerReload?.(opts) }; export const Link = (props) => props.children; export const usePage = () => ({ props: { company: { settings: { date_format: "d/m/Y" } } } });',
                         loader: 'js',
                     }));
                 },
@@ -663,7 +663,7 @@ test('ReviewSheet Inventory Request domain behavior: titles, endpoints, notes, r
                     }));
                     build.onLoad({ filter: /.*/, namespace: 'mock' }, () => ({
                         contents:
-                            'export const router = { post: (url, data, opts) => window.__routerPost?.(url, data, opts) }; export const Link = (props) => props.children; export const usePage = () => ({ props: { company: { settings: { date_format: "d/m/Y" } } } });',
+                            'export const router = { post: (url, data, opts) => window.__routerPost?.(url, data, opts), reload: (opts) => window.__routerReload?.(opts) }; export const Link = (props) => props.children; export const usePage = () => ({ props: { company: { settings: { date_format: "d/m/Y" } } } });',
                         loader: 'js',
                     }));
                 },
@@ -1070,6 +1070,248 @@ test('ReviewSheet behavioral browser in Chromium: cross-domain ID collision isol
             '/admin/spk/01arz3ndektsv4rrffq69g5fa7/approve',
             'Approve request targeted SPK endpoint (/admin/spk/01arz3ndektsv4rrffq69g5fa7/approve)',
         );
+    } finally {
+        await browser.close();
+    }
+});
+
+test('ReviewSheet loads the review when it opens: skeleton, evidence, check-in, items, stock and the impact in the confirmation', async () => {
+    const bundle = await esbuild.build({
+        stdin: {
+            contents: `
+                import React, { useState } from 'react';
+                import ReactDOM from 'react-dom/client';
+                import { ReviewSheet } from './resources/js/Pages/Admin/Approvals/components/ReviewSheet';
+
+                window.route = (name, id) => '/admin/' + (name.includes('inventory') ? 'inventory/requests/' : 'spk/') + id + '/approve';
+
+                window.mountHarness = (initialItem) => {
+                    function Harness() {
+                        const [item, setItem] = useState(initialItem);
+                        window.__setItem = setItem;
+
+                        return React.createElement(ReviewSheet, { open: true, onOpenChange: () => {}, item });
+                    }
+
+                    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Harness));
+                };
+            `,
+            resolveDir: process.cwd(),
+            loader: 'tsx',
+        },
+        bundle: true,
+        format: 'iife',
+        write: false,
+        define: { 'process.env.NODE_ENV': '"test"' },
+        plugins: [
+            {
+                name: 'mock-inertia',
+                setup(build) {
+                    build.onResolve({ filter: /^@inertiajs\/react$/ }, () => ({
+                        path: 'inertia-mock',
+                        namespace: 'mock',
+                    }));
+                    build.onLoad({ filter: /.*/, namespace: 'mock' }, () => ({
+                        contents:
+                            'export const router = { post: () => {}, reload: (opts) => window.__reloads.push(opts) }; export const Link = (props) => props.children; export const usePage = () => ({ props: { company: { settings: { date_format: "d/m/Y" } } } });',
+                        loader: 'js',
+                    }));
+                },
+            },
+        ],
+    });
+
+    const browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage();
+
+    // What the page asked for, and the moment the answer arrives: the visit callbacks Inertia would call.
+    const answer = (review) =>
+        page.evaluate((payload) => {
+            const visit = window.__reloads.at(-1);
+            visit.onSuccess({ props: { review: payload } });
+            visit.onFinish();
+        }, review);
+
+    try {
+        await page.setContent(
+            `<!DOCTYPE html><html><body><div id="root"></div><script>${bundle.outputFiles[0].text}</script></body></html>`,
+        );
+
+        const spkItem = {
+            id: '01arz3ndektsv4rrffq69g5fb1',
+            domain: 'spk',
+            code: 'SPK-REVIEW-001',
+            title: 'Pasang baru Bapak Andi',
+            type: 'installation',
+            priority: 'medium',
+            status: 'waiting_review',
+            age_seconds: 600,
+            submitted_at: '2026-10-19T10:00:00Z',
+            scheduled_date: '2026-10-19',
+            detail_url: null,
+            requester: { id: '01arz3ndektsv4rrffq69g5fb2', name: 'Budi Santoso' },
+            assigned_to: null,
+            summary: { count: 1, quantity: 2, label: 'Kabel Drop' },
+            actions: { approve: true, reject: true, view: false },
+        };
+        const inventoryItem = {
+            ...spkItem,
+            id: '01arz3ndektsv4rrffq69g5fb3',
+            domain: 'inventory_request',
+            code: 'REQ-REVIEW-001',
+            type: 'inventory_request',
+            status: 'submitted',
+            summary: { count: 2, quantity: 22, label: 'Kabel, Konektor' },
+        };
+        const impact = [
+            'Pelanggan AUD-00001 dan langganan SUB-00001 menjadi aktif.',
+            'Tagihan pemasangan Rp 277.500 dibuat sebagai draf. Kirim dari halaman tagihan.',
+        ];
+        const review = {
+            impact,
+            evidence: [
+                {
+                    id: '01arz3ndektsv4rrffq69g5fc1',
+                    url: '/admin/media/01arz3ndektsv4rrffq69g5fc1',
+                    caption: null,
+                },
+                {
+                    id: '01arz3ndektsv4rrffq69g5fc2',
+                    url: '/admin/media/01arz3ndektsv4rrffq69g5fc2',
+                    caption: 'Meter dan ONT terpasang',
+                },
+            ],
+            technician: { name: 'Sari Teknisi' },
+            check_in: { status: 'recorded', distance_m: 12, accuracy_m: 5 },
+            items: [{ name: 'Kabel Drop', quantity: '2.00', unit: 'm', available: null }],
+        };
+
+        await page.evaluate((item) => {
+            window.__reloads = [];
+            window.mountHarness(item);
+        }, spkItem);
+
+        // 1. Opening asks for the review alone, for this row, and leaves the address bar alone.
+        await page.waitForFunction(() => window.__reloads.length === 1);
+        const asked = await page.evaluate(() => {
+            const { only, data, preserveUrl } = window.__reloads[0];
+
+            return { only, data, preserveUrl };
+        });
+        assert.deepEqual(asked, {
+            only: ['review'],
+            data: { review: 'spk:01arz3ndektsv4rrffq69g5fb1' },
+            preserveUrl: true,
+        });
+
+        // 2. While it is on its way: a skeleton, no evidence, and the decision is not held back.
+        await page
+            .getByRole('status')
+            .filter({ hasText: 'Memuat rincian peninjauan' })
+            .waitFor({ state: 'attached' });
+        assert.equal(
+            await page.locator('button:has-text("Setujui")').isDisabled(),
+            false,
+            'approve does not wait for the detail',
+        );
+
+        // 3. The answer: technician, check-in distance, thumbnails named by caption or number, the materials.
+        await answer(review);
+        await page.getByText('12 m dari lokasi (akurasi ±5 m)').waitFor();
+        assert.equal(
+            await page.locator('dt:has-text("Teknisi:") + dd').textContent(),
+            'Sari Teknisi',
+        );
+        assert.equal(
+            await page.getByRole('img', { name: 'Foto bukti 1' }).count(),
+            1,
+            'a photo with no caption is named by its number',
+        );
+        assert.equal(
+            await page.getByRole('img', { name: 'Meter dan ONT terpasang' }).count(),
+            1,
+            'a photo with a caption is named by it',
+        );
+        assert.equal(
+            await page.locator('a:has(img[alt="Foto bukti 1"])').getAttribute('href'),
+            '/admin/media/01arz3ndektsv4rrffq69g5fc1',
+        );
+        assert.ok((await page.locator('li:has-text("Kabel Drop")').textContent()).includes('2 m'));
+
+        // 4. The confirmation of the approval names what it does.
+        await page.locator('button:has-text("Setujui")').click();
+        const dialog = page.getByRole('alertdialog');
+        await dialog.waitFor();
+        assert.deepEqual(await dialog.locator('li').allTextContents(), impact);
+        await dialog.getByRole('button', { name: 'Batal' }).click();
+        await dialog.waitFor({ state: 'detached' });
+
+        // 5. Another row: the sheet starts over, and shows nothing of the row before it.
+        await page.evaluate(
+            (item) => {
+                window.__reloads = [];
+                window.__setItem(item);
+            },
+            { ...spkItem, id: '01arz3ndektsv4rrffq69g5fb4', code: 'SPK-REVIEW-002' },
+        );
+        await page.waitForFunction(() => window.__reloads.length === 1);
+        assert.equal(
+            await page.getByRole('img', { name: 'Foto bukti 1' }).count(),
+            0,
+            'no photo of the previous row',
+        );
+        await page
+            .getByRole('status')
+            .filter({ hasText: 'Memuat rincian peninjauan' })
+            .waitFor({ state: 'attached' });
+
+        // 6. An answer that never comes: the sheet says so, still lets the person decide, and tries again on request.
+        await page.evaluate(() => window.__reloads.at(-1).onFinish());
+        await page.getByText('Rincian belum bisa dimuat').waitFor();
+        await page.locator('button:has-text("Setujui")').click();
+        await dialog.waitFor();
+        assert.deepEqual(await dialog.locator('li').allTextContents(), [
+            'Dampak persetujuan belum bisa ditampilkan.',
+        ]);
+        await dialog.getByRole('button', { name: 'Batal' }).click();
+        await dialog.waitFor({ state: 'detached' });
+
+        await page.getByRole('button', { name: 'Coba lagi' }).click();
+        await page.waitForFunction(() => window.__reloads.length === 2);
+        assert.equal(
+            await page.getByText('Rincian belum bisa dimuat').count(),
+            0,
+            'the warning goes while it loads again',
+        );
+
+        // 7. A row the server holds no detail for: said in a sentence, with no list.
+        await answer(null);
+        await page.getByText('Rincian bukti dan stok tidak tersedia untuk akun Anda.').waitFor();
+
+        // 8. An inventory request: the items asked for, the stock free for each, and a warning where it falls short.
+        await page.evaluate((item) => {
+            window.__reloads = [];
+            window.__setItem(item);
+        }, inventoryItem);
+        await page.waitForFunction(() => window.__reloads.length === 1);
+        await answer({
+            impact: [],
+            evidence: [],
+            technician: null,
+            check_in: null,
+            items: [
+                { name: 'Kabel Dropcore', quantity: '20', unit: 'm', available: '5.00' },
+                { name: 'Konektor SC', quantity: '2', unit: 'pcs', available: '10.00' },
+            ],
+        });
+        await page.getByText('Tersedia: 5 m, kurang dari yang diminta.').waitFor();
+        assert.equal(
+            await page.getByText('Tersedia: 10 pcs', { exact: true }).count(),
+            1,
+            'enough stock carries no warning',
+        );
+        assert.equal(await page.getByRole('heading', { name: 'Barang diminta' }).count(), 1);
+        assert.equal(await page.getByRole('img').count(), 0, 'a request has no photos');
     } finally {
         await browser.close();
     }

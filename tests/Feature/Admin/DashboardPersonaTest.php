@@ -44,23 +44,23 @@ class DashboardPersonaTest extends TestCase
     {
         return [
             'admin' => ['admin', [
-                'dispatch_unassigned', 'sla_breached', 'approvals',
+                'dispatch_unassigned', 'sla_breached', 'sla_due_soon', 'customer_replied', 'approvals',
                 'warehouse_requests', 'return_queue', 'low_stock',
-                'overdue_invoices', 'draft_invoices',
+                'overdue_invoices', 'online_payment_exceptions', 'draft_invoices', 'online_payment_pending',
             ]],
             'manager' => ['manager', [
-                'dispatch_unassigned', 'sla_breached', 'approvals',
+                'dispatch_unassigned', 'sla_breached', 'sla_due_soon', 'customer_replied', 'approvals',
                 'warehouse_requests', 'return_queue', 'low_stock',
-                'overdue_invoices', 'draft_invoices',
+                'overdue_invoices', 'online_payment_exceptions', 'draft_invoices', 'online_payment_pending',
             ]],
             // Operator persona: it prepares and issues but cannot approve, so no approvals card.
             'staff' => ['staff', [
-                'sla_breached',
+                'sla_breached', 'sla_due_soon', 'customer_replied',
                 'warehouse_requests', 'return_queue', 'low_stock',
-                'overdue_invoices', 'draft_invoices',
+                'overdue_invoices', 'online_payment_exceptions', 'draft_invoices', 'online_payment_pending',
             ]],
             // The technician's own web dashboard is closed (app-only); the role keeps its permission set.
-            'technician' => ['technician', ['sla_breached', 'low_stock']],
+            'technician' => ['technician', ['sla_breached', 'sla_due_soon', 'customer_replied', 'low_stock']],
         ];
     }
 
@@ -107,7 +107,12 @@ class DashboardPersonaTest extends TestCase
         $this->activeEmployeeProfile($admin);
 
         $this->assertSame(
-            ['operations', 'operations', 'operations', 'approvals', 'warehouse', 'warehouse', 'warehouse', 'finance', 'finance'],
+            [
+                'operations', 'operations', 'operations', 'operations', 'operations',
+                'approvals',
+                'warehouse', 'warehouse', 'warehouse',
+                'finance', 'finance', 'finance', 'finance',
+            ],
             array_column($this->sections($this->dashboard($admin)), 'group'),
         );
     }
@@ -121,12 +126,16 @@ class DashboardPersonaTest extends TestCase
             'my_work' => 'Pekerjaan saya',
             'dispatch_unassigned' => 'Belum ditugaskan',
             'sla_breached' => 'SLA terlampaui',
+            'sla_due_soon' => 'Hampir terlampaui (≤ 30 menit)',
+            'customer_replied' => 'Pelanggan membalas',
             'approvals' => 'Menunggu persetujuan saya',
             'warehouse_requests' => 'Antrean permintaan gudang',
             'return_queue' => 'Antrean retur material',
             'low_stock' => 'Stok di bawah minimum',
             'overdue_invoices' => 'Tagihan jatuh tempo',
+            'online_payment_exceptions' => 'Pembayaran online bermasalah',
             'draft_invoices' => 'Tagihan draf menunggu dikirim',
+            'online_payment_pending' => 'Pembayaran online tertunda > 1 jam',
         ], array_column($this->sections($this->dashboard($admin)), 'title', 'key'));
     }
 
@@ -177,9 +186,9 @@ class DashboardPersonaTest extends TestCase
     {
         return [
             'ticket.view alone opens no card' => [['ticket.view'], []],
-            'an SLA report reader' => [['ticket.view', 'report.sla.view'], ['sla_breached']],
-            'a ticket starter' => [['ticket.view', 'ticket.start'], ['sla_breached']],
-            'a ticket reassigner also dispatches' => [['ticket.view', 'ticket.reassign'], ['dispatch_unassigned', 'sla_breached']],
+            'an SLA report reader' => [['ticket.view', 'report.sla.view'], ['sla_breached', 'sla_due_soon', 'customer_replied']],
+            'a ticket starter' => [['ticket.view', 'ticket.start'], ['sla_breached', 'sla_due_soon', 'customer_replied']],
+            'a ticket reassigner also dispatches' => [['ticket.view', 'ticket.reassign'], ['dispatch_unassigned', 'sla_breached', 'sla_due_soon', 'customer_replied']],
             'SLA reports without ticket.view open nothing' => [['report.sla.view'], []],
         ];
     }
@@ -189,7 +198,40 @@ class DashboardPersonaTest extends TestCase
      * @param  list<string>  $expected
      */
     #[DataProvider('ticketCapabilities')]
-    public function test_the_sla_card_needs_a_ticket_capability_beyond_ticket_view(array $permissions, array $expected): void
+    public function test_the_ticket_queue_cards_need_a_ticket_capability_beyond_ticket_view(array $permissions, array $expected): void
+    {
+        $user = $this->userWithPermissions($this->makeCompany(), ['dashboard.view', ...$permissions]);
+
+        $this->assertSame($expected, $this->sectionKeys($this->dashboard($user)->assertOk()));
+    }
+
+    /** @return array<string, array{0: list<string>, 1: list<string>}> */
+    public static function billingCapabilities(): array
+    {
+        return [
+            'billing.view alone only reads what is overdue' => [['billing.view'], ['overdue_invoices']],
+            'recording payments without billing.view opens nothing' => [['billing.payment.record'], []],
+            'a payment recorder who can read billing settles online payments' => [
+                ['billing.view', 'billing.payment.record'],
+                ['overdue_invoices', 'online_payment_exceptions', 'online_payment_pending'],
+            ],
+            'a sender without payment recording sees drafts, not online payments' => [
+                ['billing.view', 'billing.send'],
+                ['overdue_invoices', 'draft_invoices'],
+            ],
+            'both permissions see every finance card' => [
+                ['billing.view', 'billing.send', 'billing.payment.record'],
+                ['overdue_invoices', 'online_payment_exceptions', 'draft_invoices', 'online_payment_pending'],
+            ],
+        ];
+    }
+
+    /**
+     * @param  list<string>  $permissions
+     * @param  list<string>  $expected
+     */
+    #[DataProvider('billingCapabilities')]
+    public function test_the_online_payment_cards_need_payment_recording_and_the_view_that_opens_their_pages(array $permissions, array $expected): void
     {
         $user = $this->userWithPermissions($this->makeCompany(), ['dashboard.view', ...$permissions]);
 

@@ -168,13 +168,18 @@ test.describe('@lifecycle material return custody', () => {
             discrepancy: 1,
         });
 
-        // The accept dialog starts from the declared good quantity; the damaged unit is keyed in by the warehouse.
+        // The accept dialog starts from the declaration: the good quantity as declared and the difference in its own
+        // column, so the warehouse only confirms what it counts (and keys in what it finds otherwise).
         await openRequest(page, 'staff', requestId);
         await page.getByRole('button', { name: 'Terima Pengembalian Fisik' }).click();
         const accept = page.getByRole('alertdialog', {
             name: 'Terima Pengembalian Fisik Material',
         });
-        await accept.getByRole('spinbutton').nth(1).fill('1');
+        await expect(accept.getByLabel('Baik')).toHaveValue('0');
+        await expect(accept.getByLabel('Rusak')).toHaveValue('1');
+        await expect(accept.getByLabel('Hilang')).toHaveValue('0');
+        await expect(accept.getByLabel('Lainnya')).toHaveValue('0');
+        await expect(accept).toContainText('Jumlah cocok');
         await accept.getByRole('button', { name: 'Konfirmasi Penerimaan Fisik' }).click();
         await expect(accept).toBeHidden();
         expect(await statusOf()).toBe('exception_open');
@@ -188,5 +193,50 @@ test.describe('@lifecycle material return custody', () => {
 
         await expect(resolve).toBeHidden();
         expect(await statusOf()).toBe('resolved');
+    });
+
+    test('the accept dialog adds the columns up live and books a unit the warehouse cannot find', async ({
+        page,
+        request,
+    }) => {
+        const { requestId, statusOf } = await declaredReturn(page, request, {
+            used: 1,
+            good: 1,
+            discrepancy: 0,
+        });
+
+        await openRequest(page, 'staff', requestId);
+        await page.getByRole('button', { name: 'Terima Pengembalian Fisik' }).click();
+        const accept = page.getByRole('alertdialog', {
+            name: 'Terima Pengembalian Fisik Material',
+        });
+        const confirm = accept.getByRole('button', { name: 'Konfirmasi Penerimaan Fisik' });
+
+        // Two were handed over, one used and one declared back: it adds up as the dialog opens.
+        await expect(accept).toContainText('Diserahkan 2');
+        await expect(accept).toContainText('terpakai 1');
+        await expect(accept).toContainText('Jumlah cocok');
+        await expect(confirm).toBeEnabled();
+
+        // One short: the line says by how much, and the button waits with the reason beside it.
+        await accept.getByLabel('Baik').fill('0');
+        await expect(accept).toContainText('Kurang 1');
+        await expect(accept).toContainText('Samakan jumlah setiap barang dengan yang diserahkan.');
+        await expect(confirm).toBeDisabled();
+
+        // One too many: one used and two counted good, against two handed over.
+        await accept.getByLabel('Baik').fill('2');
+        await expect(accept).toContainText('Lebih 1');
+        await expect(confirm).toBeDisabled();
+
+        // The missing unit was lost: Hilang takes it and the line adds up again.
+        await accept.getByLabel('Baik').fill('0');
+        await accept.getByLabel('Hilang').fill('1');
+        await expect(accept).toContainText('Jumlah cocok');
+        await expect(confirm).toBeEnabled();
+        await confirm.click();
+
+        await expect(accept).toBeHidden();
+        expect(await statusOf()).toBe('exception_open');
     });
 });

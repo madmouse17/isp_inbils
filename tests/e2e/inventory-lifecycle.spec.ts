@@ -12,7 +12,8 @@
  *   authenticated request context (X-XSRF-TOKEN pattern), while receive and
  *   movement evidence stay on real UI selectors.
  */
-import type { Page } from '@playwright/test';
+import type { APIResponse, Page } from '@playwright/test';
+import { apiLogin } from './support/api';
 import { expect, test } from './support/fixtures';
 import { companyDateFormat, formatIsoAs } from './support/dateRange';
 import {
@@ -68,6 +69,12 @@ async function stockPickers(page: Page) {
     const locations = await pickerOptions(page, 'locationOptions', 'location_search', 'E2E');
 
     return { product, locations };
+}
+
+async function json<T>(response: APIResponse): Promise<T> {
+    expect(response.ok(), `${response.url()} -> ${response.status()}`).toBeTruthy();
+
+    return (await response.json()) as T;
 }
 
 test.describe('@lifecycle inventory', () => {
@@ -300,5 +307,86 @@ test.describe('@lifecycle inventory', () => {
         await page.getByLabel('Jenis', { exact: true }).selectOption('issue');
         await expect(page).toHaveURL(/movement_type=issue/);
         await expect(page.getByText('Tidak ada mutasi yang cocok')).toBeVisible();
+    });
+
+    test('the approver sees the stock free for each line and cannot reserve more than it', async ({
+        page,
+        request,
+    }) => {
+        // A technician asks for far more than any warehouse holds. The warehouse is stocked first, so the figure the
+        // approver should see is a known, positive one.
+        const technician = await apiLogin(request, 'technician');
+        const product = (
+            await json<{ data: { id: string }[] }>(
+                await technician.get('technician/products?search=E2E-STOCK-PRODUCT'),
+            )
+        ).data[0];
+        const warehouse = (
+            await json<{ data: { id: string }[] }>(await technician.get('technician/warehouses'))
+        ).data[0];
+        expect(product, 'E2E stock product').toBeTruthy();
+        expect(warehouse, 'a warehouse the technician can request from').toBeTruthy();
+
+        await loginAs(page, 'admin');
+        const csrf = await refreshSession(page, '/admin/stocks');
+        const received = await page.request.post('/admin/stocks/receive', {
+            headers: { 'X-XSRF-TOKEN': csrf },
+            maxRedirects: 0,
+            form: {
+                product_id: product.id,
+                location_id: warehouse.id,
+                quantity: '10',
+                note: `stock-${runId}`,
+            },
+        });
+        expect([302, 303]).toContain(received.status());
+        await logout(page);
+
+        const created = await json<{ data: { id: string } }>(
+            await technician.post('technician/inventory-requests', {
+                warehouse_location_id: warehouse.id,
+                reason: `approve-stock-${runId}`,
+                items: [{ product_id: product.id, quantity_requested: 999999 }],
+            }),
+        );
+
+        await loginAs(page, 'manager');
+        const url = `/admin/inventory/requests/${created.data.id}`;
+        await page.goto(url);
+        await expect(page.getByRole('heading', { name: /^Permintaan Barang REQ-/ })).toBeVisible();
+
+        // The page is sent the free stock of each line, keyed by the line; the dialog shows that figure.
+        const props = (await inertiaProps(page, url)).props ?? {};
+        const itemId = props.request.data.items[0].id as string;
+        const available = Number(props.stockAvailable[itemId]);
+        expect(available, 'the warehouse was stocked above').toBeGreaterThanOrEqual(10);
+
+        await page.getByRole('button', { name: 'Setujui & Reservasi Stok' }).click();
+        const dialog = page.getByRole('alertdialog', {
+            name: 'Setujui Permintaan & Reservasi Stok',
+        });
+        await expect(dialog).toContainText(
+            `Tersedia: ${new Intl.NumberFormat('id-ID').format(available)}`,
+        );
+
+        // The request asked for more than is free: the line says so and approving waits.
+        const quantity = dialog.getByLabel(/^Jumlah disetujui untuk/);
+        const approve = dialog.getByRole('button', { name: 'Setujui & Reservasi' });
+        await expect(quantity).toHaveAttribute('aria-invalid', 'true');
+        await expect(dialog).toContainText('Melebihi stok tersedia');
+        await expect(dialog).toContainText('Kurangi jumlah yang melebihi stok.');
+        await expect(approve).toBeDisabled();
+
+        // Within the free stock the warning goes and the approval goes through.
+        await quantity.fill('1');
+        await expect(quantity).not.toHaveAttribute('aria-invalid', 'true');
+        await expect(approve).toBeEnabled();
+        await approve.click();
+        await expect(dialog).toBeHidden();
+
+        const approved = (await inertiaProps(page, url)).props ?? {};
+        expect(approved.request.data.status).toBe('approved_reserved');
+        expect(approved.request.data.items[0].quantity_approved).toBe(1);
+        expect(approved.stockAvailable, 'no figure once the request is approved').toBeNull();
     });
 });

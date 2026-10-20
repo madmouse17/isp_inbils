@@ -50,9 +50,48 @@ interface Props {
     request: {
         data: InventoryRequestRow;
     };
+    /** What each line can still reserve (item id to quantity minus reserved); null unless the viewer may approve the waiting request. */
+    stockAvailable?: Record<string, string> | null;
 }
 
-export default function InventoryRequestsShow({ request }: Props) {
+/** One line of the warehouse's physical acceptance: what came back, in the four ways a returned quantity can be booked. */
+interface AcceptLine {
+    id: string;
+    product_name?: string;
+    issued_qty: number;
+    actual_used_qty: number;
+    declared_good_return_qty: number;
+    accepted_good_return_qty: number;
+    damaged_return_qty: number;
+    lost_qty: number;
+    other_discrepancy_qty: number;
+}
+
+const ACCEPT_FIELDS = [
+    { key: 'accepted_good_return_qty', label: 'Baik' },
+    { key: 'damaged_return_qty', label: 'Rusak' },
+    { key: 'lost_qty', label: 'Hilang' },
+    { key: 'other_discrepancy_qty', label: 'Lainnya' },
+] as const;
+
+type AcceptField = (typeof ACCEPT_FIELDS)[number]['key'];
+
+/**
+ * What is missing (positive) or too much (negative) when the technician's use and the four columns are set against what
+ * the warehouse handed over. The server refuses a line that does not add up, and rounds to cents the same way.
+ */
+function reconcileGap(line: AcceptLine): number {
+    const booked =
+        line.actual_used_qty +
+        line.accepted_good_return_qty +
+        line.damaged_return_qty +
+        line.lost_qty +
+        line.other_discrepancy_qty;
+
+    return Math.round((line.issued_qty - booked) * 100) / 100;
+}
+
+export default function InventoryRequestsShow({ request, stockAvailable }: Props) {
     const r = request.data;
     const items = r.items || [];
     const company = useCompany();
@@ -82,19 +121,7 @@ export default function InventoryRequestsShow({ request }: Props) {
     >([]);
 
     // Form for Warehouse Physical Acceptance
-    const [acceptLines, setAcceptLines] = useState<
-        Array<{
-            id: string;
-            product_name?: string;
-            declared_good_return_qty: number;
-            accepted_good_return_qty: number;
-            damaged_return_qty: number;
-            lost_qty: number;
-            other_discrepancy_qty: number;
-            discrepancy_code: string;
-            discrepancy_reason: string;
-        }>
-    >([]);
+    const [acceptLines, setAcceptLines] = useState<AcceptLine[]>([]);
 
     const fetchReturnCase = useCallback(() => {
         if (r.status === 'issued') {
@@ -150,13 +177,25 @@ export default function InventoryRequestsShow({ request }: Props) {
                                 first.lines.map((line) => ({
                                     id: line.id,
                                     product_name: line.product?.name,
+                                    issued_qty: line.issued_qty,
+                                    actual_used_qty: line.actual_used_qty,
                                     declared_good_return_qty: line.declared_good_return_qty,
+                                    // The technician's declaration is the starting point: the good quantity as declared, the
+                                    // difference in the column of its kind (a difference without a kind is "Lainnya").
                                     accepted_good_return_qty: line.declared_good_return_qty,
-                                    damaged_return_qty: 0,
-                                    lost_qty: 0,
-                                    other_discrepancy_qty: 0,
-                                    discrepancy_code: 'damaged',
-                                    discrepancy_reason: '',
+                                    damaged_return_qty:
+                                        line.discrepancy_code === 'damaged'
+                                            ? line.declared_discrepancy_qty
+                                            : 0,
+                                    lost_qty:
+                                        line.discrepancy_code === 'lost'
+                                            ? line.declared_discrepancy_qty
+                                            : 0,
+                                    other_discrepancy_qty:
+                                        line.discrepancy_code === 'damaged' ||
+                                        line.discrepancy_code === 'lost'
+                                            ? 0
+                                            : line.declared_discrepancy_qty,
                                 })),
                             );
                         }
@@ -244,6 +283,29 @@ export default function InventoryRequestsShow({ request }: Props) {
         });
         return init;
     });
+
+    // A line may not take more than the stock that is free where the approval looks for it (the server checks it again).
+    const overStock = (itemId: string, quantity: number): boolean => {
+        const available = stockAvailable?.[itemId];
+
+        return (
+            available !== undefined &&
+            Math.round(quantity * 100) > Math.round(Number(available) * 100)
+        );
+    };
+    const approveBlocked = items.some((item) =>
+        overStock(item.id, approvedQtys[item.id] ?? item.quantity_requested),
+    );
+    const acceptBlocked = acceptLines.some((line) => reconcileGap(line) !== 0);
+
+    const updateAcceptLine = (index: number, field: AcceptField, value: string) => {
+        setAcceptLines((lines) =>
+            lines.map((line, position) =>
+                position === index ? { ...line, [field]: parseFloat(value) || 0 } : line,
+            ),
+        );
+        if (actionError) setActionError(null);
+    };
 
     // Form for Reject
     const [rejectReason, setRejectReason] = useState('');
@@ -1039,35 +1101,63 @@ export default function InventoryRequestsShow({ request }: Props) {
                         <div className="space-y-4 py-2 text-xs">
                             <div className="space-y-2">
                                 <Label>Jumlah yang disetujui</Label>
-                                {items.map((item) => (
-                                    <div
-                                        key={item.id}
-                                        className="flex items-center justify-between gap-2 rounded border border-border p-2"
-                                    >
-                                        <span className="flex-1 truncate font-medium">
-                                            {item.product?.name}
-                                        </span>
-                                        <div className="w-24">
-                                            <Input
-                                                aria-label={`Jumlah disetujui untuk ${item.product?.name ?? 'barang'}`}
-                                                type="number"
-                                                step="any"
-                                                min="0"
-                                                value={
-                                                    approvedQtys[item.id] ?? item.quantity_requested
-                                                }
-                                                onChange={(e) =>
-                                                    setApprovedQtys({
-                                                        ...approvedQtys,
-                                                        [item.id]: parseFloat(e.target.value) || 0,
-                                                    })
-                                                }
-                                                className="h-8 text-right text-xs"
-                                            />
+                                {items.map((item) => {
+                                    const unit = item.product?.unit ?? '';
+                                    const available = stockAvailable?.[item.id];
+                                    const approved =
+                                        approvedQtys[item.id] ?? item.quantity_requested;
+
+                                    return (
+                                        <div
+                                            key={item.id}
+                                            className="flex items-start justify-between gap-3 rounded border border-border p-2"
+                                        >
+                                            <div className="min-w-0 flex-1">
+                                                <p className="font-medium break-words">
+                                                    {item.product?.name}
+                                                </p>
+                                                {available !== undefined && (
+                                                    <p className="text-muted-foreground">
+                                                        Tersedia: {formatNumber(available)} {unit}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            <div className="w-36 shrink-0">
+                                                <Input
+                                                    id={`approve-qty-${item.id}`}
+                                                    aria-label={`Jumlah disetujui untuk ${item.product?.name ?? 'barang'}`}
+                                                    type="number"
+                                                    step="any"
+                                                    min="0"
+                                                    value={approved}
+                                                    onChange={(e) =>
+                                                        setApprovedQtys({
+                                                            ...approvedQtys,
+                                                            [item.id]:
+                                                                parseFloat(e.target.value) || 0,
+                                                        })
+                                                    }
+                                                    error={
+                                                        overStock(item.id, approved)
+                                                            ? 'Melebihi stok tersedia'
+                                                            : undefined
+                                                    }
+                                                    className="text-right text-xs"
+                                                />
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
+                            {approveBlocked && (
+                                <p
+                                    id="approve-blocked"
+                                    role="status"
+                                    className="text-sm text-destructive-text"
+                                >
+                                    Kurangi jumlah yang melebihi stok.
+                                </p>
+                            )}
                             <div className="space-y-1">
                                 <Label htmlFor="approval_note">
                                     Catatan Persetujuan (opsional)
@@ -1096,7 +1186,8 @@ export default function InventoryRequestsShow({ request }: Props) {
                                         items: payloadItems,
                                     });
                                 }}
-                                disabled={actionLoading}
+                                disabled={actionLoading || approveBlocked}
+                                aria-describedby={approveBlocked ? 'approve-blocked' : undefined}
                             >
                                 {actionLoading ? 'Memproses...' : 'Setujui & Reservasi'}
                             </AlertDialogAction>
@@ -1457,58 +1548,78 @@ export default function InventoryRequestsShow({ request }: Props) {
                             </div>
                         )}
                         <div className="space-y-4 py-2 text-xs">
-                            {acceptLines.map((line, idx) => (
-                                <div
-                                    key={line.id}
-                                    className="space-y-2 rounded-lg border border-border bg-card/50 p-3"
+                            {acceptLines.map((line, idx) => {
+                                const gap = reconcileGap(line);
+
+                                return (
+                                    <div
+                                        key={line.id}
+                                        className="space-y-3 rounded-lg border border-border bg-card/50 p-3"
+                                    >
+                                        <div className="space-y-0.5">
+                                            <p className="font-semibold">
+                                                {line.product_name ?? 'Barang'}
+                                            </p>
+                                            <p className="text-muted-foreground">
+                                                Diserahkan {formatNumber(line.issued_qty)} ·
+                                                terpakai {formatNumber(line.actual_used_qty)}
+                                            </p>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                            {ACCEPT_FIELDS.map(({ key, label }) => (
+                                                <Input
+                                                    key={key}
+                                                    id={`accept-${line.id}-${key}`}
+                                                    label={label}
+                                                    aria-label={`${label}, ${line.product_name ?? 'barang'}`}
+                                                    type="number"
+                                                    step="any"
+                                                    min="0"
+                                                    value={line[key]}
+                                                    onChange={(e) =>
+                                                        updateAcceptLine(idx, key, e.target.value)
+                                                    }
+                                                    className="text-xs"
+                                                />
+                                            ))}
+                                        </div>
+                                        <p
+                                            role="status"
+                                            className={`flex items-center gap-1.5 text-sm ${
+                                                gap === 0
+                                                    ? 'text-(--status-success)'
+                                                    : 'text-destructive-text'
+                                            }`}
+                                        >
+                                            {gap === 0 ? (
+                                                <CheckCircle2
+                                                    className="size-4 shrink-0"
+                                                    aria-hidden="true"
+                                                />
+                                            ) : (
+                                                <AlertCircle
+                                                    className="size-4 shrink-0"
+                                                    aria-hidden="true"
+                                                />
+                                            )}
+                                            {gap === 0
+                                                ? 'Jumlah cocok'
+                                                : gap > 0
+                                                  ? `Kurang ${formatNumber(gap)}`
+                                                  : `Lebih ${formatNumber(-gap)}`}
+                                        </p>
+                                    </div>
+                                );
+                            })}
+                            {acceptBlocked && (
+                                <p
+                                    id="accept-blocked"
+                                    role="status"
+                                    className="text-sm text-destructive-text"
                                 >
-                                    <div className="flex justify-between font-semibold">
-                                        <span>{line.product_name ?? 'Barang'}</span>
-                                        <span>
-                                            Deklarasi Sisa:{' '}
-                                            {formatNumber(line.declared_good_return_qty)}
-                                        </span>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div>
-                                            <Label className="text-xs">
-                                                Diterima Baik (Tambah Stok)
-                                            </Label>
-                                            <Input
-                                                type="number"
-                                                step="any"
-                                                min="0"
-                                                value={line.accepted_good_return_qty}
-                                                onChange={(e) => {
-                                                    const val = parseFloat(e.target.value) || 0;
-                                                    const newLines = [...acceptLines];
-                                                    newLines[idx].accepted_good_return_qty = val;
-                                                    setAcceptLines(newLines);
-                                                    if (actionError) setActionError(null);
-                                                }}
-                                                className="h-8 text-xs"
-                                            />
-                                        </div>
-                                        <div>
-                                            <Label className="text-xs">Rusak</Label>
-                                            <Input
-                                                type="number"
-                                                step="any"
-                                                min="0"
-                                                value={line.damaged_return_qty}
-                                                onChange={(e) => {
-                                                    const val = parseFloat(e.target.value) || 0;
-                                                    const newLines = [...acceptLines];
-                                                    newLines[idx].damaged_return_qty = val;
-                                                    setAcceptLines(newLines);
-                                                    if (actionError) setActionError(null);
-                                                }}
-                                                className="h-8 text-xs"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
+                                    Samakan jumlah setiap barang dengan yang diserahkan.
+                                </p>
+                            )}
                         </div>
                         <AlertDialogFooter>
                             <AlertDialogCancel disabled={actionLoading}>Batal</AlertDialogCancel>
@@ -1520,12 +1631,19 @@ export default function InventoryRequestsShow({ request }: Props) {
                                         lines: acceptLines.map((l) => ({
                                             id: l.id,
                                             accepted_good_return_qty: l.accepted_good_return_qty,
-                                            damaged_return_qty: l.damaged_return_qty || 0,
-                                            lost_qty: l.lost_qty || 0,
-                                            other_discrepancy_qty: l.other_discrepancy_qty || 0,
+                                            damaged_return_qty: l.damaged_return_qty,
+                                            lost_qty: l.lost_qty,
+                                            other_discrepancy_qty: l.other_discrepancy_qty,
+                                            // One kind per line is stored: the first column that holds a quantity. The reason
+                                            // the technician gave stays as it is.
                                             discrepancy_code:
-                                                l.damaged_return_qty > 0 ? 'damaged' : null,
-                                            discrepancy_reason: l.discrepancy_reason || null,
+                                                l.damaged_return_qty > 0
+                                                    ? 'damaged'
+                                                    : l.lost_qty > 0
+                                                      ? 'lost'
+                                                      : l.other_discrepancy_qty > 0
+                                                        ? 'other'
+                                                        : null,
                                         })),
                                     };
                                     handleReturnApiAction(
@@ -1536,7 +1654,8 @@ export default function InventoryRequestsShow({ request }: Props) {
                                         payload,
                                     );
                                 }}
-                                disabled={actionLoading}
+                                disabled={actionLoading || acceptBlocked}
+                                aria-describedby={acceptBlocked ? 'accept-blocked' : undefined}
                             >
                                 {actionLoading ? 'Memproses...' : 'Konfirmasi Penerimaan Fisik'}
                             </AlertDialogAction>

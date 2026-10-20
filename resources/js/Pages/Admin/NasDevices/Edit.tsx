@@ -12,6 +12,8 @@ import {
     Input,
 } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
+import { RadiusSecretField } from '@/Components/composite/RadiusSecretField';
+import { RouterOsCommandCard } from '@/Components/composite/RouterOsCommandCard';
 import type { NasDevice, RouterAssetOption } from '@/types/network-asset';
 
 interface EditProps extends Record<string, unknown> {
@@ -97,13 +99,10 @@ export default function Edit({ routerAssets, nasDevice }: EditProps) {
                                     required
                                 />
                             </div>
-                            <Input
-                                label="Secret RADIUS"
-                                type="password"
-                                autoComplete="off"
+                            <RadiusSecretField
                                 placeholder={nasDevice.has_radius_secret ? 'Tersimpan' : undefined}
                                 value={data.radius_secret}
-                                onChange={(event) => setData('radius_secret', event.target.value)}
+                                onChange={(value) => setData('radius_secret', value)}
                                 hint={
                                     nasDevice.has_radius_secret
                                         ? 'Secret sudah tersimpan. Kosongkan untuk mempertahankannya.'
@@ -128,6 +127,18 @@ export default function Edit({ routerAssets, nasDevice }: EditProps) {
                         </CardFooter>
                     </Card>
                 </form>
+
+                <RouterOsCommandCard
+                    nasAddress={data.nasname}
+                    coaPort={Number(data.coa_port)}
+                    // The saved secret never reaches the page: while the field is empty the router keeps it, and the commands say so.
+                    secret={data.radius_secret || (nasDevice.has_radius_secret ? null : '')}
+                    note={
+                        data.radius_secret === '' && nasDevice.has_radius_secret
+                            ? 'Secret yang tersimpan tidak pernah ditampilkan lagi. Buat secret baru di atas bila router perlu diatur ulang, lalu simpan.'
+                            : undefined
+                    }
+                />
             </div>
         </AdminLayout>
     );

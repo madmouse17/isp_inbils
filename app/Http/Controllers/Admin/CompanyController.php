@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\EnforceCompanyTwoFactor;
 use App\Http\Requests\Admin\UpdateCompanyProfileRequest;
 use App\Http\Requests\Admin\UpdateCompanySettingsRequest;
 use App\Http\Resources\CompanyResource;
+use App\Models\Core\Company;
 use App\Services\Core\CompanyLogoService;
 use App\Services\Core\CompanyService;
+use App\Services\Core\IndonesiaRegionService;
 use App\Services\WhatsApp\WhatsAppCloudClient;
 use App\Services\WhatsApp\WhatsAppSettings;
 use App\Support\OptimisticLock;
@@ -73,9 +76,14 @@ class CompanyController extends Controller
                 'map_lng' => null,
                 'map_zoom' => null,
                 ...WhatsAppSettings::defaults(),
-            ], $company->settings ?? []), ['spk_auto_invoice']),
+            ], $company->settings ?? [], [
+                // Always a real boolean on the page, whatever a hand-edited row holds.
+                EnforceCompanyTwoFactor::SETTING => EnforceCompanyTwoFactor::required($company),
+            ]), ['spk_auto_invoice']),
             'version' => OptimisticLock::version($company),
             'cities' => $this->cities(),
+            // The city the profile address names, offered while no map region is chosen; null when the address names none.
+            'suggestedCity' => $this->suggestedCity($company),
             // Whether credentials exist, never their values; the usage counts this company's current month.
             'whatsapp' => [
                 'configured' => app(WhatsAppCloudClient::class)->isConfigured(),
@@ -96,9 +104,30 @@ class CompanyController extends Controller
         $company = CompanyService::current();
         Gate::authorize('updateSettings', $company);
 
-        CompanyService::updateSettings($request->validated('settings'), $request->validated(OptimisticLock::FIELD));
+        $settings = $request->validated('settings');
+
+        // Stored as a real boolean, so the policy is never read as off by a strict comparison.
+        if (array_key_exists(EnforceCompanyTwoFactor::SETTING, $settings)) {
+            $settings[EnforceCompanyTwoFactor::SETTING] = filter_var($settings[EnforceCompanyTwoFactor::SETTING], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        // The first save of this form confirms the billing defaults it showed (F1-U05). The stamp is the server's alone:
+        // the request drops a client copy, and an existing one is never moved.
+        if (blank(($company->settings ?? [])[UpdateCompanySettingsRequest::BILLING_CONFIRMED_AT] ?? null)) {
+            $settings[UpdateCompanySettingsRequest::BILLING_CONFIRMED_AT] = now()->toIso8601String();
+        }
+
+        CompanyService::updateSettings($settings, $request->validated(OptimisticLock::FIELD));
 
         return back()->with('success', 'Pengaturan perusahaan diperbarui.');
+    }
+
+    /** @return array{code: string, name: string}|null */
+    private function suggestedCity(Company $company): ?array
+    {
+        $city = IndonesiaRegionService::cityInText($company->address);
+
+        return $city === null ? null : ['code' => $city->code, 'name' => IndonesiaRegionService::displayName($city->name)];
     }
 
     /** Every kota/kabupaten for the default-map picker, with the point the picker jumps to. @return list<array{code: string, name: string, province_name: string, lat: float, lng: float}> */
@@ -114,8 +143,8 @@ class CompanyController extends Controller
 
                 return [
                     'code' => $city->code,
-                    'name' => $city->name,
-                    'province_name' => $city->province_name,
+                    'name' => IndonesiaRegionService::displayName($city->name),
+                    'province_name' => IndonesiaRegionService::displayName($city->province_name),
                     'lat' => (float) ($meta['lat'] ?? 0),
                     'lng' => (float) ($meta['long'] ?? 0),
                 ];

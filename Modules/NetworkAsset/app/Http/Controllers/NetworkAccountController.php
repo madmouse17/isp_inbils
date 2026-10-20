@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Inertia\Support\Header;
+use Modules\Ipam\Services\IpAssignmentService;
 use Modules\NetworkAsset\Http\Requests\StoreNetworkAccountRequest;
 use Modules\NetworkAsset\Http\Requests\UpdateNetworkAccountRequest;
 use Modules\NetworkAsset\Http\Resources\NetworkAccountResource;
@@ -64,6 +65,7 @@ class NetworkAccountController extends Controller
             'account' => $account === null ? null : (new NetworkAccountResource($account))->resolve(),
             'session' => $session,
             'usage' => $usage,
+            'staticAddress' => $this->staticAddress($subscription, $request->user()?->can('ipam.view') ?? false),
             'desiredState' => $provisioner->stateOf($subscription),
             'isolatedBecause' => $provisioner->isolatedBecause($subscription),
             'radiusEnabled' => app(IntegrationConfig::class)->isEnabled('radius'),
@@ -158,6 +160,19 @@ class NetworkAccountController extends Controller
         $asset = NasDevice::query()->where('nasname', $nasIp)->with('networkAsset:id,code,name')->first()?->networkAsset;
 
         return $asset === null ? null : $asset->code.' - '.$asset->name;
+    }
+
+    /**
+     * The IPv4 address IPAM holds for the subscription, the Framed-IP-Address RADIUS should hand out; null while the
+     * subscription takes a dynamic one. The pool it came from is IPAM data, so the CIDR goes only to holders of ipam.view.
+     *
+     * @return ?array{address: string, prefix: ?string}
+     */
+    private function staticAddress(ServiceSubscription $subscription, bool $withPrefix): ?array
+    {
+        $row = IpAssignmentService::forSubscription($subscription)->firstWhere('family', 4);
+
+        return $row === null ? null : ['address' => $row->address, 'prefix' => $withPrefix ? $row->prefix?->cidr : null];
     }
 
     /** One redirect only: the sealed value is flash data, so the session drops it after the next request. */

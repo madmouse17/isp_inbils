@@ -14,15 +14,27 @@ const roleVisibility: Record<
     }
 > = {
     admin: {
-        groups: ['Operasional', 'Persetujuan', 'Gudang', 'Keuangan', 'Notifikasi', 'Administrasi'],
+        groups: [
+            'Mulai dari sini',
+            'Operasional',
+            'Persetujuan',
+            'Gudang',
+            'Keuangan',
+            'Notifikasi',
+            'Administrasi',
+        ],
         cards: [
             'Belum ditugaskan',
             'SLA terlampaui',
+            'Hampir terlampaui',
+            'Pelanggan membalas',
             'Menunggu persetujuan saya',
             'Antrean permintaan gudang',
             'Antrean retur material',
             'Stok di bawah minimum',
             'Tagihan jatuh tempo',
+            'Pembayaran online bermasalah',
+            'Pembayaran online tertunda',
         ],
         hiddenGroups: ['Aktivitas saya'],
         adminStats: true,
@@ -33,13 +45,18 @@ const roleVisibility: Record<
             'Pekerjaan saya',
             'Belum ditugaskan',
             'SLA terlampaui',
+            'Hampir terlampaui',
+            'Pelanggan membalas',
             'Menunggu persetujuan saya',
             'Antrean permintaan gudang',
             'Antrean retur material',
             'Stok di bawah minimum',
             'Tagihan jatuh tempo',
+            'Pembayaran online bermasalah',
+            'Pembayaran online tertunda',
         ],
-        hiddenGroups: ['Aktivitas saya', 'Administrasi'],
+        // The checklist is for whoever administers the company (company.manage).
+        hiddenGroups: ['Aktivitas saya', 'Administrasi', 'Mulai dari sini'],
         adminStats: false,
     },
     staff: {
@@ -47,13 +64,17 @@ const roleVisibility: Record<
         cards: [
             'Pekerjaan saya',
             'SLA terlampaui',
+            'Hampir terlampaui',
+            'Pelanggan membalas',
             'Antrean permintaan gudang',
             'Antrean retur material',
             'Stok di bawah minimum',
             'Tagihan jatuh tempo',
+            'Pembayaran online bermasalah',
+            'Pembayaran online tertunda',
         ],
         // Operator persona (role-persona-sod): staff cannot approve, so no Persetujuan group.
-        hiddenGroups: ['Persetujuan', 'Aktivitas saya', 'Administrasi'],
+        hiddenGroups: ['Persetujuan', 'Aktivitas saya', 'Administrasi', 'Mulai dari sini'],
         adminStats: false,
     },
 };
@@ -139,6 +160,27 @@ test('@dashboard-persona admin block contents visible only for admin', async ({ 
     await loginAs(page, 'manager');
 
     await expect(page.getByRole('region', { name: 'Administrasi' })).toBeHidden();
+});
+
+test('@dashboard-persona admin first-run checklist counts the steps and links to the open ones', async ({
+    page,
+}) => {
+    await loginAs(page, 'admin');
+
+    const checklist = page.getByRole('main').getByRole('region', { name: 'Mulai dari sini' });
+    await expect(checklist).toBeVisible();
+
+    await expect(checklist.getByRole('progressbar')).toBeVisible();
+    await expect(checklist.getByText(/^\d+ dari 7 langkah selesai$/)).toBeVisible();
+    await expect(
+        checklist.getByRole('list', { name: 'Langkah penyiapan' }).getByRole('listitem'),
+    ).toHaveCount(7);
+
+    // The fixture company has no address, so this step is still open: a link, not a checked row.
+    const profile = checklist.getByRole('link', { name: /Lengkapi profil perusahaan/ });
+    await expect(profile).toHaveAttribute('href', /\/admin\/company\/profile$/);
+    await profile.click();
+    await expect(page).toHaveURL(/\/admin\/company\/profile$/);
 });
 
 for (const dark of [false, true]) {

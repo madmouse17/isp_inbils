@@ -48,9 +48,7 @@ class TicketController extends Controller
     {
         Gate::authorize('viewAny', Ticket::class);
 
-        // The list names each row's customer through CustomerResource, which reads the portal account and the coverage area.
         $tickets = $this->applySort($this->filteredQuery($request), $request, 'created_at', 'desc')
-            ->with(['customer.user:id,public_id', 'customer.areaCoverage:id,public_id'])
             ->paginate($this->perPage($request))
             ->withQueryString();
 
@@ -227,7 +225,7 @@ class TicketController extends Controller
         $hideInternal = (bool) request()->user()?->hasRole('customer');
 
         $relations = [
-            'category', 'customer', 'subscription', 'networkAsset', 'location', 'assignee', 'media',
+            'category', 'customer.user:id,public_id', 'subscription', 'networkAsset', 'location', 'assignee', 'media',
             'comments' => fn ($query) => $query->when($hideInternal, fn ($q) => $q->where('is_internal', false)),
             'comments.author',
         ];

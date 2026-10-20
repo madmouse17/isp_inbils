@@ -1,7 +1,7 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { Link, router, useForm } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CircleCheck, CircleDashed } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { usePermission } from '@/hooks/usePermission';
 import { useCompany } from '@/hooks/useCompany';
@@ -34,13 +34,15 @@ import {
     RemoteSearchSelect,
     WorkOrderTimeline,
 } from '@/Components/composite';
+import { ConfirmDialog } from '@/Components/composite/ConfirmDialog';
 import type { RemoteOption, WorkOrderStep, WorkOrderStepKey } from '@/Components/composite';
 import { SuggestionChip } from '@/Components/composite/SuggestionChip';
-import { formatDate, formatDateTime } from '@/lib/format';
+import { formatDate, formatDateTime, formatRupiah } from '@/lib/format';
 import { lowestLoad } from '@/lib/suggest';
-import { PRIORITY, WORK_ORDER_STATUS, WORK_ORDER_TYPE } from '@/lib/statuses';
+import { INVOICE_STATUS, PRIORITY, WORK_ORDER_STATUS, WORK_ORDER_TYPE } from '@/lib/statuses';
 import type { PageProps } from '@/types';
 import type { DropPort } from '@/types/ipam-odn';
+import type { SpkNextSteps } from '@/types/spk';
 import { checkInText, type CheckInRecord } from '../Tickets/components/checkIn';
 
 interface WoData {
@@ -58,6 +60,7 @@ interface WoData {
     result?: string | null;
     rejection_reason?: string | null;
     customer?: { name: string; code: string } | null;
+    subscription_id?: string | null;
     subscription?: { code: string } | null;
     location?: { name: string; code?: string; path?: string } | null;
     assigned_to?: string | null;
@@ -127,6 +130,10 @@ interface ShowProps extends Record<string, unknown> {
     /** The four steps of the visit; `[]` for a cancelled SPK. */
     steps: WorkOrderStep[];
     currentStep: WorkOrderStepKey | null;
+    /** What approving does, one line each; only while the SPK waits for review and the viewer may approve it. */
+    approvalImpact: string[] | null;
+    /** What is left to do on a completed installation (invoice, PPPoE account): only the part the viewer may see. */
+    nextSteps: SpkNextSteps | null;
 }
 
 type ActionModal =
@@ -183,6 +190,207 @@ function Detail({ label, children }: { label: string; children: React.ReactNode 
     );
 }
 
+interface StepAction {
+    label: string;
+    href?: string;
+    onClick?: () => void;
+    loading?: boolean;
+}
+
+interface StepRow {
+    key: string;
+    done: boolean;
+    text: string;
+    /** An invoice status, shown as its badge next to the text. */
+    status?: string;
+    action?: StepAction;
+}
+
+/**
+ * What the office still does once an installation is approved: send the invoice the approval left, make the PPPoE
+ * account. Each row says its state in words and carries at most one button; a row done reads as done without colour.
+ */
+function NextStepsCard({ steps, workOrder }: { steps: SpkNextSteps; workOrder: WoData }) {
+    const company = useCompany();
+    const [sendOpen, setSendOpen] = useState(false);
+    const [busy, setBusy] = useState<'send' | 'create' | null>(null);
+    const { invoice } = steps;
+    const accountUrl = workOrder.subscription_id
+        ? route('admin.subscriptions.network-account.show', workOrder.subscription_id)
+        : null;
+
+    const rows: StepRow[] = [];
+
+    if (steps.can_view_invoice) {
+        const invoiceUrl = invoice ? route('admin.invoices.show', invoice.id) : null;
+
+        if (invoice === null) {
+            rows.push(
+                steps.billable
+                    ? {
+                          key: 'invoice',
+                          done: false,
+                          text: 'Belum ada tagihan pemasangan',
+                          action: steps.can_create_invoice
+                              ? {
+                                    label: 'Buat tagihan pemasangan',
+                                    onClick: () =>
+                                        router.post(
+                                            route('admin.invoices.create-from-spk'),
+                                            { work_order_id: workOrder.id },
+                                            {
+                                                onStart: () => setBusy('create'),
+                                                onFinish: () => setBusy(null),
+                                            },
+                                        ),
+                                    loading: busy === 'create',
+                                }
+                              : undefined,
+                      }
+                    : {
+                          key: 'invoice',
+                          done: true,
+                          text: 'Tidak ada tagihan pemasangan (tidak ada biaya yang ditagihkan).',
+                      },
+            );
+        } else if (invoice.status === 'draft') {
+            rows.push({
+                key: 'invoice',
+                done: false,
+                text: `Tagihan ${invoice.number} ${formatRupiah(invoice.total, company)} masih draf`,
+                action: steps.can_send_invoice
+                    ? { label: 'Kirim tagihan', onClick: () => setSendOpen(true) }
+                    : { label: 'Buka tagihan', href: invoiceUrl ?? undefined },
+            });
+        } else {
+            rows.push({
+                key: 'invoice',
+                done: true,
+                text:
+                    invoice.status === 'cancelled'
+                        ? `Tagihan ${invoice.number} dibatalkan`
+                        : `Tagihan ${invoice.number} terkirim`,
+                status: invoice.status === 'cancelled' ? undefined : invoice.status,
+                action: { label: 'Buka tagihan', href: invoiceUrl ?? undefined },
+            });
+        }
+    }
+
+    if (steps.can_view_network_account && accountUrl) {
+        rows.push(
+            steps.network_account
+                ? {
+                      key: 'account',
+                      done: true,
+                      text: `Akun PPPoE ${steps.network_account.username} sudah dibuat`,
+                      action: { label: 'Buka akun jaringan', href: accountUrl },
+                  }
+                : {
+                      key: 'account',
+                      done: false,
+                      text: 'Belum ada akun jaringan',
+                      action: steps.can_manage_network_account
+                          ? { label: 'Buat akun jaringan', href: accountUrl }
+                          : undefined,
+                  },
+        );
+    }
+
+    if (rows.length === 0) return null;
+
+    // The first step still open is the one main action of the page: a completed SPK has no other.
+    const firstOpen = rows.findIndex((row) => !row.done && row.action);
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Langkah berikut</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <ul className="space-y-4">
+                    {rows.map((row, index) => (
+                        <li
+                            key={row.key}
+                            className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                            <div className="flex items-start gap-2 text-sm">
+                                {row.done ? (
+                                    <CircleCheck
+                                        className="mt-0.5 size-5 shrink-0 text-(--status-success)"
+                                        aria-hidden="true"
+                                    />
+                                ) : (
+                                    <CircleDashed
+                                        className="mt-0.5 size-5 shrink-0 text-muted-foreground"
+                                        aria-hidden="true"
+                                    />
+                                )}
+                                <div className="min-w-0">
+                                    <span className="sr-only">
+                                        {row.done ? 'Selesai: ' : 'Belum: '}
+                                    </span>
+                                    {row.text}
+                                    {row.status && (
+                                        <EnumBadge
+                                            map={INVOICE_STATUS}
+                                            value={row.status}
+                                            className="ml-2 align-middle"
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                            {row.action && (
+                                <Button
+                                    asChild={Boolean(row.action.href)}
+                                    type="button"
+                                    size="sm"
+                                    variant={index === firstOpen ? 'primary' : 'outline'}
+                                    className="w-full sm:w-auto"
+                                    loading={row.action.loading}
+                                    onClick={row.action.onClick}
+                                >
+                                    {row.action.href ? (
+                                        <Link href={row.action.href}>{row.action.label}</Link>
+                                    ) : (
+                                        row.action.label
+                                    )}
+                                </Button>
+                            )}
+                        </li>
+                    ))}
+                </ul>
+            </CardContent>
+            {invoice && invoice.status === 'draft' && (
+                <ConfirmDialog
+                    open={sendOpen}
+                    title={`Kirim tagihan ${invoice.number}?`}
+                    description="Pelanggan menerima notifikasi di aplikasi Inbils, juga lewat WhatsApp bila aktif. Item tidak bisa diubah lagi."
+                    details={[
+                        `Pelanggan: ${workOrder.customer?.name ?? '-'}`,
+                        `Jumlah: ${formatRupiah(invoice.total, company)}`,
+                        `Jatuh tempo: ${formatDate(invoice.due_date, company)}`,
+                    ]}
+                    confirmLabel="Kirim tagihan"
+                    processing={busy === 'send'}
+                    onConfirm={() =>
+                        router.post(
+                            route('admin.invoices.send', invoice.id),
+                            {},
+                            {
+                                preserveScroll: true,
+                                onStart: () => setBusy('send'),
+                                onSuccess: () => setSendOpen(false),
+                                onFinish: () => setBusy(null),
+                            },
+                        )
+                    }
+                    onClose={() => setSendOpen(false)}
+                />
+            )}
+        </Card>
+    );
+}
+
 export default function Show({
     workOrder,
     technicians,
@@ -194,6 +402,8 @@ export default function Show({
     checkIn,
     steps,
     currentStep,
+    approvalImpact,
+    nextSteps,
 }: ShowProps) {
     const w = workOrder.data;
     const company = useCompany();
@@ -547,6 +757,8 @@ export default function Show({
                                 />
                             </CardContent>
                         </Card>
+
+                        {nextSteps && <NextStepsCard steps={nextSteps} workOrder={w} />}
                     </div>
                 </div>
 
@@ -747,6 +959,15 @@ export default function Show({
                                 {ACTION_DESCRIPTION[actionModal]}
                             </p>
                         ) : null}
+                        {actionModal === 'approve' &&
+                            approvalImpact &&
+                            approvalImpact.length > 0 && (
+                                <ul className="space-y-1 list-disc pl-5 text-sm text-muted-foreground">
+                                    {approvalImpact.map((line) => (
+                                        <li key={line}>{line}</li>
+                                    ))}
+                                </ul>
+                            )}
                         {staleError && (
                             <Alert variant="destructive">
                                 <AlertTitle>SPK sudah berubah</AlertTitle>

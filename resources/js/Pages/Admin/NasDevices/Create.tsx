@@ -14,6 +14,8 @@ import {
     Input,
 } from '@/Components/ui';
 import { PageHeader, RemoteSearchSelect, type RemoteOption } from '@/Components/composite';
+import { RadiusSecretField } from '@/Components/composite/RadiusSecretField';
+import { RouterOsCommandCard } from '@/Components/composite/RouterOsCommandCard';
 
 interface CreateProps extends Record<string, unknown> {
     /** Sent on a search only (`routerAsset_search`). An option's description is the router's management IP. */
@@ -139,14 +141,9 @@ export default function Create({ routerAssetOptions, hasRouterAssets, realm }: C
                                         required
                                     />
                                 </div>
-                                <Input
-                                    label="Secret RADIUS"
-                                    type="password"
-                                    autoComplete="off"
+                                <RadiusSecretField
                                     value={data.radius_secret}
-                                    onChange={(event) =>
-                                        setData('radius_secret', event.target.value)
-                                    }
+                                    onChange={(value) => setData('radius_secret', value)}
                                     hint="Sama dengan secret di router. Disimpan terenkripsi dan tidak pernah ditampilkan lagi oleh Inbils."
                                     error={errors.radius_secret}
                                     required
@@ -173,6 +170,14 @@ export default function Create({ routerAssetOptions, hasRouterAssets, realm }: C
                         </Card>
                     </form>
                 )}
+
+                {realm !== null && hasRouterAssets ? (
+                    <RouterOsCommandCard
+                        nasAddress={data.nasname}
+                        coaPort={Number(data.coa_port)}
+                        secret={data.radius_secret}
+                    />
+                ) : null}
             </div>
         </AdminLayout>
     );

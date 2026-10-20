@@ -64,7 +64,7 @@ export function SubscriptionIpPanel({
                                         onClick={() =>
                                             setConfirm({
                                                 title: `Lepas ${address.address}?`,
-                                                description: `${subscription.code} kembali memakai alamat dinamis dan ${address.address} kembali ke pool-nya.`,
+                                                description: `${subscription.code} kembali memakai alamat dinamis dan ${address.address} kembali ke pool-nya. Bila pelanggan sedang online lewat RADIUS, sesinya diputus sebentar lalu tersambung lagi dengan alamat dari pool dinamis.`,
                                                 confirmLabel: 'Lepas alamat',
                                                 href: route(
                                                     'admin.ipam.addresses.destroy',

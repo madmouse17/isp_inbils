@@ -17,6 +17,7 @@ import { DataTable, PageHeader, type DataTableColumn } from '@/Components/compos
 import { ConfirmRequestDialog } from '@/Components/composite/ConfirmRequestDialog';
 import { CopyButton } from '@/Components/composite/CopyButton';
 import { NasStatusBadge } from '@/Components/composite/NetworkAccessBadges';
+import { RouterOsCommandCard } from '@/Components/composite/RouterOsCommandCard';
 import { AssetPanelCard } from '@/Components/composite/hardware-panel/AssetPanelCard';
 import { usePermission } from '@/hooks/usePermission';
 import { formatDateTime } from '@/lib/format';
@@ -202,6 +203,14 @@ export default function Show({ nasDevice, sessions, isolirUrl, radiusEnabled, ca
                         </CardContent>
                     </Card>
                 </div>
+
+                <RouterOsCommandCard
+                    nasAddress={nasDevice.nasname}
+                    coaPort={nasDevice.coa_port}
+                    // The saved secret never reaches the page: the commands carry a placeholder in its place.
+                    secret={nasDevice.has_radius_secret ? null : ''}
+                    note="Secret hanya terlihat saat dibuat atau diganti di Ubah router."
+                />
 
                 {asset ? (
                     <AssetPanelCard assetId={asset.id} assetType="router" title="Panel router" />

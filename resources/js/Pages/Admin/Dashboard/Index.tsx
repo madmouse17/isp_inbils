@@ -7,6 +7,7 @@ import type { DashboardGroup, DashboardProps, DashboardSection } from '@/types/d
 import { AdminOverview } from './components/AdminOverview';
 import { DashboardRegion } from './components/DashboardRegion';
 import { NotificationsCard } from './components/NotificationsCard';
+import { OnboardingChecklistCard } from './components/OnboardingChecklistCard';
 import { SectionCard } from './components/SectionCard';
 
 const groupTitles: Record<DashboardGroup, string> = {
@@ -27,7 +28,13 @@ function groupSections(sections: DashboardSection[]) {
     return [...groups];
 }
 
-export default function Index({ company, sections, notifications, admin }: DashboardProps) {
+export default function Index({
+    company,
+    sections,
+    onboarding,
+    notifications,
+    admin,
+}: DashboardProps) {
     const groups = groupSections(sections);
     const { unreadCount } = notifications;
 
@@ -41,6 +48,11 @@ export default function Index({ company, sections, notifications, admin }: Dashb
 
                 <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start">
                     <div className="space-y-6 min-w-0">
+                        {onboarding && (
+                            <DashboardRegion id="dashboard-onboarding" title="Mulai dari sini">
+                                <OnboardingChecklistCard onboarding={onboarding} />
+                            </DashboardRegion>
+                        )}
                         {groups.length === 0 ? (
                             <ResourceEmpty
                                 title="Belum ada antrean untuk akun Anda"

@@ -7,6 +7,7 @@ use App\Http\Resources\NotificationResource;
 use App\Models\User;
 use App\Queries\Admin\DashboardAdminStatsQuery;
 use App\Queries\Admin\DashboardQuery;
+use App\Queries\Admin\OnboardingChecklistQuery;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -25,6 +26,7 @@ class DashboardController extends Controller
 
         $props = [
             'sections' => DashboardQuery::sections($request),
+            'onboarding' => OnboardingChecklistQuery::for($user),
             'notifications' => NotificationResource::collection($notifications['latest'])
                 ->additional(['unreadCount' => $notifications['unreadCount']]),
         ];

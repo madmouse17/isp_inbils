@@ -64,6 +64,12 @@ class HandleInertiaRequests extends Middleware
             'impersonation' => $impersonation === null ? null : Inertia::always(fn () => $impersonation->toProp($request->getRequestUri())),
             // Technician/customer-only logins use the apps; the few web pages they still reach drop the admin chrome.
             'appOnly' => $user !== null && RedirectAppOnlyRoles::isAppOnly($user),
+            // A nudge for an admin who has no second factor while the company does not require it yet; once it does,
+            // EnforceCompanyTwoFactor locks instead. Never shown to support staff acting as the user, who cannot enrol for them.
+            'twoFactorPrompt' => $user !== null
+                && $impersonation === null
+                && ! EnforceCompanyTwoFactor::required($company)
+                && EnforceCompanyTwoFactor::isExposed($user),
             'company' => $company ? [
                 'id' => $company->public_id,
                 'name' => $company->name,

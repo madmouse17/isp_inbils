@@ -1,7 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertCircle, Check, ShieldAlert, X } from 'lucide-react';
 import { Link, router } from '@inertiajs/react';
-import { Alert, AlertDescription, AlertTitle, Button, EnumBadge, Textarea } from '@/Components/ui';
+import {
+    Alert,
+    AlertDescription,
+    AlertTitle,
+    Button,
+    EmptyCell,
+    EnumBadge,
+    Skeleton,
+    Textarea,
+} from '@/Components/ui';
 import { ConfirmDialog } from '@/Components/composite/ConfirmDialog';
 import {
     Sheet,
@@ -13,9 +22,11 @@ import {
     SheetTitle,
 } from '@/Components/ui/sheet';
 import { useCompany } from '@/hooks/useCompany';
-import { formatDate, formatDateTime } from '@/lib/format';
+import { formatDate, formatDateTime, formatNumber } from '@/lib/format';
 import { APPROVAL_TYPE, PRIORITY, WORK_ITEM_DOMAIN, WORK_ITEM_STATUS } from '@/lib/statuses';
+import { cn } from '@/lib/utils';
 import type { ApprovalInboxItem } from '@/types';
+import { checkInText, type CheckInRecord } from '../../Tickets/components/checkIn';
 import { formatAge } from '../../MyWork/components/utils';
 import { getItemCompositeId } from './utils';
 
@@ -38,6 +49,189 @@ interface ReviewSheetInnerProps {
     onRefreshQueue?: () => Promise<RefreshQueueResult> | void;
 }
 
+/** The detail of one row, loaded when its sheet opens (`ApprovalInboxQuery::review`). */
+interface ReviewData {
+    /** What approving does, one line each: the confirmation shows them. Empty for an inventory request. */
+    impact: string[];
+    /** At most three photos of the work, to judge it without opening the SPK. */
+    evidence: { id: string; url: string; caption: string | null }[];
+    technician: { name: string } | null;
+    check_in: CheckInRecord | null;
+    /** The materials the SPK used, or the ones a request asks for with the stock that could still be reserved. */
+    items: { name: string; quantity: string; unit: string | null; available: string | null }[];
+}
+
+/** `ready` with null: the server holds no detail for this person. `failed`: the answer never came. */
+type ReviewLoad =
+    { state: 'loading' } | { state: 'failed' } | { state: 'ready'; review: ReviewData | null };
+
+function ReviewDetails({
+    isInventory,
+    load,
+    onRetry,
+}: {
+    isInventory: boolean;
+    load: ReviewLoad;
+    onRetry: () => void;
+}) {
+    return (
+        <section
+            aria-labelledby="review-details-title"
+            aria-busy={load.state === 'loading'}
+            className="space-y-3 rounded-lg border border-border bg-card p-4"
+        >
+            <h4 id="review-details-title" className="text-sm font-semibold text-muted-foreground">
+                {isInventory ? 'Barang diminta' : 'Bukti pekerjaan'}
+            </h4>
+
+            {load.state === 'loading' && (
+                <div role="status">
+                    <span className="sr-only">Memuat rincian peninjauan...</span>
+                    <div className="space-y-3" aria-hidden="true">
+                        <Skeleton className="h-4 w-2/3" />
+                        {!isInventory && (
+                            <div className="grid grid-cols-3 gap-2">
+                                <Skeleton className="aspect-square" />
+                                <Skeleton className="aspect-square" />
+                                <Skeleton className="aspect-square" />
+                            </div>
+                        )}
+                        <Skeleton className="h-4 w-1/2" />
+                    </div>
+                </div>
+            )}
+
+            {load.state === 'failed' && (
+                <Alert variant="warning" className="space-y-2">
+                    <AlertTitle>Rincian belum bisa dimuat</AlertTitle>
+                    <AlertDescription className="space-y-2">
+                        <p>
+                            Anda tetap bisa menyetujui atau menolak, tetapi bukti dan stok belum
+                            terlihat.
+                        </p>
+                        <Button type="button" size="sm" variant="outline" onClick={onRetry}>
+                            Coba lagi
+                        </Button>
+                    </AlertDescription>
+                </Alert>
+            )}
+
+            {load.state === 'ready' && load.review === null && (
+                <p className="text-sm text-muted-foreground">
+                    Rincian bukti dan stok tidak tersedia untuk akun Anda.
+                </p>
+            )}
+
+            {load.state === 'ready' && load.review !== null && (
+                <div className="space-y-4">
+                    {!isInventory && (
+                        <>
+                            <dl className="grid grid-cols-2 gap-3 text-xs">
+                                <div>
+                                    <dt className="text-muted-foreground">Teknisi:</dt>
+                                    <dd className="font-medium text-foreground">
+                                        {load.review.technician?.name ?? <EmptyCell />}
+                                    </dd>
+                                </div>
+                                <div>
+                                    <dt className="text-muted-foreground">Check-in:</dt>
+                                    <dd className="font-medium text-foreground">
+                                        {checkInText(load.review.check_in)}
+                                    </dd>
+                                </div>
+                            </dl>
+                            {load.review.evidence.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                    Belum ada foto bukti.
+                                </p>
+                            ) : (
+                                <ul className="grid grid-cols-3 gap-2">
+                                    {load.review.evidence.map((photo, index) => (
+                                        <li key={photo.id}>
+                                            <a
+                                                href={photo.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="block overflow-hidden rounded-md border border-border focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden"
+                                            >
+                                                <img
+                                                    src={photo.url}
+                                                    alt={photo.caption || `Foto bukti ${index + 1}`}
+                                                    loading="lazy"
+                                                    className="aspect-square w-full bg-muted object-cover"
+                                                />
+                                                <span className="sr-only">, buka di tab baru</span>
+                                            </a>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </>
+                    )}
+
+                    <div className="space-y-1.5">
+                        {!isInventory && (
+                            <h5 className="text-xs font-semibold text-muted-foreground">
+                                Barang terpakai
+                            </h5>
+                        )}
+                        {load.review.items.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                {isInventory
+                                    ? 'Permintaan ini belum punya barang.'
+                                    : 'Belum ada barang tercatat.'}
+                            </p>
+                        ) : (
+                            <ul className="divide-y divide-border text-sm">
+                                {load.review.items.map((line, index) => {
+                                    const unit = line.unit ? ` ${line.unit}` : '';
+                                    const short =
+                                        line.available !== null &&
+                                        Number(line.quantity) > Number(line.available);
+
+                                    return (
+                                        <li key={`${line.name}-${index}`} className="py-1.5">
+                                            <div className="flex items-baseline justify-between gap-3">
+                                                <span className="min-w-0 font-medium text-foreground">
+                                                    {line.name}
+                                                </span>
+                                                <span className="shrink-0 text-foreground">
+                                                    {formatNumber(line.quantity)}
+                                                    {unit}
+                                                </span>
+                                            </div>
+                                            {line.available !== null && (
+                                                <p
+                                                    className={cn(
+                                                        'text-xs',
+                                                        short
+                                                            ? 'text-destructive-text'
+                                                            : 'text-muted-foreground',
+                                                    )}
+                                                >
+                                                    {short && (
+                                                        <AlertCircle
+                                                            className="mr-1 inline size-3.5 align-text-bottom"
+                                                            aria-hidden="true"
+                                                        />
+                                                    )}
+                                                    Tersedia: {formatNumber(line.available)}
+                                                    {unit}
+                                                    {short ? ', kurang dari yang diminta.' : ''}
+                                                </p>
+                                            )}
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        )}
+                    </div>
+                </div>
+            )}
+        </section>
+    );
+}
+
 function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerProps) {
     const company = useCompany();
     const isInventory = item.domain === 'inventory_request';
@@ -50,6 +244,38 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isStale, setIsStale] = useState(false);
     const [isReloading, setIsReloading] = useState(false);
+    const compositeId = getItemCompositeId(item);
+    const [reviewLoad, setReviewLoad] = useState<ReviewLoad>({ state: 'loading' });
+    const [reviewAttempt, setReviewAttempt] = useState(0);
+
+    // The detail is fetched when the sheet opens, never with the list: a partial reload that asks only for `review`.
+    // The answer is kept here, not in the page props, so a sheet never shows the detail of the row opened before it.
+    useEffect(() => {
+        let active = true;
+        let answered = false;
+
+        router.reload({
+            only: ['review'],
+            data: { review: compositeId },
+            preserveUrl: true,
+            onSuccess: (page) => {
+                answered = true;
+                if (active) {
+                    setReviewLoad({
+                        state: 'ready',
+                        review: (page.props.review as ReviewData | null | undefined) ?? null,
+                    });
+                }
+            },
+            onFinish: () => {
+                if (active && !answered) setReviewLoad({ state: 'failed' });
+            },
+        });
+
+        return () => {
+            active = false;
+        };
+    }, [compositeId, reviewAttempt]);
 
     const isActionable = item.actions.approve || item.actions.reject;
 
@@ -285,6 +511,15 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                     </dl>
                 </div>
 
+                <ReviewDetails
+                    isInventory={isInventory}
+                    load={reviewLoad}
+                    onRetry={() => {
+                        setReviewLoad({ state: 'loading' });
+                        setReviewAttempt((attempt) => attempt + 1);
+                    }}
+                />
+
                 <div className="space-y-2 rounded-lg border border-border bg-card p-4">
                     <h4 className="text-sm font-semibold text-muted-foreground">
                         Dampak material dan penggunaan barang
@@ -460,6 +695,13 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                     isInventory
                         ? 'Permintaan barang disetujui dan masuk antrean gudang.'
                         : 'Pekerjaan dan penggunaan material SPK disahkan permanen.'
+                }
+                details={
+                    reviewLoad.state === 'failed'
+                        ? ['Dampak persetujuan belum bisa ditampilkan.']
+                        : reviewLoad.state === 'ready'
+                          ? reviewLoad.review?.impact
+                          : undefined
                 }
                 confirmLabel="Setujui"
                 processing={submitting}

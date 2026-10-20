@@ -12,6 +12,8 @@ use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Arr;
 use Modules\Billing\Models\Invoice;
+use Modules\Billing\Models\PaymentAttempt;
+use Modules\Billing\Services\PaymentAttemptService;
 use Modules\Inventory\Models\MaterialReturnCase;
 use Modules\Inventory\Models\Stock;
 use Modules\Inventory\Services\InventoryRequestService;
@@ -24,9 +26,9 @@ use Modules\Ticketing\Models\Ticket;
  * A card exists only when the actor holds the permission (or passes the eligibility check) that
  * already guards its destination page; absent means "not for you", never zero. Counts are live and
  * scoped to the actor's company. Queue cards delegate to the queue read models and badge services
- * behind the sidebar; the SLA, overdue and low-stock cards restate their destination list's
- * predicate, and DashboardExceptionCountsTest pins each to that list. Persona is the derived group
- * order (operations, approvals, warehouse, finance), never a role name.
+ * behind the sidebar; the ticket, invoice, online payment and low-stock cards restate their
+ * destination list's predicate, and DashboardExceptionCountsTest pins each to that list. Persona
+ * is the derived group order (operations, approvals, warehouse, finance), never a role name.
  */
 final class DashboardQuery
 {
@@ -51,12 +53,16 @@ final class DashboardQuery
             self::myWork($request, $user),
             self::dispatchUnassigned($request, $user),
             self::slaBreached($user),
+            self::slaDueSoon($user),
+            self::customerReplied($user),
             self::approvals($request, $user),
             self::warehouseRequests($user, $inventory['requests']),
             self::returnQueue($user, $inventory['returns']),
             self::lowStock($user),
             self::overdueInvoices($user),
+            self::onlinePaymentExceptions($user),
             self::draftInvoices($user),
+            self::onlinePaymentPending($user),
         ]));
     }
 
@@ -111,7 +117,7 @@ final class DashboardQuery
      */
     private static function slaBreached(User $user): ?array
     {
-        if (! $user->can('ticket.view') || ! self::watchesSla($user)) {
+        if (! self::watchesSlaQueue($user)) {
             return null;
         }
 
@@ -135,6 +141,40 @@ final class DashboardQuery
         return self::section('sla_breached', 'operations', 'SLA terlampaui', $count, route('admin.tickets.index', ['sla_breached' => 1]), 'danger', [
             'items' => $items,
         ]);
+    }
+
+    /**
+     * Unfinished tickets whose response or resolution target falls due within the next half hour: the near miss
+     * before the breach card. Same audience and scope as that card; the list behind it is ?due_soon=1.
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function slaDueSoon(User $user): ?array
+    {
+        if (! self::watchesSlaQueue($user)) {
+            return null;
+        }
+
+        $count = self::ticketQueue($user)->dueSoon()->count();
+
+        return self::section('sla_due_soon', 'operations', 'Hampir terlampaui (≤ 30 menit)', $count, route('admin.tickets.index', ['due_soon' => 1]), 'warning');
+    }
+
+    /**
+     * Unfinished tickets whose newest public comment is the customer's own, so nobody on staff has answered since. Same
+     * audience and scope as the breach card; the list behind it is ?awaiting_reply=1.
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function customerReplied(User $user): ?array
+    {
+        if (! self::watchesSlaQueue($user)) {
+            return null;
+        }
+
+        $count = self::ticketQueue($user)->awaitingStaffReply()->count();
+
+        return self::section('customer_replied', 'operations', 'Pelanggan membalas', $count, route('admin.tickets.index', ['awaiting_reply' => 1]), 'info');
     }
 
     /**
@@ -261,6 +301,45 @@ final class DashboardQuery
     }
 
     /**
+     * Online payments only a person can settle: money Midtrans took that Inbils could not book, or booked money it took
+     * back. The count is the Tunggakan page's own (PaymentAttemptService::openExceptions); the actor needs
+     * billing.payment.record, the permission the exception bell goes by, and billing.view to open that page.
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function onlinePaymentExceptions(User $user): ?array
+    {
+        if (! self::settlesOnlinePayments($user)) {
+            return null;
+        }
+
+        $count = PaymentAttemptService::openExceptions()->forCompany(CompanyService::idFor($user))->count();
+
+        return self::section('online_payment_exceptions', 'finance', 'Pembayaran online bermasalah', $count, route('admin.billing.receivables'), 'danger');
+    }
+
+    /**
+     * Invoices with an online payment page opened more than an hour ago that is still waiting: the customer may have
+     * given up, or still be paying. One count per invoice, as the invoice list shows for ?online_pending=1.
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function onlinePaymentPending(User $user): ?array
+    {
+        if (! self::settlesOnlinePayments($user)) {
+            return null;
+        }
+
+        $companyId = CompanyService::idFor($user);
+        $count = Invoice::query()
+            ->forCompany($companyId)
+            ->whereIn('invoices.id', PaymentAttempt::query()->stalePending()->forCompany($companyId)->select('invoice_id'))
+            ->count();
+
+        return self::section('online_payment_pending', 'finance', 'Pembayaran online tertunda > 1 jam', $count, route('admin.invoices.index', ['online_pending' => 1]), 'warning');
+    }
+
+    /**
      * The inventory badge services, called once and only for an actor who can open the requests page,
      * because the returns list is a tab of that page.
      *
@@ -281,17 +360,14 @@ final class DashboardQuery
     }
 
     /**
-     * Breached tickets scoped like the Tickets list: a handler without ticket.assign only lists tickets
-     * assigned to them, and nothing while inactive (TicketController::filteredQuery).
+     * Tickets scoped like the Tickets list: a handler without ticket.assign only lists tickets assigned to
+     * them, and nothing while inactive (TicketController::filteredQuery).
      *
      * @return Builder<Ticket>
      */
-    private static function breachedTickets(User $user): Builder
+    private static function ticketQueue(User $user): Builder
     {
-        $query = Ticket::query()
-            ->forCompany(CompanyService::idFor($user))
-            ->where('sla_deadline', '<', now())
-            ->whereNotIn('status', ['resolved', 'closed']);
+        $query = Ticket::query()->forCompany(CompanyService::idFor($user));
 
         if (self::handlesTickets($user) && ! $user->can('ticket.assign')) {
             if ($user->is_active) {
@@ -304,6 +380,14 @@ final class DashboardQuery
         return $query;
     }
 
+    /** @return Builder<Ticket> */
+    private static function breachedTickets(User $user): Builder
+    {
+        return self::ticketQueue($user)
+            ->where('sla_deadline', '<', now())
+            ->whereNotIn('status', ['resolved', 'closed']);
+    }
+
     private static function handlesTickets(User $user): bool
     {
         return $user->can('ticket.start') || $user->can('ticket.resolve') || $user->can('ticket.close');
@@ -312,6 +396,18 @@ final class DashboardQuery
     private static function watchesSla(User $user): bool
     {
         return $user->can('ticket.assign') || $user->can('ticket.reassign') || self::handlesTickets($user) || $user->can('report.sla.view');
+    }
+
+    /** The three ticket queue cards share one audience: ticket.view alone is not enough, as for the breach card. */
+    private static function watchesSlaQueue(User $user): bool
+    {
+        return $user->can('ticket.view') && self::watchesSla($user);
+    }
+
+    /** Online payment cards: billing.view opens the pages, billing.payment.record is who settles what they list. */
+    private static function settlesOnlinePayments(User $user): bool
+    {
+        return $user->can('billing.payment.record') && $user->can('billing.view');
     }
 
     /**

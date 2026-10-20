@@ -16,6 +16,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
     AlertTitle,
+    Badge,
     Button,
     Card,
     CardContent,
@@ -51,6 +52,12 @@ import type {
     NetworkServiceType,
 } from '@/types/network-asset';
 
+/** The IPv4 address IPAM holds for the subscription; the pool is null for a viewer without ipam.view. */
+interface StaticAddress {
+    address: string;
+    prefix: string | null;
+}
+
 interface ShowProps extends Record<string, unknown> {
     subscription: NetworkAccountSubscription;
     /** Lower-cased company code; null when it cannot be used as a RADIUS realm. */
@@ -59,6 +66,8 @@ interface ShowProps extends Record<string, unknown> {
     /** Null while RADIUS is off or unreachable, or when the subscriber is offline. */
     session: RadiusSession | null;
     usage: { month: string; input_octets: number; output_octets: number } | null;
+    /** What RADIUS should hand out as Framed-IP-Address; null while the subscription takes a dynamic address. */
+    staticAddress: StaticAddress | null;
     desiredState: NetworkDesiredState;
     isolatedBecause: ('suspended' | 'blocked')[];
     radiusEnabled: boolean;
@@ -353,6 +362,7 @@ export default function Show({
     realm,
     session,
     usage,
+    staticAddress,
     isolatedBecause,
     radiusEnabled,
     can,
@@ -399,6 +409,12 @@ export default function Show({
     };
 
     const speedProfile = subscription.speed_profile;
+    // A session only gets its address when it starts, so one that predates an assignment keeps the old address until it is cut.
+    const framedIp = session?.framed_ip ?? null;
+    const addressMismatch =
+        staticAddress !== null && framedIp !== null && framedIp !== staticAddress.address
+            ? { framedIp, expected: staticAddress.address }
+            : null;
 
     return (
         <AdminLayout title={`Akses jaringan ${subscription.code}`}>
@@ -459,6 +475,30 @@ export default function Show({
                                     Coba sekarang
                                 </Button>
                             )}
+                        </AlertDescription>
+                    </Alert>
+                ) : null}
+
+                {addressMismatch ? (
+                    <Alert variant="warning">
+                        <AlertDescription className="flex flex-wrap items-center gap-3">
+                            <span>
+                                Sesi memakai{' '}
+                                <span className="font-mono">{addressMismatch.framedIp}</span>, bukan
+                                alamat statis{' '}
+                                <span className="font-mono">{addressMismatch.expected}</span>.
+                                Sinkron ulang agar router memberi alamat yang benar.
+                            </span>
+                            {can.manage ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setConfirmingResync(true)}
+                                >
+                                    Sinkron ulang dan putuskan sesi
+                                </Button>
+                            ) : null}
                         </AlertDescription>
                     </Alert>
                 ) : null}
@@ -632,6 +672,23 @@ export default function Show({
                                             ? `${account.provisioned_group} sejak ${formatDateTime(account.provisioned_at)}`
                                             : 'Belum ada di RADIUS'}
                                     </Row>
+                                    {staticAddress ? (
+                                        <Row label="IP statis diharapkan">
+                                            <span className="font-mono break-all">
+                                                {staticAddress.address}
+                                            </span>
+                                            {staticAddress.prefix ? (
+                                                <>
+                                                    {' '}
+                                                    (IPAM{' '}
+                                                    <span className="font-mono">
+                                                        {staticAddress.prefix}
+                                                    </span>
+                                                    )
+                                                </>
+                                            ) : null}
+                                        </Row>
+                                    ) : null}
                                     <Row label="Online">
                                         <EnumBadge
                                             map={NETWORK_ONLINE_STATE}
@@ -649,7 +706,10 @@ export default function Show({
                                             <Row label="Alamat">
                                                 <span className="font-mono break-all">
                                                     {session.framed_ip ?? '-'}
-                                                </span>
+                                                </span>{' '}
+                                                <Badge variant={staticAddress ? 'info' : 'neutral'}>
+                                                    {staticAddress ? 'Statis' : 'Dinamis'}
+                                                </Badge>
                                             </Row>
                                             <Row label="NAS">
                                                 {session.nas_label ?? session.nas_ip}

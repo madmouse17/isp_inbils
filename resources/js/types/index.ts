@@ -125,6 +125,8 @@ export type PageProps<T extends Record<string, unknown> = Record<string, unknown
     canTechnicianReport?: boolean;
     /** True when the user holds only technician and/or customer roles: they work in the Android app. */
     appOnly?: boolean;
+    /** True for an admin without two-factor authentication while the company does not require it yet: the layout asks, and the admin may postpone. */
+    twoFactorPrompt?: boolean;
     /** True only where the `admin.components` route exists (local/testing). */
     developerGalleryEnabled?: boolean;
     notifications?: {

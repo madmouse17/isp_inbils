@@ -13,6 +13,7 @@ import {
     Topbar,
 } from '@/Components/ui';
 import { NotificationBell } from '@/Components/composite/NotificationBell';
+import { TwoFactorPrompt } from '@/Components/composite/TwoFactorPrompt';
 import { CompanySwitcher } from '@/Components/composite/CompanySwitcher';
 import { ImpersonationBanner } from '@/Components/composite/ImpersonationBanner';
 import { useCompany } from '@/hooks/useCompany';
@@ -178,9 +179,11 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                         </div>
                         <main
                             aria-busy={navigating || undefined}
-                            className="min-h-0 flex-1 scrollbar-thin [scrollbar-color:hsl(var(--muted-foreground))_transparent] overflow-y-auto p-4 md:p-6 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent"
+                            // scroll-pb: a sticky action bar at the foot of a page never hides the field that has focus.
+                            className="min-h-0 flex-1 scroll-pb-24 scrollbar-thin [scrollbar-color:hsl(var(--muted-foreground))_transparent] overflow-y-auto p-4 md:p-6 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent"
                         >
                             <div className="mx-auto space-y-6 w-full max-w-[1600px]">
+                                <TwoFactorPrompt />
                                 {children}
                             </div>
                         </main>

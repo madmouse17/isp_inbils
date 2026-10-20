@@ -203,5 +203,9 @@ export interface MaterialReturnCaseRow {
         accepted_good_return_qty: number;
         damaged_return_qty: number;
         lost_qty: number;
+        other_discrepancy_qty: number;
+        /** What the technician said the difference was (`damaged`, `lost`, `other`); null when there is none. */
+        discrepancy_code?: string | null;
+        discrepancy_reason?: string | null;
     }>;
 }

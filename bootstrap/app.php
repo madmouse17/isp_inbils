@@ -6,6 +6,7 @@ use App\Http\Middleware\Api\EnsureApiAppAccess;
 use App\Http\Middleware\Api\EnsureApiUserIsActive;
 use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\DetectRecordEnumeration;
+use App\Http\Middleware\EnforceCompanyTwoFactor;
 use App\Http\Middleware\EnforceImpersonation;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\Platform\EnsurePlatformAccountIsActive;
@@ -79,6 +80,8 @@ return Application::configure(basePath: dirname(__DIR__))
             EnforceImpersonation::class,
             ResolveActiveCompany::class,
             RedirectIfNoCompany::class,
+            // After the company is resolved, before Inertia: a refused admin is redirected to the Profile page (F1-U06, K24).
+            EnforceCompanyTwoFactor::class,
             HandleInertiaRequests::class,
             PreventDuplicateWebSubmit::class,
             AddLinkHeadersForPreloadedAssets::class,

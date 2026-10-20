@@ -204,7 +204,7 @@ class CompanyService
             'lng' => (float) ($ownPoint ? $settings['map_lng'] : ($defaults['default_map_lng'] ?? 118.0149)),
             'zoom' => (int) ($ownZoom ? $settings['map_zoom'] : ($defaults['default_map_zoom'] ?? 5)),
             'city_code' => $cityCode ?: null,
-            'city_name' => $cityCode ? City::query()->where('code', $cityCode)->value('name') : null,
+            'city_name' => $cityCode ? IndonesiaRegionService::displayName(City::query()->where('code', $cityCode)->value('name')) : null,
         ];
     }
 
