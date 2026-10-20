@@ -68,6 +68,8 @@ docs/business/*
 !docs/business/network.md
 !docs/business/approval-flow.md
 !docs/business/spk.md
+!docs/business/service.md
+!docs/business/reporting.md
 !docs/standards/
 docs/standards/*
 !docs/standards/engineering-rules.md

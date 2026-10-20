@@ -57,6 +57,36 @@ class MyWorkTest extends TestCase
             ->assertJsonPath('data.0.id', $ticket->public_id);
     }
 
+    public function test_ticket_row_carries_response_due_until_first_response(): void
+    {
+        $technician = $this->technicianLogin();
+        CompanyService::useCompanyForTests((int) $technician->company_id);
+        $token = $this->issueToken($technician, 'technician');
+        $deadline = now()->addMinutes(41)->startOfSecond();
+        $ticket = $this->ticketFor($technician->id, 'assigned', 'urgent', now()->subMinutes(5));
+        $ticket->forceFill(['response_deadline' => $deadline])->save();
+        $due = fn (): ?string => $this->api('GET', 'technician/my-work?domain=ticket&per_page=10', token: $token)->assertOk()->json('data.0.response_due_at');
+
+        $this->assertSame($deadline->toISOString(), $due());
+
+        $ticket->forceFill(['first_response_at' => now()])->save();
+
+        $this->assertNull($due(), 'once somebody answered there is nothing left to count down to');
+    }
+
+    public function test_spk_row_carries_the_type_in_indonesian(): void
+    {
+        $technician = $this->technicianLogin();
+        CompanyService::useCompanyForTests((int) $technician->company_id);
+        $workOrder = $this->workOrderFor($technician->id, 'assigned', 'medium', now()->subDay());
+        $workOrder->forceFill(['type' => 'maintenance'])->save();
+
+        $this->api('GET', 'technician/my-work?domain=spk&per_page=10', token: $this->issueToken($technician, 'technician'))
+            ->assertOk()
+            ->assertJsonPath('data.0.type', 'maintenance')
+            ->assertJsonPath('data.0.type_label', 'Perawatan');
+    }
+
     public function test_customer_token_and_ineligible_technician_are_rejected(): void
     {
         [$customerUser] = $this->customerLogin();

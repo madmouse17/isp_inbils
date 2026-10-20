@@ -87,7 +87,7 @@ Warna aplikasi mengikuti warna merek ISP Anda, dan logo ISP tampil di kiri atas 
 
    ![Beranda dengan kartu kunjungan SPK pada bagian Sedang berjalan, tahap Dalam perjalanan](images/customer/redesign/kunjungan-beranda-dalam-perjalanan.png)
 
-Tarik layar ke bawah untuk memuat ulang. Kartu kunjungan baru berubah setelah Anda memuat ulang, sedangkan angka di lonceng berubah sendiri saat Anda kembali ke aplikasi. Bila satu bagian gagal dimuat, bagian itu menampilkan "Data tidak dapat dimuat." dan tombol **Coba lagi**; bagian lain tetap tampil.
+Tarik layar ke bawah untuk memuat ulang. Aplikasi juga memuat ulang sendiri saat Anda membuka kembali aplikasi dari latar belakang dan saat Anda berpindah tab (langsung), serta sekitar 1 detik setelah notifikasi terakhir dalam satu rentetan, jadi kartu kunjungan dan angka di lonceng ikut berubah tanpa tarikan. Selama data dimuat ulang, garis tipis berjalan di atas daftar dan isi lama tetap terbaca. Bila satu bagian gagal dimuat, bagian itu menampilkan "Data tidak dapat dimuat." dan tombol **Coba lagi**; bagian lain tetap tampil.
 
 Beranda juga memuat informasi dari ISP:
 
@@ -136,7 +136,7 @@ Layar detail memuat, dari atas ke bawah:
 
 Tarik layar ke bawah untuk memuat ulang.
 
-Tersedia pada versi berikutnya: periode tagihan, referensi dan metode pada tiap pembayaran, status percobaan pembayaran terakhir, dan **struk PDF** untuk tagihan yang sudah lunas. Datanya sudah dikirim server, tetapi aplikasi belum menampilkannya.
+Tersedia pada versi berikutnya: periode tagihan, referensi dan metode pada tiap pembayaran, dan **struk PDF** untuk tagihan yang sudah lunas. Datanya sudah dikirim server, tetapi aplikasi belum menampilkannya.
 
 ## Bayar lewat Midtrans
 
@@ -157,6 +157,21 @@ Saat Anda kembali ke aplikasi, layar detail memuat ulang status tagihan sendiri 
 - Banner **Pembayaran diterima** berarti tagihan sudah tercatat. Statusnya menjadi **Lunas** dan pembayaran muncul di bagian **Pembayaran** serta di Riwayat pembayaran.
 - Banner **Menunggu konfirmasi pembayaran** berarti pembayaran belum sampai ke sistem. Ketuk **Periksa status** beberapa saat kemudian. Sistem juga memeriksa ke Midtrans secara berkala, jadi pembayaran yang berhasil tetap tercatat walaupun aplikasi sempat tertutup.
 - Pembayaran yang dikonfirmasi lebih lama (misalnya transfer bank) boleh dicek lagi nanti dari tab **Tagihan**.
+
+### Bila pembayaran terakhir tidak berhasil
+
+Bila percobaan bayar terakhir tidak selesai, detail tagihan menulis alasannya di spanduk di atas **Rincian tagihan**, lengkap dengan langkah berikutnya:
+
+| Spanduk | Artinya | Tombol |
+| --- | --- | --- |
+| "Pembayaran ditolak. Coba lagi, metode lain bisa dipilih di halaman bayar." | Bank atau penyedia metode menolak pembayaran. | **Bayar lagi** |
+| "Pembayaran dibatalkan." | Pembayaran dibatalkan di halaman bayar sebelum selesai. | **Bayar lagi** |
+| "Waktu bayar habis." | Halaman bayar kedaluwarsa sebelum selesai. | **Bayar lagi** |
+| "Pembayaran Anda sedang diperiksa ISP. Hubungi ISP bila saldo Anda sudah terpotong." | Uang masuk tetapi sistem belum bisa mencatatnya pada tagihan ini. ISP memeriksanya. | **Hubungi ISP** |
+| "Halaman bayar ditutup karena tagihan sudah dibayar atau berubah." | ISP mencatat pembayaran lain atau mengubah tagihan, sehingga halaman lama ditutup. | **Bayar lagi**, hanya bila tagihan masih bisa dibayar |
+| "Pembayaran online Anda sudah dikembalikan ISP." | ISP mengembalikan uang pembayaran online Anda. | **Hubungi ISP** |
+
+**Bayar lagi** membuka halaman bayar Midtrans yang sama seperti tombol **Bayar**, dan di sana semua metode tersedia. **Hubungi ISP** membuka lembar kontak. Spanduk "ditolak", "dibatalkan" dan "waktu habis" tidak tampil pada tagihan yang sudah lunas atau tidak bisa dibayar lagi.
 
 Bila ISP sudah mengaktifkan WhatsApp dan Anda menyetujuinya, pesan "pembayaran diterima" juga dikirim ke WhatsApp. Lihat bab 7.
 
@@ -323,10 +338,10 @@ Layar ini hanya memberi saran. Tidak ada yang terkirim ke ISP sampai Anda menget
 ![Tiket baru dengan Kategori dan Layanan yang sudah terisi dari Ada masalah?](images/customer/redesign/tiket-baru-prefilled-teal-dark.png)
 
 1. Ketuk **Masih bermasalah? Buat tiket** (dari **Ada masalah?**), **Buat tiket** (tombol di tab Bantuan), atau **Laporkan gangguan** (di Beranda). Dari **Laporkan gangguan** dan **Buat tiket**, formulir terbuka tanpa isian awal.
-2. Pilih **Kategori**. Wajib. Dari **Ada masalah?** isian ini sudah terisi.
+2. Pilih **Kategori**. Wajib. Dari **Ada masalah?** isian ini sudah terisi. Begitu kategori terpilih, **Judul** terisi dengan nama kategori ("No Internet", misalnya). Ganti judulnya bila perlu. Judul yang sudah Anda tulis sendiri tidak ditimpa saat Anda mengganti kategori.
 3. Pilih **Layanan (opsional)** bila masalahnya terkait satu langganan. Pilihan hanya memuat layanan yang aktif atau ditangguhkan. Biarkan "Tidak terkait layanan" bila tidak ada.
-4. Isi **Judul**, wajib, paling banyak 255 karakter.
-5. Isi **Deskripsi (opsional)**: apa yang terjadi, sejak kapan, lampu apa yang menyala di perangkat.
+4. Isi atau ubah **Judul**, wajib, paling banyak 255 karakter.
+5. Isi **Deskripsi (opsional)**: apa yang terjadi, sejak kapan, lampu apa yang menyala di perangkat. Di bawah kolom ada lima jawaban cepat: "Gangguan sejak hari ini.", "Gangguan sejak kemarin.", "Lampu LOS di modem menyala merah.", "Lampu modem normal." dan "Modem sudah dinyalakan ulang." Ketuk satu untuk menambahkannya sebagai satu baris di deskripsi, ketuk lagi untuk mencabutnya. Anda bisa menambah kalimat sendiri di sekitarnya.
 6. Untuk menambah foto, ketuk **Tambah lampiran** (lihat di bawah). Bisa lebih dari satu.
 7. Ketuk **Kirim tiket**.
 
@@ -410,12 +425,13 @@ Aplikasi bisa memunculkan notifikasi di layar ponsel Android Anda, juga saat apl
 2. Pilih izinkan. Aplikasi lalu mendaftarkan ponsel ini ke Inbils, dan notifikasi di kolom **Push** pada tabel di atas masuk ke ponsel.
 3. Ketuk notifikasi di layar ponsel. Aplikasi terbuka langsung di tagihan, kunjungan, atau pengumuman terkait. Untuk pesan yang tidak punya layar tujuan, aplikasi membuka daftar notifikasi. Notifikasi itu ditandai sudah dibaca.
 4. Saat aplikasi sedang terbuka, notifikasi tampil sebagai banner singkat di atas layar.
+5. Bila beberapa notifikasi menunggu, Android menumpuknya dalam satu kelompok dengan satu baris ringkasan, "{n} notifikasi baru", yang memuat sampai lima judul (judul saja, tanpa isi pesan). Ketuk ringkasan itu untuk membuka daftar notifikasi, dan ketuk satu notifikasi untuk membuka layar tujuannya. Bila layar itu sudah terbuka, isinya langsung dimuat ulang supaya yang Anda lihat adalah data terbaru.
 
 Bila Anda menolak izinnya, aplikasi tetap berfungsi dan lonceng tetap menerima semua notifikasi. Untuk mengaktifkan push kemudian, nyalakan notifikasi aplikasi Inbils di pengaturan Android (**Pengaturan > Aplikasi**), lalu buka aplikasi lagi. Aplikasi memeriksa izinnya setiap kali dibuka dan mendaftarkan ponsel saat izin sudah menyala.
 
-Saat **Keluar**, aplikasi menghapus pendaftaran ponsel ini, sehingga tidak ada push lagi sampai Anda masuk kembali. Ponsel yang dikeluarkan dari daftar **Perangkat** (bab 8), kata sandi yang diganti, atau akun yang dinonaktifkan juga berhenti menerima push. Push tidak bergantung pada WhatsApp dan tidak membutuhkan persetujuan WhatsApp.
+Saat **Keluar**, aplikasi menghapus pendaftaran ponsel ini, sehingga tidak ada push lagi sampai Anda masuk kembali, dan semua notifikasi aplikasi ini dihapus dari bayangan notifikasi, juga bila ponsel sedang offline. Aplikasi yang tidak punya sesi masuk tidak memunculkan notifikasi apa pun. Ponsel yang dikeluarkan dari daftar **Perangkat** (bab 8), kata sandi yang diganti, atau akun yang dinonaktifkan juga berhenti menerima push. Push tidak bergantung pada WhatsApp dan tidak membutuhkan persetujuan WhatsApp.
 
-Bila push tidak muncul, pastikan izin notifikasi menyala, ponsel punya internet dan Anda masih masuk di aplikasi ini. ISP juga harus sudah mengaktifkan push di servernya. Bila ISP belum mengaktifkannya, notifikasi tetap muncul di lonceng.
+Bila push tidak muncul, pastikan izin notifikasi menyala, ponsel punya internet dan Anda masih masuk di aplikasi ini. ISP juga harus sudah mengaktifkan push di servernya. Bila ISP belum mengaktifkannya, notifikasi tetap muncul di lonceng. Aplikasi sendiri yang menggambar notifikasi, juga saat tertutup. Beberapa merek ponsel (misalnya Xiaomi dan Oppo) menghemat baterai dengan menahan aplikasi yang tertutup. Bila notifikasi datang terlambat atau tidak datang saat aplikasi tertutup, buka pengaturan baterai untuk aplikasi Inbils dan pilih **Tanpa pembatasan** (atau matikan optimalisasi baterai, dan izinkan mulai otomatis bila ponsel memintanya).
 
 ## Notifikasi uji
 

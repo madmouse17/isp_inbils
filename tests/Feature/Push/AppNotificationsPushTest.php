@@ -68,7 +68,7 @@ class AppNotificationsPushTest extends TestCase
     {
         $this->assertSame([$token], $this->pushedTokens());
         $push = $this->onlyPush();
-        $this->assertSame(['title' => $title, 'body' => $body], $push['notification']);
+        $this->assertArrayNotHasKey('notification', $push, 'data-only: the app draws the push itself');
         $this->assertSame(
             ['type' => $type, 'subject_type' => $subjectType, 'subject_id' => $subjectId, 'title' => $title, 'body' => $body],
             array_diff_key($push['data'], ['notification_id' => 1]),

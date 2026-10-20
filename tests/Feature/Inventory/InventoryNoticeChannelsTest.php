@@ -212,7 +212,9 @@ class InventoryNoticeChannelsTest extends TestCase
         $row = $this->technician->notifications()->sole();
         $this->assertSame(['inventory_request_rejected', $request->public_id, 'Stok dialihkan ke proyek lain'], [$row->data['type'], $row->data['request_id'], $row->data['reason']]);
         $this->assertSame(['technician-install'], $this->pushedTokens());
-        $this->assertSame(['title' => 'Permintaan barang ditolak', 'body' => "Permintaan {$request->code} ditolak."], $this->onlyPush()['notification']);
+        $push = $this->onlyPush();
+        $this->assertArrayNotHasKey('notification', $push, 'data-only: the app draws the push itself');
+        $this->assertSame(['title' => 'Permintaan barang ditolak', 'body' => "Permintaan {$request->code} ditolak."], array_intersect_key($push['data'], array_flip(['title', 'body'])));
         $this->assertCount(0, app('mailer')->getSymfonyTransport()->messages());
     }
 

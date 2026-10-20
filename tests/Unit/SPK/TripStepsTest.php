@@ -61,6 +61,27 @@ class TripStepsTest extends TestCase
         $this->assertSame($times, array_map(fn (array $step): ?string => $step['at']?->format('Y-m-d H:i:s'), $steps));
     }
 
+    /** @return array<string, array{0: string}> */
+    public static function otherTypes(): array
+    {
+        return [
+            'maintenance' => ['maintenance'],
+            'upgrade' => ['upgrade_service'],
+            'relocation' => ['relocation'],
+        ];
+    }
+
+    #[DataProvider('otherTypes')]
+    public function test_a_visit_that_is_not_an_installation_ends_at_selesai_dikerjakan(string $type): void
+    {
+        $workOrder = $this->workOrder(
+            ['status' => 'waiting_review', 'type' => $type, 'submitted_at' => self::SUBMITTED],
+            [new WorkOrderAssignment(['assigned_at' => self::ASSIGNED, 'unassigned_at' => null])],
+        );
+
+        $this->assertSame(['Ditugaskan', 'Dalam perjalanan', 'Sedang dikerjakan', 'Selesai dikerjakan'], array_column(TripSteps::of($workOrder), 'label'));
+    }
+
     public function test_a_cancelled_visit_has_no_steps(): void
     {
         $workOrder = $this->workOrder(['status' => 'cancelled', 'started_at' => self::STARTED], [new WorkOrderAssignment(['assigned_at' => self::ASSIGNED])]);
@@ -95,7 +116,7 @@ class TripStepsTest extends TestCase
      */
     private function workOrder(array $columns, array $assignments): WorkOrder
     {
-        $workOrder = (new WorkOrder())->forceFill($columns);
+        $workOrder = (new WorkOrder())->forceFill(['type' => 'installation', ...$columns]);
         $workOrder->setRelation('assignments', new Collection($assignments));
 
         return $workOrder;

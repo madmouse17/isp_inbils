@@ -261,6 +261,28 @@ class WorkOrderTripTest extends TestCase
     }
 
     /** @return array<string, array{0: string, 1: string}> */
+    public static function installedStepLabels(): array
+    {
+        return [
+            'installation' => ['installation', 'Selesai dipasang'],
+            'maintenance' => ['maintenance', 'Selesai dikerjakan'],
+            'upgrade' => ['upgrade_service', 'Selesai dikerjakan'],
+            'relocation' => ['relocation', 'Selesai dikerjakan'],
+        ];
+    }
+
+    #[DataProvider('installedStepLabels')]
+    public function test_installed_step_label_follows_type(string $type, string $label): void
+    {
+        $workOrder = $this->visit('assigned', ['type' => $type]);
+
+        $this->api('GET', "technician/work-orders/{$workOrder->public_id}", token: $this->token)
+            ->assertOk()
+            ->assertJsonPath('data.steps.3.key', 'installed')
+            ->assertJsonPath('data.steps.3.label', $label);
+    }
+
+    /** @return array<string, array{0: string, 1: string}> */
     public static function types(): array
     {
         return [

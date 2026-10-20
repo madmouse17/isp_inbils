@@ -17,6 +17,7 @@ use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\Payment;
 use Modules\Billing\Models\PaymentAttempt;
 use Modules\Service\Database\Factories\ServicePackageFactory;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
@@ -352,15 +353,17 @@ class InvoicesTest extends TestCase
 
         $detail = $this->api('GET', "customer/invoices/{$invoice->public_id}", token: $this->token)->assertOk();
         $detail->assertJsonPath('data.payment_attempt.status', 'pending')
+            ->assertJsonPath('data.payment_attempt.reason', null)
             ->assertJsonPath('data.payment_attempt.redirect_url', $open->redirect_url)
             ->assertJsonPath('data.payment_attempt.expires_at', $open->expires_at->toIso8601String());
-        $this->assertSame(['status', 'expires_at', 'redirect_url'], array_keys($detail->json('data.payment_attempt')));
+        $this->assertSame(['status', 'reason', 'expires_at', 'redirect_url'], array_keys($detail->json('data.payment_attempt')));
         $this->assertStringNotContainsString('"snap_token":', (string) $detail->getContent());
         $this->assertStringNotContainsString($open->order_id, (string) $detail->getContent());
 
         $open->forceFill(['expires_at' => now()->subMinute()])->save();
         $this->api('GET', "customer/invoices/{$invoice->public_id}", token: $this->token)->assertOk()
             ->assertJsonPath('data.payment_attempt.status', 'expire')
+            ->assertJsonPath('data.payment_attempt.reason', 'expired')
             ->assertJsonPath('data.payment_attempt.redirect_url', null);
 
         foreach (['paid' => 'settlement', 'expired' => 'expire', 'failed' => 'failed', 'exception' => 'failed'] as $stored => $shown) {
@@ -370,6 +373,62 @@ class InvoicesTest extends TestCase
                 ->assertJsonPath('data.payment_attempt.redirect_url', null);
         }
 
+    }
+
+    /**
+     * The attempt rows to store, the `status` the app has always read, and the `reason` it words for the customer (null: no attempt, or nothing to explain).
+     *
+     * @return array<string, array{0: array<string, mixed>|null, 1: string|null, 2: string|null}>
+     */
+    public static function attemptReasons(): array
+    {
+        return [
+            'no attempt' => [null, null, null],
+            'an open page' => [['status' => 'pending'], 'pending', null],
+            'settled' => [['status' => 'paid'], 'settlement', null],
+            'declined by the bank' => [['status' => 'failed', 'status_reason' => 'deny'], 'failed', 'declined'],
+            'denied by the fraud check' => [['status' => 'failed', 'status_reason' => 'fraud_status deny'], 'failed', 'declined'],
+            'a failure with no reason on file' => [['status' => 'failed', 'status_reason' => null], 'failed', 'declined'],
+            'cancelled on the payment page' => [['status' => 'failed', 'status_reason' => 'cancel'], 'failed', 'cancelled'],
+            'expired' => [['status' => 'expired'], 'expire', 'expired'],
+            'money to check' => [['status' => 'exception', 'status_reason' => 'Midtrans reported refund for an attempt that was never settled here.'], 'failed', 'review'],
+            'closed by Inbils' => [['status' => 'cancelled_locally', 'status_reason' => 'Tagihan dibayar atau dibatalkan saat halaman pembayaran masih terbuka.'], 'failed', 'closed'],
+            'refunded by finance' => [['status' => 'refunded', 'status_reason' => 'gross_amount differs from the attempt amount.'], 'failed', 'refunded'],
+        ];
+    }
+
+    /** @param  array<string, mixed>|null  $attempt */
+    #[DataProvider('attemptReasons')]
+    public function test_latest_attempt_reason_per_status(?array $attempt, ?string $status, ?string $reason): void
+    {
+        $invoice = $this->invoiceOf($this->customer);
+
+        if ($attempt !== null) {
+            PaymentAttempt::factory()->forInvoice($invoice)->create($attempt);
+        }
+
+        $response = $this->api('GET', "customer/invoices/{$invoice->public_id}", token: $this->token)->assertOk();
+
+        if ($attempt === null) {
+            $response->assertJsonPath('data.payment_attempt', null);
+
+            return;
+        }
+
+        $response->assertJsonPath('data.payment_attempt.status', $status)
+            ->assertJsonPath('data.payment_attempt.reason', $reason);
+        $this->assertSame(['status', 'reason', 'expires_at', 'redirect_url'], array_keys($response->json('data.payment_attempt')));
+        $this->assertNoInternalFields($response);
+
+        if ($status !== 'pending') {
+            $response->assertJsonPath('data.payment_attempt.redirect_url', null);
+        }
+
+        // The stored reason is gateway and staff text: only the one word above leaves the server. A short gateway word
+        // ("cancel") can sit inside a word of the answer ("cancelled"), so only longer text is searched for.
+        if (strlen((string) ($attempt['status_reason'] ?? '')) > 12) {
+            $this->assertStringNotContainsString($attempt['status_reason'], (string) $response->getContent());
+        }
     }
 
     public function test_the_receipt_is_a_pdf_for_the_owners_paid_invoices_only(): void

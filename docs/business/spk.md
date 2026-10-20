@@ -228,6 +228,13 @@ di halaman SPK) dan di aplikasi teknisi/pelanggan. Server yang memutuskan
   koordinat POP. SPK tanpa langganan memakai `location`. `location` (POP /
   gudang) tetap dasar stok. Check-in tiket mengikuti aturan yang sama.
 
+### Dampak persetujuan, Langkah berikut dan label (flow-audit-fixes gelombang 2)
+- `SpkApprovalImpact::for(WorkOrder)` menulis apa yang dikerjakan `SpkService::approve` dan `CompleteSpkAction`, dalam urutan yang sama, dan hanya baris yang benar-benar terjadi: pelanggan dan langganan menjadi aktif, tagihan pemasangan (jumlah dari `linesFor()`, langsung dikirim atau draf menurut `auto_send_installation_invoice`, atau "tidak ada tagihan"), akun PPPoE yang akan dibuat (hanya bila RADIUS aktif, profil kecepatan punya nama RADIUS dan kode company dapat menjadi realm), dan jumlah barang yang dikurangi dari stok (barang yang sudah diserahkan lewat permintaan tidak dihitung dua kali). Daftar ini tampil di dialog Setujui halaman SPK (`approvalImpact`, hanya bagi yang boleh menyetujui dan hanya saat SPK menunggu persetujuan) dan di panel tinjau Persetujuan (`review.impact`, dimuat saat panel dibuka).
+- `review` di `GET admin.approvals.index?review=<composite_id>` adalah prop `Inertia::optional`. Otorisasinya sama dengan baris antreannya (kelayakan `ApprovalInboxQuery` dan policy lihat); di luar itu `null`. Isinya `impact`, paling banyak 3 bukti, `technician`, `check_in` (`FieldCheckIn::recordFor`) dan `items` (SPK: dipakai; permintaan barang: diminta dan tersedia).
+- `SpkApprovalImpact::nextSteps(WorkOrder, User)` mengisi kartu "Langkah berikut" hanya untuk SPK `installation` berstatus `completed`, dan hanya baris yang boleh dilihat atau dikerjakan pengguna: tagihan (draf, terkirim, atau belum ada dan masih ditagihkan) menurut `billing.view`, `billing.send` dan `billing.create`; akun PPPoE menurut `network_asset.account.view` dan `.manage`, dan tanpa RADIUS aktif akun yang belum ada tidak dianggap langkah.
+- `TripSteps` menulis label tahap `installed` sebagai "Selesai dipasang" untuk `installation` dan "Selesai dikerjakan" untuk jenis lain. Kuncinya tetap `installed`. Web, kedua aplikasi dan API pelanggan membaca label itu dari server.
+- API teknisi: baris SPK di `my-work` membawa `type_label` (`WorkOrder::typeLabel()`). Aplikasi menampilkannya di mana pun jenis SPK tampil, dan tombol kirim bernama "Selesai dipasang · kirim untuk ditinjau" atau "Pekerjaan selesai · kirim untuk ditinjau".
+
 ### Type-specific behavior
 
 - **installation**: wajib customer_id + subscription_id + location_id.

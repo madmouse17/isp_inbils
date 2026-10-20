@@ -25,6 +25,9 @@ final class TripSteps
         'installed' => 'Selesai dipasang',
     ];
 
+    /** The last step says "dipasang" only for an installation: a repair or an upgrade is "dikerjakan". */
+    private const LABEL_OTHER_INSTALLED = 'Selesai dikerjakan';
+
     /** @return list<array{key: string, label: string, at: ?Carbon}> */
     public static function of(WorkOrder $wo): array
     {
@@ -43,7 +46,8 @@ final class TripSteps
 
         $steps = [];
         foreach ($keys as $index => $key) {
-            $steps[] = ['key' => $key, 'label' => self::LABELS[$key], 'at' => $reached !== false && $index <= $reached ? $times[$key] : null];
+            $label = $key === 'installed' && $wo->type !== 'installation' ? self::LABEL_OTHER_INSTALLED : self::LABELS[$key];
+            $steps[] = ['key' => $key, 'label' => $label, 'at' => $reached !== false && $index <= $reached ? $times[$key] : null];
         }
 
         return $steps;

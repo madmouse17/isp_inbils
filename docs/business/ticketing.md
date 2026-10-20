@@ -175,6 +175,15 @@ Tiket `closed` menolak komentar staf dengan 422 "Tiket sudah ditutup." dan menol
 - Pelanggaran target respons dan penyelesaian memberi tahu petugas aktif serta pemegang `ticket.assign`, dideduplikasi. Pembuat atau pelanggan tidak menjadi penerima hanya karena membuat tiket.
 - Semua pemberitahuan SLA memakai database bell dan push. Email SLA dihapus.
 
+### Antrean kerja, tenggat dan data pelanggan (flow-audit-fixes gelombang 2)
+- Terbuka berarti status selain `resolved` dan `closed`. `Ticket::scopeDueSoon($menit = 30)` memilih tiket terbuka yang `response_deadline` (selama `first_response_at` kosong) atau `sla_deadline` jatuh antara sekarang dan sekarang + `$menit`. `Ticket::scopeAwaitingStaffReply()` memilih tiket terbuka yang komentar publik terbarunya ditulis akun portal pelanggan tiket itu dan tidak ada komentar publik sesudahnya. Keduanya hanya memakai query builder dan dilayani indeks `tickets (company_id, response_deadline)`, `tickets (company_id, sla_deadline)` dan `ticket_comments (ticket_id, created_at)`.
+- `GET admin.tickets.index` dan `admin.tickets.export` memakai satu `filteredQuery()` dengan parameter tambahan `unassigned` (terbuka tanpa petugas), `due_soon`, `awaiting_reply` dan `sort_by=response_deadline`. "Tiket saya" memakai `assigned_to` milik sendiri. Cakupan petugas di `TicketController` tetap berlaku di atasnya, jadi petugas tanpa `ticket.assign` mendapat daftar kosong untuk `unassigned`. Ekspor memuat kolom "Petugas" dan "Respons sebelum".
+- Dashboard memakai predikat yang sama untuk kartu `sla_due_soon` ("Hampir terlampaui (≤ 30 menit)") dan `customer_replied` ("Pelanggan membalas"), dengan audiens dan cakupan kartu `sla_breached`. Tidak ada lonceng baru untuk keduanya.
+- `TicketService::deadlineSource()` mengembalikan `{type: tier|category, name, response_hours, resolution_hours, urgent_halved}`. Halaman menulis hitungannya, misalnya "6 jam ÷ 2 karena Mendesak = 3 jam"; `computeDeadlines()` tidak berubah.
+- Data pelanggan di payload tiket: baris daftar membawa id, kode dan nama. Halaman tiket menambah `user_id` akun portal dan `phone`. Record penuh (email, NPWP, catatan, alamat) hanya untuk pemegang `customer.view`. Penulis komentar hanya id dan nama.
+- `GET admin.evaluations.create?ticket=<id>` mengisi karyawan dan tiket untuk tiket perusahaan ini yang `closed` dan punya petugas, tanpa nilai. Id yang asing, terbuka, tanpa petugas atau tidak dikenal memberi form kosong, bukan galat.
+- API teknisi `GET /api/v1/technician/my-work`: baris tiket membawa `response_due_at` (ISO, = `response_deadline` selama `first_response_at` kosong, selain itu `null`). Aplikasi menampilkan hitungan mundur dan kartu tiket mendesak di Beranda.
+
 ### Snapshot tiket tertutup
 - `TicketService::close` mengunci baris tiket, lalu menyimpan nama kategori
   (`category_name_snapshot`) dan nama petugas (`assignee_name_snapshot`) pada

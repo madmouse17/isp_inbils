@@ -1250,6 +1250,21 @@
                                                                 "failed"
                                                             ]
                                                         },
+                                                        "reason": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ],
+                                                            "enum": [
+                                                                "declined",
+                                                                "cancelled",
+                                                                "expired",
+                                                                "review",
+                                                                "closed",
+                                                                "refunded",
+                                                                null
+                                                            ]
+                                                        },
                                                         "expires_at": {
                                                             "type": "string"
                                                         },
@@ -1262,6 +1277,7 @@
                                                     },
                                                     "required": [
                                                         "status",
+                                                        "reason",
                                                         "expires_at",
                                                         "redirect_url"
                                                     ]
@@ -6187,6 +6203,12 @@
                                     "null"
                                 ]
                             },
+                            "response_due_at": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
                             "sla_breached": {
                                 "type": "boolean"
                             },
@@ -6271,6 +6293,7 @@
                             "submitted_at",
                             "age_seconds",
                             "due_at",
+                            "response_due_at",
                             "sla_breached",
                             "updated_at",
                             "summary",
@@ -6295,6 +6318,9 @@
                                 "type": "string"
                             },
                             "type": {
+                                "type": "string"
+                            },
+                            "type_label": {
                                 "type": "string"
                             },
                             "title": {
@@ -6423,6 +6449,7 @@
                             "composite_id",
                             "code",
                             "type",
+                            "type_label",
                             "title",
                             "priority",
                             "status",
@@ -7099,12 +7126,24 @@
                                 },
                                 "quantity": {
                                     "type": "number"
+                                },
+                                "quantity_approved": {
+                                    "type": [
+                                        "number",
+                                        "null"
+                                    ],
+                                    "description": "What the office approved (null until it did) and what the warehouse handed over, so the card shows more than the ask."
+                                },
+                                "quantity_issued": {
+                                    "type": "number"
                                 }
                             },
                             "required": [
                                 "product_name",
                                 "unit",
-                                "quantity"
+                                "quantity",
+                                "quantity_approved",
+                                "quantity_issued"
                             ]
                         }
                     },

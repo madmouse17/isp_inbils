@@ -36,7 +36,8 @@ class PushTestCommandTest extends TestCase
         $this->assertCount(2, $this->multicasts);
         $this->assertEqualsCanonicalizing(['phone-install', 'tablet-install'], $this->multicasts[0]['tokens']);
         $push = $this->multicasts[0]['message'];
-        $this->assertSame('Inbils', $push['notification']['title']);
+        $this->assertArrayNotHasKey('notification', $push, 'data-only: the app draws the push itself');
+        $this->assertSame('Inbils', $push['data']['title']);
         $this->assertSame('push_test', $push['data']['type']);
         $this->assertSame(['subject_type' => '', 'subject_id' => ''], array_intersect_key($push['data'], array_flip(['subject_type', 'subject_id'])));
         $this->assertFalse($this->multicasts[0]['validate_only']);

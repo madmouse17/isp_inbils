@@ -46,6 +46,26 @@ class InventoryRequestsTest extends TestCase
             ->assertJsonMissingPath('data.0.approved_by');
     }
 
+    public function test_items_carry_approved_and_issued_quantities(): void
+    {
+        $technician = $this->technicianLogin();
+        $awaiting = $this->inventoryRequestFor($technician, 'submitted');
+        $awaiting->items()->update(['quantity_approved' => null]);
+        $issued = $this->inventoryRequestFor($technician, 'issued');
+        $issued->items()->update(['quantity_approved' => 10, 'quantity_issued' => 8]);
+
+        $items = collect($this->api('GET', 'technician/inventory-requests', token: $this->issueToken($technician, 'technician'))->assertOk()->json('data'))
+            ->keyBy('id')
+            ->map(fn (array $request): array => $request['items'][0]);
+
+        $this->assertEquals(12, $items[$awaiting->public_id]['quantity']);
+        $this->assertNull($items[$awaiting->public_id]['quantity_approved'], 'not approved yet is null, never 0');
+        $this->assertEquals(0, $items[$awaiting->public_id]['quantity_issued']);
+        $this->assertEquals(12, $items[$issued->public_id]['quantity'], 'quantity stays the requested amount');
+        $this->assertEquals(10, $items[$issued->public_id]['quantity_approved']);
+        $this->assertEquals(8, $items[$issued->public_id]['quantity_issued']);
+    }
+
     public function test_inventory_request_status_filter(): void
     {
         $technician = $this->technicianLogin();

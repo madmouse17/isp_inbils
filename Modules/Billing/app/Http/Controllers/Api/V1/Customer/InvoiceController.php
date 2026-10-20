@@ -39,7 +39,7 @@ class InvoiceController extends Controller
     /**
      * The spread of the resource hides its shape from the generator, so the body is spelled out.
      *
-     * @response array{data: array{id: string, number: string, subscription_id: string|null, customer_name: string, customer_address: string|null, package_name: string|null, issue_date: string, due_date: string, billing_period: array{start: string, end: string}|null, status: string, subtotal: string, tax_amount: string, discount_amount: string, total: string, paid_amount: string, sisa: string, items: list<array{id: string, description: string, quantity: string, unit_price: string, discount_amount: string, tax_rate: string, line_total: string}>, payments: list<array{id: string, amount: string, method: string, method_label: string, reference: string|null, paid_at: string}>, payment: array{enabled: bool, can_pay: bool, blocked_reason: string|null}, payment_attempt: array{status: 'pending'|'settlement'|'expire'|'failed', expires_at: string, redirect_url: string|null}|null}}
+     * @response array{data: array{id: string, number: string, subscription_id: string|null, customer_name: string, customer_address: string|null, package_name: string|null, issue_date: string, due_date: string, billing_period: array{start: string, end: string}|null, status: string, subtotal: string, tax_amount: string, discount_amount: string, total: string, paid_amount: string, sisa: string, items: list<array{id: string, description: string, quantity: string, unit_price: string, discount_amount: string, tax_rate: string, line_total: string}>, payments: list<array{id: string, amount: string, method: string, method_label: string, reference: string|null, paid_at: string}>, payment: array{enabled: bool, can_pay: bool, blocked_reason: string|null}, payment_attempt: array{status: 'pending'|'settlement'|'expire'|'failed', reason: 'declined'|'cancelled'|'expired'|'review'|'closed'|'refunded'|null, expires_at: string, redirect_url: string|null}|null}}
      */
     public function show(Request $request, string $id, MidtransGateway $gateway): JsonResponse
     {
@@ -62,27 +62,35 @@ class InvoiceController extends Controller
     }
 
     /**
-     * The customer's latest try to pay online. The pay link rides along only while it can still be used.
+     * The customer's latest try to pay online. `reason` says in one fixed word why an attempt that did not settle did not,
+     * for the app to word; the stored `status_reason` is gateway and staff text and never leaves the server. The pay link
+     * rides along only while it can still be used.
      *
-     * @return array{status: string, expires_at: string, redirect_url: string|null}|null
+     * @return array{status: string, reason: 'declined'|'cancelled'|'expired'|'review'|'closed'|'refunded'|null, expires_at: string, redirect_url: string|null}|null
      */
     private function latestAttempt(Invoice $invoice): ?array
     {
-        $attempt = $invoice->paymentAttempts()->latest('id')->first(['id', 'invoice_id', 'status', 'expires_at', 'redirect_url']);
+        $attempt = $invoice->paymentAttempts()->latest('id')->first(['id', 'invoice_id', 'status', 'status_reason', 'expires_at', 'redirect_url']);
 
         if ($attempt === null) {
             return null;
         }
 
-        $status = match ($attempt->status) {
-            PaymentAttempt::STATUS_PAID => 'settlement',
-            PaymentAttempt::STATUS_EXPIRED => 'expire',
-            PaymentAttempt::STATUS_PENDING => $attempt->expires_at->isPast() ? 'expire' : 'pending',
-            default => 'failed',
+        [$status, $reason] = match ($attempt->status) {
+            PaymentAttempt::STATUS_PAID => ['settlement', null],
+            PaymentAttempt::STATUS_EXPIRED => ['expire', 'expired'],
+            PaymentAttempt::STATUS_PENDING => $attempt->expires_at->isPast() ? ['expire', 'expired'] : ['pending', null],
+            // Midtrans words a customer's own cancel as `cancel`; anything else it refused (deny, failure, a fraud deny) is a decline.
+            PaymentAttempt::STATUS_FAILED => ['failed', str_contains((string) $attempt->status_reason, 'cancel') ? 'cancelled' : 'declined'],
+            PaymentAttempt::STATUS_EXCEPTION => ['failed', 'review'],
+            PaymentAttempt::STATUS_CANCELLED_LOCALLY => ['failed', 'closed'],
+            PaymentAttempt::STATUS_REFUNDED => ['failed', 'refunded'],
+            default => ['failed', null],
         };
 
         return [
             'status' => $status,
+            'reason' => $reason,
             'expires_at' => $attempt->expires_at->toIso8601String(),
             'redirect_url' => $status === 'pending' ? $attempt->redirect_url : null,
         ];

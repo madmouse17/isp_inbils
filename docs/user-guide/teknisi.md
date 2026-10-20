@@ -91,17 +91,18 @@ Lima tab di bagian bawah layar: **Beranda** menunjukkan pekerjaan hari ini, **Pe
 Beranda adalah tab pertama dan layar yang terbuka setelah masuk. Isinya dari atas ke bawah:
 
 1. **Kepala ISP**: logo perusahaan (atau inisial nama perusahaan bila belum ada logo atau logonya gagal dimuat), nama perusahaan, dan tanggal hari ini. Di bawahnya sapaan "Halo, nama depan Anda". Warna aplikasi mengikuti warna merek ISP, jadi tampilannya bisa berbeda antar ISP.
-2. **Kartu kunjungan**: SPK yang perlu Anda datangi sekarang. Aplikasi memilih SPK yang sedang **Dikerjakan** (judulnya **Sedang dikerjakan**), atau bila tidak ada, SPK **Ditugaskan** dengan jadwal paling awal (judulnya **Kunjungan berikutnya**). SPK tanpa jadwal ada di urutan terakhir. Tiket bukan kunjungan dan tidak muncul di kartu ini. Kartu memuat:
+2. **Kartu tiket mendesak**: tiket Anda yang paling dekat batas respons pertamanya, di atas kartu kunjungan. Teksnya "Tiket mendesak · respons sebelum 21:17 (sisa 41 menit)", dengan kode dan judul tiket di bawahnya. Ikonnya berubah kuning saat sisa 30 menit atau kurang dan merah setelah batas lewat ("lewat 12 menit"). Ketuk kartu untuk membuka tiketnya. Hitungannya bergerak tiap 30 detik. Kartu tidak tampil bila tidak ada tiket yang menunggu respons pertama. Respons pertama berarti Anda menekan **Mulai** pada tiket atau mengirim komentar yang bisa dibaca pelanggan.
+3. **Kartu kunjungan**: SPK yang perlu Anda datangi sekarang. Aplikasi memilih SPK yang sedang **Dikerjakan** (judulnya **Sedang dikerjakan**), atau bila tidak ada, SPK **Ditugaskan** dengan jadwal paling awal (judulnya **Kunjungan berikutnya**). SPK tanpa jadwal ada di urutan terakhir. Tiket bukan kunjungan dan tidak muncul di kartu ini. Kartu memuat:
    - jadwal: **Hari ini**, **Besok**, atau tanggalnya. Jadwal yang sudah lewat tertulis "Terlambat, jadwal {tanggal}" dan kartu berubah menjadi warna peringatan;
    - judul dan kode SPK, nama pelanggan, dan alamat pemasangan;
    - jarak ("850 m dari lokasi Anda" atau "3,4 km dari lokasi Anda"), hanya bila SPK punya koordinat dan ponsel sudah mengizinkan lokasi. Beranda tidak meminta izin lokasi; izin diminta saat Anda memulai SPK;
    - tombol **Navigasi**, yang membuka aplikasi peta ponsel ke lokasi pelanggan bila lokasi SPK diketahui, dan tombol **Buka SPK** yang membuka detail SPK (bab 3).
-3. Bila tidak ada SPK yang menunggu, kartu kunjungan diganti kartu "Tidak ada kunjungan SPK yang menunggu. Penugasan baru muncul di sini."
-4. **Pekerjaan saya**: empat petak angka, **Ditugaskan**, **Dikerjakan**, **Menunggu tindakan**, dan **Total**. Ketuk satu petak untuk membuka tab **Pekerjaan** dengan filter status itu. Petak **Total** membuka daftar tanpa filter.
+4. Bila tidak ada SPK yang menunggu, kartu kunjungan diganti kartu "Tidak ada kunjungan SPK yang menunggu. Penugasan baru muncul di sini."
+5. **Pekerjaan saya**: empat petak angka, **Ditugaskan**, **Dikerjakan**, **Menunggu tindakan**, dan **Total**. Ketuk satu petak untuk membuka tab **Pekerjaan** dengan filter status itu. Petak **Total** membuka daftar tanpa filter.
 
-Tarik layar ke bawah untuk memperbarui. Tarikan yang sama mencoba mengirim foto bukti yang menunggu di antrean (lihat bab 3). Bila satu bagian gagal dimuat, bagian itu menampilkan pesan kesalahan dan tombol **Coba lagi**; bagian lain tetap tampil. Banner offline dan banner foto belum terkirim (lihat "Kesalahan umum" di bawah) juga tampil di Beranda.
+Tarik layar ke bawah untuk memperbarui. Tarikan yang sama mencoba mengirim foto bukti yang menunggu di antrean (lihat bab 3). Aplikasi juga memperbarui diri tanpa tarikan: saat Anda membuka kembali aplikasi dari latar belakang dan saat Anda berpindah tab (langsung), serta saat ada notifikasi baru masuk (sekitar 1 detik setelah notifikasi terakhir dalam satu rentetan). Selama data dimuat ulang, garis tipis berjalan di atas daftar dan isi lama tetap terbaca. Bila satu bagian gagal dimuat, bagian itu menampilkan pesan kesalahan dan tombol **Coba lagi**; bagian lain tetap tampil. Banner offline dan banner foto belum terkirim (lihat "Kesalahan umum" di bawah) juga tampil di Beranda.
 
-Aplikasi memilih kunjungan dari 10 SPK terbaru yang dikirim server. Teknisi dengan lebih dari 10 SPK terbuka bisa melihat kunjungan yang lebih lambat dari yang paling awal. Buka tab **Pekerjaan** untuk daftar lengkap.
+Aplikasi memilih kunjungan dari 10 SPK terbaru yang dikirim server. Teknisi dengan lebih dari 10 SPK terbuka bisa melihat kunjungan yang lebih lambat dari yang paling awal. Kartu tiket mendesak memilih dari halaman pertama daftar tiket Anda. Buka tab **Pekerjaan** untuk daftar lengkap.
 
 ## Daftar pekerjaan
 
@@ -111,7 +112,7 @@ Tab **Pekerjaan** memuat SPK dan tiket yang ditugaskan kepada Anda. Layar menamp
 
 - Pilihan jenis: **Semua**, **SPK**, atau **Tiket**.
 - Filter status: **Ditugaskan**, **Dikerjakan**, dan **Menunggu tindakan**. Ketuk satu untuk menyaring, ketuk lagi untuk melepas. Petak di Beranda memilih salah satunya.
-- Kartu pekerjaan. Tiap kartu memuat ikon jenis, jenis dan kode (misalnya `SPK · SPK-0021`), judul, nama pelanggan, status, dan tanggal: **Jadwal** untuk SPK, **Batas** untuk tiket. Tiket yang lewat batas waktu layanan diberi label **SLA terlewat**.
+- Kartu pekerjaan. Tiap kartu memuat ikon jenis, jenis dan kode, judul, nama pelanggan, status, dan tanggal: **Jadwal** untuk SPK, **Batas** untuk tiket. Untuk SPK, jenisnya memakai nama jenis SPK dari kantor, misalnya `Instalasi · SPK-0021`, bukan kata "SPK" saja. Tiket berprioritas **Mendesak** (merah) atau **Tinggi** (kuning) diberi label prioritas, dan tiket yang menunggu respons pertama menulis "Respons sebelum 21:17 · sisa 41 mnt" (atau "lewat 12 mnt" setelah batas). Tiket yang lewat batas waktu layanan diberi label **SLA terlewat**.
 
 Cara memakai:
 
@@ -120,7 +121,7 @@ Cara memakai:
 3. Ketuk baris untuk membuka detail SPK atau detail tiket.
 4. Geser daftar ke bawah sampai habis. Aplikasi memuat halaman berikutnya sendiri.
 
-Tarik layar ke bawah (pull-to-refresh) untuk memperbarui daftar. Tarikan yang sama juga mencoba mengirim foto bukti yang menunggu di antrean (lihat bab 3).
+Tarik layar ke bawah (pull-to-refresh) untuk memperbarui daftar. Tarikan yang sama juga mencoba mengirim foto bukti yang menunggu di antrean (lihat bab 3). Daftar juga memuat ulang sendiri saat aplikasi dibuka kembali dan saat Anda berpindah tab (langsung), dan sekitar 1 detik setelah notifikasi terakhir dalam satu rentetan.
 
 Bila tidak ada pekerjaan, layar menulis "Tidak ada pekerjaan untuk filter ini."
 
@@ -132,7 +133,7 @@ Bila tidak ada pekerjaan, layar menulis "Tidak ada pekerjaan untuk filter ini."
 
 # 3. SPK
 
-SPK (surat perintah kerja) adalah pekerjaan instalasi atau perbaikan di lokasi pelanggan. Alurnya: **Ditugaskan** → Anda berangkat (**Saya berangkat**) → Anda mulai → **Dikerjakan** → Anda kirim untuk review → **Menunggu review** → kantor menyetujui (**Selesai**) atau mengembalikan (**Dikembalikan**). Di layar, alur ini tampil sebagai empat langkah **Progres kunjungan**: **Ditugaskan**, **Dalam perjalanan**, **Sedang dikerjakan**, dan **Selesai dipasang**.
+SPK (surat perintah kerja) adalah pekerjaan instalasi atau perbaikan di lokasi pelanggan. Alurnya: **Ditugaskan** → Anda berangkat (**Saya berangkat**) → Anda mulai → **Dikerjakan** → Anda kirim untuk ditinjau → **Menunggu review** → kantor menyetujui (**Selesai**) atau mengembalikan (**Dikembalikan**). Di layar, alur ini tampil sebagai empat langkah **Progres kunjungan**: **Ditugaskan**, **Dalam perjalanan**, **Sedang dikerjakan**, dan **Selesai dipasang** (**Selesai dikerjakan** pada SPK yang bukan pemasangan).
 
 ## Detail SPK dan progres kunjungan
 
@@ -142,7 +143,7 @@ Ketuk baris SPK di tab **Pekerjaan**.
 
 Detail SPK memuat judul, status, jenis dan prioritas, jadwal, kode tiket asal (bila ada), **Progres kunjungan**, **Pelanggan**, **POP / gudang**, **Deskripsi**, **Material**, dan **Bukti kerja**. Bila kantor mengembalikan SPK, kotak **Alasan dikembalikan** tampil di atas.
 
-**Progres kunjungan** menunjukkan empat langkah yang sama dengan yang dilihat kantor dan pelanggan. Tanda centang berarti langkah sudah dilalui, dengan waktunya di bawah nama langkah. Lingkaran bertitik dengan nama tebal adalah langkah yang sedang berjalan. Lingkaran kosong adalah langkah yang belum tercapai. Tombol di bagian bawah layar mengikuti langkah itu: **Saya berangkat**, **Mulai**, lalu **Selesai dipasang · kirim untuk review**.
+**Progres kunjungan** menunjukkan empat langkah yang sama dengan yang dilihat kantor dan pelanggan. Tanda centang berarti langkah sudah dilalui, dengan waktunya di bawah nama langkah. Lingkaran bertitik dengan nama tebal adalah langkah yang sedang berjalan. Lingkaran kosong adalah langkah yang belum tercapai. Tombol di bagian bawah layar mengikuti langkah itu: **Saya berangkat**, **Mulai**, lalu **Selesai dipasang · kirim untuk ditinjau**. Pada SPK yang bukan pemasangan (perawatan, peningkatan layanan, pindah lokasi), langkah terakhir bernama **Selesai dikerjakan** dan tombolnya **Pekerjaan selesai · kirim untuk ditinjau**. Jenis SPK di layar ditulis dengan nama dari kantor, misalnya Instalasi atau Perawatan.
 
 **Dalam perjalanan** bukan status SPK. Status tetap **Ditugaskan** sampai Anda mulai bekerja. Langkah ini hanya memberi tahu kantor dan pelanggan bahwa Anda menuju lokasi.
 
@@ -270,9 +271,9 @@ Tambah, ubah, dan hapus material butuh internet.
 
 Setelah pekerjaan selesai, kirim SPK ke kantor untuk diperiksa.
 
-![SPK dengan satu foto bukti dan tombol Selesai dipasang · kirim untuk review yang sudah aktif](images/technician/redesign/spk-step-3-siap-dikirim.png)
+![SPK dengan satu foto bukti dan tombol Selesai dipasang · kirim untuk ditinjau yang sudah aktif](images/technician/redesign/spk-step-3-siap-dikirim.png)
 
-Tombol **Selesai dipasang · kirim untuk review** di bagian bawah detail SPK baru aktif bila semua syarat ini terpenuhi:
+Tombol **Selesai dipasang · kirim untuk ditinjau** (pada SPK pemasangan) atau **Pekerjaan selesai · kirim untuk ditinjau** (jenis lain) di bagian bawah detail SPK baru aktif bila semua syarat ini terpenuhi:
 
 - Minimal **satu foto bukti** sudah terkirim. Tanpa foto, aplikasi menulis "Belum ada foto bukti".
 - Tidak ada foto yang masih di antrean. Aplikasi menulis "Tunggu N foto terkirim".
@@ -282,8 +283,8 @@ Tombol **Selesai dipasang · kirim untuk review** di bagian bawah detail SPK bar
 Langkah:
 
 1. Pastikan syarat di atas terpenuhi dan teks merah di bawah tombol hilang.
-2. Ketuk **Selesai dipasang · kirim untuk review**.
-3. Status SPK berubah menjadi **Menunggu review**, dan langkah **Selesai dipasang** tercentang dengan waktunya.
+2. Ketuk tombol kirim itu.
+3. Status SPK berubah menjadi **Menunggu review**, dan langkah **Selesai dipasang** (atau **Selesai dikerjakan**) tercentang dengan waktunya.
 
 ![Progres kunjungan lengkap: keempat langkah tercentang dan status Menunggu review](images/technician/redesign/spk-step-4-selesai-dipasang.png)
 
@@ -291,7 +292,7 @@ Kantor lalu menyetujui SPK (**Selesai**) atau mengembalikannya (**Dikembalikan**
 
 ### Kesalahan umum pada SPK
 
-- **Tombol Selesai dipasang · kirim untuk review nonaktif.** Baca teks merah di bawahnya, itu syarat yang belum terpenuhi.
+- **Tombol kirim untuk ditinjau nonaktif.** Baca teks merah di bawahnya, itu syarat yang belum terpenuhi.
 - **Pesan dari server saat Mulai atau Kirim.** Bila status SPK sudah berubah (misalnya dibatalkan atau dialihkan kantor), aplikasi menampilkan alasan dari server dan memuat ulang SPK.
 - **"Data sudah berubah. Kami memuat ulang."** SPK diubah pihak lain saat Anda membukanya. Periksa isi layar yang baru, lalu ulangi tindakan.
 - **"Anda tidak punya akses untuk tindakan ini."** SPK dialihkan ke teknisi lain atau status tidak mengizinkan tindakan itu.
@@ -313,6 +314,7 @@ Untuk memulai:
 1. Buka tiket berstatus **Ditugaskan**.
 2. Ketuk **Mulai**.
 3. Aplikasi bertanya "Mulai tiket ini?" dan menjelaskan bahwa status berubah menjadi **Dikerjakan** dan kantor bisa melihatnya. Ketuk **Mulai**.
+4. Setelah tiket dimulai, aplikasi menulis hasil check-in di bagian bawah layar: "Check-in tercatat, 120 m dari lokasi" (jarak dihitung dari posisi Anda), atau "Mulai tercatat tanpa lokasi" bila posisi tidak tersedia.
 
 Seperti pada SPK, aplikasi mencatat posisi Anda bila izin lokasi diberikan. Tanpa izin, tiket tetap dimulai. Mulai butuh internet.
 
@@ -325,6 +327,16 @@ Di bagian bawah daftar **Komentar** ada kotak komentar.
 3. Ketuk **Kirim komentar**.
 
 Komentar Anda diberi label **Anda**, komentar staf diberi label **Staf**, dan komentar internal diberi label **Internal**. Tombol kirim nonaktif saat kolom kosong, saat teks lebih dari 2000 karakter, dan saat tidak ada internet.
+
+### Balasan cepat
+
+Pada tiket yang masih dikerjakan, selama kolom komentar kosong dan **Catatan internal** mati, bagian **Balasan cepat** tampil di atas kolom. Satu ketukan langsung mengirim komentar yang bisa dibaca pelanggan, tanpa konfirmasi:
+
+- "Laporan diterima. Saya menuju lokasi."
+- "Laporan diterima. Saya periksa dari jaringan dulu."
+- "Mohon nyalakan ulang modem, lalu kabari hasilnya di sini."
+
+Balasan cepat dihitung sebagai respons pertama, sama seperti komentar yang Anda ketik. Tombolnya nonaktif saat komentar sedang terkirim dan saat tidak ada internet. Mulai mengetik, atau menyalakan **Catatan internal**, menyembunyikannya.
 
 ## Lampiran
 
@@ -369,24 +381,26 @@ Tab **Material** punya dua bagian: material yang **Perlu dideklarasi** dan **Per
 
 ## Deklarasi material (pengembalian)
 
-Setelah gudang mengeluarkan barang untuk SPK Anda, Anda wajib melaporkan berapa yang terpakai, berapa yang kembali dalam kondisi baik, dan berapa yang selisih (rusak atau hilang). Pengembalian yang menunggu laporan Anda muncul di bagian **Perlu dideklarasi**, berlabel **Perlu dideklarasi** atau **Perlu koreksi**. Selama ada yang belum dideklarasi, SPK tidak bisa dikirim untuk review.
+Setelah gudang mengeluarkan barang untuk SPK Anda, Anda wajib melaporkan berapa yang terpakai dan berapa yang kembali dalam kondisi baik. Sisanya, yang tidak terpakai dan tidak kembali, dihitung aplikasi sebagai selisih (rusak atau hilang). Pengembalian yang menunggu laporan Anda muncul di bagian **Perlu dideklarasi**, berlabel **Perlu dideklarasi** atau **Perlu koreksi**. Selama ada yang belum dideklarasi, SPK tidak bisa dikirim untuk ditinjau.
 
 ![Layar Deklarasi material](images/technician/deklarasi-material.png)
 
 1. Di tab **Material**, ketuk baris di **Perlu dideklarasi**. Atau ketuk notifikasi pengembalian, atau tombol **Deklarasi** di SPK.
-2. Untuk tiap barang, aplikasi menulis **Dikeluarkan** (jumlah dari gudang). Isi:
+2. Untuk tiap barang, aplikasi menulis **Dikeluarkan** (jumlah dari gudang). Barang yang belum pernah Anda laporkan langsung terisi **Terpakai** sama dengan **Dikeluarkan** dan **Kembali baik** 0. Ubah angkanya sesuai yang terjadi:
    - **Terpakai**: jumlah yang Anda pakai.
    - **Kembali baik**: jumlah sisa yang masih bagus.
-   - **Selisih**: jumlah yang tidak kembali. Isi 0 bila tidak ada.
-3. Bila **Selisih** lebih dari 0, wajib pilih **Penyebab selisih** (**Rusak**, **Hilang**, atau **Lainnya**) dan isi **Alasan selisih**.
-4. Bila perlu, isi **Alasan keseluruhan (opsional)**, maksimal 1000 karakter.
-5. Ketuk **Kirim deklarasi**.
+   - **Selisih**: tidak diketik. Aplikasi menghitungnya (Dikeluarkan dikurangi Terpakai dikurangi Kembali baik) dan menulis misalnya "Selisih 2 m". Selisih nol berarti angkanya pas.
+3. Bila **Selisih** lebih dari 0, wajib pilih **Penyebab selisih** (**Rusak**, **Hilang**, atau **Lainnya**) dan isi **Alasan selisih**. Kolom itu hanya tampil saat ada selisih.
+4. Ketuk **Semua terpakai** bila semua barang terpakai: tombol itu mengisi **Terpakai** sama dengan **Dikeluarkan** dan **Kembali baik** 0 untuk setiap barang.
+5. Bila perlu, isi **Alasan keseluruhan (opsional)**, maksimal 1000 karakter.
+6. Ketuk **Kirim deklarasi**.
 
 Angka harus 0 atau lebih; koma atau titik sama saja. Bila kantor meminta koreksi, **Alasan koreksi** tampil di atas formulir; perbaiki angka lalu kirim lagi. Deklarasi yang sudah dikirim dan tidak butuh koreksi hanya bisa dibaca: "Deklarasi ini tidak dapat diubah sekarang."
 
 Kesalahan umum:
 
 - **"Isi angka 0 atau lebih."** Ada kolom kosong atau berisi teks.
+- **"Terpakai dan kembali melebihi yang diserahkan"** tampil di bawah Selisih: jumlah Terpakai ditambah Kembali baik lebih besar dari Dikeluarkan. Kurangi salah satunya, karena deklarasi tidak bisa dikirim selama angkanya melebihi.
 - **"Pilih penyebab selisih."** atau **"Isi alasan selisih."** Selisih lebih dari 0 butuh penyebab dan alasan.
 - **"Deklarasi sudah dikirim dengan nilai berbeda. Muat ulang."** Deklarasi sudah terkirim dari perangkat lain atau sebelumnya. Aplikasi memuat ulang datanya.
 - Kirim deklarasi butuh internet.
@@ -423,7 +437,7 @@ Kesalahan umum:
 
 ## Pantau dan batalkan permintaan
 
-Di **Permintaan barang saya**, tiap permintaan menampilkan kode, barang dan jumlah, SPK terkait (ketuk untuk membukanya), dan status:
+Di **Permintaan barang saya**, tiap permintaan menampilkan kode, barang dan jumlah, SPK terkait (ketuk untuk membukanya), dan status. Baris barang menulis berapa yang sudah jalan, bukan hanya berapa yang Anda minta: setelah gudang menyetujui, "Kabel UTP: disetujui 50 dari 80", dan setelah barang diserahkan, "Kabel UTP: diserahkan 50 dari 80". Sebelum itu baris hanya menulis jumlah yang diminta.
 
 | Status | Arti |
 | --- | --- |
@@ -443,7 +457,7 @@ Untuk membatalkan permintaan yang masih menunggu gudang:
 
 Permintaan yang dibatalkan tidak bisa dipulihkan. Bila permintaan sudah disetujui gudang saat Anda menekan tombol, aplikasi memuat ulang daftar dan permintaan tidak dibatalkan.
 
-Tarik layar tab **Material** ke bawah untuk memperbarui kedua daftar.
+Tarik layar tab **Material** ke bawah untuk memperbarui kedua daftar. Daftar juga diperbarui sendiri saat aplikasi dibuka kembali, saat Anda membuka tab **Material**, dan setelah Anda mengirim deklarasi (langsung), serta sekitar 1 detik setelah notifikasi terakhir dalam satu rentetan.
 
 # 6. Notifikasi
 
@@ -480,18 +494,19 @@ Kolom **Push** menunjukkan notifikasi yang juga masuk ke layar ponsel. Notifikas
 
 ## Notifikasi di layar ponsel (push)
 
-Aplikasi bisa memunculkan notifikasi di layar ponsel Android Anda, juga saat aplikasi tertutup, sehingga SPK baru atau tiket yang hampir lewat SLA tidak terlewat. Isinya sama dengan yang ada di tab **Notifikasi**.
+Aplikasi bisa memunculkan notifikasi di layar ponsel Android Anda, juga saat aplikasi tertutup, sehingga SPK baru atau tiket yang hampir lewat SLA tidak terlewat. Isinya sama dengan yang ada di tab **Notifikasi**. Aplikasi sendiri yang menggambar notifikasi itu, baik saat terbuka, di latar belakang, maupun tertutup, jadi tampilannya sama di semua keadaan.
 
 1. Setelah Anda masuk, aplikasi dapat meminta izin notifikasi lewat kotak dialog sistem Android. Pertanyaan ini hanya muncul di Android 13 ke atas dan hanya sekali, selama Anda belum memutuskannya.
 2. Pilih izinkan. Aplikasi lalu mendaftarkan ponsel ini ke Inbils.
 3. Ketuk notifikasi di layar ponsel. Aplikasi membuka layar terkait (SPK, tiket, atau tab **Material**), atau tab **Notifikasi** bila pesan tidak punya layar tujuan, dan menandainya sudah dibaca.
 4. Saat aplikasi sedang terbuka, notifikasi tampil sebagai banner singkat di atas layar.
+5. Bila beberapa notifikasi menunggu, Android menumpuknya dalam satu kelompok dengan satu baris ringkasan, "{n} notifikasi baru", yang memuat sampai lima judul (judul saja, tanpa isi pesan). Ketuk ringkasan itu untuk membuka tab **Notifikasi**. Ketuk satu notifikasi untuk membuka layar tujuannya. Bila layar itu sudah terbuka, isinya langsung dimuat ulang supaya yang Anda lihat adalah data terbaru, dengan garis tipis di atasnya selama memuat.
 
 Bila Anda menolak izinnya, aplikasi tetap berfungsi dan tab **Notifikasi** tetap menerima semuanya. Untuk mengaktifkan push kemudian, nyalakan notifikasi aplikasi Inbils di pengaturan Android (**Pengaturan > Aplikasi**), lalu buka aplikasi lagi. Aplikasi memeriksa izinnya setiap kali dibuka dan mendaftarkan ponsel saat izin sudah menyala.
 
-Saat **Keluar**, aplikasi menghapus pendaftaran ponsel ini, sehingga tidak ada push lagi sampai Anda masuk kembali. Ponsel yang dikeluarkan dari **Perangkat** (bab 7), kata sandi yang diganti, atau akun yang dinonaktifkan juga berhenti menerima push.
+Saat **Keluar**, aplikasi menghapus pendaftaran ponsel ini, sehingga tidak ada push lagi sampai Anda masuk kembali, dan semua notifikasi aplikasi ini dihapus dari bayangan notifikasi, juga bila ponsel sedang offline. Aplikasi yang tidak punya sesi masuk tidak memunculkan notifikasi apa pun. Ponsel yang dikeluarkan dari **Perangkat** (bab 7), kata sandi yang diganti, atau akun yang dinonaktifkan juga berhenti menerima push.
 
-Bila push tidak muncul, pastikan izin notifikasi menyala, ponsel punya internet dan Anda masih masuk di aplikasi ini. ISP juga harus sudah mengaktifkan push di servernya; bila belum, notifikasi tetap muncul di tab **Notifikasi**.
+Bila push tidak muncul, pastikan izin notifikasi menyala, ponsel punya internet dan Anda masih masuk di aplikasi ini. ISP juga harus sudah mengaktifkan push di servernya; bila belum, notifikasi tetap muncul di tab **Notifikasi**. Beberapa merek ponsel (misalnya Xiaomi dan Oppo) menghemat baterai dengan menahan aplikasi yang tertutup. Bila notifikasi datang terlambat atau tidak datang saat aplikasi tertutup, buka pengaturan baterai untuk aplikasi Inbils dan pilih **Tanpa pembatasan** (atau matikan optimalisasi baterai, dan izinkan mulai otomatis bila ponsel memintanya).
 
 ## Notifikasi uji
 
@@ -603,7 +618,7 @@ Daftar pekerjaan, detail SPK dan tiket, notifikasi, dan permintaan barang tetap 
 **Foto bukti saya belum terkirim. Apa yang harus dilakukan?**
 Buka banner **N foto belum terkirim** untuk melihat antrean. Ketuk **Kirim sekarang**. Untuk foto **Gagal**, ketuk **Coba lagi** atau hapus dan ambil ulang. Jangan keluar dari akun sebelum antrean kosong, karena keluar menghapus foto yang belum terkirim.
 
-**Kenapa tombol Kirim untuk review nonaktif?**
+**Kenapa tombol kirim untuk ditinjau nonaktif?**
 Baca teks merah di bawahnya. Penyebabnya: belum ada foto bukti, masih ada foto di antrean, ada deklarasi material yang belum dikirim, atau tidak ada internet.
 
 **Saya lupa kata sandi.**

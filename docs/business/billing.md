@@ -288,6 +288,13 @@ Lihat `docs/WORKFLOW.md` Section 7 (Billing). Ringkas state machine:
   pembayaran online yang masih terbuka (lihat "Halaman pembayaran yang ditutup
   Inbils").
 
+### Pencatatan pembayaran, filter online dan alasan percobaan (flow-audit-fixes gelombang 2)
+- `POST admin.invoices.payments.store` menerima `paid_at` (opsional, `Y-m-d`). Aturan: tidak setelah hari ini menurut zona waktu perusahaan ("Tanggal bayar tidak boleh setelah hari ini.") dan tidak sebelum `issue_date` tagihan ("Tanggal bayar tidak boleh sebelum tanggal terbit tagihan."). Controller mengubah tanggal lampau menjadi hari itu pada jam zona waktu perusahaan saat pencatatan; hari ini berarti `now()`. `BillingService::recordPayment(..., ?CarbonInterface $paidAt = null)` menyimpan `$paidAt ?? now()`. Jalur Midtrans memakai waktunya sendiri. Pembayaran bertanggal mundur menggeser angka penerimaan harian menurut `paid_at`, sesuai rancangan, dan dicatat di audit seperti biasa.
+- Form web mengisi jumlah dengan `sisa` ("Lunas penuh" mengembalikannya), tanggal hari ini, dan metode terakhir yang dipakai di peramban (`localStorage`). Bila ada percobaan online `pending`, form memperingatkan bahwa halaman itu ditutup oleh pencatatan (`closeOpenPages()`) dan bahwa uang yang tetap masuk lewat halaman itu menjadi pengecualian "Perlu dicek".
+- Konfirmasi "Kirim tagihan" (halaman tagihan dan kartu "Langkah berikut" SPK) menyebut pelanggan, jumlah, dan jatuh tempo.
+- `PaymentAttempt::STALE_PENDING_MINUTES = 60` dan `scopeStalePending()`: percobaan `pending` yang dibuat lebih dari satu jam lalu dan belum `expires_at`. `GET admin.invoices.index?online_pending=1` (dan ekspornya) membatasi daftar pada tagihan yang punya percobaan seperti itu. Kartu dashboard `online_payment_pending` menghitung tagihan berbeda dengan predikat yang sama, dan `online_payment_exceptions` menghitung `PaymentAttemptService::openExceptions()`; keduanya untuk pemegang `billing.view` dan `billing.payment.record`.
+- API pelanggan `latestAttempt()` menambah `reason` (enum `declined`, `cancelled`, `expired`, `review`, `closed`, `refunded`, atau `null`) di samping `status` yang tidak berubah. Pemetaan: `failed` dengan `status_reason` memuat "cancel" menjadi `cancelled`, `failed` lain menjadi `declined`, `expire` atau `pending` lewat `expires_at` menjadi `expired`, pengecualian menjadi `review`, `cancelled_locally` menjadi `closed`, `refunded` menjadi `refunded`; `pending` dan `settlement` tidak punya `reason`. Teks `status_reason` mentah tidak pernah keluar dari server.
+
 ### Overdue + auto-suspend (isolir otomatis)
 - `billing:check-overdue` (harian 03:00): invoice `sent|partial` dengan
   due_date < hari ini dan paid < total → status=overdue + AuditLog.

@@ -75,7 +75,7 @@ Run `php artisan db:seed --class=RolePermissionSeeder --force`. It overwrites ma
 
 ## 3. Two-factor authentication (TOTP)
 
-Opt-in for every user, customer portal accounts included. Enforcing it per role or company is a later decision (`.scratch/auth-2fa-passkeys/spec.md`, Q3); until then it protects only the users who enrolled. Passkeys are out of scope.
+Opt-in for every user, customer portal accounts included. A company can require it for its administrators (3.8); without that policy it protects only the users who enrolled. Enforcing it per role is a later decision (`.scratch/auth-2fa-passkeys/spec.md`, Q3). Passkeys are out of scope.
 
 ### 3.1 Mechanism
 - TOTP (RFC 6238: SHA-1, 6 digits, 30 s step) from an authenticator app, accepted one step either side of the current one, plus 8 single-use recovery codes. Code: `App\Services\Core\TwoFactorService`; libraries `pragmarx/google2fa` ^9.1 and `bacon/bacon-qr-code` ^3.1 (SVG, no GD).
@@ -118,6 +118,15 @@ A suspended company is refused wherever its users act, not only in scheduled job
 - **Flip race**: a token minted during the flip survives the revocation but is refused with 403 `company_inactive` on every call.
 - **Two-factor window**: `OpensSession` (the end of both the password and the code step) re-checks `CompanyService::canEnter`, so a company suspended between the two opens no session.
 - Scheduled jobs are unchanged: they already skip inactive companies.
+
+### 3.8 Company policy "Wajib 2FA untuk admin" (wave 2, owner decision K24)
+- Setting `companies.settings.require_admin_two_factor` (boolean, absent = off), switched in Pengaturan → Keamanan by a holder of `company.manage`. Turning it on needs the actor's own confirmed 2FA (422 on that field otherwise), so the switch cannot lock out the person who sets it.
+- An admin is whoever holds one of `company.manage`, `users.manage` or `roles.manage` (`EnforceCompanyTwoFactor::PRIVILEGED`). The check is by permission, so a renamed role still counts.
+- `App\Http\Middleware\EnforceCompanyTwoFactor` sits in the `web` group (`bootstrap/app.php`), not in one route file, because the modules declare their own admin route groups with the same guards. With the policy on, an exposed admin (privileged, no confirmed second factor) is refused on every admin page: a page named `admin.*` or served under `/admin`, named or not, with the path read as the router decodes it. A browser request is redirected to `profile.edit` (303 for a write) with the flash "Perusahaan mewajibkan 2FA untuk admin. Aktifkan 2FA untuk melanjutkan."; a JSON request gets 403 `{"error": "two_factor_required"}`.
+- The way out stays open without an exception list: Profile, the two-factor endpoints, the password pages and logout are neither named `admin.*` nor under `/admin`.
+- Support sessions are exempt (`request->attributes impersonation`): the Inbils team passed the platform's own mandatory second factor, and enrolling the tenant admin is not theirs to do.
+- With the policy off (the default) a request costs no permission lookup. A privileged user without 2FA sees a dismissible reminder instead (`twoFactorPrompt`; "Nanti saja" hides it for 7 days, kept in `localStorage` under a key that carries the user's public id, so a shared office PC does not hide it for the next admin).
+- Tested in `tests/Feature/Admin/CompanyTwoFactorPolicyTest.php` (named and unnamed admin routes, JSON refusal, the profile and logout exits, the support exemption).
 
 ## 4. Mobile API (customer and technician apps)
 
@@ -295,6 +304,12 @@ masih menyinkronkan permission kelima role tersebut.
 - Meter storage memakai metadata media `company_id`; file legacy tanpa metadata
   dapat membuat angka list lebih rendah. Ekspor/purge tetap memakai folder nyata.
 
+### 5.8 Support unlock of a sign-in lock (wave 2)
+- `SupportToolsService::unlockLogin` clears every counter that can hold a user out: the per-account and per-address sign-in keys (`LoginRequest::throttleKeyFor`) and the 2FA account and address keys (`TwoFactorChallengeRequest::accountKeyFor` and `addressKeyFor`). The addresses come from the `login.failed` rows of the security trail that name the account, within `SecurityTrail::WINDOW_SECONDS`.
+- Accepted residual: a lock caused by a typed address that matches no active account is not that user's lock, so it is not cleared (the trail cannot tie it to a user). The per-address budget that guards an address, not a user, is never cleared by support.
+- The audit row `user.login_unlocked` stores only the count of addresses, never the addresses. A failed administrator invitation writes `user.invitation_failed` with the user id and the exception class basename, never the exception message (it can quote the address).
+- A tenant sees these rows as one sentence per code from `App\Support\SupportActionText`; the same dictionary feeds the search and the export, so a code is worded once.
+
 ## 6. Public ids, uniform 404 and enumeration limiter
 
 Authorization (`BelongsToCompany`, policies, `can:` middleware) is the control. The rules below are a second layer against guessing ids and against reading record volume from a URL. Design: `.scratch/opaque-ids/spec.md`.
@@ -328,6 +343,11 @@ Authorization (`BelongsToCompany`, policies, `can:` middleware) is the control. 
 - `App\Support\OptimisticLock`: an edit form sends `expected_updated_at` (the `updated_at` of the row it was rendered from, UTC, milliseconds). The write locks the row and compares; a stale form gets 409 "Data diubah pengguna lain; muat ulang." and `ConflictBanner` offers a reload. Forms: customer, product, employee, service package, company settings; the update requests of subscription, SPK, ticket and draft invoice require it too. The version has whole-second resolution.
 - Active company: every non-GET Inertia visit carries `X-Inbils-Company`, the public id of the company the page was rendered for. `ResolveActiveCompany` refuses a mismatch with 409 "Perusahaan aktif berubah di tab lain.", so a tab left open after a company switch in another tab never writes into the new company. A request without the header (tests, plain posts) passes; `logout` and `admin.company.switch` are exempt.
 - Stock count: approving a stock adjustment compares the live quantity with the request's `old_quantity` under the stock lock and answers 409 "Stok berubah sejak dihitung; hitung ulang." when they differ.
+
+### 6.5 Ticket pages carry only what they show (wave 2 security review)
+- `TicketResource` returns the customer as a summary (public id, code, name) on list rows. The ticket page adds the portal account id and the phone number, which the dispatcher needs to call and to tell the customer's comments from staff's. The whole customer record (email, tax id, notes, addresses) goes only to a holder of `customer.view`, and so do the customer link and the address on the page.
+- `TicketCommentResource` returns the author as public id and name only, not the staff user resource (email, roles, 2FA state, and a roles query and a policy check per comment).
+- Tested in `tests/Feature/Ticketing/TicketPayloadPrivacyTest.php`.
 
 ## 7. Audit trail, logs and company integrations (log-audit)
 

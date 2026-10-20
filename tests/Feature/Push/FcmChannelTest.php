@@ -58,7 +58,7 @@ class FcmChannelTest extends TestCase
         $push = $this->onlyPush();
 
         $this->assertSame(['tech-token-1'], $this->pushedTokens());
-        $this->assertSame(['title' => 'Tiket ditugaskan', 'body' => 'Tiket TKT-17 sudah ditugaskan kepada Anda.'], $push['notification']);
+        $this->assertArrayNotHasKey('notification', $push, 'data-only: the apps draw the push themselves, in every state');
         $this->assertSame([
             'type' => 'ticket_assigned',
             'subject_type' => 'ticket',
@@ -67,10 +67,7 @@ class FcmChannelTest extends TestCase
             'title' => 'Tiket ditugaskan',
             'body' => 'Tiket TKT-17 sudah ditugaskan kepada Anda.',
         ], $push['data']);
-        $this->assertSame(
-            ['priority' => 'high', 'ttl' => '86400s', 'notification' => ['channel_id' => 'inbils', 'tag' => $bell->id]],
-            $push['android'],
-        );
+        $this->assertSame(['priority' => 'high', 'ttl' => '86400s'], $push['android'], 'priority and ttl only: no channel, no tag, no notification block');
     }
 
     public function test_a_notification_without_a_subject_pushes_empty_subject_strings(): void
@@ -97,7 +94,7 @@ class FcmChannelTest extends TestCase
 
         $customer->notify(new ProbePushNotification(['type' => 'invoice_issued', 'invoice_id' => 5]));
         $this->assertSame(['customer-install'], $this->pushedTokens());
-        $this->assertSame('Tagihan baru', $this->multicasts[0]['message']['notification']['title']);
+        $this->assertSame('Tagihan baru', $this->multicasts[0]['message']['data']['title']);
 
         $this->multicasts = [];
         $user->notify(new ProbePushNotification(self::TICKET));

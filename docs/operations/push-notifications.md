@@ -75,11 +75,10 @@ Delete always returns 204 and only removes the current user's row. The apps regi
 
 ## Push payload
 
-FCM receives both a visible Android notification and string-only data:
+Since flow-audit-fixes wave 2 a push is a **data-only** FCM message: there is no `notification` block, so Android draws nothing by itself. The app draws every push, in the foreground, in the background and when killed, so all three look alike and share one group. FCM receives string-only data:
 
 ```json
 {
-  "notification": {"title": "SPK disetujui", "body": "SPK SPK-2026-0042 sudah disetujui."},
   "data": {
     "type": "spk_approved",
     "subject_type": "work_order",
@@ -87,11 +86,30 @@ FCM receives both a visible Android notification and string-only data:
     "notification_id": "8a275b2b-5d73-49df-ae27-096db0479876",
     "title": "SPK disetujui",
     "body": "SPK SPK-2026-0042 sudah disetujui."
-  }
+  },
+  "android": {"priority": "high", "ttl": "86400s"}
 }
 ```
 
-`subject_type` and `subject_id` are empty strings when no screen can open. Android priority is high, TTL is 24 hours, notification channel id is `inbils`, and the notification id is the Android tag so a retried push replaces its copy.
+`title` and `body` stay in `data`, because the app reads them there to draw the notification. `subject_type` and `subject_id` are empty strings when no screen can open. Android priority is high and TTL is 24 hours. The app uses the notification id as the Android tag, so a retried push replaces its copy. There is no server-side `channel_id` any more: the app creates the Android channel `inbils` (importance high) itself.
+
+### What the apps do with it
+
+- **Background and killed state.** Both apps register `inbilsBackgroundPush` (`packages/inbils_core/lib/src/push/background_push.dart`) with `FirebaseMessaging.onBackgroundMessage` before `runApp`. Android starts it in its own isolate for every data-only push and it draws the notification the way the foreground does. It draws nothing unless a stored, unexpired session exists on the phone: with nobody signed in there is nobody to show the push to, which also means an offline sign-out cannot leave a late push behind.
+- **Group and summary.** Every push is posted with group key `inbils`. While two or more pushes wait, the app also posts one summary notification, "{n} notifikasi baru", whose inbox style lists up to five titles. The summary shows titles only, never message bodies. It names no subject, so a tap on the summary opens the notification list. With fewer than two waiting, the summary is removed.
+- **Sign-out.** Signing out takes every notification of the app out of the notification shade, even when the phone is offline and the token cannot be deleted on the server. The server-side token deletion still happens when the connection allows it.
+- **Tap.** A tap on one notification opens its subject. If that screen is already on show, the app re-reads the subject (with a 2 px loading bar) instead of leaving it stale.
+- **Fresh data.** Each app re-reads its live lists on resume, on a tab change and on foreground pushes. Resume, tab change and tap refresh at once. Pushes are debounced: a burst of pushes causes one refresh, about 1 second after the last push of the burst. A push needs no display permission for that refresh.
+
+### Release coupling
+
+Data-only pushes need the new background handler. An app build older than this release draws nothing for a background push, and the bell still lists everything. Deploy the web release and publish both app builds together (`customer` and `technician`). The cutover is clean: there is no per-token format flag, because both apps were still at `1.0.0+1` and no store build is known to exist [INFERENCE: no store build was checked]. If an older build is in the field, add `device_tokens.push_format` and send data-only messages only to tokens of the new build.
+
+Deploy steps (no migration): `npm run build`, then `php artisan queue:restart` so the workers load the new `FcmSender` payload and the new `TenantAdminInvitation` constructor, then publish the two app builds.
+
+### Battery savers
+
+FCM `notification` messages survive aggressive vendor battery savers (Xiaomi, Oppo and similar) better than a data-only message, because the system draws them without starting the app. With data-only pushes the vendor's battery saver can delay or drop the background isolate, so a closed app may show the push late or not at all. The server sends high priority to help. For a device that misses pushes while the app is closed, tell the user to open Settings, Apps, Inbils, Battery and choose **Unrestricted** (turn battery optimisation off, and allow auto-start if the phone offers it). Only the emulator has been tested; a real device check on at least one Xiaomi or Oppo phone is still open.
 
 The committed `docs/api/mobile-v1.openapi.json` is the final enum of bell notification `type` values. Push-enabled types are:
 
@@ -160,7 +178,8 @@ Pengaturan → Integrasi shows a read-only card **Notifikasi aplikasi (Firebase)
 | `User ... has no install` | App signed in and successfully called `POST me/device-token`; Sanctum token has not expired or been revoked. |
 | Bell exists, no push job | Recipient has no reachable token for that app, or credentials are unset. |
 | Job fails after three tries | `queue:failed`, FCM v1 API enablement, service-account project and network access. Logs contain notification id, token suffix and exception class only. |
-| Only foreground display fails | Mobile app must create Android channel `inbils` with high importance and show foreground data through its local-notification handler. |
+| Only foreground display fails | Mobile app must create Android channel `inbils` with high importance and show the data through its local-notification handler. |
+| Background push never shows, foreground works | The app build is older than wave 2 (no `inbilsBackgroundPush`), or a vendor battery saver stopped the app (see Battery savers). |
 | Tap opens nothing | Push data `subject_type`/`subject_id` must match the bell subject; the app routes by that subject, then marks `notification_id` read. |
 | Test screen says "Notifikasi push belum aktif di server" | `POST me/push-test` returned 503: `FIREBASE_CREDENTIALS` is empty or the config cache predates it. The Integrasi page shows Kredensial server as Belum terpasang. |
 | Test screen: token Belum terdaftar | `409 push_token_not_registered`: the install never called `POST me/device-token` for this sign-in, or the token went stale. Tap **Daftarkan ulang**; check Akun → Perangkat. |

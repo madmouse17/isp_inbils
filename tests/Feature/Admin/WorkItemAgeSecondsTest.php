@@ -45,6 +45,10 @@ class WorkItemAgeSecondsTest extends TestCase
         Carbon::setTestNow('2026-10-14 09:00:00');
 
         $item = new $model();
+        // A work order always has a type (the column is NOT NULL) and the My Work row names it.
+        if ($item instanceof WorkOrder) {
+            $item->type = 'installation';
+        }
         $item->created_at = Carbon::now()->subDays(3);
 
         $payload = (new $resource($item))->toArray(Request::create('/'));

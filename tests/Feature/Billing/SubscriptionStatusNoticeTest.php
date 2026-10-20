@@ -102,7 +102,8 @@ class SubscriptionStatusNoticeTest extends TestCase
 
         $this->assertSame(['customer-phone-'.$subscription->customer->user_id], $this->pushedTokens());
         $push = $this->onlyPush();
-        $this->assertSame(['title' => 'Layanan diisolir', 'body' => $bell[0]['message']], $push['notification']);
+        $this->assertArrayNotHasKey('notification', $push, 'data-only: the app draws the push itself');
+        $this->assertSame(['title' => 'Layanan diisolir', 'body' => $bell[0]['message']], array_intersect_key($push['data'], array_flip(['title', 'body'])));
         $this->assertSame(
             ['type' => 'subscription_isolated', 'subject_type' => 'subscription', 'subject_id' => strtolower($subscription->public_id)],
             array_intersect_key($push['data'], array_flip(['type', 'subject_type', 'subject_id'])),

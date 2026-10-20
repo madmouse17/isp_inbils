@@ -16,12 +16,13 @@ use Kreait\Firebase\Messaging\SendReport;
  * FCM reports as unregistered or invalid are deleted on the spot. Everything it logs is the notification id, the last
  * characters of a token and an error class: never a message, never a whole token (FCM's own exception messages
  * quote the token, so they are not logged either).
+ *
+ * A push is a data-only message. The apps draw it themselves, in one notification group, whether they are open, in the
+ * background or killed. With a `notification` block Android would draw and auto-group a background push, and a tap on
+ * that group opens the app without naming a subject.
  */
 final class FcmSender
 {
-    /** The Android notification channel the apps create at start (importance high), so a background push heads-up. */
-    public const CHANNEL_ID = 'inbils';
-
     /** A push that waited a day for an offline phone says nothing the bell does not say better. */
     private const TTL = '86400s';
 
@@ -74,18 +75,13 @@ final class FcmSender
         return ['sent' => count($report->successes()), 'stale' => count($stale), 'failed' => count($failures)];
     }
 
-    /** @param array{title: string, body: string, data: array<string, string>} $message */
+    /** @param array{title: string, body: string, data: array<string, string>} $message `data` repeats the title and the body, so the bell and the push say the same */
     private function cloudMessage(array $message): CloudMessage
     {
+        // The apps replace a notification that has the same notification_id instead of stacking a copy: a retried job cannot show twice.
         return CloudMessage::fromArray([
-            'notification' => ['title' => $message['title'], 'body' => $message['body']],
             'data' => $message['data'],
-            'android' => [
-                'priority' => 'high',
-                'ttl' => self::TTL,
-                // The same id replaces a notification instead of stacking a copy: a retried job cannot show twice.
-                'notification' => ['channel_id' => self::CHANNEL_ID, 'tag' => $message['data']['notification_id']],
-            ],
+            'android' => ['priority' => 'high', 'ttl' => self::TTL],
         ]);
     }
 }

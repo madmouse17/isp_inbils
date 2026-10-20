@@ -655,7 +655,7 @@ class PaymentAttemptLocalCancelTest extends TestCase
         $this->assertContains('payment_attempt_exception', NotificationResource::TYPES);
 
         $push = $this->onlyPush();
-        $this->assertSame(['title' => $title, 'body' => $message], $push['notification']);
+        $this->assertArrayNotHasKey('notification', $push, 'data-only: the app draws the push itself');
         $this->assertSame([
             'type' => 'payment_attempt_exception',
             'subject_type' => 'invoice',

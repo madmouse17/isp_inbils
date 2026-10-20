@@ -181,6 +181,12 @@ return:      from=null, to=location, qty>0 (SPK material return)
   lokasi sumber item permintaan (atau gudang permintaan), bukan dari lokasi SPK.
   Barang yang tidak pernah diminta keluar dari lokasi SPK.
 
+### Stok tersedia saat menyetujui, penerimaan retur dan API teknisi (flow-audit-fixes gelombang 2)
+- `InventoryRequestController::show` menambah `stockAvailable`: per barang, `quantity − reserved_quantity` di lokasi yang dicek service (`source_location_id` item, atau `warehouse_location_id` permintaan). Hanya ada saat permintaan menunggu persetujuan dan pengguna boleh menyetujui; selain itu `null`. Dialog setujui menulis "Tersedia: n", menandai jumlah yang melebihi stok, dan menonaktifkan tombol. Pesan server `InsufficientStockException` tetap menjadi sumber kebenaran.
+- Dialog "Terima Pengembalian Fisik" memakai empat kolom per baris: Baik (`accepted_good_return_qty`), Rusak (`damaged_return_qty`), Hilang (`lost_qty`) dan Lainnya (`other_discrepancy_qty`). Awalnya Baik = `declared_good_return_qty`, dan `declared_discrepancy_qty` masuk ke kolom sesuai `discrepancy_code` (`damaged`, `lost`, `other`; tanpa kode ke Lainnya). Aturan server tidak berubah: dikeluarkan = terpakai + baik + rusak + hilang + lainnya. Dialog menulis "Jumlah cocok", "Kurang x" atau "Lebih x" per baris dan menahan kirim sampai cocok.
+- API teknisi: item permintaan barang membawa `quantity_approved` (angka atau `null` sebelum disetujui) dan `quantity_issued`; `quantity` tetap jumlah diminta. Aplikasi menulis "diserahkan x dari y" atau "disetujui x dari y".
+- Aplikasi teknisi mengisi deklarasi baru dengan terpakai = dikeluarkan dan baik = 0, menghitung selisih sendiri (`declared_discrepancy_qty` = dikeluarkan − terpakai − baik), dan menolak angka yang melebihi yang diserahkan sebelum mengirim.
+
 ### Aturan hitung ulang (penyesuaian stok)
 - Permintaan penyesuaian menyimpan `old_quantity`, stok saat hitungan diambil.
   Saat disetujui, `StockService::adjust` membaca stok di bawah kunci dan

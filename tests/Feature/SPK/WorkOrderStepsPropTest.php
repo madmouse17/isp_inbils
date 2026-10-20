@@ -46,11 +46,20 @@ class WorkOrderStepsPropTest extends TestCase
         $steps = $response->inertiaProps('steps');
         $this->assertSame('en_route', $response->inertiaProps('currentStep'));
         $this->assertSame(['assigned', 'en_route', 'in_progress', 'installed'], array_column($steps, 'key'));
-        $this->assertSame(['Ditugaskan', 'Dalam perjalanan', 'Sedang dikerjakan', 'Selesai dipasang'], array_column($steps, 'label'));
+        $this->assertSame(['Ditugaskan', 'Dalam perjalanan', 'Sedang dikerjakan', 'Selesai dikerjakan'], array_column($steps, 'label'));
         $this->assertSame(
             [Carbon::parse('2026-10-16 01:00:00')->jsonSerialize(), Carbon::parse('2026-10-16 01:30:00')->jsonSerialize(), null, null],
             array_column($steps, 'at'),
         );
+    }
+
+    public function test_an_installation_ends_at_selesai_dipasang(): void
+    {
+        $workOrder = $this->workOrder('assigned', ['type' => 'installation']);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.spk.show', $workOrder))->assertOk();
+
+        $this->assertSame('Selesai dipasang', array_column($response->inertiaProps('steps'), 'label')[3]);
     }
 
     public function test_a_finished_visit_has_reached_the_last_step(): void

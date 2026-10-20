@@ -73,7 +73,8 @@ class PushTestApiTest extends TestCase
         $push = $this->onlyPush();
         $this->assertSame('push_test', $push['data']['type']);
         $this->assertSame($notification->id, $push['data']['notification_id']);
-        $this->assertSame('Notifikasi uji', $push['notification']['title']);
+        $this->assertArrayNotHasKey('notification', $push, 'data-only: the app draws the push itself');
+        $this->assertSame('Notifikasi uji', $push['data']['title']);
 
         $bell = $this->api('GET', 'notifications', [], $bearer)->assertOk()->json('data.0');
         $this->assertSame(['push_test', 'Notifikasi uji', "Notifikasi uji dari {$technician->company->name}."], [$bell['type'], $bell['title'], $bell['message']]);

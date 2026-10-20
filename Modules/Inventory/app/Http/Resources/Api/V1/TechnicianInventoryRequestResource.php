@@ -31,6 +31,9 @@ class TechnicianInventoryRequestResource extends JsonResource
                 /** @var string|null */
                 'unit' => data_get($item, 'product.unit.symbol') ?? data_get($item, 'product.unit.name'),
                 'quantity' => (float) $item->quantity_requested,
+                // What the office approved (null until it did) and what the warehouse handed over, so the card shows more than the ask.
+                'quantity_approved' => $item->getAttribute('quantity_approved') === null ? null : (float) $item->quantity_approved,
+                'quantity_issued' => (float) $item->quantity_issued,
             ])->values()->all(),
             'work_order' => $source instanceof WorkOrder ? ['id' => $source->public_id, 'code' => $source->code] : null,
             /** @var string|null */
