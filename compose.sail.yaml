@@ -5,6 +5,35 @@
 # Do not run `sail:install` / `sail:add` here: they rewrite compose.yaml.
 name: inbils-sail
 
+# Opt-in queue worker and scheduler (F5-D19). Without them a bell, a reactivation after payment and `midtrans:reconcile`
+# wait for a hand-started `queue:work`. Nothing here runs by default: `COMPOSE_PROFILES=workers ./vendor/bin/sail up -d` or
+# scripts/dev-payments.sh starts them beside the app. They bind-mount the same source and read the same .env, and take
+# the same image as laravel.test, so no second build exists. A worker keeps the code it booted with: after changing a
+# job, listener or notification run `sail artisan queue:restart`; it exits after its job and `restart` starts it again.
+x-sail-worker: &sail-worker
+  build:
+    context: ./vendor/laravel/sail/runtimes/8.4
+    dockerfile: Dockerfile
+    args:
+      WWWGROUP: "${WWWGROUP}"
+  image: sail-8.4/app
+  profiles: ["workers"]
+  restart: unless-stopped
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  environment:
+    WWWUSER: "${WWWUSER}"
+    LARAVEL_SAIL: 1
+  volumes:
+    - ".:/var/www/html"
+  networks:
+    - sail
+  depends_on:
+    mysql:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
 services:
   laravel.test:
     build:
@@ -42,6 +71,14 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  queue:
+    <<: *sail-worker
+    command: ["php", "artisan", "queue:work", "--queue=default,whatsapp", "--sleep=3", "--tries=3", "--timeout=90", "--no-interaction"]
+
+  scheduler:
+    <<: *sail-worker
+    command: ["php", "artisan", "schedule:work", "--no-interaction"]
 
   mysql:
     image: mysql:8.4

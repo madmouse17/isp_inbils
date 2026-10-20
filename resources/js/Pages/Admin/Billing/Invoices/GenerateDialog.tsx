@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { router } from '@inertiajs/react';
 import axios from 'axios';
 import {
+    Alert,
     Button,
     Card,
     CardContent,
+    Checkbox,
     Modal,
     MonthPicker,
     Table,
@@ -24,13 +26,28 @@ interface PreviewRow {
     package: string;
     active_days: number;
     days_in_period: number;
-    total: number;
+    total: string;
+}
+
+/** A subscription the run leaves out, with the reason in words (the server writes it). */
+interface SkippedRow {
+    subscription_code: string;
+    customer: string;
+    reason: string;
+    reason_label: string;
 }
 
 interface PreviewResponse {
     rows: PreviewRow[];
+    /** All of them; `skipped_rows` names the first 50. */
     skipped: number;
+    skipped_rows: SkippedRow[];
+    /** The month still in progress on the company clock: its invoices reach customers at once. */
+    is_current_period: boolean;
 }
+
+/** Skipped subscriptions shown before "Lihat yang dilewati". */
+const SKIPPED_SHOWN = 5;
 
 const previousMonth = () => {
     const d = new Date();
@@ -42,21 +59,38 @@ const previousMonth = () => {
 export default function GenerateDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
     const company = useCompany();
     const [period, setPeriod] = useState(previousMonth());
-    const [rows, setRows] = useState<PreviewRow[] | null>(null);
-    const [skipped, setSkipped] = useState(0);
+    const [preview, setPreview] = useState<PreviewResponse | null>(null);
+    const [periodError, setPeriodError] = useState<string | undefined>();
+    const [allSkipped, setAllSkipped] = useState(false);
+    const [understood, setUnderstood] = useState(false);
     const [loading, setLoading] = useState(false);
     const [confirming, setConfirming] = useState(false);
     const [creating, setCreating] = useState(false);
 
-    const preview = async () => {
+    const rows = preview?.rows ?? null;
+    const skippedRows = preview?.skipped_rows ?? [];
+    const creatable = rows !== null && rows.length > 0;
+    const currentPeriod = creatable && preview?.is_current_period === true;
+
+    const runPreview = async () => {
         setLoading(true);
+        setPeriodError(undefined);
         try {
             const { data } = await axios.post<PreviewResponse>(
                 route('admin.invoices.generate-preview'),
                 { period },
             );
-            setRows(data.rows);
-            setSkipped(data.skipped);
+            setPreview(data);
+            setAllSkipped(false);
+            setUnderstood(false);
+        } catch (error) {
+            const response = axios.isAxiosError<{ errors?: { period?: string[] } }>(error)
+                ? error.response
+                : undefined;
+            setPreview(null);
+            setPeriodError(
+                response?.data?.errors?.period?.[0] ?? 'Pratinjau gagal dimuat. Coba lagi.',
+            );
         } finally {
             setLoading(false);
         }
@@ -72,6 +106,10 @@ export default function GenerateDialog({ open, onClose }: { open: boolean; onClo
                     setConfirming(false);
                     onClose();
                 },
+                onError: (errors) => {
+                    setConfirming(false);
+                    setPeriodError(errors.period);
+                },
                 onFinish: () => setCreating(false),
             },
         );
@@ -86,16 +124,76 @@ export default function GenerateDialog({ open, onClose }: { open: boolean; onClo
                             id="generate-period"
                             label="Periode"
                             value={period}
+                            error={periodError}
                             onChange={(value) => {
                                 setPeriod(value);
-                                setRows(null);
+                                setPreview(null);
+                                setPeriodError(undefined);
                             }}
                         />
-                        {rows && (
+                        {preview && (
                             <>
                                 <p className="text-sm text-muted-foreground">
-                                    {rows.length} tagihan akan dibuat, {skipped} dilewati.
+                                    {preview.rows.length} tagihan akan dibuat, {preview.skipped}{' '}
+                                    dilewati.
                                 </p>
+                                {currentPeriod && (
+                                    <Alert variant="warning">
+                                        Periode berjalan belum selesai. Tagihan langsung terkirim ke
+                                        pelanggan.
+                                    </Alert>
+                                )}
+                                {skippedRows.length > 0 && (
+                                    <section
+                                        aria-labelledby="generate-skipped"
+                                        className="space-y-2"
+                                    >
+                                        <h3 id="generate-skipped" className="text-sm font-medium">
+                                            Dilewati
+                                        </h3>
+                                        <Table>
+                                            <THead>
+                                                <TR>
+                                                    <TH>Langganan</TH>
+                                                    <TH>Pelanggan</TH>
+                                                    <TH>Alasan</TH>
+                                                </TR>
+                                            </THead>
+                                            <TBody>
+                                                {(allSkipped
+                                                    ? skippedRows
+                                                    : skippedRows.slice(0, SKIPPED_SHOWN)
+                                                ).map((row) => (
+                                                    <TR key={row.subscription_code}>
+                                                        <TD className="font-mono text-xs">
+                                                            {row.subscription_code}
+                                                        </TD>
+                                                        <TD>{row.customer}</TD>
+                                                        <TD>{row.reason_label}</TD>
+                                                    </TR>
+                                                ))}
+                                            </TBody>
+                                        </Table>
+                                        {skippedRows.length > SKIPPED_SHOWN && (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                aria-expanded={allSkipped}
+                                                onClick={() => setAllSkipped((all) => !all)}
+                                            >
+                                                {allSkipped
+                                                    ? 'Ringkas daftar'
+                                                    : 'Lihat yang dilewati'}
+                                            </Button>
+                                        )}
+                                        {preview.skipped > skippedRows.length && (
+                                            <p className="text-sm text-muted-foreground">
+                                                Dan {preview.skipped - skippedRows.length} lainnya.
+                                            </p>
+                                        )}
+                                    </section>
+                                )}
                                 <Table>
                                     <THead>
                                         <TR>
@@ -106,7 +204,7 @@ export default function GenerateDialog({ open, onClose }: { open: boolean; onClo
                                         </TR>
                                     </THead>
                                     <TBody>
-                                        {rows.map((r) => (
+                                        {preview.rows.map((r) => (
                                             <TR key={r.subscription_id}>
                                                 <TD>{r.customer}</TD>
                                                 <TD>{r.package}</TD>
@@ -118,7 +216,7 @@ export default function GenerateDialog({ open, onClose }: { open: boolean; onClo
                                                 </TD>
                                             </TR>
                                         ))}
-                                        {rows.length === 0 && (
+                                        {preview.rows.length === 0 && (
                                             <TR>
                                                 <TD
                                                     colSpan={4}
@@ -134,22 +232,35 @@ export default function GenerateDialog({ open, onClose }: { open: boolean; onClo
                         )}
                     </CardContent>
                 </Card>
+                {currentPeriod && (
+                    <Checkbox
+                        id="generate-understood"
+                        label="Saya mengerti, buat tagihan periode berjalan"
+                        checked={understood}
+                        onCheckedChange={(checked) => setUnderstood(checked === true)}
+                    />
+                )}
                 <div className="flex justify-end gap-2">
                     <Button type="button" variant="secondary" onClick={onClose}>
                         Batal
                     </Button>
                     <Button
                         type="button"
-                        variant={rows !== null && rows.length > 0 ? 'outline' : 'primary'}
+                        variant={creatable ? 'outline' : 'primary'}
                         onClick={() => {
-                            void preview();
+                            void runPreview();
                         }}
                         loading={loading}
                     >
                         Lihat pratinjau
                     </Button>
-                    {rows !== null && rows.length > 0 && (
-                        <Button type="button" variant="primary" onClick={() => setConfirming(true)}>
+                    {creatable && (
+                        <Button
+                            type="button"
+                            variant="primary"
+                            disabled={currentPeriod && !understood}
+                            onClick={() => setConfirming(true)}
+                        >
                             Buat {rows.length} tagihan
                         </Button>
                     )}

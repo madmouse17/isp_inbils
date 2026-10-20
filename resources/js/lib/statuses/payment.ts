@@ -18,6 +18,7 @@ export const PAYMENT_STATE = {
 /**
  * A customer's attempt to pay through Midtrans. `exception` is a refund, a chargeback or a payment billing refused.
  * `cancelled_locally` is a page Inbils closed because the invoice was paid or cancelled while it was open.
+ * `refunded` is an exception finance closed after the money went back to the customer outside Inbils.
  */
 export const PAYMENT_ATTEMPT_STATUS = {
     pending: { label: 'Menunggu', tone: 'warning' },
@@ -26,4 +27,5 @@ export const PAYMENT_ATTEMPT_STATUS = {
     expired: { label: 'Kedaluwarsa', tone: 'neutral' },
     exception: { label: 'Perlu dicek', tone: 'danger' },
     cancelled_locally: { label: 'Ditutup', tone: 'neutral' },
+    refunded: { label: 'Dikembalikan', tone: 'neutral' },
 } satisfies StatusMap;

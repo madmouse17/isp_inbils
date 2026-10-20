@@ -173,6 +173,35 @@ class ImpersonationTest extends TestCase
         ])->assertForbidden()->assertJsonPath('message', EnforceImpersonation::SECURITY_MESSAGE);
     }
 
+    public function test_profile_during_support_renders_error_page(): void
+    {
+        $this->startImpersonation();
+
+        // An address typed in the browser: the standalone error page with the reason, not raw text.
+        $this->asTenantVisitor()->get(route('profile.edit'))
+            ->assertForbidden()
+            ->assertInertia(fn ($page) => $page
+                ->component('Error')
+                ->where('status', 403)
+                ->where('message', EnforceImpersonation::SECURITY_MESSAGE));
+
+        // A link followed inside the app: the Inertia client gets the page object, so the error page replaces the screen
+        // instead of the response being shown in the iframe the client keeps for answers that are not pages.
+        $this->asTenantVisitor()->get(route('profile.edit'), ['X-Inertia' => 'true'])
+            ->assertForbidden()
+            ->assertHeader('X-Inertia', 'true')
+            ->assertJsonPath('component', 'Error')
+            ->assertJsonPath('props.message', EnforceImpersonation::SECURITY_MESSAGE);
+
+        // A write keeps its toast, and JSON keeps its body.
+        $this->asTenantVisitor()->withHeaders(['X-Inertia' => 'true'])->delete(route('profile.destroy'))
+            ->assertStatus(303)
+            ->assertSessionHas('error', EnforceImpersonation::SECURITY_MESSAGE);
+        $this->asTenantVisitor()->getJson(route('profile.edit'))
+            ->assertForbidden()
+            ->assertJsonPath('message', EnforceImpersonation::SECURITY_MESSAGE);
+    }
+
     public function test_write_mode_requires_exact_company_code_allows_writes_and_audits_real_actor(): void
     {
         $this->startImpersonation();

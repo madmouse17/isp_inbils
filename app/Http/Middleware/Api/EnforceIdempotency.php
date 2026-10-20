@@ -17,6 +17,9 @@ use Symfony\Component\HttpFoundation\Response;
  * one user action) and a retry never applies twice. Per user and key the cache holds the request fingerprint and,
  * once finished, the response: a replay gets that response, the key with another request is a 422, a duplicate that
  * arrives while the first still runs is a 409. 5xx and 429 are not stored, so those can be retried with the same key.
+ * Neither is a response marked `Cache-Control: no-store` (a secret shown once, like the PPPoE login of an installation):
+ * nothing of it is kept, the key is released, and a retry runs again behind every guard instead of being answered from the
+ * cache, so a replay can never hand the secret to somebody whose access has ended.
  */
 final class EnforceIdempotency
 {
@@ -55,7 +58,7 @@ final class EnforceIdempotency
         $response = $next($request);
         $body = $response->getContent();
 
-        if ($response->getStatusCode() >= 500 || $response->getStatusCode() === 429 || $body === false) {
+        if ($response->getStatusCode() >= 500 || $response->getStatusCode() === 429 || $body === false || $response->headers->hasCacheControlDirective('no-store')) {
             Cache::forget($cacheKey);
 
             return $response;

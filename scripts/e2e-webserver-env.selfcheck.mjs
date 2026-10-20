@@ -144,13 +144,18 @@ test('no lab vars in the shell: env stays minimal so .env.e2e fallback decides',
     const { env } = buildE2EServerEnv({ PATH: '/usr/bin' });
 
     assert.equal(env.E2E_RADIUS_LAB, undefined);
-    assert.deepEqual(env, { PATH: '/usr/bin', APP_ENV: 'e2e', CACHE_STORE: 'database' });
+    assert.deepEqual(env, {
+        PATH: '/usr/bin',
+        APP_ENV: 'e2e',
+        CACHE_STORE: 'database',
+        STORAGE_ENV_SUFFIX: '/e2e',
+    });
 });
 
 test('empty source env still yields a minimal explicit e2e environment and PHP fallback', () => {
     const { env, droppedSensitiveNames } = buildE2EServerEnv({});
 
-    assert.deepEqual(env, { APP_ENV: 'e2e', CACHE_STORE: 'database' });
+    assert.deepEqual(env, { APP_ENV: 'e2e', CACHE_STORE: 'database', STORAGE_ENV_SUFFIX: '/e2e' });
     assert.equal(resolvePhpBinary(env.PHP_BINARY), 'php');
     assert.deepEqual(droppedSensitiveNames, []);
 });

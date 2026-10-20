@@ -116,14 +116,19 @@ export default function Index({ vehicles, filters, can }: IndexProps) {
         [clearErrors, setData],
     );
 
+    const close = () => {
+        reset();
+        clearErrors();
+        setModalOpen(false);
+    };
+
     const submit = (event: FormEvent) => {
         event.preventDefault();
-        const onSuccess = () => setModalOpen(false);
 
         if (editId) {
-            put(route('admin.vehicles.update', editId), { onSuccess });
+            put(route('admin.vehicles.update', editId), { onSuccess: close });
         } else {
-            post(route('admin.vehicles.store'), { onSuccess });
+            post(route('admin.vehicles.store'), { onSuccess: close });
         }
     };
 
@@ -249,7 +254,7 @@ export default function Index({ vehicles, filters, can }: IndexProps) {
                 </Card>
                 <Modal
                     open={modalOpen}
-                    onClose={() => setModalOpen(false)}
+                    onClose={close}
                     title={editId ? 'Ubah Kendaraan' : 'Buat Kendaraan'}
                 >
                     <form onSubmit={submit} className="space-y-4">
@@ -301,11 +306,7 @@ export default function Index({ vehicles, filters, can }: IndexProps) {
                             error={errors.notes}
                         />
                         <div className="flex justify-end gap-2">
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => setModalOpen(false)}
-                            >
+                            <Button type="button" variant="secondary" onClick={close}>
                                 Batal
                             </Button>
                             <Button type="submit" variant="primary" loading={processing}>

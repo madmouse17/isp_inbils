@@ -164,8 +164,8 @@ final class TicketDemo
     /** The demo customer login reports problems of its own. */
     private static function planPortalTickets(DemoContext $c): void
     {
-        self::planTicket($c, 'P01', 3, 'slow_connection', null, 'customer_demo', 'assigned', 'technician', 'ok');
-        self::planTicket($c, 'P02', 41, 'no_internet', null, 'customer_demo', 'resolved', 'technician', 'ok');
+        self::planTicket($c, 'P01', 3, 'slow_connection', 'DEMO-C005', 'customer_demo', 'assigned', 'technician', 'ok');
+        self::planTicket($c, 'P02', 41, 'no_internet', 'DEMO-C005', 'customer_demo', 'resolved', 'technician', 'ok');
     }
 
     /**
@@ -265,7 +265,13 @@ final class TicketDemo
                 'network_asset_id' => in_array($category, ['no_internet', 'device_issue'], true) ? $subscription->ont_asset_id : null,
                 'location_id' => $c->get('location', $c->get('pop', $customerCode)),
             ];
-            $actor = $creator === 'customer' ? User::query()->findOrFail($customer->user_id) : $creator;
+            if ($creator === 'customer_demo') {
+                // The demo customer login is this customer's portal login, so the ticket flow answers it the way it answers a customer.
+                $customer->forceFill(['user_id' => $c->user('customer')->id])->save();
+                $actor = 'customer';
+            } else {
+                $actor = $creator === 'customer' ? User::query()->findOrFail($customer->user_id) : $creator;
+            }
         } elseif ($creator === 'customer_demo') {
             $actor = 'customer';
         } else {

@@ -126,7 +126,7 @@ class AppNotificationsPushTest extends TestCase
         $ticket = $this->ticket('TKT-18');
         Notification::sendNow($this->technician, new TicketSlaBreachedNotification($ticket->id, 'TKT-18', 'resolution', $this->company->id));
 
-        $this->assertPushed('technician-install', 'SLA tiket terlampaui', 'Tiket TKT-18 melewati batas SLA.', 'ticket_sla_breached', 'ticket', $ticket->public_id);
+        $this->assertPushed('technician-install', 'SLA tiket terlampaui', 'Tiket TKT-18 melewati batas penyelesaian SLA.', 'ticket_sla_breached', 'ticket', $ticket->public_id);
     }
 
     public function test_a_request_ready_for_pickup_reaches_the_technician_who_asked_for_it(): void

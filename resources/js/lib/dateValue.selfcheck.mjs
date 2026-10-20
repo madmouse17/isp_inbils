@@ -143,6 +143,11 @@ test('typed date with time emits Y-m-d H:i and round-trips', () => {
     ok('  13/10/2026 21:05  ', 'dd/MM/yyyy', '2026-10-13 21:05');
     ok('13 oktober 2026 21:05', 'dd MMM yyyy', '2026-10-13 21:05');
     ok('13 Agt 2026 07:00', 'dd MMM yyyy', '2026-08-13 07:00');
+    // A bare ISO day is read whatever the company format is; a numeric day in a `d M Y` company too.
+    ok('2026-10-13 08:30', 'dd/MM/yyyy', '2026-10-13 08:30');
+    ok('20/10/2026 08:30', 'dd MMM yyyy', '2026-10-20 08:30');
+    // A text that is a day in the company format keeps the company reading.
+    ok('05/06/2026 08:30', 'dd/MM/yyyy', '2026-06-05 08:30');
 });
 
 test('a date with time that is not whole is rejected', () => {
@@ -156,7 +161,6 @@ test('a date with time that is not whole is rejected', () => {
         ['13/10/26 08:30', 'dd/MM/yyyy'],
         ['bukan tanggal 08:30', 'dd/MM/yyyy'],
         ['13/10/2026 bukan jam', 'dd/MM/yyyy'],
-        ['2026-10-13 08:30', 'dd/MM/yyyy'],
         ['', 'dd/MM/yyyy'],
         ['   ', 'dd/MM/yyyy'],
     ]) {
@@ -176,14 +180,12 @@ test('single days: formatDay writes the company format, parseDay reads it back',
     assert.equal(parseDay('3/10/2026', 'dd/MM/yyyy'), '2026-10-03');
     assert.equal(parseDay('13 Agt 2026', 'dd MMM yyyy'), '2026-08-13');
     assert.equal(parseDay('13 Oktober 2026', 'dd MMM yyyy'), '2026-10-13');
-    for (const bad of [
-        '',
-        'bukan tanggal',
-        '31/02/2026',
-        '13/10/26',
-        '13/10/20266',
-        '2026-10-13',
-    ]) {
+    // Numeric forms are read whatever the company format is (F5-D05); the company format is tried first.
+    assert.equal(parseDay('2026-10-13', 'dd/MM/yyyy'), '2026-10-13');
+    assert.equal(parseDay('20/10/2026', 'dd MMM yyyy'), '2026-10-20');
+    assert.equal(parseDay('05/06/2026', 'dd/MM/yyyy'), '2026-06-05');
+    assert.equal(parseDay('05/06/2026', 'MM/dd/yyyy'), '2026-05-06');
+    for (const bad of ['', 'bukan tanggal', '31/02/2026', '13/10/26', '13/10/20266']) {
         assert.equal(parseDay(bad, 'dd/MM/yyyy'), null, bad);
     }
 });

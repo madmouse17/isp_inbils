@@ -19,9 +19,9 @@ use Modules\Inventory\Notifications\MaterialReturnExceptionNotification;
 use Modules\Inventory\Notifications\MaterialReturnRejectedNotification;
 
 /**
- * Ticket notifications come from the ticket flow itself. The warehouse notifications are mail-only in the
- * app, so the in-app inbox gets the same events written from the requests and cases that exist, and the
- * billing scheduler reports two failed runs to the administrator.
+ * Ticket notifications come from the ticket flow itself. The warehouse notifications come from the request and return
+ * flows, which seeded requests and cases never went through, so the in-app inbox gets the same events written from the
+ * requests and cases that exist, and the billing scheduler reports two failed runs to the administrator.
  */
 final class NotificationDemo
 {

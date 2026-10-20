@@ -9,7 +9,9 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\DB;
 use Modules\Inventory\Models\MaterialReturnCase;
+use Modules\NetworkAsset\Models\NetworkAccount;
 use Modules\SPK\Models\WorkOrder;
+use Modules\SPK\Services\SpkService;
 use Modules\SPK\Support\TripSteps;
 use Modules\SPK\Support\WorkOrderSite;
 
@@ -65,6 +67,14 @@ class TechnicianWorkOrderResource extends JsonResource
                 'code' => $wo->subscription->code,
                 'package_name' => $wo->subscription->servicePackage?->name,
             ],
+            /**
+             * The PPPoE login of an installation, for the technician it is assigned to: the username and where it stands,
+             * never the secret (the app asks for that behind "Tampilkan", POST network-credentials). Null for any other
+             * type, while no account is made, and for anyone but the assignee.
+             *
+             * @var array{username: string, sync_status: 'pending'|'synced'|'error', can_reveal: bool}|null
+             */
+            'network_account' => $this->networkAccount($user),
             /** Where to go: the customer's installation address for a subscription SPK, else the SPK's location. */
             'site' => WorkOrderSite::site($wo),
             /** The POP the SPK is stocked from, apart from the site; null when the site is the location itself. */
@@ -85,6 +95,35 @@ class TechnicianWorkOrderResource extends JsonResource
                 // Whoever may submit the SPK (its assigned technician, while it is in progress) keeps its material lines.
                 'edit_items' => $user?->can('submit', $wo) ?? false,
             ],
+        ];
+    }
+
+    /** @return array{username: string, sync_status: 'pending'|'synced'|'error', can_reveal: bool}|null */
+    private function networkAccount(?User $user): ?array
+    {
+        $wo = $this->resource;
+
+        if ($user === null || $wo->type !== 'installation' || $wo->subscription_id === null || (int) $wo->assigned_to !== (int) $user->id) {
+            return null;
+        }
+
+        // The columns are named: the secret is not even loaded.
+        $account = NetworkAccount::query()
+            ->where('subscription_id', $wo->subscription_id)
+            ->where('service_type', 'pppoe')
+            ->first(['id', 'subscription_id', 'username', 'sync_status']);
+
+        if ($account === null) {
+            return null;
+        }
+
+        return [
+            'username' => $account->username,
+            'sync_status' => $account->sync_status === 'failed' ? 'error' : $account->sync_status,
+            'can_reveal' => in_array($wo->status, SpkService::CREDENTIAL_STATUSES, true)
+                && $wo->subscription !== null
+                && ! $wo->subscription->trashed()
+                && $wo->subscription->status !== 'terminated',
         ];
     }
 

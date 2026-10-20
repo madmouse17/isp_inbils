@@ -39,6 +39,7 @@ import { SuggestionChip } from '@/Components/composite/SuggestionChip';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { lowestLoad } from '@/lib/suggest';
 import { PRIORITY, WORK_ORDER_STATUS, WORK_ORDER_TYPE } from '@/lib/statuses';
+import type { PageProps } from '@/types';
 import type { DropPort } from '@/types/ipam-odn';
 import { checkInText, type CheckInRecord } from '../Tickets/components/checkIn';
 
@@ -120,7 +121,8 @@ interface ShowProps extends Record<string, unknown> {
     networkAssetOptions?: RemoteOption[];
     /** The ODP port reserved for the customer (read-only); installation SPKs with a drop, odn.view only. */
     dropPort?: DropPort | null;
-    can: { uploadEvidence: boolean };
+    /** What this person may do on this SPK in its status: the page shows no button the server would refuse. */
+    can: { uploadEvidence: boolean; start: boolean; cancel: boolean; reassign: boolean };
     checkIn?: CheckInRecord | null;
     /** The four steps of the visit; `[]` for a cancelled SPK. */
     steps: WorkOrderStep[];
@@ -210,9 +212,22 @@ export default function Show({
         quantity_used: '',
         note: '',
     });
+    // An assigned or running visit changes hands; a draft or a rejected SPK is assigned (again).
+    const reassigning = w.status === 'assigned' || w.status === 'in_progress';
+    // Assigning an assigned or running SPK changes its technician, and the dialog says so.
+    const titles = reassigning
+        ? { ...ACTION_TITLE, assign: (code: string) => `Ganti teknisi SPK ${code}` }
+        : ACTION_TITLE;
+    const confirmLabels = reassigning
+        ? { ...ACTION_CONFIRM, assign: 'Ganti teknisi' }
+        : ACTION_CONFIRM;
+    // Nobody takes over from themselves.
+    const candidates = reassigning
+        ? technicians.filter((technician) => technician.id !== w.assigned_to)
+        : technicians;
     // Offered as a hint only: the person assigning decides.
-    const lightest = lowestLoad(technicians);
-    const technicianOptions = technicians.map((technician) => ({
+    const lightest = lowestLoad(candidates);
+    const technicianOptions = candidates.map((technician) => ({
         value: String(technician.id),
         label: technician.name,
         description: [technician.employee_number, technician.organization, technician.phone]
@@ -224,7 +239,6 @@ export default function Show({
         ? `${selectedProduct.unit.name} (${selectedProduct.unit.symbol})`
         : null;
     const canChange = ITEM_EDITABLE_STATUSES.includes(w.status);
-    const canCancel = !['completed', 'cancelled'].includes(w.status);
     // A completed SPK keeps the technician and location code it finished with; other statuses follow the live record.
     const completed = w.status === 'completed';
     const technicianName =
@@ -278,6 +292,8 @@ export default function Show({
                 if (actionModal === 'addItem') {
                     reset('product_id', 'network_asset_id', 'quantity_used', 'note');
                 }
+                // The next assignment starts from an empty pick, not from the technician just chosen.
+                if (actionModal === 'assign') reset('technician_id');
                 setActionModal(null);
             },
             onError: (formErrors) => {
@@ -318,7 +334,9 @@ export default function Show({
         router.post(route('admin.spk.evidence.store', w.id), formData, {
             forceFormData: true,
             onProgress: (event) => setUploadPercentage(event?.percentage ?? 0),
-            onSuccess: () => {
+            onSuccess: (page) => {
+                // A refused write redirects back with flash.error: that toast is the answer, no success one.
+                if ((page.props as PageProps).flash.error) return;
                 setEvidenceFile(null);
                 setEvidenceCaption('');
                 toast({ title: 'Bukti berhasil diunggah.', variant: 'success' });
@@ -462,7 +480,16 @@ export default function Show({
                                             Tugaskan
                                         </Button>
                                     )}
-                                    {w.status === 'assigned' && (
+                                    {permissions.reassign && (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => setActionModal('assign')}
+                                        >
+                                            Ganti teknisi
+                                        </Button>
+                                    )}
+                                    {permissions.start && (
                                         <Button
                                             type="button"
                                             onClick={() => setActionModal('start')}
@@ -495,7 +522,7 @@ export default function Show({
                                             Tolak
                                         </Button>
                                     )}
-                                    {canCancel && (
+                                    {permissions.cancel && (
                                         <Button
                                             type="button"
                                             variant="destructive-outline"
@@ -712,7 +739,7 @@ export default function Show({
                 <Modal
                     open={actionModal !== null}
                     onClose={closeModal}
-                    title={actionModal ? ACTION_TITLE[actionModal](w.code) : ''}
+                    title={actionModal ? titles[actionModal](w.code) : ''}
                 >
                     <form onSubmit={doAction} className="space-y-4">
                         {actionModal && ACTION_DESCRIPTION[actionModal] ? (
@@ -822,7 +849,7 @@ export default function Show({
                                 }
                                 loading={processing}
                             >
-                                {actionModal ? ACTION_CONFIRM[actionModal] : 'Simpan'}
+                                {actionModal ? confirmLabels[actionModal] : 'Simpan'}
                             </Button>
                         </div>
                     </form>

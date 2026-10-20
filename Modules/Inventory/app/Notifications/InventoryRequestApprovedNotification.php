@@ -2,12 +2,13 @@
 
 namespace Modules\Inventory\Notifications;
 
+use App\Notifications\Channels\FcmChannel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Modules\Inventory\Notifications\Concerns\LinksToInventoryRequest;
 
+/** In the bell, and on the phone of a technician-app install, of the person who asked: the request was approved and its stock reserved. */
 class InventoryRequestApprovedNotification extends Notification implements ShouldQueue
 {
     use LinksToInventoryRequest;
@@ -24,16 +25,7 @@ class InventoryRequestApprovedNotification extends Notification implements Shoul
     /** @return list<string> */
     public function via(object $notifiable): array
     {
-        return ['mail'];
-    }
-
-    public function toMail(object $notifiable): MailMessage
-    {
-        return (new MailMessage())
-            ->subject('Permintaan Barang Disetujui: '.$this->requestCode)
-            ->line('Permintaan barang Anda telah disetujui dan stok telah direservasi.')
-            ->line('Kode Permintaan: '.$this->requestCode)
-            ->action('Lihat Detail', $this->requestUrl());
+        return ['database', ...FcmChannel::for($notifiable)];
     }
 
     /** @return array<string, mixed> */

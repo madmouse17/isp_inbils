@@ -23,7 +23,7 @@ class TicketCommentController extends Controller
         Gate::authorize('view', $ticket);
         Gate::authorize('comment', $ticket);
 
-        $comment = TicketService::addComment($ticket, $request->validated(), $request->user()->id)
+        $comment = TicketService::addCustomerReply($ticket, $request->validated(), $request->user())
             ->load('author:id,name');
 
         return (new CustomerTicketCommentResource($comment))->response()->setStatusCode(201);

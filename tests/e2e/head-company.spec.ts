@@ -334,7 +334,7 @@ test.describe('@smoke @head-company head company', () => {
         ).toBeVisible();
     });
 
-    test('the consolidated report and the switch stay closed to users without the permission, to a subsidiary and to a forged id', async ({
+    test('the consolidated report and the switch stay closed to users without the permission and to a forged id, and a subsidiary is sent to the reports hub', async ({
         page,
     }) => {
         const switchRequest = async (companyId: string) =>
@@ -356,7 +356,8 @@ test.describe('@smoke @head-company head company', () => {
         expect((await switchRequest('01arz3ndektsv4rrffq69g5fav')).status()).toBe(403);
         expect((await sharedProps(page)).companyId).toBe(home.companyId);
 
-        // Inside the subsidiary the report is gone: it is no Head.
+        // Inside the subsidiary the report is gone: it is no Head. The holder of the permission is sent to the reports
+        // hub with a warning that names the Head, for the page and for the file alike.
         await switchTo(page, subsidiary);
         expect((await sharedProps(page)).canConsolidate).toBe(false);
         await expandSidebarGroups(page);
@@ -365,9 +366,24 @@ test.describe('@smoke @head-company head company', () => {
             '/admin/reports/consolidated',
             '/admin/reports/consolidated/export?format=csv',
         ]) {
-            expect((await page.request.get(path)).status(), `subsidiary: ${path}`).toBe(403);
+            const refusal = await page.request.get(path, { maxRedirects: 0 });
+
+            expect(refusal.status(), `subsidiary: ${path}`).toBe(302);
+            expect(
+                new URL(refusal.headers()['location'], page.url()).pathname,
+                `subsidiary: ${path}`,
+            ).toBe('/admin/reports');
         }
-        await page.goto('/admin/reports');
+        await page.goto('/admin/reports/consolidated');
+        await expect(page).toHaveURL(/\/admin\/reports$/);
+        await expect(
+            page.getByRole('main').getByRole('heading', { name: 'Laporan', level: 1 }),
+        ).toBeVisible();
+        await expect(
+            page.getByRole('status').filter({
+                hasText: `Metrik Konsolidasi hanya tersedia di perusahaan induk ${head}. Ganti perusahaan lewat pemilih di menu samping.`,
+            }),
+        ).toBeVisible();
         await expect(
             page.getByRole('main').getByRole('link', { name: /^Metrik Konsolidasi/ }),
         ).toHaveCount(0);

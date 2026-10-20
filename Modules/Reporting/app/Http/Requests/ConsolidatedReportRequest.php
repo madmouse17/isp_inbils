@@ -6,6 +6,7 @@ use App\Models\Core\Company;
 use App\Services\Core\CompanyHierarchyService;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Collection;
 
 /**
@@ -21,6 +22,24 @@ class ConsolidatedReportRequest extends FormRequest
     public function authorize(): bool
     {
         return ($this->user()?->can('report.consolidated.view') ?? false) && $this->head() !== null;
+    }
+
+    /**
+     * A holder of the permission who works in a subsidiary asked for a Head's report: say where it lives instead of a bare
+     * 403. Without the permission, or outside a subsidiary, nothing is explained and the refusal stays a 403.
+     */
+    protected function failedAuthorization(): void
+    {
+        $parent = CompanyService::current()?->parent;
+
+        if ($parent !== null && ($this->user()?->can('report.consolidated.view') ?? false)) {
+            throw new HttpResponseException(redirect()->route('admin.reports.index')->with(
+                'warning',
+                "Metrik Konsolidasi hanya tersedia di perusahaan induk {$parent->name}. Ganti perusahaan lewat pemilih di menu samping.",
+            ));
+        }
+
+        parent::failedAuthorization();
     }
 
     /** @return array<string, mixed> */

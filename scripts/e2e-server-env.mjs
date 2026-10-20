@@ -120,6 +120,11 @@ export function buildE2EServerEnv(sourceEnv = process.env) {
     // cache-backed guard (duplicate submit, throttles) inert: the served app gets a store that outlives a request.
     env.CACHE_STORE = 'database';
 
+    // The E2E run keeps its own storage tree (config/filesystems.php): its database reuses company ids of the dev and
+    // PHPUnit ones, so files at `companies/{id}` would mix. Forced like the cache store, so a stale shell or a .env.e2e
+    // copied before this key existed cannot send the run into another environment's folders.
+    env.STORAGE_ENV_SUFFIX = '/e2e';
+
     // Canonical contract: the disposable E2E_DATABASE mechanism is gone.
     // A non-empty E2E_DATABASE in the parent shell is refused outright — it
     // can never re-target this (or any) child to a different schema. Without

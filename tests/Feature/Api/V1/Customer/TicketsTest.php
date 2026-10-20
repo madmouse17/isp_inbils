@@ -190,6 +190,25 @@ class TicketsTest extends TestCase
         $this->assertForbiddenKeysAbsent($detail->json('data'), ['assigned_to', 'phone', 'email', 'assignee']);
     }
 
+    public function test_the_list_and_the_detail_say_whether_a_reply_is_possible_and_when_a_ticket_was_reopened(): void
+    {
+        $open = $this->ticket('Open', $this->customer->id);
+        $closed = $this->ticket('Closed', $this->customer->id, ['status' => 'closed', 'closed_at' => now()]);
+        $resolved = $this->ticket('Resolved', $this->customer->id, ['status' => 'resolved', 'resolved_at' => now()]);
+        $back = $this->ticket('Back', $this->customer->id, ['status' => 'assigned', 'assigned_to' => $this->staff->id, 'reopened_at' => '2026-10-20 08:00:00']);
+
+        $list = collect($this->api('GET', 'customer/tickets', token: $this->token)->assertOk()->json('data'))->keyBy('id');
+        $detail = $this->api('GET', "customer/tickets/{$back->public_id}", token: $this->token)->assertOk()->json('data');
+
+        $this->assertTrue($list[$open->public_id]['can_reply']);
+        $this->assertFalse($list[$closed->public_id]['can_reply'], 'a closed ticket takes no reply');
+        $this->assertTrue($list[$resolved->public_id]['can_reply'], 'a reply on a resolved ticket reopens it');
+        $this->assertNull($list[$open->public_id]['reopened_at']);
+        $this->assertSame(Carbon::parse('2026-10-20 08:00:00')->toJSON(), $list[$back->public_id]['reopened_at']);
+        $this->assertTrue($detail['can_reply']);
+        $this->assertSame(Carbon::parse('2026-10-20 08:00:00')->toJSON(), $detail['reopened_at']);
+    }
+
     private function category(string $name, string $priority = 'medium'): TicketCategory
     {
         return TicketCategory::query()->create([

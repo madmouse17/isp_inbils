@@ -12,7 +12,13 @@ import {
     Modal,
     Textarea,
 } from '@/Components/ui';
-import { DataTable, PageHeader, type DataTableColumn } from '@/Components/composite';
+import {
+    DataTable,
+    PageHeader,
+    RefundAttemptDialog,
+    type DataTableColumn,
+    type RefundTarget,
+} from '@/Components/composite';
 import { BlockedBadge, SubscriptionBlockModal } from '@/Components/composite/NetworkAccessBadges';
 import { useCompany } from '@/hooks/useCompany';
 import { useServerTable } from '@/hooks/useServerTable';
@@ -46,6 +52,8 @@ interface Filters {
 }
 
 interface PaymentException {
+    /** The attempt's public id; the refund route takes it. */
+    id: string;
     invoice_id: string;
     invoice_number: string;
     order_id: string;
@@ -59,18 +67,22 @@ export default function Receivables({
     totals,
     filters,
     paymentExceptions,
+    autoReactivate,
     can,
 }: {
     rows: PaginationLike<Row>;
     totals: Omit<Row, 'customer_id' | 'customer' | 'subscriptions'>;
     filters: Filters;
-    can: { suspend: boolean; block: boolean };
+    can: { suspend: boolean; block: boolean; refund: boolean };
     paymentExceptions: { count: number; items: PaymentException[] };
+    /** Whether a paid-up customer is switched back on by itself; the isolir dialog tells which way. */
+    autoReactivate: boolean;
 }) {
     const company = useCompany();
     const [suspending, setSuspending] = useState<SubRef | null>(null);
     const [blocking, setBlocking] = useState<SubRef | null>(null);
     const [reason, setReason] = useState('');
+    const [refundTarget, setRefundTarget] = useState<RefundTarget | null>(null);
     const pagination = toPagination(rows);
     const table = useServerTable({
         url: route('admin.billing.receivables'),
@@ -225,28 +237,59 @@ export default function Receivables({
                             {paymentExceptions.count} pembayaran online perlu dicek
                         </AlertTitle>
                         <AlertDescription>
-                            <ul className="space-y-2 mt-2">
+                            <ul className="space-y-3 mt-2">
                                 {paymentExceptions.items.map((item) => (
-                                    <li key={item.order_id} className="space-y-0.5">
-                                        <Link
-                                            href={route('admin.invoices.show', item.invoice_id)}
-                                            className="font-medium underline"
-                                        >
-                                            {item.invoice_number}
-                                        </Link>
-                                        {' · '}
-                                        <span className="tabular-nums">
-                                            {formatRupiah(item.amount, company)}
-                                        </span>
-                                        {' · '}
-                                        <span>{item.order_id}</span>
-                                        {item.reason && <p>{item.reason}</p>}
+                                    <li
+                                        key={item.id}
+                                        className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2"
+                                    >
+                                        <div className="space-y-0.5 min-w-0">
+                                            <p>
+                                                <Link
+                                                    href={route(
+                                                        'admin.invoices.show',
+                                                        item.invoice_id,
+                                                    )}
+                                                    className="font-medium underline"
+                                                >
+                                                    {item.invoice_number}
+                                                </Link>{' '}
+                                                <span className="tabular-nums">
+                                                    {formatRupiah(item.amount, company)}
+                                                </span>
+                                            </p>
+                                            <p className="break-all">Order {item.order_id}</p>
+                                            {item.reason && <p>{item.reason}</p>}
+                                        </div>
+                                        {can.refund && (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() =>
+                                                    setRefundTarget({
+                                                        id: item.id,
+                                                        invoiceNumber: item.invoice_number,
+                                                        amount: item.amount,
+                                                    })
+                                                }
+                                            >
+                                                Tandai dikembalikan
+                                                <span className="sr-only">
+                                                    {' '}
+                                                    untuk tagihan {item.invoice_number}
+                                                </span>
+                                            </Button>
+                                        )}
                                     </li>
                                 ))}
                             </ul>
                             <p className="mt-3">
                                 Catat pembayarannya dengan referensi order ID tersebut, atau refund
                                 di Midtrans.
+                                {can.refund
+                                    ? ' Setelah uangnya kembali ke pelanggan, tandai dikembalikan. Pembayaran itu lalu keluar dari daftar ini.'
+                                    : ''}
                             </p>
                         </AlertDescription>
                     </Alert>
@@ -293,12 +336,19 @@ export default function Receivables({
                     </CardContent>
                 </Card>
                 <SubscriptionBlockModal target={blocking} onClose={() => setBlocking(null)} />
+                <RefundAttemptDialog target={refundTarget} onClose={() => setRefundTarget(null)} />
                 <Modal
                     open={suspending !== null}
                     onClose={closeSuspend}
                     title={suspending ? `Isolir langganan ${suspending.code}?` : undefined}
                 >
                     <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                            Pelanggan melihat status Diisolir dengan tagihan dan tombol Bayar.{' '}
+                            {autoReactivate
+                                ? 'Layanan aktif kembali otomatis setelah semua tagihan yang jatuh tempo dilunasi.'
+                                : 'Layanan aktif kembali setelah staf mengaktifkannya kembali.'}
+                        </p>
                         <label htmlFor="suspend-reason" className="block text-sm font-medium">
                             Alasan isolir (wajib)
                         </label>

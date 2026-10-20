@@ -179,6 +179,11 @@ export default function Index({
         },
         [clearErrors, setData],
     );
+    const close = () => {
+        reset();
+        clearErrors();
+        setModalOpen(false);
+    };
     const submit = (e: FormEvent) => {
         e.preventDefault();
         transform(({ user_id, employee_number, expected_updated_at, ...values }) => ({
@@ -188,12 +193,10 @@ export default function Index({
             ...(editing ? { expected_updated_at } : { user_id }),
             ...(codeSequence.manual ? { employee_number } : {}),
         }));
-        const onSuccess = () => setModalOpen(false);
-
         if (editing) {
-            put(route('admin.employees.update', editing.id), { onSuccess });
+            put(route('admin.employees.update', editing.id), { onSuccess: close });
         } else {
-            post(route('admin.employees.store'), { onSuccess });
+            post(route('admin.employees.store'), { onSuccess: close });
         }
     };
 
@@ -357,7 +360,7 @@ export default function Index({
                 </Card>
                 <Modal
                     open={modalOpen}
-                    onClose={() => setModalOpen(false)}
+                    onClose={close}
                     title={editing ? 'Ubah Karyawan' : 'Buat Karyawan'}
                 >
                     <form onSubmit={submit} className="space-y-4">
@@ -443,11 +446,7 @@ export default function Index({
                             error={errors.notes}
                         />
                         <div className="flex justify-end gap-2">
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => setModalOpen(false)}
-                            >
+                            <Button type="button" variant="secondary" onClick={close}>
                                 Batal
                             </Button>
                             <Button type="submit" variant="primary" loading={processing}>

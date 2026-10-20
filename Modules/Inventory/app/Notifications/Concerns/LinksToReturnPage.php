@@ -2,18 +2,16 @@
 
 namespace Modules\Inventory\Notifications\Concerns;
 
-use Illuminate\Notifications\Messages\MailMessage;
 use Modules\Inventory\Models\InventoryRequest;
 use Modules\Inventory\Models\MaterialReturnCase;
 use Modules\SPK\Models\WorkOrder;
 
 /**
- * What a return mail names and where it sends the reader. A material return has no page of its own
- * (`admin.inventory.returns.show` answers JSON); the request it belongs to shows it in its detail page, and a case
- * without a request is listed in the returns tab.
+ * What a return bell row names. A material return has no page of its own (`admin.inventory.returns.show` answers
+ * JSON); the request it belongs to shows it in its detail page.
  *
- * The notification carries integer ids (the queue payload is internal). Mail and bell read the records here: only a
- * public id or a code may leave the server, so the request code names the case.
+ * The notification carries integer ids (the queue payload is internal). The bell reads the records here: only a public
+ * id may leave the server.
  *
  * @property int $caseId
  * @property int|null $workOrderId
@@ -29,37 +27,9 @@ trait LinksToReturnPage
     {
         return [
             'case' => MaterialReturnCase::withoutGlobalScopes()->find($this->caseId, ['id', 'public_id']),
-            'work_order' => ($this->workOrderId ?? null) === null ? null : WorkOrder::withoutGlobalScopes()->find($this->workOrderId, ['id', 'public_id', 'code']),
-            'request' => $this->inventoryRequestId === null ? null : InventoryRequest::withoutGlobalScopes()->find($this->inventoryRequestId, ['id', 'public_id', 'code']),
+            'work_order' => ($this->workOrderId ?? null) === null ? null : WorkOrder::withoutGlobalScopes()->find($this->workOrderId, ['id', 'public_id']),
+            'request' => $this->inventoryRequestId === null ? null : InventoryRequest::withoutGlobalScopes()->find($this->inventoryRequestId, ['id', 'public_id']),
         ];
-    }
-
-    /** @param  Records  $records */
-    private function returnSubject(string $title, array $records): string
-    {
-        return $title.($records['request'] === null ? '' : ': '.$records['request']->code);
-    }
-
-    /** @param  Records  $records */
-    private function returnReference(MailMessage $mail, array $records): MailMessage
-    {
-        if ($records['request'] !== null) {
-            $mail->line('Permintaan Barang: '.$records['request']->code);
-        }
-
-        if ($records['work_order'] !== null) {
-            $mail->line('Terkait SPK '.$records['work_order']->code);
-        }
-
-        return $mail;
-    }
-
-    /** @param  Records  $records */
-    private function returnPageUrl(array $records): string
-    {
-        return $records['request'] !== null
-            ? route('admin.inventory.requests.show', $records['request'])
-            : route('admin.inventory.requests.index', ['tab' => 'returns']);
     }
 
     /**

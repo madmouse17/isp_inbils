@@ -102,9 +102,18 @@ class NasDeviceHttpTest extends TestCase
             ->where('nasDevices.data.0.has_radius_secret', true)
             ->where('nasDevices.data.0.network_asset.code', $mine->networkAsset->code)
             ->where('can.create', true)
+            ->where('radiusEnabled', true)
             ->has('filters'));
         $this->assertSame($this->contractKeys(), array_keys($response->inertiaProps()['nasDevices']['data'][0]));
         $this->assertStringNotContainsString('fake-radius-shared-secret', json_encode($response->inertiaProps()));
+    }
+
+    public function test_index_says_when_the_company_has_no_radius(): void
+    {
+        $this->nasDevice();
+        $this->disableRadius();
+
+        $this->get(route('admin.nas-devices.index'))->assertOk()->assertInertia(fn (Assert $page) => $page->where('radiusEnabled', false));
     }
 
     public function test_index_searches_by_asset_code_name_or_address_and_sorts_by_asset_code(): void
@@ -214,7 +223,9 @@ class NasDeviceHttpTest extends TestCase
         $this->disableRadius();
         $asset = $this->routerAsset();
 
-        $this->post(route('admin.nas-devices.store'), $this->payload($asset))->assertRedirect()->assertSessionHas('warning');
+        $this->post(route('admin.nas-devices.store'), $this->payload($asset))
+            ->assertRedirect()
+            ->assertSessionHas('warning', 'Tersimpan, tetapi belum dikirim ke RADIUS karena RADIUS belum dikonfigurasi untuk perusahaan ini.');
 
         $nas = NasDevice::query()->firstOrFail();
         $this->assertNull($nas->radius_synced_at);
@@ -227,11 +238,13 @@ class NasDeviceHttpTest extends TestCase
         Schema::connection('radius')->drop('nas');
         $asset = $this->routerAsset();
 
-        $this->post(route('admin.nas-devices.store'), $this->payload($asset))->assertRedirect()->assertSessionHas('warning');
+        $this->post(route('admin.nas-devices.store'), $this->payload($asset))
+            ->assertRedirect()
+            ->assertSessionHas('warning', 'Tersimpan, tetapi RADIUS belum diperbarui. Basis data RADIUS tidak dapat dihubungi; dicoba lagi otomatis.');
 
         $nas = NasDevice::query()->firstOrFail();
         $this->assertNull($nas->radius_synced_at);
-        $this->assertSame('The RADIUS database is unavailable.', $nas->last_error);
+        $this->assertSame('Basis data RADIUS tidak dapat dihubungi; dicoba lagi otomatis.', $nas->last_error);
         $this->assertSame(1, Activity::query()->where('description', 'radius_failed')->count());
     }
 
@@ -410,7 +423,9 @@ class NasDeviceHttpTest extends TestCase
         $nas = $this->nasDevice();
         Schema::connection('radius')->drop('nas');
 
-        $this->put(route('admin.nas-devices.update', $nas), ['radius_secret' => 'fake-new-radius-secret'])->assertRedirect()->assertSessionHas('warning');
+        $this->put(route('admin.nas-devices.update', $nas), ['radius_secret' => 'fake-new-radius-secret'])
+            ->assertRedirect()
+            ->assertSessionHas('warning', 'Tersimpan, tetapi RADIUS belum diperbarui. Basis data RADIUS tidak dapat dihubungi; dicoba lagi otomatis.');
 
         $nas = $nas->fresh();
         $this->assertSame('fake-new-radius-secret', $nas->radius_secret);

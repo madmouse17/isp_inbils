@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Http\Requests\UpdateNotificationPreferencesRequest;
+use App\Models\User;
 use App\Services\Core\TwoFactorService;
 use App\Support\UserDeletionGuard;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -21,10 +23,17 @@ class ProfileController extends Controller
      */
     public function edit(Request $request, TwoFactorService $twoFactor): Response
     {
+        $user = $request->user();
+
         return Inertia::render('Profile/Edit', [
-            'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
+            'mustVerifyEmail' => $user instanceof MustVerifyEmail,
             'status' => session('status'),
-            'twoFactor' => $twoFactor->status($request->user()),
+            'twoFactor' => $twoFactor->status($user),
+            // The switch is offered to whoever has warehouse work the digest can list.
+            'notificationPreferences' => [
+                'inventory_digest' => (bool) $user->inventory_digest,
+                'eligible' => collect(User::INVENTORY_DIGEST_PERMISSIONS)->contains(fn (string $permission): bool => $user->can($permission)),
+            ],
         ]);
     }
 
@@ -42,6 +51,16 @@ class ProfileController extends Controller
         $request->user()->save();
 
         return Redirect::route('profile.edit');
+    }
+
+    /**
+     * Save the person's own mail preferences.
+     */
+    public function updateNotificationPreferences(UpdateNotificationPreferencesRequest $request): RedirectResponse
+    {
+        $request->user()->forceFill(['inventory_digest' => $request->boolean('inventory_digest')])->save();
+
+        return back(303)->with('success', 'Preferensi notifikasi disimpan.');
     }
 
     /**

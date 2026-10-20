@@ -172,7 +172,7 @@ class NetworkAccessGapTest extends TestCase
         $this->assertSame($nameless->id, $subscription->fresh()->service_package_id, 'business first: the package change itself succeeds');
         $account = $account->fresh();
         $this->assertSame('failed', $account->sync_status);
-        $this->assertStringContainsString('no RADIUS profile name', (string) $account->last_error);
+        $this->assertStringContainsString('belum punya nama profil RADIUS', (string) $account->last_error);
         $this->assertSame("{$this->realm}/home-20m", $this->radiusRows('radusergroup', ['username' => "carol@{$this->realm}"])[0]['groupname']);
         $this->assertSame([], $this->disconnectsSent(), 'the session of an account that cannot be applied stays');
         $this->assertSame('rejected', Activity::query()->where('description', 'provision_failed')->sole()->properties['error_kind']);

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Core\Company;
+use App\Models\Core\Customer;
 use App\Models\User;
 use App\Services\WhatsApp\PhoneNumber;
 use Database\Seeders\DemoDataSeeder;
@@ -339,9 +340,11 @@ class DemoDataSeederTest extends TestCase
     {
         foreach (['admin', 'manager', 'staff', 'technician', 'customer'] as $role) {
             $user = User::query()->where('email', "{$role}@demo.inbils.test")->firstOrFail();
+            // The customer app reads the inbox of the Customer the login belongs to (Api\V1\NotificationController), not the user's own.
+            $inbox = $role === 'customer' ? Customer::withoutCompany()->where('user_id', $user->id)->firstOrFail() : $user;
 
-            $this->assertGreaterThan(0, $user->notifications()->count(), "The demo {$role} has no notification.");
-            $this->assertGreaterThan(0, $user->unreadNotifications()->count(), "The demo {$role} has nothing unread.");
+            $this->assertGreaterThan(0, $inbox->notifications()->count(), "The demo {$role} has no notification.");
+            $this->assertGreaterThan(0, $inbox->unreadNotifications()->count(), "The demo {$role} has nothing unread.");
         }
 
         $notifications = fn (): Builder => DB::table('notifications')->where('notifiable_type', User::class);

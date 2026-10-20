@@ -4,10 +4,10 @@ namespace Modules\Inventory\Notifications;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Modules\Inventory\Notifications\Concerns\LinksToReturnPage;
 
+/** In the bell of whoever may resolve a return: the warehouse found a difference (damaged, lost, other) that needs a decision. */
 class MaterialReturnExceptionNotification extends Notification implements ShouldQueue
 {
     use LinksToReturnPage;
@@ -25,17 +25,7 @@ class MaterialReturnExceptionNotification extends Notification implements Should
     /** @return list<string> */
     public function via(object $notifiable): array
     {
-        return ['mail'];
-    }
-
-    public function toMail(object $notifiable): MailMessage
-    {
-        $records = $this->returnRecords();
-        $mail = (new MailMessage())
-            ->subject($this->returnSubject('Selisih Material Perlu Diselesaikan', $records))
-            ->line('Gudang menemukan selisih (rusak, hilang, atau lainnya) saat memeriksa pengembalian material. Atasan yang berwenang perlu memutuskan penyelesaiannya.');
-
-        return $this->returnReference($mail, $records)->action('Selesaikan Selisih', $this->returnPageUrl($records));
+        return ['database'];
     }
 
     /** @return array<string, mixed> */

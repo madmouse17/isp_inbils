@@ -16,13 +16,24 @@ export const desiredStateExplanation: Record<NetworkDesiredState, string> = {
     absent: 'Akun dihapus dari RADIUS.',
 };
 
-/** Whether FreeRADIUS has the client row (`nas`) Inbils wrote for this router. */
+/**
+ * Whether FreeRADIUS has the client row (`nas`) Inbils wrote for this router. A company without RADIUS has no
+ * FreeRADIUS to write to, so its routers read as not configured instead of as a failed write.
+ */
 export function NasStatusBadge({
     nas,
+    radiusEnabled,
 }: {
     nas: Pick<NasDevice, 'radius_synced_at' | 'last_error'>;
+    radiusEnabled: boolean;
 }) {
-    const state = nas.radius_synced_at ? 'synced' : nas.last_error ? 'error' : 'waiting';
+    const state = !radiusEnabled
+        ? 'disabled'
+        : nas.radius_synced_at
+          ? 'synced'
+          : nas.last_error
+            ? 'error'
+            : 'waiting';
 
     return <EnumBadge map={NAS_RADIUS_STATE} value={state} />;
 }
@@ -38,15 +49,54 @@ export interface BlockTarget {
     blocked_at: string | null;
 }
 
+/** What a block means for the customer, whatever the router does. */
+const CUSTOMER_EFFECT =
+    'Tagihan tetap berjalan dan pembayaran tidak mencabut blokir. Di aplikasi pelanggan tertulis Dibatasi.';
+
+/**
+ * The dialog's explanation. `radiusEnabled` is the company's RADIUS switch: with RADIUS off nothing reaches the
+ * router, so the text must not promise a disconnect. A page that does not carry the switch passes nothing and the
+ * text then says nothing about the router instead of guessing.
+ */
+function explanationOf(
+    unblocking: boolean,
+    suspended: boolean,
+    radiusEnabled: boolean | undefined,
+): string {
+    if (unblocking && suspended) {
+        return 'Langganan sedang ditangguhkan, jadi layanan tetap diisolir sampai diaktifkan kembali.';
+    }
+
+    if (unblocking) {
+        if (radiusEnabled === undefined) return 'Blokir internet pelanggan dicabut.';
+
+        return radiusEnabled
+            ? 'Sesi pelanggan diputus setelah router menjawab dan tersambung ulang dengan layanan normal.'
+            : 'RADIUS belum dikonfigurasi. Pembukaan blokir disimpan dan dikirim ke router setelah RADIUS aktif.';
+    }
+
+    const router =
+        radiusEnabled === undefined
+            ? null
+            : radiusEnabled
+              ? 'Pelanggan diisolir. Sesi yang sedang terbuka diputus setelah router menjawab.'
+              : 'RADIUS belum dikonfigurasi. Blokir disimpan dan dikirim ke router setelah RADIUS aktif.';
+
+    return [router, CUSTOMER_EFFECT].filter(Boolean).join(' ');
+}
+
 /**
  * Block (required reason) or unblock (optional note) one subscription. Which one follows
  * `blocked_at`. Headless UI returns focus to the button that opened it.
  */
 export function SubscriptionBlockModal({
     target,
+    radiusEnabled,
     onClose,
 }: {
     target: BlockTarget | null;
+    /** The company's RADIUS switch, when the page has it (`radiusEnabled` prop of the network pages). */
+    radiusEnabled?: boolean;
     onClose: () => void;
 }) {
     const [reason, setReason] = useState('');
@@ -54,7 +104,6 @@ export function SubscriptionBlockModal({
     const [error, setError] = useState<string | undefined>();
 
     const unblocking = target?.blocked_at != null;
-    const isolatedUntilReactivated = unblocking && target?.status === 'suspended';
 
     const close = () => {
         if (processing) return;
@@ -103,11 +152,7 @@ export function SubscriptionBlockModal({
                 }}
             >
                 <p className="text-sm text-muted-foreground">
-                    {unblocking
-                        ? isolatedUntilReactivated
-                            ? 'Langganan sedang ditangguhkan, jadi layanan tetap diisolir sampai diaktifkan kembali.'
-                            : 'Sesi pelanggan diputus dan layanan normal kembali saat router menyambung ulang.'
-                        : 'Pelanggan diisolir dan sesinya diputus. Tagihan tetap berjalan dan pembayaran tidak mencabut blokir.'}
+                    {explanationOf(unblocking, target?.status === 'suspended', radiusEnabled)}
                 </p>
                 <Textarea
                     id="subscription-block-reason"

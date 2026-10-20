@@ -6,6 +6,8 @@ use App\Models\Core\CustomerAddress;
 use App\Models\Core\ServiceSubscription;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Modules\Billing\Models\Invoice;
+use Modules\Billing\Services\OverdueSuspensionService;
 
 /** @property ServiceSubscription $resource */
 class CustomerSubscriptionResource extends JsonResource
@@ -33,6 +35,19 @@ class CustomerSubscriptionResource extends JsonResource
              */
             'suspension_reason' => $subscription->status === 'suspended' ? $subscription->suspension_source : null,
             'suspended_at' => $subscription->suspended_at?->toIso8601String(),
+            /**
+             * The unpaid bills a subscription isolated for overdue bills still waits for: it is reconnected by itself once none
+             * is left, so the customer pays all of them. Oldest due first; empty in every other state, and when the ISP
+             * reconnects by hand.
+             *
+             * @var list<array{id: string, number: string, due_date: string, sisa: string}>
+             */
+            'reactivation_holds' => OverdueSuspensionService::holdingInvoices($subscription)->map(fn (Invoice $invoice): array => [
+                'id' => $invoice->public_id,
+                'number' => $invoice->number,
+                'due_date' => $invoice->due_date->toDateString(),
+                'sisa' => $invoice->sisa,
+            ])->all(),
             'package' => [
                 'id' => $package->public_id,
                 'name' => $package->name,

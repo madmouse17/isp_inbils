@@ -7,18 +7,17 @@
  *   demo customer, and leaves it again once deactivated; the phone preview follows the form and has its own theme
  * - a banner: an image that is not 2:1 is refused in the browser, a 2:1 one is saved, published and carried by the feed
  *
- * Deterministic: unique titles per run. A published row cannot be deleted, so each one is deactivated at the end and
- * stays behind as history; e2e-setup resets it.
+ * Deterministic: a unique title per test run, so a repeated run never meets a title it already created. A published
+ * row cannot be deleted, so each one is deactivated at the end and stays behind as history; e2e-setup resets it.
  */
 import type { Page } from '@playwright/test';
 
-import { apiLogin } from './support/api';
+import { apiLogin, type ApiClient } from './support/api';
 import { expect, test } from './support/fixtures';
 import { PNG_1X1, loginAs, unique } from './support/demo';
 
-const runId = unique('ANN');
-const announcementTitle = `E2E Gangguan ${runId}`;
-const bannerTitle = `E2E Promo ${runId}`;
+const newAnnouncementTitle = () => `E2E Gangguan ${unique('ANN')}`;
+const newBannerTitle = () => `E2E Promo ${unique('ANN')}`;
 
 /** 2 x 1 pixels: the smallest picture of the 2:1 ratio a banner needs. */
 const PNG_2X1 = Buffer.from(
@@ -64,8 +63,7 @@ async function settleAppChunks(page: Page) {
 }
 
 /** The home feed the demo customer gets from the mobile API. */
-async function customerFeed(page: Page): Promise<Feed> {
-    const customer = await apiLogin(page.request, 'customer');
+async function customerFeed(customer: ApiClient): Promise<Feed> {
     const response = await customer.get('customer/home-feed');
     expect(response.status(), 'GET /api/v1/customer/home-feed').toBe(200);
 
@@ -105,7 +103,10 @@ test.describe('@announcements', () => {
     test('an announcement is drafted, published, carried by the customer feed and deactivated', async ({
         page,
     }) => {
+        const announcementTitle = newAnnouncementTitle();
         await loginAs(page, 'admin');
+        // One customer sign-in per test: the login endpoint allows 20 a minute per address, and a repeated run needs more.
+        const customer = await apiLogin(page.request, 'customer');
         await settleAppChunks(page);
         await page.goto('/admin/announcements');
 
@@ -134,7 +135,7 @@ test.describe('@announcements', () => {
         await expect(row).toContainText('Gangguan');
         await expect(row).toContainText('Semua pelanggan');
         expect(
-            (await customerFeed(page)).data.announcements.map((item) => item.title),
+            (await customerFeed(customer)).data.announcements.map((item) => item.title),
         ).not.toContain(announcementTitle);
 
         await row
@@ -145,7 +146,7 @@ test.describe('@announcements', () => {
         await publish.getByRole('button', { name: 'Terbitkan', exact: true }).click();
         await expect(row.getByText('Tayang', { exact: true })).toBeVisible();
 
-        const feed = await customerFeed(page);
+        const feed = await customerFeed(customer);
         expect(feed.data.announcements.find((item) => item.title === announcementTitle)?.kind).toBe(
             'outage',
         );
@@ -159,14 +160,16 @@ test.describe('@announcements', () => {
             .click();
         await expect(row.getByText('Nonaktif', { exact: true })).toBeVisible();
         expect(
-            (await customerFeed(page)).data.announcements.map((item) => item.title),
+            (await customerFeed(customer)).data.announcements.map((item) => item.title),
         ).not.toContain(announcementTitle);
     });
 
     test('a banner needs a 2:1 image: another ratio is refused, 2:1 is saved, published and carried by the feed', async ({
         page,
     }) => {
+        const bannerTitle = newBannerTitle();
         await loginAs(page, 'admin');
+        const customer = await apiLogin(page.request, 'customer');
         await settleAppChunks(page);
         await page.goto('/admin/announcements?tab=banners');
 
@@ -208,7 +211,7 @@ test.describe('@announcements', () => {
             .click();
         await expect(row.getByText('Tayang', { exact: true })).toBeVisible();
 
-        const banner = (await customerFeed(page)).data.banners.find(
+        const banner = (await customerFeed(customer)).data.banners.find(
             (item) => item.title === bannerTitle,
         );
         expect(banner).toMatchObject({
@@ -224,7 +227,7 @@ test.describe('@announcements', () => {
             .getByRole('button', { name: 'Nonaktifkan', exact: true })
             .click();
         await expect(row.getByText('Nonaktif', { exact: true })).toBeVisible();
-        expect((await customerFeed(page)).data.banners.map((item) => item.title)).not.toContain(
+        expect((await customerFeed(customer)).data.banners.map((item) => item.title)).not.toContain(
             bannerTitle,
         );
     });

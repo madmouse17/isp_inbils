@@ -208,6 +208,24 @@ class ReportExportContentTest extends TestCase
         $this->assertSame(['Metrik', 'Rincian', 'Nilai', 'Satuan', 'Cakupan', 'Filter', 'Versi'], $rows[0]);
     }
 
+    public function test_drill_export_uses_company_timezone(): void
+    {
+        $support = $this->worldCategory($this->companyId, 'Support', 'SUP-TZ');
+        $this->worldTicket($this->companyId, $support, '2026-01-12 08:00:00', '2026-01-12 08:30:00', '2026-01-12 12:00:00', '2026-01-12 16:00:00', responseDeadline: '2026-01-12 09:00:00');
+        Company::query()->whereKey($this->companyId)->update(['timezone' => 'Asia/Jakarta']);
+        $this->actingAs($this->admin);
+
+        $records = $this->csvRecords($this->get(route('admin.reports.sla.drill.export', ['metric' => 'total_resolved', ...self::JANUARY])));
+
+        // Stored in UTC, written the way the company's staff read the clock (UTC+7), without the offset a spreadsheet cannot use.
+        $this->assertCount(1, $records);
+        $this->assertSame('2026-01-12 15:00', $records[0]['Dibuat']);
+        $this->assertSame('2026-01-12 15:30', $records[0]['Respons pertama']);
+        $this->assertSame('2026-01-12 16:00', $records[0]['Target respons']);
+        $this->assertSame('2026-01-12 19:00', $records[0]['Selesai']);
+        $this->assertSame('2026-01-12 23:00', $records[0]['Batas SLA']);
+    }
+
     private function seedBusinessWorld(): void
     {
         $a = $this->companyId;

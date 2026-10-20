@@ -1,4 +1,5 @@
 import type { INVOICE_SOURCE, INVOICE_STATUS, INVOICE_TYPE, PAYMENT_METHOD } from '@/lib/statuses';
+import type { PaymentAttemptEntry } from './portal';
 
 export interface Invoice {
     id: string;
@@ -54,4 +55,30 @@ export interface PaymentEntry {
     notes?: string | null;
     cancelled_at?: string | null;
     cancel_reason?: string | null;
+}
+
+/** What the signed-in user may do on one invoice page; the server decides each one. */
+export interface InvoiceCan {
+    /** Add or remove an item: `billing.update`, or `billing.create` while the invoice is a draft. */
+    update: boolean;
+    send: boolean;
+    cancel: boolean;
+    record_payment: boolean;
+    reverse_payment: boolean;
+    /** Mark an online payment that could not be booked as returned to the customer. */
+    refund: boolean;
+}
+
+/** How finance closed an online payment as returned to the customer, outside Inbils. */
+export interface PaymentAttemptRefund {
+    at: string | null;
+    /** The name of whoever marked it; null once that user is gone. */
+    by: string | null;
+    reference: string | null;
+    note: string | null;
+}
+
+/** An online payment attempt on the invoice page; `refund` is set only while its status is `refunded`. */
+export interface InvoicePaymentAttempt extends PaymentAttemptEntry {
+    refund: PaymentAttemptRefund | null;
 }

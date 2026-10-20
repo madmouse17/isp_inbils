@@ -594,7 +594,7 @@ class MyWorkTest extends TestCase
             ->assertSessionHasErrors(['conflict']);
     }
 
-    public function test_ordinary_ticket_state_validation_remains_unprocessable(): void
+    public function test_ordinary_ticket_state_validation_is_a_flash_error_and_not_a_conflict(): void
     {
         $company = Company::factory()->create(['is_active' => true]);
         $dispatcher = User::factory()->create([
@@ -624,7 +624,10 @@ class MyWorkTest extends TestCase
                 'expected_assigned_to' => $dispatcher->public_id,
                 'expected_updated_at' => $ticket->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
             ])
-            ->assertStatus(422)
+            // A refusal the code worded for the user returns to the page with that sentence in the toast (bootstrap/app.php),
+            // and is not a stale-write conflict: no `conflict` error.
+            ->assertRedirect()
+            ->assertSessionHas('error', 'Tiket harus berstatus terbuka atau ditugaskan untuk bisa ditugaskan.')
             ->assertSessionDoesntHaveErrors('conflict');
     }
 

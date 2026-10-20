@@ -13,6 +13,7 @@ use App\Services\WhatsApp\WhatsAppSettings;
 use App\Support\OptimisticLock;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -56,10 +57,13 @@ class CompanyController extends Controller
         Gate::authorize('viewSettings', $company);
 
         return Inertia::render('Admin/Company/Settings', [
-            'settings' => array_merge([
+            // The retired spk_auto_invoice (K17) stays in an old row but is no longer offered or sent back.
+            'settings' => Arr::except(array_merge([
                 'tax_ppn_rate' => 11,
                 'invoice_due_days' => 14,
                 'bank_account_info' => '',
+                'auto_send_installation_invoice' => false,
+                'bill_installation_materials' => false,
                 'auto_suspend_enabled' => false,
                 'auto_suspend_overdue_days' => 7,
                 'auto_reactivate_on_payment' => true,
@@ -69,7 +73,7 @@ class CompanyController extends Controller
                 'map_lng' => null,
                 'map_zoom' => null,
                 ...WhatsAppSettings::defaults(),
-            ], $company->settings ?? []),
+            ], $company->settings ?? []), ['spk_auto_invoice']),
             'version' => OptimisticLock::version($company),
             'cities' => $this->cities(),
             // Whether credentials exist, never their values; the usage counts this company's current month.

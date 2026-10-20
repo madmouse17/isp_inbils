@@ -67,7 +67,7 @@ export default function Index({
         filters,
         only: ['addresses', 'filters', 'can'],
     });
-    const { data, setData, post, put, processing, errors, reset } = useForm({
+    const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
         label: '',
         address: '',
         city: '',
@@ -166,16 +166,20 @@ export default function Index({
         reloadRegions(region);
     };
 
+    const close = () => {
+        reset();
+        clearErrors();
+        setModalOpen(false);
+    };
+
     const submit = (e: FormEvent) => {
         e.preventDefault();
         if (editId !== null) {
             put(route('admin.customers.addresses.update', [customer.id, editId]), {
-                onSuccess: () => setModalOpen(false),
+                onSuccess: close,
             });
         } else {
-            post(route('admin.customers.addresses.store', customer.id), {
-                onSuccess: () => setModalOpen(false),
-            });
+            post(route('admin.customers.addresses.store', customer.id), { onSuccess: close });
         }
     };
 
@@ -299,7 +303,7 @@ export default function Index({
 
                 <Modal
                     open={modalOpen}
-                    onClose={() => setModalOpen(false)}
+                    onClose={close}
                     title={editId ? 'Ubah Alamat' : 'Tambah Alamat'}
                 >
                     <form onSubmit={submit} className="space-y-4">
@@ -373,11 +377,7 @@ export default function Index({
                             rows={2}
                         />
                         <div className="flex justify-end gap-2">
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => setModalOpen(false)}
-                            >
+                            <Button type="button" variant="secondary" onClick={close}>
                                 Batal
                             </Button>
                             <Button type="submit" variant="primary" loading={processing}>

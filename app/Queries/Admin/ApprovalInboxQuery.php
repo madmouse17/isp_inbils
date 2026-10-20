@@ -43,7 +43,7 @@ class ApprovalInboxQuery
             ->where('status', 'waiting_review');
 
         if ($withRelations) {
-            $query->with(['creator:id,public_id,name', 'assignee:id,public_id,name', 'items.product:id,public_id,name']);
+            $query->with(['assignee:id,public_id,name', 'items.product:id,public_id,name']);
         }
 
         return self::applyMakerCheckerEligibility($query, $user);
@@ -80,8 +80,9 @@ class ApprovalInboxQuery
             $q->where('type', $v);
         });
 
-        if (($creatorId = self::requesterFilter($request)) !== null) {
-            $query->where('created_by', $creatorId);
+        // The requester of an SPK is the technician it is assigned to: the one who did the work and submitted it.
+        if (($requesterId = self::requesterFilter($request)) !== null) {
+            $query->where('assigned_to', $requesterId);
         }
 
         $query->when($request->input('status'), function (Builder $q, string $v): void {
@@ -104,15 +105,22 @@ class ApprovalInboxQuery
             });
         });
 
+        // The date of the request is the moment the technician submitted the SPK, not the day the office made it.
         $query->when($request->input('date_from'), function (Builder $q, string $v): void {
             if (strtotime($v) !== false) {
-                $q->whereDate('created_at', '>=', $v);
+                $q->where(function (Builder $sq) use ($v): void {
+                    $sq->whereDate('submitted_at', '>=', $v)
+                        ->orWhere(fn (Builder $legacy) => $legacy->whereNull('submitted_at')->whereDate('created_at', '>=', $v));
+                });
             }
         });
 
         $query->when($request->input('date_to'), function (Builder $q, string $v): void {
             if (strtotime($v) !== false) {
-                $q->whereDate('created_at', '<=', $v);
+                $q->where(function (Builder $sq) use ($v): void {
+                    $sq->whereDate('submitted_at', '<=', $v)
+                        ->orWhere(fn (Builder $legacy) => $legacy->whereNull('submitted_at')->whereDate('created_at', '<=', $v));
+                });
             }
         });
 
@@ -272,7 +280,7 @@ class ApprovalInboxQuery
         }
 
         $spkMatch = self::isEligibleForSpk($user) && self::base($request, false)
-            ->where('created_by', $userId)
+            ->where('assigned_to', $userId)
             ->exists();
 
         if ($spkMatch) {
@@ -434,7 +442,7 @@ class ApprovalInboxQuery
             ->where('company_id', CompanyService::idFor($user))
             ->where(function (Builder $query) use ($request, $spkAllowed, $inventoryAllowed): void {
                 if ($spkAllowed) {
-                    $query->whereIn('id', self::base($request, false)->select('created_by'));
+                    $query->whereIn('id', self::base($request, false)->select('assigned_to'));
                 }
 
                 if ($inventoryAllowed) {

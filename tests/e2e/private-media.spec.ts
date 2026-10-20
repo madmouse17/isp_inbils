@@ -10,6 +10,7 @@
  *
  * Deterministic: unique records per run, no fixed IDs.
  */
+import { existsSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Page } from '@playwright/test';
@@ -162,12 +163,18 @@ test.describe('@private-media ticket attachment', () => {
         expect(guest.headers().location).toMatch(/\/login$/);
 
         const storage = join(process.cwd(), 'storage', 'app');
-        const stored = (await readdir(join(storage, 'private'), { recursive: true })).filter(
+        const privateRoot = existsSync(join(storage, 'private', 'e2e'))
+            ? join(storage, 'private', 'e2e')
+            : join(storage, 'private');
+        const publicRoot = existsSync(join(storage, 'public', 'e2e'))
+            ? join(storage, 'public', 'e2e')
+            : join(storage, 'public');
+        const stored = (await readdir(privateRoot, { recursive: true })).filter(
             (path) => path.endsWith(fileName),
         );
         expect(stored).toHaveLength(2);
         expect(
-            (await readdir(join(storage, 'public'), { recursive: true })).filter((path) =>
+            (await readdir(publicRoot, { recursive: true })).filter((path) =>
                 path.endsWith(fileName),
             ),
         ).toEqual([]);

@@ -2,12 +2,15 @@
 
 namespace Tests\Feature\Ticketing;
 
+use App\Http\Resources\NotificationResource;
 use App\Models\Core\Company;
 use App\Models\Core\Customer;
+use App\Models\Core\DeviceToken;
 use App\Models\User;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Http\Request as HttpRequest;
 use Illuminate\Notifications\SendQueuedNotifications;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -23,11 +26,15 @@ use RuntimeException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
+use Tests\Traits\FakesFirebaseMessaging;
+use Tests\Traits\InteractsWithMobileApi;
 use Tests\Traits\InteractsWithWhatsApp;
 
 class TicketWhatsAppNotificationTest extends TestCase
 {
     use CreatesCompanyUser;
+    use FakesFirebaseMessaging;
+    use InteractsWithMobileApi;
     use InteractsWithWhatsApp;
     use RefreshDatabase;
 
@@ -291,6 +298,66 @@ class TicketWhatsAppNotificationTest extends TestCase
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        new TicketCustomerUpdateNotification($this->company->id, 1, 'closed');
+        new TicketCustomerUpdateNotification($this->company->id, 1, 'reopened');
+    }
+
+    public function test_new_stages_send_no_whatsapp(): void
+    {
+        $ticket = $this->openTicket();
+        $handler = $this->handler();
+        $ticket = $this->assign($ticket, $handler);
+        $this->actingAs($handler);
+        TicketService::startWork($ticket);
+        TicketService::addComment($ticket->fresh(), ['body' => 'Teknisi menuju lokasi', 'is_internal' => false], $handler->id);
+        TicketService::resolve($ticket->fresh(), 'Kabel diganti');
+        $this->actingAs($this->admin);
+        TicketService::close($ticket->fresh());
+
+        $this->assertSame(['tiket_dibuat', 'tiket_ditangani', 'tiket_selesai'], $this->templates(), 'started, replied and closed have no approved template');
+        $this->assertCount(3, $this->whatsAppRows());
+    }
+
+    public function test_customer_stages_push_and_carry_code(): void
+    {
+        $this->fakeFirebase();
+        [$customerUser, $customer] = $this->customerLogin($this->company);
+        $customer->forceFill(['phone' => '0812-3456-7891', 'is_active' => true, 'whatsapp_opt_in_at' => now(), 'whatsapp_opt_in_source' => 'staff'])->save();
+        DeviceToken::factory()->forApp('customer')->create(['user_id' => $customerUser->id, 'token' => 'customer-install']);
+        $handler = $this->handler();
+
+        $ticket = $this->openTicket(['customer_id' => $customer->id]);
+        $ticket = $this->assign($ticket, $handler);
+        $this->actingAs($handler);
+        TicketService::startWork($ticket);
+        TicketService::addComment($ticket->fresh(), ['body' => 'Teknisi menuju lokasi', 'is_internal' => false], $handler->id);
+        TicketService::resolve($ticket->fresh(), 'Kabel diganti');
+        $this->actingAs($this->admin);
+        TicketService::close($ticket->fresh());
+
+        $code = $ticket->code;
+        $words = [
+            'ticket_created' => ['Tiket dibuat', "Tiket {$code} sudah tercatat dan menunggu penanganan."],
+            'ticket_assigned' => ['Petugas ditugaskan', "Petugas sudah ditugaskan untuk tiket {$code}."],
+            'ticket_started' => ['Tiket mulai ditangani', "Petugas mulai menangani tiket {$code}."],
+            'ticket_replied' => ['Balasan baru', "Petugas membalas tiket {$code}."],
+            'ticket_resolved' => ['Tiket selesai', "Tiket {$code} sudah diselesaikan. Masih bermasalah? Balas tiket ini."],
+            'ticket_closed' => ['Tiket ditutup', "Tiket {$code} sudah ditutup."],
+        ];
+
+        $rows = $customer->notifications->keyBy('data.type');
+        $this->assertEqualsCanonicalizing(array_keys($words), $rows->keys()->all());
+        $pushes = collect($this->multicasts)->pluck('message.data')->keyBy('type');
+        $this->assertEqualsCanonicalizing(array_keys($words), $pushes->keys()->all());
+        $this->assertSame(array_fill(0, 6, 'customer-install'), $this->pushedTokens());
+
+        foreach ($words as $type => [$title, $message]) {
+            $row = $rows[$type];
+            $this->assertEquals(['type' => $type, 'ticket_id' => $ticket->public_id, 'ticket_code' => $code], $row->data, $type);
+
+            $bell = (new NotificationResource($row))->resolve(HttpRequest::create('/api/v1/notifications'));
+            $this->assertSame([$title, $message], [$bell['title'], $bell['message']], $type);
+            $this->assertSame(['ticket', $ticket->public_id], [$bell['subject']['type'], $bell['subject']['id']], $type);
+            $this->assertSame([$title, $message, $row->id], [$pushes[$type]['title'], $pushes[$type]['body'], $pushes[$type]['notification_id']], $type);
+        }
     }
 }

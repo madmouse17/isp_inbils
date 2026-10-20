@@ -471,6 +471,7 @@ class PaymentAttemptLocalCancelTest extends TestCase
                 ->has('paymentExceptions.items', 5)
                 ->where('paymentExceptions.items', fn ($items): bool => $items->pluck('order_id')->all() === $newestFirst->pluck('order_id')->all())
                 ->has('paymentExceptions.items.0', fn (Assert $item) => $item
+                    ->where('id', $newest->public_id)
                     ->where('invoice_id', $newest->invoice->public_id)
                     ->where('invoice_number', $newest->invoice->number)
                     ->where('order_id', $newest->order_id)
@@ -597,11 +598,15 @@ class PaymentAttemptLocalCancelTest extends TestCase
         $closed = $this->closedPage($this->invoice());
         $this->commitFixture();
         $migration = require base_path('Modules/Billing/database/migrations/2026_10_23_120000_add_cancelled_locally_to_payment_attempts_status.php');
+        // The refund migration widens the same enum after it: it goes first on the way down and last on the way up.
+        $refund = require base_path('Modules/Billing/database/migrations/2026_10_28_100000_add_refund_resolution_to_payment_attempts_table.php');
         $column = fn (): object => DB::selectOne("SELECT COLUMN_TYPE AS type, COLUMN_DEFAULT AS fallback FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'payment_attempts' AND COLUMN_NAME = 'status'");
+        $current = "enum('pending','paid','failed','expired','exception','cancelled_locally','refunded')";
 
         try {
-            $this->assertSame("enum('pending','paid','failed','expired','exception','cancelled_locally')", $column()->type);
+            $this->assertSame($current, $column()->type);
 
+            $refund->down();
             $migration->down();
 
             $this->assertSame("enum('pending','paid','failed','expired','exception')", $column()->type);
@@ -609,10 +614,11 @@ class PaymentAttemptLocalCancelTest extends TestCase
             $this->assertSame('expired', DB::table('payment_attempts')->where('id', $closed->id)->value('status'));
         } finally {
             $migration->up();
+            $refund->up();
             $this->purgeCompany($this->admin->company_id);
         }
 
-        $this->assertSame("enum('pending','paid','failed','expired','exception','cancelled_locally')", $column()->type);
+        $this->assertSame($current, $column()->type);
         $this->assertSame('pending', $column()->fallback);
     }
 

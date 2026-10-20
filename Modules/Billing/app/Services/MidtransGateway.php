@@ -64,6 +64,8 @@ class MidtransGateway
                         'first_name' => $customer ? Str::limit($customer->name, 30, '') : null,
                         'email' => $customer?->email,
                     ]),
+                    // Every card goes through 3-D Secure; no company setting turns it off.
+                    'credit_card' => ['secure' => true],
                     'expiry' => ['unit' => 'hours', 'duration' => PaymentAttempt::TTL_HOURS],
                     'page_expiry' => ['duration' => PaymentAttempt::TTL_HOURS, 'unit' => 'hours'],
                     'callbacks' => ['finish' => $finishUrl, 'error' => $finishUrl],

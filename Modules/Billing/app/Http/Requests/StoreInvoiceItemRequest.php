@@ -6,6 +6,7 @@ use App\Http\Requests\Concerns\ResolvesPublicIds;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\Billing\Models\Invoice;
 use Modules\Inventory\Models\Product;
 
 class StoreInvoiceItemRequest extends FormRequest
@@ -20,7 +21,9 @@ class StoreInvoiceItemRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return $this->user()?->can('billing.update') ?? false;
+        $invoice = $this->route('invoice');
+
+        return $invoice instanceof Invoice && ($this->user()?->can('update', $invoice) ?? false);
     }
 
     /** @return array<string, mixed> */

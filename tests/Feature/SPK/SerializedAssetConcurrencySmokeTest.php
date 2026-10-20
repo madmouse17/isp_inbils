@@ -458,6 +458,8 @@ PHP;
             DB::table('work_order_items')->where('work_order_id', $workOrderId)->delete();
             DB::table('network_assets')->where('id', $assetId)->delete();
             DB::table('work_orders')->where('id', $workOrderId)->delete();
+            // K18: assigning or approving an installation makes the PPPoE account of the subscription.
+            DB::table('network_accounts')->where('subscription_id', $fixtureIds['subscription'])->delete();
             DB::table('service_subscriptions')->where('id', $fixtureIds['subscription'])->delete();
             DB::table('customer_addresses')->where('id', $fixtureIds['address'])->delete();
             DB::table('products')->whereIn('id', $productIds)->delete();
@@ -475,6 +477,7 @@ PHP;
             DB::table('locations')->where('id', $fixtureIds['location'])->delete();
             DB::table('model_has_permissions')->where('model_type', User::class)->whereIn('model_id', $userIds)->delete();
             DB::table('users')->whereIn('id', $userIds)->delete();
+            DB::table('number_sequences')->where('company_id', $companyId)->delete();
             DB::table('companies')->where('id', $companyId)->delete();
         });
     }

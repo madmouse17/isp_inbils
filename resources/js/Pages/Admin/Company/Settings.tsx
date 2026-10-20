@@ -82,10 +82,15 @@ const SETTING_SECTIONS: { title: string; fields: Record<string, SettingField> }[
                 kind: 'lines',
                 help: 'Tampil di halaman tagihan. Tulis satu rekening per baris.',
             },
-            spk_auto_invoice: {
-                label: 'Buat tagihan otomatis saat SPK selesai',
+            auto_send_installation_invoice: {
+                label: 'Kirim tagihan pemasangan otomatis',
                 kind: 'switch',
-                help: 'Tagihan dibuat begitu SPK dinyatakan selesai.',
+                help: 'Mati: tagihan pemasangan dibuat sebagai draf saat SPK pemasangan disetujui, lalu staf penagihan diberi tahu untuk mengirimnya. Nyala: tagihan langsung terkirim ke pelanggan.',
+            },
+            bill_installation_materials: {
+                label: 'Tagihkan bahan terpakai',
+                kind: 'switch',
+                help: 'Mati: bahan yang dipakai teknisi termasuk biaya pemasangan. Nyala: bahan ditagihkan per baris dengan label Bahan terpakai.',
             },
         },
     },

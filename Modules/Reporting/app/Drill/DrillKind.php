@@ -192,12 +192,15 @@ enum DrillKind: string
     /**
      * One list row: scalars only, keyed like columns(). An issued invoice, a closed ticket and a completed SPK name the
      * customer, category and technician they were frozen with; the live record answers only while there is no snapshot.
+     * A moment is an ISO 8601 string with its offset, so the screen shows it in the viewer's zone; a file passes the
+     * company's timezone and gets `Y-m-d H:i` in that zone.
      *
      * @return array<string, string|int|float|null>
      */
-    public function row(Model $model): array
+    public function row(Model $model, ?string $timezone = null): array
     {
         $get = static fn (string $path): mixed => data_get($model, $path);
+        $at = static fn (?CarbonInterface $moment): ?string => self::moment($moment, $timezone);
 
         $row = match ($this) {
             self::Subscription => [
@@ -206,8 +209,8 @@ enum DrillKind: string
                 'package' => $get('servicePackage.name'),
                 'status' => $get('status'),
                 'mrc_amount' => $get('mrc_amount'),
-                'created_at' => self::moment($get('created_at')),
-                'terminated_at' => self::moment($get('terminated_at')),
+                'created_at' => $at($get('created_at')),
+                'terminated_at' => $at($get('terminated_at')),
             ],
             self::Invoice => [
                 'number' => $get('number'),
@@ -224,12 +227,12 @@ enum DrillKind: string
                 'title' => $get('title'),
                 'category' => $get('category_name_snapshot') ?? $get('category.name'),
                 'status' => $get('status'),
-                'created_at' => self::moment($get('created_at')),
-                'first_response_at' => self::moment($get('first_response_at')),
-                'response_deadline' => self::moment($get('response_deadline')),
+                'created_at' => $at($get('created_at')),
+                'first_response_at' => $at($get('first_response_at')),
+                'response_deadline' => $at($get('response_deadline')),
                 'response' => self::responseOutcome($get('first_response_at'), $get('response_deadline')),
-                'resolved_at' => self::moment($get('resolved_at')),
-                'sla_deadline' => self::moment($get('sla_deadline')),
+                'resolved_at' => $at($get('resolved_at')),
+                'sla_deadline' => $at($get('sla_deadline')),
                 'sla' => self::slaOutcome($get('resolved_at'), $get('sla_deadline')),
                 'resolution_minutes' => self::minutesBetween($get('created_at'), $get('resolved_at')),
                 'first_response_minutes' => self::minutesBetween($get('created_at'), $get('first_response_at')),
@@ -240,8 +243,8 @@ enum DrillKind: string
                 'type' => $get('type'),
                 'status' => $get('status'),
                 'assignee' => $get('technician_name_snapshot') ?? $get('assignee.name'),
-                'started_at' => self::moment($get('started_at')),
-                'completed_at' => self::moment($get('completed_at')),
+                'started_at' => $at($get('started_at')),
+                'completed_at' => $at($get('completed_at')),
                 'work_minutes' => self::minutesBetween($get('started_at'), $get('completed_at')),
             ],
             self::Asset => [
@@ -257,12 +260,12 @@ enum DrillKind: string
                 'asset' => $get('asset_code_snapshot') ?? $get('asset.code'),
                 'location' => $get('location.name'),
                 'customer' => $get('customer.name'),
-                'installed_at' => self::moment($get('installed_at')),
-                'removed_at' => self::moment($get('removed_at')),
+                'installed_at' => $at($get('installed_at')),
+                'removed_at' => $at($get('removed_at')),
                 'installer' => $get('installer.name'),
             ],
             self::Evaluation => [
-                'evaluated_at' => self::moment($get('evaluated_at')),
+                'evaluated_at' => $at($get('evaluated_at')),
                 'employee' => $get('employee.name'),
                 'score' => $get('score'),
                 'customer_rating' => $get('customer_rating'),
@@ -289,9 +292,13 @@ enum DrillKind: string
         };
     }
 
-    private static function moment(?CarbonInterface $moment): ?string
+    private static function moment(?CarbonInterface $moment, ?string $timezone): ?string
     {
-        return $moment?->toDateTimeString();
+        if ($moment === null) {
+            return null;
+        }
+
+        return $timezone === null ? $moment->toIso8601String() : $moment->copy()->setTimezone($timezone)->format('Y-m-d H:i');
     }
 
     /** Whole minutes between two moments, truncated like the TIMESTAMPDIFF(MINUTE) the averages use. */

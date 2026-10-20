@@ -484,8 +484,8 @@ class ApprovalInboxInventoryTest extends TestCase
         $techA = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
         $techB = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
 
-        // Create 1 SPK and 1 Inventory Request
-        $spk = $this->waitingSpk($company, $techA, ['code' => 'SPK-UNI-001', 'created_at' => now()->subHours(2)]);
+        // Create 1 SPK (its requester is the technician who did the work) and 1 Inventory Request
+        $spk = $this->waitingSpk($company, $techA, ['code' => 'SPK-UNI-001', 'assigned_to' => $techA->id, 'created_at' => now()->subHours(2)]);
         $inv = $this->inventoryRequest($company, $techB, $warehouse, $product, [
             'code' => 'REQ-UNI-001',
             'created_at' => now()->subHour(),

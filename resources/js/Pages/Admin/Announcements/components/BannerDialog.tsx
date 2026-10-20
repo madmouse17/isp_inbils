@@ -60,6 +60,9 @@ export function BannerDialog({ banner, appRoutes, choices, preview, onClose }: B
 
     // The file the person chose last: an answer about an earlier one is dropped.
     const chosen = useRef<File | null>(null);
+    // The file the last refusal was about. FilePond reports each file twice and, on a slow frame, the second report
+    // comes after the refusal: taking the file again would wipe the message and leave the field empty without a word.
+    const refused = useRef<File | null>(null);
     const [imageUrl, setImageUrl] = useState<string | null>(null);
     const [imageError, setImageError] = useState<string | null>(null);
 
@@ -72,6 +75,7 @@ export function BannerDialog({ banner, appRoutes, choices, preview, onClose }: B
     );
 
     const refuse = (message: string) => {
+        refused.current = chosen.current;
         chosen.current = null;
         setData('image', null);
         setImageUrl(null);
@@ -79,6 +83,8 @@ export function BannerDialog({ banner, appRoutes, choices, preview, onClose }: B
     };
 
     const pickImage = (file: File | null) => {
+        if (file !== null && file === refused.current) return;
+
         const before = chosen.current;
         chosen.current = file;
         setData('image', file);

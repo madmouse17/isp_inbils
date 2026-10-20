@@ -116,10 +116,17 @@ export function ToastProvider({ children }: ToastProviderProps) {
     return (
         <ToastContext.Provider value={{ toast }}>
             {children}
+            {/*
+             * One step above the overlays of dialogs and sheets (z-50), so a toast raised while one is open stays
+             * readable. `aria-live` also keeps it announced then: while a modal is open Radix marks the rest of the
+             * page aria-hidden but skips every element that carries aria-live, and this region is always mounted.
+             */}
             <div
                 aria-live="polite"
                 aria-label="Notifikasi"
-                className="pointer-events-none fixed top-4 right-4 z-50 flex flex-col gap-2"
+                data-toast-region
+                onPointerDown={(event) => event.stopPropagation()}
+                className="pointer-events-none fixed top-4 right-4 z-60 flex flex-col gap-2"
             >
                 {messages.map((m) => (
                     <div key={m.id} className="pointer-events-auto">

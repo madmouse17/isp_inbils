@@ -44,7 +44,6 @@ class SpkCompletionOrchestrationTest extends TestCase
     public function test_install_spk_completion_consumes_stock_installs_asset_activates_subscription_and_invoices(): void
     {
         [$company, $user, $location, $customer] = $this->scope();
-        $company->update(['settings' => ['spk_auto_invoice' => true]]);
         $product = $this->product($company, ['sell_price' => 100_000]);
         $subscription = ServiceSubscription::factory()->create([
             'customer_id' => $customer->id,
@@ -118,7 +117,11 @@ class SpkCompletionOrchestrationTest extends TestCase
             'subscription_id' => $subscription->id,
             'source' => 'spk',
         ]);
-        $this->assertGreaterThan(0, (float) Invoice::where('work_order_id', $workOrder->id)->firstOrFail()->total);
+        // K7 and K17: an installation always leaves a draft; the 2 pieces of the product used are part of the fee.
+        $invoice = Invoice::where('work_order_id', $workOrder->id)->firstOrFail();
+        $this->assertSame('draft', $invoice->status);
+        $this->assertSame(['Biaya pemasangan'], $invoice->items()->pluck('description')->all());
+        $this->assertSame('50000.00', $invoice->subtotal);
     }
 
     public function test_approval_locks_the_customer_before_it_touches_the_subscription(): void

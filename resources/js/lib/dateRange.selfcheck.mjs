@@ -20,6 +20,7 @@ const {
     formatRange,
     isoToLocalDate,
     localDateToIso,
+    parseDay,
     parseRange,
     presetRange,
     todayInZone,
@@ -246,6 +247,44 @@ test('invalid and inverted entries are rejected and name the reason', () => {
     bad('2026-10-20 - 2026-10-13', 'order', 'yyyy-MM-dd');
     bad('20/10/2026 – 13/10/2026', 'order');
     bad('2027-01-01 – 2026-12-31', 'order', 'yyyy-MM-dd');
+});
+
+test('numeric days are read whatever the company format is (F5-D05, F7-D25)', () => {
+    // The ticket: `20/10/2026` typed into a `d M Y` company.
+    for (const text of ['20/10/2026', '20-10-2026', '2026-10-20', '20/10/2026 ']) {
+        assert.equal(parseDay(text, 'dd MMM yyyy'), '2026-10-20', text);
+        assert.equal(parseDay(text, 'dd/MM/yyyy'), '2026-10-20', text);
+    }
+    assert.equal(parseDay('3/10/2026', 'dd MMM yyyy'), '2026-10-03');
+    assert.equal(parseDay('03-10-2026', 'dd MMM yyyy'), '2026-10-03');
+    assert.equal(parseDay('2026-10-03', 'dd/MM/yyyy'), '2026-10-03');
+    assert.deepEqual(parseRange('20/10/2026 - 25/10/2026', 'dd MMM yyyy'), {
+        ok: true,
+        range: { from: '2026-10-20', to: '2026-10-25' },
+    });
+});
+
+test('a text that is a day in the company format keeps the company reading', () => {
+    // 05/06/2026 is a real day day-first and month-first; the company format decides.
+    assert.equal(parseDay('05/06/2026', 'dd/MM/yyyy'), '2026-06-05');
+    assert.equal(parseDay('05/06/2026', 'MM/dd/yyyy'), '2026-05-06');
+    assert.equal(parseDay('05/06/2026', 'dd MMM yyyy'), '2026-06-05');
+    // Only a text the company format cannot read falls back to day first.
+    assert.equal(parseDay('20/10/2026', 'MM/dd/yyyy'), '2026-10-20');
+});
+
+test('numeric days that are not real days are still rejected', () => {
+    for (const text of [
+        '31/02/2026',
+        '20/13/2026',
+        '20/10/26',
+        '20/10',
+        '2026-13-01',
+        '20.10.2026',
+        '10/20/2026/1',
+    ]) {
+        assert.equal(parseDay(text, 'dd MMM yyyy'), null, text);
+    }
 });
 
 test('formatDate and formatDateTime honour the company date_format', () => {

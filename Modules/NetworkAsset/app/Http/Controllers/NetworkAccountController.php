@@ -113,7 +113,10 @@ class NetworkAccountController extends Controller
 
         NetworkAccountService::resync($this->accountOf($subscription));
 
-        return back()->with('success', 'Sinkron ulang dijadwalkan.');
+        // Nothing reaches the router while the company has no RADIUS: the page says so instead of promising a Disconnect.
+        return app(IntegrationConfig::class)->isEnabled('radius')
+            ? back()->with('success', 'Sinkron ulang dimulai. Sesi pelanggan diputus setelah router menjawab.')
+            : back()->with('warning', 'Perubahan disimpan, tetapi belum dikirim ke router karena RADIUS belum dikonfigurasi untuk perusahaan ini.');
     }
 
     private function accountOf(ServiceSubscription $subscription): NetworkAccount

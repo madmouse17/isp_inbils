@@ -193,15 +193,26 @@ return:      from=null, to=location, qty>0 (SPK material return)
 - Threshold: `products.min_stock`. Saat movement: jika
   `quantity <= min_stock` → badge di product list + dashboard widget.
 
-### Stok constraint
+### Stok constraint dan pesan kekurangan
 - `stocks.quantity >= 0` (DB check).
 - `reserved_quantity <= quantity` (DB check).
-- Reserve gagal kalau stok tidak cukup → `InsufficientStockException`.
+- Reserve atau issue yang melebihi stok tersedia melempar `InsufficientStockException` dengan data `product_name`, `unit`, `location_name`, `requested`, dan `available`.
+- Format pesannya tetap: `Stok {nama barang} di {nama lokasi} tersisa {tersedia} {satuan}, dibutuhkan {diminta} {satuan}.` Kuantitas membuang nol akhir dan memakai koma desimal. Pesan yang sama dipakai API, validasi web, dan toast.
 
 ### Item Finder (search consumable)
 - `ItemFinderQuery`: input name/sku/category → output (product, location,
   location_path, quantity, available). Route `GET /admin/inventory/find`.
 - Berbeda dari NetworkAsset trace (individual asset by serial).
+
+### Kanal notifikasi inventaris
+
+- Permintaan diajukan memberi lonceng kepada pemegang `inventory.request.approve`.
+- Permintaan disetujui, ditolak, atau siap diambil memberi lonceng dan push kepada teknisi pemohon.
+- Retur dideklarasikan atau menjadi pengecualian memberi lonceng kepada pemegang izin penerimaan atau penyelesaian yang sesuai.
+- Retur ditolak memberi lonceng dan push kepada teknisi.
+- Tidak ada notifikasi inventaris per kejadian yang memakai email.
+- Email hanya tersedia sebagai ringkasan harian opt-in. Kolom `users.inventory_digest` bawaan `false`; saklarnya muncul di Profil bagi pengguna yang memegang salah satu izin `inventory.request.approve`, `inventory.request.prepare`, `inventory.request.issue`, `inventory.return.receive`, atau `inventory.return.resolve`.
+- `inventory:send-digest` berjalan pukul 00:00 UTC. Ia mengirim satu `InventoryDigestNotification` melalui mail hanya kepada pengguna opt-in yang masih memegang izin relevan dan hanya bila ada antrean untuk diringkas. Lonceng per kejadian tetap berjalan terpisah.
 
 ## Permission
 

@@ -21,10 +21,11 @@ interface IndexProps extends Record<string, unknown> {
         sort_dir?: string | null;
         per_page?: string | number | null;
     };
+    radiusEnabled: boolean;
     can: { create: boolean };
 }
 
-export default function Index({ nasDevices, filters, can }: IndexProps) {
+export default function Index({ nasDevices, filters, radiusEnabled, can }: IndexProps) {
     const pagination = toPagination(nasDevices);
     const { params, set, sortBy, sortDir, onSort, processing } = useTableQuery(
         {
@@ -77,7 +78,7 @@ export default function Index({ nasDevices, filters, can }: IndexProps) {
             {
                 key: 'status',
                 header: 'RADIUS',
-                cell: (row) => <NasStatusBadge nas={row} />,
+                cell: (row) => <NasStatusBadge nas={row} radiusEnabled={radiusEnabled} />,
             },
             {
                 key: 'actions',
@@ -91,7 +92,7 @@ export default function Index({ nasDevices, filters, can }: IndexProps) {
                 ),
             },
         ],
-        [can.create],
+        [can.create, radiusEnabled],
     );
 
     const registerLink = (

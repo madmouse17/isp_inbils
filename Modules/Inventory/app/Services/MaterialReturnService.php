@@ -5,6 +5,7 @@ namespace Modules\Inventory\Services;
 use App\Models\User;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
+use App\Support\Notifications\StaffRecipients;
 use App\Support\PublicId;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -286,10 +287,9 @@ class MaterialReturnService
                 'version' => $c->declaration_version,
             ], $c);
 
-            DB::afterCommit(function () use ($c, $companyId) {
-                $receivers = User::where('company_id', $companyId)
-                    ->permission('inventory.return.receive')
-                    ->get();
+            DB::afterCommit(function () use ($c, $companyId, $actor) {
+                // The technician waits at the desk, so the warehouse hears of it; not the technician, who cannot receive their own return.
+                $receivers = StaffRecipients::holding($companyId, 'inventory.return.receive', $actor->id);
                 if ($receivers->isNotEmpty()) {
                     Notification::send($receivers, new MaterialReturnDeclaredNotification($c->id, $c->work_order_id, $companyId, $c->inventory_request_id));
                 }
@@ -416,14 +416,11 @@ class MaterialReturnService
             }
 
             if ($hasException) {
-                DB::afterCommit(function () use ($c, $companyId) {
-                    $resolvers = User::where('company_id', $companyId)
-                        ->permission('inventory.return.resolve')
-                        ->get();
+                DB::afterCommit(function () use ($c, $companyId, $receiver) {
+                    // Not the receiver, who found the difference and so cannot be the one who resolves it.
+                    $resolvers = StaffRecipients::holding($companyId, 'inventory.return.resolve', $receiver->id);
                     if ($resolvers->isEmpty()) {
-                        $resolvers = User::where('company_id', $companyId)
-                            ->permission('inventory.request.approve')
-                            ->get();
+                        $resolvers = StaffRecipients::holding($companyId, 'inventory.request.approve', $receiver->id);
                     }
                     if ($resolvers->isNotEmpty()) {
                         Notification::send($resolvers, new MaterialReturnExceptionNotification($c->id, $c->work_order_id, $companyId, $c->inventory_request_id));

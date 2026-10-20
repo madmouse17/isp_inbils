@@ -3,10 +3,8 @@
 namespace Modules\SPK\Actions;
 
 use App\Actions\CreateInvoiceFromSpkAction;
-use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Services\Core\AuditService;
-use App\Services\Core\SettingService;
 use App\Services\Core\SubscriptionService;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Collection;
@@ -16,6 +14,7 @@ use Modules\Inventory\Models\MaterialReturnLine;
 use Modules\Inventory\Models\Product;
 use Modules\Inventory\Services\StockService;
 use Modules\NetworkAsset\Models\NetworkAsset;
+use Modules\NetworkAsset\Services\NetworkAccountService;
 use Modules\NetworkAsset\Services\NetworkAssetService;
 use Modules\SPK\Models\WorkOrder;
 use Modules\SPK\Models\WorkOrderItem;
@@ -37,6 +36,7 @@ class CompleteSpkAction
             self::consumeStock($workOrder);
             self::installAsset($workOrder);
             self::activateSubscription($workOrder);
+            NetworkAccountService::provisionForInstallation($workOrder);
             self::createInvoice($workOrder);
 
             AuditService::log('work_order', 'completed_orchestrated', [
@@ -284,21 +284,11 @@ class CompleteSpkAction
         SubscriptionService::activate($subscription);
     }
 
+    /** An installation is billed when its approval completes it (K17); the other SPK types are billed by hand. */
     private static function createInvoice(WorkOrder $workOrder): void
     {
-        if (! self::autoInvoiceEnabled($workOrder)) {
-            return;
+        if ($workOrder->type === 'installation') {
+            CreateInvoiceFromSpkAction::afterApproval($workOrder);
         }
-
-        CreateInvoiceFromSpkAction::execute($workOrder->id);
-    }
-
-    private static function autoInvoiceEnabled(WorkOrder $workOrder): bool
-    {
-        /** @var Company|null $company */
-        $company = $workOrder->company;
-        $companySetting = (bool) ($company?->settings['spk_auto_invoice'] ?? false);
-
-        return $companySetting || (bool) SettingService::get('spk_auto_invoice', false);
     }
 }

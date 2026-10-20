@@ -57,6 +57,8 @@ function detailsOf(section: DashboardSection, company: Company | null): Detail[]
             return [{ label: 'Pengecualian', value: formatNumber(section.breakdown.exceptions) }];
         case 'overdue_invoices':
             return [{ label: 'Terutang', value: formatRupiah(section.outstanding, company) }];
+        case 'draft_invoices':
+            return [{ label: 'Nilai', value: formatRupiah(section.total, company) }];
         default:
             return [];
     }

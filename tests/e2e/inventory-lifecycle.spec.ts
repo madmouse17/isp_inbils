@@ -224,7 +224,7 @@ test.describe('@lifecycle inventory', () => {
 
         // No Issue modal exists anymore; over-issue must still fail loudly at
         // the guarded endpoint. With a JSON expectation InsufficientStock
-        // renders as 422 {"message": "Stok tidak mencukupi..."}, never a pass.
+        // renders as 422 {"message": "Stok <barang> di <lokasi> tersisa ..., dibutuhkan ..."}, never a pass.
         const csrf = await refreshSession(page, '/admin/stocks');
         const overissue = await page.request.post('/admin/stocks/issue', {
             headers: { 'X-XSRF-TOKEN': csrf, Accept: 'application/json' },
@@ -237,7 +237,7 @@ test.describe('@lifecycle inventory', () => {
         });
         expect(overissue.status()).toBe(422);
         const body = (await overissue.json()) as { message?: string };
-        expect(body.message ?? '').toMatch(/tidak mencukupi/i);
+        expect(body.message ?? '').toMatch(/^Stok .+ di .+ tersisa .+, dibutuhkan 999\.999\.999/);
 
         // Verify the rejected movement was never persisted: browse to Stock Movements
         // and search for the unique note, expecting zero rows.

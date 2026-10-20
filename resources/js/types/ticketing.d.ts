@@ -13,11 +13,19 @@ export interface Ticket {
     location_id?: string | null;
     assigned_to?: string | null;
     updated_at?: string | null;
-    can?: { start: boolean; close: boolean };
+    can?: {
+        start: boolean;
+        close: boolean;
+        resolve: boolean;
+        spawn_spk: boolean;
+        comment: boolean;
+    };
     spawned_spk_id?: string | null;
     sla_deadline?: string | null;
     first_response_at?: string | null;
+    first_response_source?: 'reply' | 'start' | null;
     resolved_at?: string | null;
+    reopened_at?: string | null;
     closed_at?: string | null;
     resolution_note?: string | null;
     is_sla_breached: boolean;

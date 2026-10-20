@@ -154,7 +154,7 @@ export default function Show({ nasDevice, sessions, isolirUrl, radiusEnabled, ca
                         <CardContent className="space-y-4">
                             <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
                                 <Detail label="Klien RADIUS">
-                                    <NasStatusBadge nas={nasDevice} />
+                                    <NasStatusBadge nas={nasDevice} radiusEnabled={radiusEnabled} />
                                 </Detail>
                                 <Detail label="Terakhir ditulis">
                                     {nasDevice.radius_synced_at

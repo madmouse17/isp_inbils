@@ -190,7 +190,7 @@ class InvoiceSnapshotTest extends TestCase
         $customer = Customer::factory()->create(['company_id' => $company->id, 'name' => 'Toko Sinar', 'tax_id' => null]);
         CustomerAddress::factory()->create(['company_id' => $company->id, 'customer_id' => $customer->id, 'label' => 'Lain', 'address' => 'Jl. Lain 3', 'city' => 'Cimahi', 'postal_code' => '40511']);
         CustomerAddress::factory()->create(['company_id' => $company->id, 'customer_id' => $customer->id, 'label' => 'Utama', 'address' => 'Jl. Utama 2', 'city' => 'Cimahi', 'postal_code' => '40511', 'is_primary' => true]);
-        $draft = Invoice::factory()->create(['company_id' => $company->id, 'customer_id' => $customer->id, 'status' => 'draft']);
+        $draft = Invoice::factory()->create(['company_id' => $company->id, 'customer_id' => $customer->id, 'status' => 'draft', 'total' => 100000]);
 
         $sent = BillingService::send($draft);
 

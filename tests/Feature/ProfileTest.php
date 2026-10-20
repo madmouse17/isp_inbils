@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
 
@@ -77,5 +79,60 @@ class ProfileTest extends TestCase
         ]);
         $response->assertSessionHasErrors('password')->assertRedirect('/profile');
         $this->assertNotNull($user->fresh());
+    }
+
+    public function test_notification_preference_is_saved(): void
+    {
+        $user = $this->createCompanyUser();
+        $this->assertFalse($user->fresh()->inventory_digest, 'the digest is opt-in');
+
+        $this->actingAs($user)->from('/profile')->patch(route('profile.notifications.update'), ['inventory_digest' => true])
+            ->assertStatus(303)
+            ->assertRedirect('/profile')
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success', 'Preferensi notifikasi disimpan.');
+        $this->assertTrue($user->fresh()->inventory_digest);
+
+        $this->actingAs($user)->patch(route('profile.notifications.update'), ['inventory_digest' => false])->assertSessionHasNoErrors();
+        $this->assertFalse($user->fresh()->inventory_digest);
+    }
+
+    public function test_the_preference_must_be_a_yes_or_no(): void
+    {
+        $user = $this->createCompanyUser();
+
+        $this->actingAs($user)->patch(route('profile.notifications.update'), ['inventory_digest' => 'maybe'])->assertSessionHasErrors('inventory_digest');
+        $this->actingAs($user)->patch(route('profile.notifications.update'))->assertSessionHasErrors('inventory_digest');
+        $this->assertFalse($user->fresh()->inventory_digest);
+    }
+
+    public function test_the_profile_form_cannot_set_the_preference(): void
+    {
+        $user = $this->createCompanyUser();
+
+        $this->actingAs($user)->patch('/profile', ['name' => 'Test User', 'email' => $user->email, 'inventory_digest' => true])->assertSessionHasNoErrors();
+
+        $this->assertFalse($user->fresh()->inventory_digest);
+    }
+
+    public function test_preference_hidden_when_not_eligible(): void
+    {
+        $admin = $this->createCompanyUser();
+        $shows = fn (bool $eligible, bool $enabled) => fn (Assert $page) => $page
+            ->component('Profile/Edit')
+            ->where('notificationPreferences', ['inventory_digest' => $enabled, 'eligible' => $eligible]);
+
+        $bystander = User::factory()->create(['company_id' => $admin->company_id, 'email_verified_at' => now(), 'is_active' => true]);
+        $this->actingAs($bystander)->get('/profile')->assertOk()->assertInertia($shows(false, false));
+
+        // Any one of the five permissions of the digest is enough, and the switch shows its saved state.
+        foreach (User::INVENTORY_DIGEST_PERMISSIONS as $permission) {
+            $holder = User::factory()->create(['company_id' => $admin->company_id, 'email_verified_at' => now(), 'is_active' => true]);
+            $holder->givePermissionTo($permission);
+            $this->actingAs($holder)->get('/profile')->assertOk()->assertInertia($shows(true, false));
+        }
+
+        $admin->forceFill(['inventory_digest' => true])->save();
+        $this->actingAs($admin)->get('/profile')->assertOk()->assertInertia($shows(true, true));
     }
 }

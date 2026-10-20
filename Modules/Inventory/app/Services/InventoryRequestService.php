@@ -8,6 +8,7 @@ use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
 use App\Support\Money;
+use App\Support\Notifications\StaffRecipients;
 use App\Support\PublicId;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -586,10 +587,8 @@ class InventoryRequestService
 
     private static function notifyWarehouseOfSubmission(InventoryRequest $request): void
     {
-        // Find users in same company with 'inventory.request.approve' permission
-        $approvers = User::where('company_id', $request->company_id)
-            ->permission('inventory.request.approve')
-            ->get();
+        // Whoever may approve hears of it, but not the person who asked: they cannot approve their own request.
+        $approvers = StaffRecipients::holding($request->company_id, 'inventory.request.approve', $request->requested_by);
 
         if ($approvers->isNotEmpty()) {
             Notification::send($approvers, new InventoryRequestSubmittedNotification($request->id, $request->code, $request->company_id));

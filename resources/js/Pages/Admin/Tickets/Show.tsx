@@ -27,6 +27,7 @@ import { ConfirmDialog } from '@/Components/composite/ConfirmDialog';
 import { useCompany } from '@/hooks/useCompany';
 import { formatDateTime } from '@/lib/format';
 import { PRIORITY, TICKET_SOURCE, TICKET_STATUS } from '@/lib/statuses';
+import type { PageProps } from '@/types';
 import { checkInText, type CheckInRecord } from './components/checkIn';
 
 type DeadlineSource = { type: 'tier' | 'category'; name: string };
@@ -41,14 +42,22 @@ interface TData {
     priority: string;
     assigned_to?: string | null;
     updated_at?: string | null;
-    can?: { start: boolean; close: boolean };
+    can?: {
+        start: boolean;
+        close: boolean;
+        resolve: boolean;
+        spawn_spk: boolean;
+        comment: boolean;
+    };
     is_sla_breached: boolean;
     sla_deadline?: string | null;
     response_deadline: string | null;
     deadline_source: DeadlineSource;
     is_response_breached: boolean;
     first_response_at?: string | null;
+    first_response_source?: 'reply' | 'start' | null;
     resolved_at?: string | null;
+    reopened_at?: string | null;
     closed_at?: string | null;
     resolution_note?: string | null;
     check_in?: CheckInRecord | null;
@@ -103,6 +112,11 @@ const ACTION_CONFIRM: Record<ActionModal, string> = {
     comment: 'Kirim komentar',
 };
 
+const FIRST_RESPONSE_SOURCE = {
+    reply: 'lewat balasan',
+    start: 'lewat tombol Mulai',
+} as const;
+
 function Detail({ label, children }: { label: string; children: React.ReactNode }) {
     return (
         <div>
@@ -128,6 +142,8 @@ export default function Show({ ticket, handlers }: ShowProps) {
         closed &&
         Boolean(t.assignee_name_snapshot) &&
         t.assignee_name_snapshot !== t.assignee?.name;
+    // Tugaskan follows the status; every other button follows what the server says this person may do.
+    const hasAction = t.status === 'open' || Object.values(t.can ?? {}).some(Boolean);
     const company = useCompany();
     const sourceLabel =
         t.deadline_source.type === 'tier'
@@ -218,7 +234,9 @@ export default function Show({ ticket, handlers }: ShowProps) {
         router.post(route('admin.tickets.attachments.store', t.id), formData, {
             forceFormData: true,
             onProgress: (event) => setUploadPercentage(event?.percentage ?? 0),
-            onSuccess: () => {
+            onSuccess: (page) => {
+                // A refused write redirects back with flash.error: that toast is the answer, no success one.
+                if ((page.props as PageProps).flash.error) return;
                 setAttachmentFile(null);
                 toast({ title: 'Lampiran berhasil diunggah.', variant: 'success' });
             },
@@ -307,7 +325,15 @@ export default function Show({ ticket, handlers }: ShowProps) {
                             <dl className="space-y-3 text-sm">
                                 <Detail label="Kode">{t.code}</Detail>
                                 <Detail label="Status">
-                                    <EnumBadge map={TICKET_STATUS} value={t.status} />
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <EnumBadge map={TICKET_STATUS} value={t.status} />
+                                        {t.reopened_at && (
+                                            <Badge variant="warning">
+                                                Dibuka kembali{' '}
+                                                {formatDateTime(t.reopened_at, company)}
+                                            </Badge>
+                                        )}
+                                    </div>
                                 </Detail>
                                 <Detail label="Prioritas">
                                     <EnumBadge map={PRIORITY} value={t.priority} />
@@ -330,6 +356,12 @@ export default function Show({ ticket, handlers }: ShowProps) {
                                 </Detail>
                                 <Detail label="Respons pertama">
                                     {formatDateTime(t.first_response_at, company)}
+                                    {t.first_response_source && (
+                                        <span className="font-normal text-muted-foreground">
+                                            {' '}
+                                            ({FIRST_RESPONSE_SOURCE[t.first_response_source]})
+                                        </span>
+                                    )}
                                 </Detail>
                                 <Detail label="Target penyelesaian">
                                     {formatDateTime(t.sla_deadline, company)}
@@ -362,29 +394,29 @@ export default function Show({ ticket, handlers }: ShowProps) {
                         <CardTitle>Tindakan</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="flex flex-wrap gap-2">
-                            {t.status === 'open' && (
-                                <Button type="button" onClick={() => setActionModal('assign')}>
-                                    Tugaskan
-                                </Button>
-                            )}
-                            {t.can?.start && (
-                                <Button type="button" onClick={() => setConfirmingStart(true)}>
-                                    Mulai
-                                </Button>
-                            )}
-                            {(t.status === 'on_progress' || t.status === 'assigned') && (
-                                <Button type="button" onClick={() => setActionModal('resolve')}>
-                                    Selesaikan
-                                </Button>
-                            )}
-                            {t.can?.close && (
-                                <Button type="button" onClick={() => setActionModal('close')}>
-                                    Tutup
-                                </Button>
-                            )}
-                            {(t.status === 'on_progress' || t.status === 'assigned') &&
-                                !t.resolution_note && (
+                        {hasAction ? (
+                            <div className="flex flex-wrap gap-2">
+                                {t.status === 'open' && (
+                                    <Button type="button" onClick={() => setActionModal('assign')}>
+                                        Tugaskan
+                                    </Button>
+                                )}
+                                {t.can?.start && (
+                                    <Button type="button" onClick={() => setConfirmingStart(true)}>
+                                        Mulai
+                                    </Button>
+                                )}
+                                {t.can?.resolve && (
+                                    <Button type="button" onClick={() => setActionModal('resolve')}>
+                                        Selesaikan
+                                    </Button>
+                                )}
+                                {t.can?.close && (
+                                    <Button type="button" onClick={() => setActionModal('close')}>
+                                        Tutup
+                                    </Button>
+                                )}
+                                {t.can?.spawn_spk && (
                                     <Button
                                         type="button"
                                         variant="outline"
@@ -393,14 +425,23 @@ export default function Show({ ticket, handlers }: ShowProps) {
                                         Buat SPK
                                     </Button>
                                 )}
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => setActionModal('comment')}
-                            >
-                                Tambah komentar
-                            </Button>
-                        </div>
+                                {t.can?.comment && (
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        onClick={() => setActionModal('comment')}
+                                    >
+                                        Tambah komentar
+                                    </Button>
+                                )}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">
+                                {closed
+                                    ? 'Tiket sudah ditutup. Komentar baru tidak bisa ditambahkan.'
+                                    : 'Tidak ada tindakan yang tersedia untuk Anda pada tiket ini.'}
+                            </p>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -411,8 +452,9 @@ export default function Show({ ticket, handlers }: ShowProps) {
                     <CardContent className="space-y-3">
                         {(t.comments ?? []).length === 0 && (
                             <p className="text-sm text-muted-foreground">
-                                Belum ada komentar. Pakai tombol Tambah komentar untuk mencatat
-                                penanganan.
+                                {t.can?.comment
+                                    ? 'Belum ada komentar. Pakai tombol Tambah komentar untuk mencatat penanganan.'
+                                    : 'Belum ada komentar.'}
                             </p>
                         )}
                         {(t.comments ?? []).map((c) => (

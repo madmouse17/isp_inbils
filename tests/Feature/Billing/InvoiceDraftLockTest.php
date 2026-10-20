@@ -43,6 +43,8 @@ class InvoiceDraftLockTest extends TestCase
             'created_by' => $this->admin->id,
             'status' => $status,
             'notes' => 'as rendered',
+            // A draft with no total cannot be sent (F5-D04), and the races below send it.
+            'total' => 100000,
         ]);
         DB::table('invoices')->where('id', $invoice->id)->update(['updated_at' => now()->subMinutes(5)]);
 
@@ -180,7 +182,7 @@ class InvoiceDraftLockTest extends TestCase
             $row = Invoice::withoutCompany()->findOrFail($invoice->id);
             $this->assertSame('sent', $row->status);
             $this->assertSame('0.00', $row->discount_amount, 'no discount lands on an invoice that was already sent');
-            $this->assertSame('0.00', $row->total);
+            $this->assertSame('100000.00', $row->total, 'the total was not recalculated from the discount either');
         } finally {
             $this->purgeCompany($invoice->company_id);
         }

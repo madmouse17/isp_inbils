@@ -3,8 +3,11 @@
 namespace Modules\Billing\Console;
 
 use App\Models\Core\Company;
+use App\Notifications\SubscriptionsIsolatedSummaryNotification;
 use App\Services\Core\CompanyService;
+use App\Support\Notifications\StaffRecipients;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Notification;
 use Modules\Billing\Notifications\BillingScheduleFailedNotification;
 use Modules\Billing\Services\BillingScheduleGateway;
 use Throwable;
@@ -35,6 +38,10 @@ class SuspendOverdueSubscriptions extends Command
                 }
 
                 $this->info(($dryRun ? "[DRY RUN] Company {$companyId} — would suspend: " : "Company {$companyId} — suspended: ").count($suspended));
+
+                if (! $dryRun && $suspended !== []) {
+                    $this->tellStaff($companyId, count($suspended));
+                }
             } catch (Throwable $e) {
                 report($e);
                 $this->error("Overdue suspension failed for company {$companyId}: ".$e->getMessage());
@@ -45,6 +52,15 @@ class SuspendOverdueSubscriptions extends Command
         BillingScheduleFailedNotification::alertAdmins('billing:suspend-overdue', $failedCompanyIds);
 
         return $failedCompanyIds === [] ? self::SUCCESS : self::FAILURE;
+    }
+
+    /** One bell row for each holder of the isolate permission, not one per subscription. A failure here never undoes an isolation. */
+    private function tellStaff(int $companyId, int $count): void
+    {
+        rescue(fn () => Notification::send(
+            StaffRecipients::holding($companyId, 'customer.subscription.suspend'),
+            new SubscriptionsIsolatedSummaryNotification($companyId, $count),
+        ));
     }
 
     /** @return list<int> */

@@ -581,8 +581,8 @@ class ProvisioningFlowTest extends TestCase
         $account = $this->account->fresh();
         $this->assertSame('pending', $account->sync_status);
         $this->assertNotNull($account->pending_disconnect_at);
-        $this->assertStringContainsString('Disconnect', (string) $account->last_error);
-        $this->assertSame("{$this->realm}/home-20m", $account->provisioned_group, 'the record only advances after the Disconnect');
+        $this->assertSame('Router belum menjawab permintaan pemutusan sesi; dicoba lagi otomatis.', $account->last_error);
+        $this->assertSame("{$this->realm}/isolir", $account->provisioned_group, 'the record holds the group RADIUS already got');
         $this->assertSame("{$this->realm}/isolir", $this->group(), 'RADIUS already holds the isolir group');
 
         $this->coaAnswers($this->nasIp, 'ack');
@@ -593,6 +593,82 @@ class ProvisioningFlowTest extends TestCase
         $this->assertNull($account->pending_disconnect_at);
         $this->assertNull($account->last_error);
         $this->assertSame("{$this->realm}/isolir", $account->provisioned_group);
+    }
+
+    public function test_written_group_is_recorded_while_disconnect_pending(): void
+    {
+        $this->provisioned();
+        $written = $this->auditCount('provisioned');
+        $this->coaAnswers($this->nasIp, 'timeout');
+
+        SubscriptionService::block($this->subscription, 'abuse');
+
+        $account = $this->account->fresh();
+        $this->assertSame("{$this->realm}/isolir", $this->group(), 'RADIUS holds the isolir group');
+        $this->assertSame("{$this->realm}/isolir", $account->provisioned_group, 'and so does the record the page shows');
+        $this->assertNotNull($account->pending_disconnect_at, 'the Disconnect is still owed');
+        $this->assertSame('pending', $account->sync_status);
+        $this->assertSame($written + 1, $this->auditCount('provisioned'));
+
+        $since = $account->pending_disconnect_at;
+        $this->travel(10)->minutes();
+        $this->artisan('network:sync', ['--company' => $this->company->id])->assertSuccessful();
+
+        $this->assertEquals($since, $this->account->fresh()->pending_disconnect_at, 'a retry the router does not answer keeps the first moment');
+
+        $this->coaAnswers($this->nasIp, 'ack');
+        $this->artisan('network:sync', ['--company' => $this->company->id])->assertSuccessful();
+
+        $account = $this->account->fresh();
+        $this->assertNull($account->pending_disconnect_at);
+        $this->assertSame('synced', $account->sync_status);
+        $this->assertNull($account->last_error);
+        $this->assertSame("{$this->realm}/isolir", $account->provisioned_group);
+        $this->assertSame($written + 1, $this->auditCount('provisioned'), 'the retry audits the change once, not again');
+        $this->assertSame("alice@{$this->realm}", $this->disconnectsSent()[array_key_last($this->disconnectsSent())]['attributes']['User-Name']);
+    }
+
+    public function test_a_rename_keeps_the_old_record_until_the_old_name_was_disconnected(): void
+    {
+        $this->provisioned();
+        $this->coaAnswers($this->nasIp, 'timeout');
+
+        $this->account->update(['username' => "alice2@{$this->realm}"]);
+        $this->applyAccount($this->account);
+
+        $account = $this->account->fresh();
+        $this->assertSame("alice@{$this->realm}", $account->provisioned_username, 'only the old record remembers whose session is owed');
+        $this->assertNotNull($account->pending_disconnect_at);
+        $this->assertSame("{$this->realm}/home-20m", $this->group('alice2'), 'the new user is already written');
+
+        $this->coaAnswers($this->nasIp, 'ack');
+        $this->artisan('network:sync', ['--company' => $this->company->id])->assertSuccessful();
+
+        $account = $this->account->fresh();
+        $this->assertSame("alice2@{$this->realm}", $account->provisioned_username);
+        $this->assertNull($account->pending_disconnect_at);
+        $this->assertSame("alice@{$this->realm}", $this->disconnectsSent()[array_key_last($this->disconnectsSent())]['attributes']['User-Name'], 'the old name still got its Disconnect');
+    }
+
+    public function test_a_removal_keeps_the_old_record_until_the_session_was_cut(): void
+    {
+        $this->provisioned();
+        $this->coaAnswers($this->nasIp, 'timeout');
+
+        SubscriptionService::terminate($this->subscription->fresh(), 'moved away');
+
+        $account = $this->account->fresh();
+        $this->assertSame([], $this->radiusRows('radcheck'), 'the user is gone from RADIUS');
+        $this->assertSame("{$this->realm}/home-20m", $account->provisioned_group, 'the old record keeps whose session is owed');
+        $this->assertNotNull($account->pending_disconnect_at);
+
+        $this->coaAnswers($this->nasIp, 'ack');
+        $this->artisan('network:sync', ['--company' => $this->company->id])->assertSuccessful();
+
+        $account = $this->account->fresh();
+        $this->assertNull($account->provisioned_group);
+        $this->assertNull($account->pending_disconnect_at);
+        $this->assertSame("alice@{$this->realm}", $this->disconnectsSent()[array_key_last($this->disconnectsSent())]['attributes']['User-Name']);
     }
 
     public function test_a_nak_session_context_not_found_counts_as_done(): void
@@ -628,7 +704,7 @@ class ProvisioningFlowTest extends TestCase
         $this->assertCount(1, $this->disconnectsSent(), 'only the session on the company NAS');
         $account = $this->account->fresh();
         $this->assertSame('synced', $account->sync_status);
-        $this->assertStringContainsString('203.0.113.9', (string) $account->last_error);
+        $this->assertSame('Sesi terbuka berasal dari router yang belum didaftarkan: 203.0.113.9.', $account->last_error);
         $this->assertNull($account->pending_disconnect_at);
     }
 
@@ -657,7 +733,7 @@ class ProvisioningFlowTest extends TestCase
 
         $account = $this->account->fresh();
         $this->assertSame('failed', $account->sync_status);
-        $this->assertStringContainsString('no RADIUS profile name', $account->last_error);
+        $this->assertSame('Profil kecepatan paket ini belum punya nama profil RADIUS.', $account->last_error);
         $this->assertSame([], $this->radiusRows('radcheck'));
         $this->assertSame([], $this->disconnectsSent());
         $this->assertSame(1, $this->auditCount('provision_failed'));
@@ -670,6 +746,7 @@ class ProvisioningFlowTest extends TestCase
         $this->applyAccount($this->account);
 
         $this->assertSame('failed', $this->account->fresh()->sync_status);
+        $this->assertSame('Kode perusahaan tidak bisa dipakai sebagai realm RADIUS.', $this->account->fresh()->last_error);
         $this->assertSame([], $this->radiusRows('radcheck'));
     }
 
@@ -681,7 +758,7 @@ class ProvisioningFlowTest extends TestCase
 
         $account = $this->account->fresh();
         $this->assertSame('pending', $account->sync_status);
-        $this->assertSame('The RADIUS database is unavailable.', $account->last_error);
+        $this->assertSame('Basis data RADIUS tidak dapat dihubungi; dicoba lagi otomatis.', $account->last_error);
     }
 
     public function test_an_exhausted_job_stores_no_secret_in_failed_jobs(): void
@@ -697,7 +774,7 @@ class ProvisioningFlowTest extends TestCase
         $failed = DB::table('failed_jobs')->get();
         $this->assertCount(1, $failed);
         $this->assertStringNotContainsString('leak-canary', $failed[0]->exception);
-        $this->assertStringContainsString('The RADIUS database is unavailable.', $failed[0]->exception);
+        $this->assertStringContainsString('Basis data RADIUS tidak dapat dihubungi; dicoba lagi otomatis.', $failed[0]->exception);
         $this->assertSame('failed', $this->account->fresh()->sync_status);
     }
 

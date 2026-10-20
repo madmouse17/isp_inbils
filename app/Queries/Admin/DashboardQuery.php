@@ -56,6 +56,7 @@ final class DashboardQuery
             self::returnQueue($user, $inventory['returns']),
             self::lowStock($user),
             self::overdueInvoices($user),
+            self::draftInvoices($user),
         ]));
     }
 
@@ -235,6 +236,27 @@ final class DashboardQuery
 
         return self::section('overdue_invoices', 'finance', 'Tagihan jatuh tempo', $count, route('admin.invoices.index', ['status' => 'overdue']), 'danger', [
             'outstanding' => $outstanding,
+        ]);
+    }
+
+    /**
+     * Invoices still in draft: what the billing staff owe a send (K17). The count is what the invoice list shows for
+     * ?status=draft, so the card needs billing.send to act on it and billing.view to open that list.
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function draftInvoices(User $user): ?array
+    {
+        if (! $user->can('billing.send') || ! $user->can('billing.view')) {
+            return null;
+        }
+
+        $drafts = Invoice::query()->forCompany(CompanyService::idFor($user))->where('status', 'draft');
+        $count = (clone $drafts)->count();
+        $total = $count === 0 ? '0.00' : Money::round($drafts->sum('total'));
+
+        return self::section('draft_invoices', 'finance', 'Tagihan draf menunggu dikirim', $count, route('admin.invoices.index', ['status' => 'draft']), 'warning', [
+            'total' => $total,
         ]);
     }
 

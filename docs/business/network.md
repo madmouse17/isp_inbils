@@ -279,9 +279,8 @@ ditulis sebagai `Framed-IP-Address` (lihat Model). Pendahulunya (`.scratch/mikro
   account atau sesi (router mengakhiri sesinya sendiri) dan menghapus baris `nas` yang pernah ditulis Inbils.
 - **Network account** (`network_accounts`): user RADIUS satu subscription (`radcheck` `Cleartext-Password :=` dan
   `radusergroup`). Subscriber boleh login di NAS mana pun milik company-nya; tidak ada tautan akun ke satu NAS.
-  Secret subscriber terenkripsi di Inbils (sumber kebenaran), cleartext hanya di database RADIUS (CHAP dan MS-CHAP
-  butuh cleartext; database RADIUS adalah proyeksi yang bisa dibangun ulang oleh `network:sync`). Tampil sekali
-  (flash `network_account.secret`) setelah dibuat atau lewat reveal beraudit; tanpa `LogsActivity`.
+  Secret subscriber terenkripsi di Inbils dan cleartext hanya ada pada proyeksi database RADIUS. Username selalu dapat
+  ditampilkan. Secret hanya tampil sesudah reveal beraudit; tidak pernah masuk resource daftar, log, push, atau cache offline.
 - **Grup kecepatan** `<realm>/<radius_profile_name>`: `Mikrotik-Group := <radius_profile_name>`,
   `Mikrotik-Rate-Limit := <upload>M/<download>M`, `Acct-Interim-Interval := 300`. Diubah saat speed profile berubah
   (login baru memakai kecepatan baru; sesi berjalan memakai yang lama sampai putus atau Resync). Paket tanpa
@@ -329,9 +328,22 @@ ditulis sebagai `Framed-IP-Address` (lihat Model). Pendahulunya (`.scratch/mikro
 - **Permission**: `network_asset.nas.view|manage`, `network_asset.account.view|manage|reveal`; blokir pelanggan
   memakai `customer.subscription.block` (lihat `docs/business/customer.md`). Mengubah `management_ip` aset tidak
   lagi urusan kredensial: secret RADIUS tidak pernah dikirim ke alamat aset.
-- **Halaman isolir publik**: `GET /isolir/{kode company}`: nama, telepon, email, website company dan link login;
-  tidak ada data pelanggan. Kode tak dikenal atau company nonaktif → 404. Throttle `isolir` (limiter bernama):
-  600/menit per alamat + kode, 20/menit per alamat untuk tebakan kode (hanya permintaan 404 yang menghabiskan jatah ketat itu).
+- **Halaman isolir publik**: `GET /isolir/{kode company}` membawa nama, telepon, `whatsapp_url`, email, website, dan
+  `app_url` aplikasi pelanggan. Halaman tidak membawa identitas atau data pelanggan dan tidak punya tautan login.
+  Karena URL tidak mengetahui penyebab isolir, halaman sekaligus menjelaskan tunggakan dan pembatasan lain. Tombol
+  **Telepon**, **WhatsApp**, dan **Buka aplikasi {nama ISP}** hanya tampil bila nilainya tersedia. Kode tak dikenal atau
+  company nonaktif menjawab 404. Throttle `isolir`: 600/menit per alamat + kode dan 20/menit per alamat untuk 404.
+
+### Akun PPPoE dari SPK pemasangan
+
+- `NetworkAccountService::provisionForInstallation(WorkOrder)` dipanggil dalam transaksi saat SPK `installation` pertama kali ditugaskan. Persetujuan memanggilnya lagi sebagai pengaman idempoten bila akun masih belum ada.
+- Langganan harus ada dan belum `terminated`. Akun yang sudah ada dipertahankan dan hanya dijadwalkan sinkron ulang. Akun baru dibuat hanya bila company punya integrasi RADIUS yang aktif (`IntegrationConfig::isEnabled('radius')`): secret yang tidak dikenal server RADIUS mana pun akan menyesatkan teknisi dan bisa sampai ke server yang diaktifkan belakangan. Tanpa RADIUS penugasan dan persetujuan tidak membuat akun dan tidak mencatat audit; kartu teknisi tetap berstatus belum dibuat, dan staf tetap bisa membuat akun dengan tangan.
+- Jenis layanan adalah `pppoe`. Bagian lokal username berasal dari kode pelanggan: huruf kecil, hanya `[a-z0-9._-]`, maksimal 40 karakter. Bentrok mendapat akhiran `-2`, `-3`, dan seterusnya. Secret dibuat oleh generator yang sama dengan pembuatan akun manual.
+- Audit `network_account.created` memuat `via=installation_spk` dan `work_order_id`. Penolakan konfigurasi dicatat sebagai `auto_create_skipped` dan tidak membatalkan penugasan atau persetujuan SPK.
+- Teknisi yang sedang ditugaskan dapat memanggil `POST /api/v1/technician/work-orders/{wo}/network-credentials` hanya untuk SPK `installation` berstatus `assigned` atau `in_progress`. Limiter `api-credentials` memberi 5 permintaan per menit per user. Respons memakai `Cache-Control: no-store`; `NetworkAccountService::reveal` menulis audit `network_account.secret_revealed` sebelum mengembalikan secret.
+- Detail SPK teknisi hanya membawa username, status sinkronisasi, dan `can_reveal`. Daftar SPK dan resource lain tidak membawa secret.
+- Pembatalan instalasi untuk langganan `pending` yang tidak punya instalasi lain aktif mengganti secret dan membuat akun tidak diinginkan di RADIUS. `network:sync` menghapus user dan sesi. Penugasan instalasi baru memakai kembali baris akun dengan secret baru dan mengaktifkan proyeksinya.
+- Penugasan ulang SPK instalasi untuk langganan `pending` ke teknisi yang berbeda mengganti secret (audit `network_account.secret_rotated`, tanpa secret, `reason=installation_reassigned`) dan mengantre sinkronisasi, karena teknisi sebelumnya mungkin sudah melihat secret lama. Teknisi yang sama, SPK non-instalasi, langganan yang tidak `pending`, dan langganan tanpa akun tidak mengganti apa pun. Penggantian dan pembersihan pembatalan hanya bekerja pada akun yang sudah ada.
 
 ### Runbook FreeRADIUS dan MikroTik
 

@@ -25,6 +25,8 @@ class ApprovalInboxItemResource extends JsonResource
             $wo = $this->resource;
             $makerCheckerEligible = ApprovalInboxQuery::eligibleFor($wo, $user);
             $canView = (bool) $user?->can('view', $wo);
+            // The moment the technician submitted the SPK; one that reached review before that moment was recorded keeps its creation time.
+            $submittedAt = $wo->submitted_at ?? $wo->created_at;
 
             return [
                 'id' => $wo->public_id,
@@ -35,12 +37,11 @@ class ApprovalInboxItemResource extends JsonResource
                 'title' => $wo->title,
                 'priority' => $wo->priority,
                 'status' => $wo->status,
-                'requester' => $wo->relationLoaded('creator') && $wo->creator
-                    ? ['id' => $wo->creator->public_id, 'name' => $wo->creator->name]
-                    : null,
+                // The requester of an SPK is the technician it is assigned to, who did the work and submitted it.
+                'requester' => $wo->assignee === null ? null : ['id' => $wo->assignee->public_id, 'name' => $wo->assignee->name],
                 'assigned_to' => $wo->assignee?->public_id,
-                'submitted_at' => $wo->created_at?->toISOString(),
-                'age_seconds' => $wo->created_at ? max(0, (int) $wo->created_at->diffInSeconds(now())) : null,
+                'submitted_at' => $submittedAt?->toISOString(),
+                'age_seconds' => $submittedAt ? max(0, (int) $submittedAt->diffInSeconds(now())) : null,
                 'scheduled_date' => $wo->scheduled_date?->toDateString(),
                 'summary' => $this->summarizeWorkOrder($wo),
                 'actions' => [

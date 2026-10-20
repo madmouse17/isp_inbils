@@ -46,18 +46,18 @@ class DashboardPersonaTest extends TestCase
             'admin' => ['admin', [
                 'dispatch_unassigned', 'sla_breached', 'approvals',
                 'warehouse_requests', 'return_queue', 'low_stock',
-                'overdue_invoices',
+                'overdue_invoices', 'draft_invoices',
             ]],
             'manager' => ['manager', [
                 'dispatch_unassigned', 'sla_breached', 'approvals',
                 'warehouse_requests', 'return_queue', 'low_stock',
-                'overdue_invoices',
+                'overdue_invoices', 'draft_invoices',
             ]],
             // Operator persona: it prepares and issues but cannot approve, so no approvals card.
             'staff' => ['staff', [
                 'sla_breached',
                 'warehouse_requests', 'return_queue', 'low_stock',
-                'overdue_invoices',
+                'overdue_invoices', 'draft_invoices',
             ]],
             // The technician's own web dashboard is closed (app-only); the role keeps its permission set.
             'technician' => ['technician', ['sla_breached', 'low_stock']],
@@ -107,7 +107,7 @@ class DashboardPersonaTest extends TestCase
         $this->activeEmployeeProfile($admin);
 
         $this->assertSame(
-            ['operations', 'operations', 'operations', 'approvals', 'warehouse', 'warehouse', 'warehouse', 'finance'],
+            ['operations', 'operations', 'operations', 'approvals', 'warehouse', 'warehouse', 'warehouse', 'finance', 'finance'],
             array_column($this->sections($this->dashboard($admin)), 'group'),
         );
     }
@@ -126,6 +126,7 @@ class DashboardPersonaTest extends TestCase
             'return_queue' => 'Antrean retur material',
             'low_stock' => 'Stok di bawah minimum',
             'overdue_invoices' => 'Tagihan jatuh tempo',
+            'draft_invoices' => 'Tagihan draf menunggu dikirim',
         ], array_column($this->sections($this->dashboard($admin)), 'title', 'key'));
     }
 

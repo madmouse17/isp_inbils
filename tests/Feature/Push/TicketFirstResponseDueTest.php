@@ -87,7 +87,6 @@ class TicketFirstResponseDueTest extends TestCase
             'type' => 'ticket_first_response_due',
             'ticket_id' => $ticket->public_id,
             'ticket_code' => 'TKT-2026-00042',
-            'state' => 'due_soon',
             'company_id' => $ticket->company_id,
         ], $bell->data);
         $this->assertSame([
@@ -108,16 +107,20 @@ class TicketFirstResponseDueTest extends TestCase
         $this->assertCount(1, $this->multicasts);
     }
 
-    public function test_a_ticket_that_already_missed_its_response_target_says_so(): void
+    public function test_a_ticket_that_already_missed_its_response_target_is_a_breach_not_a_due_notice(): void
     {
-        $this->ticket(['response_deadline' => now()->subMinutes(5)]);
+        $ticket = $this->ticket(['response_deadline' => now()->subMinutes(5)]);
 
         $this->runJob();
 
-        $this->assertSame('breached', $this->technician->notifications()->sole()->data['state']);
+        $bell = $this->technician->notifications()->sole();
+        $this->assertSame('ticket_sla_breached', $bell->data['type']);
+        $this->assertSame('response', $bell->data['kind']);
         $push = $this->onlyPush()['data'];
-        $this->assertSame('Batas respons pertama terlewat', $push['title']);
-        $this->assertSame('Tiket TKT-2026-00042 melewati batas respons pertama.', $push['body']);
+        $this->assertSame('Batas respons terlewat', $push['title']);
+        $this->assertSame('Tiket TKT-2026-00042 belum direspons melewati batas SLA.', $push['body']);
+        $this->assertNull($ticket->fresh()->response_due_notified_at, 'a missed target is not announced as near');
+        $this->assertNotNull($ticket->fresh()->response_breached_notified_at);
     }
 
     public function test_the_window_opens_30_minutes_before_the_target(): void
@@ -132,12 +135,11 @@ class TicketFirstResponseDueTest extends TestCase
         $this->assertSame(1, $this->technician->notifications()->count(), '29 minutes out: inside the window');
     }
 
-    public function test_only_an_assigned_unanswered_ticket_with_a_target_counts(): void
+    public function test_only_an_unanswered_open_or_assigned_ticket_with_a_target_counts(): void
     {
         $this->ticket(['code' => 'TKT-ANSWERED', 'first_response_at' => now()->subMinutes(5)]);
         $this->ticket(['code' => 'TKT-STARTED', 'status' => 'on_progress']);
         $this->ticket(['code' => 'TKT-RESOLVED', 'status' => 'resolved']);
-        $this->ticket(['code' => 'TKT-UNASSIGNED', 'status' => 'open', 'assigned_to' => null]);
         $this->ticket(['code' => 'TKT-NO-TARGET', 'response_deadline' => null]);
         $this->technician->forceFill(['is_active' => false])->save();
         $this->ticket(['code' => 'TKT-INACTIVE-HANDLER']);
@@ -147,6 +149,31 @@ class TicketFirstResponseDueTest extends TestCase
         $this->assertSame(0, $this->technician->notifications()->count());
         $this->assertSame([], $this->multicasts);
         $this->assertNull(Ticket::withoutCompany()->where('code', 'TKT-INACTIVE-HANDLER')->value('response_due_notified_at'));
+    }
+
+    public function test_unassigned_ticket_warns_dispatch(): void
+    {
+        // Dispatch holds ticket.assign; the phone is only for those who use the technician app, the bell is for all.
+        $fieldDispatcher = $this->technicianLogin(Company::query()->findOrFail($this->admin->company_id));
+        $fieldDispatcher->givePermissionTo('ticket.assign');
+        DeviceToken::factory()->create(['user_id' => $fieldDispatcher->id, 'app' => 'technician', 'token' => 'dispatch-install']);
+        $ticket = $this->ticket(['status' => 'open', 'assigned_to' => null]);
+
+        $this->runJob();
+
+        foreach ([$this->admin, $fieldDispatcher] as $dispatcher) {
+            $bell = $dispatcher->notifications()->sole();
+            $this->assertSame('ticket_first_response_due', $bell->data['type']);
+            $this->assertSame($ticket->public_id, $bell->data['ticket_id']);
+        }
+        $this->assertSame(['dispatch-install'], $this->pushedTokens());
+        $this->assertSame('Respons pertama segera jatuh tempo', $this->onlyPush()['data']['title']);
+        $this->assertSame(0, $this->technician->notifications()->count(), 'the technician has no part in a ticket nobody has been given');
+        $this->assertNotNull($ticket->fresh()->response_due_notified_at);
+
+        $this->runJob();
+        $this->assertSame(1, $this->admin->notifications()->count(), 'once per ticket');
+        $this->assertCount(1, $this->multicasts);
     }
 
     public function test_a_job_for_one_company_leaves_the_tickets_of_another_alone(): void

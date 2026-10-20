@@ -81,7 +81,7 @@ class StockService
             $available = Money::sub($stock->quantity, $stock->reserved_quantity);
 
             if (Money::compare($available, $quantity) < 0) {
-                throw InsufficientStockException::forIssue($quantity, (float) $available);
+                throw InsufficientStockException::forShortfall($quantity, $available, ...self::labels($productId, $locationId));
             }
 
             $stock->quantity -= $quantity;
@@ -128,7 +128,7 @@ class StockService
             $available = Money::sub($fromStock->quantity, $fromStock->reserved_quantity);
 
             if (Money::compare($available, $quantity) < 0) {
-                throw InsufficientStockException::forIssue($quantity, (float) $available);
+                throw InsufficientStockException::forShortfall($quantity, $available, ...self::labels($productId, $fromLocationId));
             }
 
             $fromStock->quantity -= $quantity;
@@ -194,7 +194,7 @@ class StockService
             $stock = self::lockedStock($productId, $locationId);
             abort_if($expectedQuantity !== null && Money::compare($stock->quantity, $expectedQuantity) !== 0, 409, 'Stok berubah sejak dihitung; hitung ulang.');
             if (Money::compare($newQuantity, $stock->reserved_quantity) < 0) {
-                throw InsufficientStockException::forIssue((float) $stock->reserved_quantity, $newQuantity);
+                throw InsufficientStockException::forAdjustment($stock->reserved_quantity, $newQuantity, ...self::labels($productId, $locationId));
             }
 
             $delta = $newQuantity - (float) $stock->quantity;
@@ -361,7 +361,7 @@ class StockService
             $available = Money::sub($stock->quantity, $stock->reserved_quantity);
 
             if (Money::compare($available, $quantity) < 0) {
-                throw InsufficientStockException::forReserve($quantity, (float) $available);
+                throw InsufficientStockException::forShortfall($quantity, $available, ...self::labels($productId, $locationId));
             }
 
             $stock->reserved_quantity += $quantity;
@@ -398,7 +398,7 @@ class StockService
 
             $stock = self::lockedStock($productId, $locationId);
             if (Money::compare($stock->reserved_quantity, $quantity) < 0) {
-                throw InsufficientStockException::forReserve($quantity, (float) $stock->reserved_quantity);
+                throw InsufficientStockException::forRelease($quantity, $stock->reserved_quantity, ...self::labels($productId, $locationId));
             }
 
             $stock->reserved_quantity -= $quantity;
@@ -507,7 +507,7 @@ class StockService
                 $fromStock = $stocks[$fromLocationId];
                 $available = Money::sub($fromStock->quantity, $fromStock->reserved_quantity);
                 if (Money::compare($available, $quantity) < 0) {
-                    throw InsufficientStockException::forIssue($quantity, (float) $available);
+                    throw InsufficientStockException::forShortfall($quantity, $available, ...self::labels($productId, $fromLocationId));
                 }
                 $fromStock->quantity -= $quantity;
                 $fromStock->save();
@@ -684,5 +684,23 @@ class StockService
 
         abort_unless((bool) Product::withoutCompany()->whereKey($productId)->where('company_id', $companyId)->lockForUpdate()->first(), 422, 'Barang tidak valid untuk perusahaan ini.');
         abort_unless((bool) Location::withoutCompany()->whereKey($locationId)->where('company_id', $companyId)->lockForUpdate()->first(), 422, 'Lokasi tidak valid untuk perusahaan ini.');
+    }
+
+    /**
+     * What a refusal names: the product, its unit and the place. Read only when the refusal happens, so a movement that
+     * succeeds pays nothing. Keyed like the arguments of the InsufficientStockException factories, to be spread into them.
+     *
+     * @return array{productName: string, unit: string, locationName: string}
+     */
+    private static function labels(int $productId, int $locationId): array
+    {
+        $companyId = self::companyId();
+        $product = Product::withoutCompany()->with('unit')->where('company_id', $companyId)->findOrFail($productId);
+
+        return [
+            'productName' => $product->name,
+            'unit' => (string) (data_get($product, 'unit.symbol') ?: data_get($product, 'unit.name')),
+            'locationName' => Location::withoutCompany()->where('company_id', $companyId)->findOrFail($locationId)->name,
+        ];
     }
 }

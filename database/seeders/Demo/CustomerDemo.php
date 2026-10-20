@@ -3,7 +3,6 @@
 namespace Database\Seeders\Demo;
 
 use App\Actions\CreateCustomerOnboardingAction;
-use App\Actions\CreateInvoiceFromSpkAction;
 use App\Models\Core\Customer;
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\DocumentService;
@@ -351,16 +350,18 @@ final class CustomerDemo
         return ServiceSubscription::query()->findOrFail($c->get('subscription', $code));
     }
 
-    /** One-time invoice for the installation: sent, then paid as the customer's habit goes. */
+    /** The installation invoice the approval drafted (K17): sent, then paid as the customer's habit goes. An SPK that bills nothing leaves none. */
     private static function installationInvoice(DemoContext $c, string $code): void
     {
-        $invoice = $c->as('staff', function () use ($c, $code): Invoice {
-            $invoice = CreateInvoiceFromSpkAction::execute((int) $c->get('spk', $code));
+        $invoice = $c->as('staff', function () use ($c, $code): ?Invoice {
+            $draft = Invoice::query()->where('work_order_id', (int) $c->get('spk', $code))->first();
 
-            return BillingService::send($invoice);
+            return $draft === null ? null : BillingService::send($draft);
         });
 
-        BillingDemo::schedulePayments($c, $invoice->id);
+        if ($invoice !== null) {
+            BillingDemo::schedulePayments($c, $invoice->id);
+        }
     }
 
     private static function contractDocument(DemoContext $c, string $code): void

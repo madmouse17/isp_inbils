@@ -55,17 +55,25 @@ export const NETWORK_ISOLATED_BECAUSE = {
     blocked: { label: 'Diblokir', tone: 'danger' },
 } satisfies StatusMap;
 
-/** Whether a NAS device was written to RADIUS: derived from `radius_synced_at` and `last_error`, not stored. */
+/**
+ * Whether a NAS device was written to RADIUS: derived from `radius_synced_at`, `last_error` and the company's
+ * RADIUS switch, not stored. `disabled` is no failure: a company without RADIUS has nothing to write to.
+ */
 export const NAS_RADIUS_STATE = {
     synced: { label: 'Tertulis ke RADIUS', tone: 'success' },
     error: { label: 'Gagal ditulis', tone: 'danger' },
     waiting: { label: 'Menunggu ditulis', tone: 'warning' },
+    disabled: { label: 'RADIUS belum dikonfigurasi', tone: 'neutral' },
 } satisfies StatusMap;
 
-/** A session is open: pass `session !== null`. */
+/**
+ * A session is open: pass `session !== null`. `pending_disconnect` is an open session RADIUS was told to cut
+ * and the router has not confirmed yet, so "Online" alone would say the cut already happened.
+ */
 export const NETWORK_ONLINE_STATE = {
     true: { label: 'Online', tone: 'success' },
     false: { label: 'Offline', tone: 'neutral' },
+    pending_disconnect: { label: 'Online (menunggu diputus)', tone: 'warning' },
 } satisfies StatusMap;
 
 /** What a panel port shows; derived from `PortState`, not stored. Order = colour priority, highest first. */

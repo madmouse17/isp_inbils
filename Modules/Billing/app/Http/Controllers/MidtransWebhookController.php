@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Core\CompanyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Modules\Billing\Exceptions\MidtransGatewayException;
 use Modules\Billing\Models\PaymentAttempt;
@@ -18,6 +19,9 @@ use Symfony\Component\HttpFoundation\Response;
  * (its server key), so the company comes first: from the URL, or on the legacy URL from the order. The notification
  * only says which attempt to look at; the state that gets applied is re-fetched from the Status API, so a replayed,
  * reordered or tampered notification cannot book anything by itself.
+ *
+ * An order this install never made (a merchant shared with another project) is acknowledged and logged, never answered
+ * with an error: Midtrans retries every non-2xx answer, so a 404 would be repeated for ever.
  */
 class MidtransWebhookController extends Controller
 {
@@ -42,7 +46,9 @@ class MidtransWebhookController extends Controller
         $companyId = MidtransGateway::companyIdForNotification($request);
 
         if ($companyId === null) {
-            return response()->noContent(404);
+            // A company URL that names no company is not ours. On the legacy URL the company comes from the order, so none
+            // means an order no company made; without a key there is nothing to check the signature against.
+            return $request->route()?->hasParameter('company') ? response()->noContent(404) : $this->foreignOrder($notification['order_id'], verified: false);
         }
 
         return CompanyService::runAs($companyId, fn (): Response => $this->receive($notification, $gateway, $attempts));
@@ -67,7 +73,7 @@ class MidtransWebhookController extends Controller
         $attempt = PaymentAttempt::query()->where('order_id', $notification['order_id'])->first();
 
         if ($attempt === null) {
-            return response()->noContent(404);
+            return $this->foreignOrder($notification['order_id'], verified: true);
         }
 
         try {
@@ -80,6 +86,14 @@ class MidtransWebhookController extends Controller
 
             return response()->noContent(503);
         }
+
+        return response('OK');
+    }
+
+    /** The order id only, cut short: it comes from the sender and nothing else of the notification is kept. */
+    private function foreignOrder(string $orderId, bool $verified): Response
+    {
+        Log::info('midtrans.foreign_order', ['order_id' => Str::limit($orderId, 64, ''), 'verified' => $verified]);
 
         return response('OK');
     }

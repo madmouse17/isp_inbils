@@ -41,7 +41,8 @@ class StoreInvoiceRequest extends FormRequest
                 new MatchesParentAttribute('service_subscriptions', 'customer_id', 'customer_id'),
             ],
             'issue_date' => ['nullable', 'date_format:Y-m-d'],
-            'due_date' => ['nullable', 'date_format:Y-m-d'],
+            // The controller issues the invoice today when no date is typed, so the due date is held against today then.
+            'due_date' => ['bail', 'nullable', 'date_format:Y-m-d', 'after_or_equal:'.($this->filled('issue_date') ? 'issue_date' : now()->toDateString())],
             'notes' => ['nullable', 'string'],
         ];
     }
@@ -67,6 +68,7 @@ class StoreInvoiceRequest extends FormRequest
             'subscription_id.exists' => 'Langganan yang dipilih tidak ditemukan.',
             'issue_date.date_format' => 'Format :attribute harus tahun-bulan-tanggal (YYYY-MM-DD).',
             'due_date.date_format' => 'Format :attribute harus tahun-bulan-tanggal (YYYY-MM-DD).',
+            'due_date.after_or_equal' => 'Jatuh tempo tidak boleh sebelum tanggal terbit.',
         ];
     }
 }

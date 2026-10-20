@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\Core\CompanyService;
 use Illuminate\Auth\Access\Response;
 use Modules\SPK\Models\WorkOrder;
+use Modules\SPK\Services\SpkService;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class WorkOrderPolicy
@@ -80,10 +81,12 @@ class WorkOrderPolicy
         return $user->can('spk.assign');
     }
 
+    /** Another technician may take the visit while somebody holds it; the statuses are the service's, so the button never promises what assign() refuses. */
     public function reassign(User $user, WorkOrder $wo): bool
     {
         return $this->sameCompany($user, $wo)
             && $wo->assigned_to !== null
+            && in_array($wo->status, SpkService::REASSIGNABLE_STATUSES, true)
             && $user->can('spk.reassign');
     }
 

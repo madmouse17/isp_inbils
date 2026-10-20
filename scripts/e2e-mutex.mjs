@@ -198,6 +198,30 @@ function restoreIsolatedLockWithoutOverwrite(tempPath, lockPath, beforeRestore) 
     }
 }
 
+// Linux: the boot id and the start time of the process (field 22 of /proc/<pid>/stat, clock ticks since boot). The pair
+// belongs to one process of one boot, so a PID that was recycled, or that survived a reboot, is told from the process
+// that wrote a lock. The same pattern is what makes a recorded token a Linux one.
+const LINUX_START_TOKEN_RE = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}:\d+$/;
+
+function readLinuxProcessStartToken(pid, options) {
+    const proc = options._procRoot ?? '/proc';
+
+    try {
+        const bootId = readFileSync(`${proc}/sys/kernel/random/boot_id`, 'utf8').trim();
+        const stat = readFileSync(`${proc}/${pid}/stat`, 'utf8');
+        // The command name (field 2) is free text that may hold spaces and ')': count the fields after the last ')'.
+        const startTime = stat
+            .slice(stat.lastIndexOf(')') + 1)
+            .trim()
+            .split(/\s+/)[19];
+        const token = `${bootId}:${startTime}`;
+
+        return LINUX_START_TOKEN_RE.test(token) ? token : null;
+    } catch {
+        return null;
+    }
+}
+
 /**
  * Get process creation / start token for process identity validation.
  * Returns string timestamp or null if process cannot be inspected.
@@ -211,7 +235,7 @@ export function getProcessStartToken(pid, options = {}) {
     const runner = options._spawnSync || options.spawnSync || spawnSync;
     const useWindows = isWindowsPlatform(options);
 
-    if (!useWindows) return null;
+    if (!useWindows) return options._platform === 'linux' ? readLinuxProcessStartToken(pid, options) : null;
 
     if (options._processObservation) {
         if (options._processObservation.state === 'unknown') return null;
@@ -809,16 +833,31 @@ export function probeProcessLiveness(pid, options = {}) {
 
     try {
         process.kill(pid, 0);
-        return { state: 'alive', identityVerified: true };
     } catch (error) {
-        if (error && error.code === 'EPERM') {
-            return { state: 'alive', identityVerified: true };
+        if (!error || error.code !== 'EPERM') {
+            if (error && error.code === 'ESRCH') {
+                return { state: 'dead', reason: 'esrch' };
+            }
+            return { state: 'unknown', reason: error?.message ?? 'kill-0-error' };
         }
-        if (error && error.code === 'ESRCH') {
-            return { state: 'dead', reason: 'esrch' };
-        }
-        return { state: 'unknown', reason: error?.message ?? 'kill-0-error' };
+        // EPERM: the process exists and belongs to another user.
     }
+
+    // Only a Linux token can be checked here. Any other recorded token keeps the earlier answer: the PID is alive.
+    if (options._platform !== 'linux' || !LINUX_START_TOKEN_RE.test(expectedStartToken ?? '')) {
+        return { state: 'alive', identityVerified: true };
+    }
+
+    const currentToken = getProcessStartToken(pid, options);
+    if (currentToken === null) {
+        // The identity cannot be read now: never proof that the PID is another process, never proof that it is the same.
+        return { state: 'alive', identityVerified: false };
+    }
+    if (currentToken !== expectedStartToken) {
+        return { state: 'dead', reason: 'pid-reused-by-another-process' };
+    }
+
+    return { state: 'alive', identityVerified: true };
 }
 
 /**

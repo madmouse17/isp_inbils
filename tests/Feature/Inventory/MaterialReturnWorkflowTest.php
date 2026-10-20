@@ -880,10 +880,10 @@ class MaterialReturnWorkflowTest extends TestCase
         $this->assertEquals(0.00, (float) $item1->quantity_reserved);
     }
 
-    public function test_partial_return_reconciles_actual_used_qty_to_work_order_and_auto_invoice(): void
+    public function test_partial_return_reconciles_actual_used_qty_to_work_order_and_invoice_lines(): void
     {
         [$company, $location] = $this->createCompanyAndLocation();
-        $company->update(['settings' => ['spk_auto_invoice' => true]]);
+        $company->update(['settings' => ['bill_installation_materials' => true]]);
         $product = $this->createProduct($company);
         $product->update(['sell_price' => 100000]);
 

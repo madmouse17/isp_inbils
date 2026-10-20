@@ -71,7 +71,6 @@ class P0CriticalPathTest extends TestCase
     {
         $admin = $this->user('admin');
         $company = $admin->company;
-        $company->update(['settings' => ['spk_auto_invoice' => true]]);
         $location = Location::create([
             'company_id' => $company->id,
             'code' => 'P0-LOC',

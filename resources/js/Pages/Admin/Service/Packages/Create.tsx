@@ -14,7 +14,7 @@ import {
     Switch,
     Textarea,
 } from '@/Components/ui';
-import { PageHeader } from '@/Components/composite';
+import { MoneyInput, PageHeader } from '@/Components/composite';
 
 interface OptRow {
     id: string;
@@ -138,17 +138,23 @@ export default function Create({
                                 error={errors.sla_tier_id}
                                 required
                             />
-                            <Input
+                            <MoneyInput
+                                id="package-price-mrc"
                                 label="Harga bulanan"
-                                value={data.price_mrc}
-                                onChange={(e) => setData('price_mrc', e.target.value)}
+                                value={data.price_mrc === '' ? null : Number(data.price_mrc)}
+                                onChange={(value) =>
+                                    setData('price_mrc', value === null ? '' : String(value))
+                                }
                                 error={errors.price_mrc}
                                 required
                             />
-                            <Input
+                            <MoneyInput
+                                id="package-price-otc"
                                 label="Harga pemasangan"
-                                value={data.price_otc}
-                                onChange={(e) => setData('price_otc', e.target.value)}
+                                value={data.price_otc === '' ? null : Number(data.price_otc)}
+                                onChange={(value) =>
+                                    setData('price_otc', value === null ? '' : String(value))
+                                }
                                 error={errors.price_otc}
                             />
                             <Input

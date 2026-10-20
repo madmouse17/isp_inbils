@@ -4,6 +4,7 @@ namespace App\Services\Platform;
 
 use App\Models\Core\Company;
 use App\Models\Platform\TenantExport;
+use App\Models\User;
 use App\Services\Core\CompanyService;
 use App\Support\Platform\TenantTableRegistry;
 use Illuminate\Database\Eloquent\Model;
@@ -11,11 +12,13 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use League\Flysystem\Local\LocalFilesystemAdapter;
 use RuntimeException;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Spatie\MediaLibrary\Support\PathGenerator\PathGeneratorFactory;
 use ZipArchive;
 
 class TenantExportBuilder
@@ -93,6 +96,11 @@ class TenantExportBuilder
                     $query,
                 );
             }
+
+            // The files are the ones these rows name (see mediaEntries); the rows say which record each file belongs to.
+            [$rowCounts['media'], $omitted['media']] = $this->writeTableCsv($disk, $work.'/data/media.csv', 'media', $this->mediaOwnedBy($ids));
+            // Role definitions are the platform's, not the tenant's. What the tenant owns is who holds which role.
+            [$rowCounts['user_roles'], $omitted['user_roles']] = $this->writeTableCsv($disk, $work.'/data/user_roles.csv', 'user_roles', $this->userRoles($ids), ['user_id', 'role_id', 'role_name']);
         });
 
         $omitted = array_filter($omitted);
@@ -175,10 +183,13 @@ class TenantExportBuilder
         return self::ROOT.'/tmp/'.$export->uuid;
     }
 
-    /** @return array{0: int, 1: list<string>} */
-    private function writeTableCsv(FilesystemAdapter $disk, string $path, string $table, Builder $query): array
+    /**
+     * @param  list<string>|null  $columns  the columns of a query that is not a plain table; the table's own by default
+     * @return array{0: int, 1: list<string>}
+     */
+    private function writeTableCsv(FilesystemAdapter $disk, string $path, string $table, Builder $query, ?array $columns = null): array
     {
-        $columns = Schema::getColumnListing($table);
+        $columns ??= Schema::getColumnListing($table);
         $omitted = array_values(array_filter($columns, fn (string $column): bool => $this->isSensitive($table, $column)));
         $kept = array_values(array_diff($columns, $omitted));
         $handle = fopen($disk->path($path), 'w+b');
@@ -232,35 +243,93 @@ class TenantExportBuilder
     }
 
     /**
+     * The files of the tenant's media rows, never a scan of its folders: a stray file in a tenant folder (a test run, a
+     * reused company id, a restored backup) has no row and stays out. A row brings its original and, when it generated
+     * any, its conversions. A row whose file is gone is skipped and stays in media.csv.
+     *
      * @param  list<int>  $companyIds
-     * @param  array<string, string>  $entries
-     * @return array<string, int>
+     * @param  array<string, string>  $entries  archive entry => file to add
+     * @return array<string, int> files per disk
      */
     private function mediaEntries(FilesystemAdapter $local, string $work, array $companyIds, array &$entries): array
     {
-        $counts = [];
+        $counts = array_fill_keys($this->mediaDisks($companyIds), 0);
 
-        foreach ($this->mediaDisks($companyIds) as $diskName) {
-            $storage = Storage::disk($diskName);
-            $counts[$diskName] = 0;
+        Media::query()
+            ->whereIn('id', $this->mediaOwnedBy($companyIds)->select('id'))
+            ->chunkById(self::CHUNK_SIZE, function (Collection $rows) use ($local, $work, $companyIds, &$entries, &$counts): void {
+                $this->loadOwners($rows);
 
-            foreach ($companyIds as $companyId) {
-                foreach ($storage->allFiles("companies/{$companyId}") as $path) {
-                    $path = $this->tenantMediaPath($path, $companyId);
-                    $entry = "files/{$diskName}/{$path}";
-                    $source = $storage->getAdapter() instanceof LocalFilesystemAdapter
-                        ? $storage->path($path)
-                        : $this->copyToLocal($storage, $local, $work, $diskName, $path);
-                    $entries[$entry] = $source;
-                    $counts[$diskName]++;
+                foreach ($rows as $media) {
+                    foreach ($this->mediaPaths($media) as [$diskName, $path]) {
+                        $path = $this->tenantMediaPath($path, $companyIds, $media);
+                        $storage = Storage::disk($diskName);
+
+                        if (! $storage->exists($path)) {
+                            // The row outlived its file: ids only, a file name can hold a customer's name.
+                            Log::warning('tenant_export.media_file_missing', ['media_id' => $media->getKey(), 'disk' => $diskName]);
+
+                            continue;
+                        }
+
+                        $entries["files/{$diskName}/{$path}"] = $storage->getAdapter() instanceof LocalFilesystemAdapter
+                            ? $storage->path($path)
+                            : $this->copyToLocal($storage, $local, $work, $diskName, $path);
+                        $counts[$diskName] = ($counts[$diskName] ?? 0) + 1;
+                    }
                 }
-            }
-        }
+            });
 
         ksort($counts);
         ksort($entries);
 
         return $counts;
+    }
+
+    /**
+     * Hands every media the owner the path generator reads, with one query per owner class instead of one per row, and
+     * without the company scope: outside a request nothing matches that scope. An owner that cannot be loaded stays null,
+     * and the generator falls back on the company id the uploader stamped on the row.
+     *
+     * @param  Collection<int, Media>  $rows
+     */
+    private function loadOwners(Collection $rows): void
+    {
+        foreach ($rows->groupBy('model_type') as $type => $group) {
+            if (! is_string($type) || ! is_subclass_of($type, Model::class)) {
+                continue;
+            }
+
+            $owners = $type::query()->withoutGlobalScopes()->whereKey($group->pluck('model_id')->unique()->all())->get()->keyBy(fn (Model $owner): mixed => $owner->getKey());
+
+            foreach ($group as $media) {
+                $media->setRelation('model', $owners->get($media->model_id));
+            }
+        }
+    }
+
+    /**
+     * Where a row's files lie, by the same path generator that put them there.
+     *
+     * shortcut: responsive images are not archived. Nothing in the app generates them; add their folder here when
+     * something does.
+     *
+     * @return list<array{0: string, 1: string}> disk and path
+     */
+    private function mediaPaths(Media $media): array
+    {
+        $generator = PathGeneratorFactory::create($media);
+        $paths = [[(string) $media->disk, $generator->getPath($media).$media->file_name]];
+
+        if (array_filter($media->generated_conversions ?? []) !== []) {
+            $conversionsDisk = (string) ($media->conversions_disk ?: $media->disk);
+
+            foreach (Storage::disk($conversionsDisk)->files(rtrim($generator->getPathForConversions($media), '/')) as $file) {
+                $paths[] = [$conversionsDisk, $file];
+            }
+        }
+
+        return $paths;
     }
 
     /** @param list<int> $companyIds @return list<string> */
@@ -305,15 +374,38 @@ class TenantExportBuilder
         });
     }
 
-    private function tenantMediaPath(string $path, int $companyId): string
+    /**
+     * A tenant's file lies under `companies/{its company id}/`. A row whose path leads anywhere else (another tenant's
+     * folder, a way out of the root) stops the export: the archive must never carry a file that is not the tenant's.
+     *
+     * @param  list<int>  $companyIds
+     */
+    private function tenantMediaPath(string $path, array $companyIds, Media $media): string
     {
-        $prefix = "companies/{$companyId}/";
-
-        if (! str_starts_with($path, $prefix) || str_starts_with($path, '/') || in_array('..', explode('/', $path), true)) {
-            throw new RuntimeException("Storage returned an unsafe tenant media path [{$path}].");
+        if (preg_match('#^companies/(\d+)/#', $path, $match) !== 1
+            || ! in_array((int) $match[1], $companyIds, true)
+            || in_array('..', explode('/', $path), true)) {
+            throw new RuntimeException("Media {$media->getKey()} points outside the folders of the tenant [{$path}].");
         }
 
         return $path;
+    }
+
+    /**
+     * Who holds which role, for the users the tenant owns: `users.csv` and this file are read together.
+     *
+     * @param  list<int>  $companyIds
+     */
+    private function userRoles(array $companyIds): Builder
+    {
+        return DB::query()->fromSub(
+            DB::table('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->where('model_has_roles.model_type', User::class)
+                ->whereIn('model_has_roles.model_id', DB::table('users')->whereIn('company_id', $companyIds)->select('id'))
+                ->select(['model_has_roles.model_id as user_id', 'model_has_roles.role_id', 'roles.name as role_name']),
+            'user_roles',
+        );
     }
 
     private function copyToLocal(FilesystemAdapter $source, FilesystemAdapter $local, string $work, string $disk, string $path): string

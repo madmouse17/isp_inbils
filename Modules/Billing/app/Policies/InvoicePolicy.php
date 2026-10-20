@@ -27,9 +27,11 @@ class InvoicePolicy
         return $this->create($user);
     }
 
+    /** The maker composes their own draft (billing.create is enough for it, not for another's or an SPK-approval draft); an issued invoice is only ever touched with billing.update. */
     public function update(User $user, Invoice $invoice): bool
     {
-        return $user->can('billing.update');
+        return $user->can('billing.update')
+            || ($invoice->status === 'draft' && $invoice->created_by !== null && (int) $invoice->created_by === (int) $user->id && $user->can('billing.create'));
     }
 
     public function edit(User $user, Invoice $invoice): bool

@@ -19,6 +19,8 @@ class UpdateCompanySettingsRequest extends FormRequest
         return [
             'settings' => ['required', 'array'],
             'settings.*' => ['nullable'],
+            'settings.auto_send_installation_invoice' => ['sometimes', 'required', 'boolean'],
+            'settings.bill_installation_materials' => ['sometimes', 'required', 'boolean'],
             'settings.auto_suspend_enabled' => ['sometimes', 'required', 'boolean'],
             'settings.auto_suspend_overdue_days' => ['sometimes', 'required', 'integer', 'min:1', 'max:60'],
             'settings.auto_reactivate_on_payment' => ['sometimes', 'required', 'boolean'],

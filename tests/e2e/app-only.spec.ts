@@ -31,14 +31,6 @@ for (const { role, copy } of appOnlyRoles) {
             await expect(page.getByRole('navigation')).toHaveCount(0);
         });
 
-        test('hides the Play Store button while no store URL is configured', async ({ page }) => {
-            await loginAs(page, role);
-
-            await expect(page.getByRole('link', { name: 'Buka Play Store' })).toHaveCount(0);
-            await expect(page.getByRole('link', { name: 'Kelola akun & 2FA' })).toBeVisible();
-            await expect(page.getByRole('button', { name: 'Keluar' })).toBeVisible();
-        });
-
         test('sends admin and portal URLs back to the app-only page', async ({ page }) => {
             await loginAs(page, role);
 
@@ -89,6 +81,31 @@ for (const { role, copy } of appOnlyRoles) {
         });
     });
 }
+
+// tests/e2e/setup.php lists the customer app in the store and not yet the technician app.
+test.describe('@app-only Play Store button', () => {
+    test('technician: hidden while no store URL is configured', async ({ page }) => {
+        await loginAs(page, 'technician');
+
+        await expect(page.getByRole('link', { name: 'Buka Play Store' })).toHaveCount(0);
+        await expect(page.getByRole('link', { name: 'Kelola akun & 2FA' })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Keluar' })).toBeVisible();
+    });
+
+    test('customer: opens the configured store listing in a new tab', async ({ page }) => {
+        await loginAs(page, 'customer');
+
+        const playStore = page.getByRole('link', { name: 'Buka Play Store' });
+        await expect(playStore).toHaveAttribute(
+            'href',
+            'https://play.google.com/store/apps/details?id=id.inbils.customer',
+        );
+        await expect(playStore).toHaveAttribute('target', '_blank');
+        await expect(playStore).toHaveAttribute('rel', /noopener/);
+        await expect(page.getByRole('link', { name: 'Kelola akun & 2FA' })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Keluar' })).toBeVisible();
+    });
+});
 
 test('@app-only the customer still reaches the Midtrans return page', async ({ page }) => {
     await loginAs(page, 'customer');

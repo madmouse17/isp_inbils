@@ -49,6 +49,7 @@ test.describe('@smoke ops and api containment', () => {
             'failed_jobs',
             'queue',
             'scheduler',
+            'storage_link',
         ]);
 
         for (const value of Object.values(json.checks ?? {})) {

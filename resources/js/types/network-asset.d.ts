@@ -104,7 +104,10 @@ export interface NetworkAccount {
     last_error: string | null;
     provisioned_group: string | null;
     provisioned_at: string | null;
+    /** A Disconnect for the open session is owed: the router has not confirmed it. */
     disconnect_pending: boolean;
+    /** ISO moment the Disconnect first became owed; a retry keeps it. Null once the router confirmed. */
+    pending_disconnect_at: string | null;
 }
 
 /** The router asset a NAS router is registered on (Edit shows it; Create searches `routerAssetOptions`). */

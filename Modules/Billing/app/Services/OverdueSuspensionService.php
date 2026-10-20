@@ -7,6 +7,7 @@ use App\Models\Core\Customer;
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\SubscriptionService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Modules\Billing\Models\Invoice;
 use RuntimeException;
@@ -103,9 +104,7 @@ class OverdueSuspensionService
                 ->lockForUpdate()
                 ->first();
 
-            if ($subscription === null
-                || self::unpaidPastGrace($companyId, $settings['grace_days'])->where('subscription_id', $subscriptionId)->exists()
-                || self::unpaidDueAtSuspension($companyId, $subscription)) {
+            if ($subscription === null || self::holding($subscription, $settings['grace_days'])->exists()) {
                 return false;
             }
 
@@ -116,22 +115,52 @@ class OverdueSuspensionService
     }
 
     /**
-     * Q16 option (b): an invoice already due when the isolir happened (even inside the grace) must be paid before
-     * reconnecting. Legacy rows have no suspended_at and keep the grace-only rule, because the moment is unknown.
+     * The unpaid invoices an isolated subscription still waits for: its automatic reconnection (reactivateIfCleared) happens
+     * only once none is left. Oldest due first. Empty unless the subscription is suspended for overdue bills and the company
+     * reconnects on payment: nothing holds a reconnection that staff do by hand, and nobody is promised one.
+     *
+     * @return Collection<int, Invoice>
      */
-    private static function unpaidDueAtSuspension(int $companyId, ServiceSubscription $subscription): bool
+    public static function holdingInvoices(ServiceSubscription $subscription): Collection
     {
-        if ($subscription->suspended_at === null) {
-            return false;
+        if ($subscription->status !== 'suspended' || $subscription->suspension_source !== 'overdue') {
+            return new Collection();
         }
 
-        return Invoice::withoutCompany()
-            ->where('company_id', $companyId)
-            ->where('subscription_id', $subscription->id)
-            ->whereIn('status', ['sent', 'partial', 'overdue'])
-            ->whereColumn('paid_amount', '<', 'total')
-            ->whereDate('due_date', '<=', $subscription->suspended_at->toDateString())
-            ->exists();
+        $settings = self::settings((int) $subscription->company_id);
+
+        if (! $settings['reactivate']) {
+            return new Collection();
+        }
+
+        return self::holding($subscription, $settings['grace_days'])
+            ->orderBy('due_date')
+            ->orderBy('id')
+            ->get(['id', 'public_id', 'number', 'due_date', 'total', 'paid_amount']);
+    }
+
+    /**
+     * What reactivateIfCleared waits for, as one query, so that it and holdingInvoices cannot disagree.
+     *
+     * @return Builder<Invoice>
+     */
+    private static function holding(ServiceSubscription $subscription, int $graceDays): Builder
+    {
+        return self::unpaidDueBefore((int) $subscription->company_id, self::holdingCutoff($subscription, $graceDays))
+            ->where('subscription_id', $subscription->id);
+    }
+
+    /**
+     * Invoices due before this day hold an isolation: the ones past the grace and, by Q16 option (b), the ones already due
+     * on the day of the isolir even inside the grace. Legacy rows have no suspended_at and keep the grace-only rule,
+     * because the moment is unknown.
+     */
+    private static function holdingCutoff(ServiceSubscription $subscription, int $graceDays): string
+    {
+        $pastGrace = now()->subDays($graceDays)->toDateString();
+        $dayAfterIsolir = $subscription->suspended_at?->copy()->addDay()->toDateString();
+
+        return max($pastGrace, $dayAfterIsolir ?? $pastGrace);
     }
 
     /**
@@ -175,11 +204,17 @@ class OverdueSuspensionService
     /** @return Builder<Invoice> */
     private static function unpaidPastGrace(int $companyId, int $graceDays): Builder
     {
+        return self::unpaidDueBefore($companyId, now()->subDays($graceDays)->toDateString());
+    }
+
+    /** @return Builder<Invoice> the company's unpaid invoices due before the given day */
+    private static function unpaidDueBefore(int $companyId, string $day): Builder
+    {
         return Invoice::withoutCompany()
             ->where('company_id', $companyId)
             ->whereIn('status', ['sent', 'partial', 'overdue'])
             ->whereColumn('paid_amount', '<', 'total')
-            ->whereDate('due_date', '<', now()->subDays($graceDays)->toDateString());
+            ->whereDate('due_date', '<', $day);
     }
 
     /** @return array{enabled: bool, grace_days: int, reactivate: bool} */

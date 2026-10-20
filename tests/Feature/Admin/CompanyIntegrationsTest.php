@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Jobs\TestCompanyIntegration;
+use App\Models\Core\Company;
 use App\Models\Core\CompanyIntegration;
 use App\Models\User;
 use App\Services\Core\CompanyService;
@@ -17,13 +18,19 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
 use Modules\Billing\Services\MidtransGateway;
+use Modules\NetworkAsset\Jobs\SyncCompanyNetworkJob;
+use Modules\NetworkAsset\Models\NasDevice;
+use Modules\NetworkAsset\Models\NetworkAccount;
 use Modules\NetworkAsset\Services\Radius\RadiusDirectory;
+use Modules\NetworkAsset\Services\Radius\RadiusException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Spatie\Activitylog\Models\Activity;
 use stdClass;
 use Tests\TestCase;
 use Tests\Traits\BuildsCompanyGroup;
+use Tests\Traits\BuildsNetworkFixtures;
+use Tests\Traits\BuildsSubscriptionBilling;
 use Tests\Traits\EnrollsTwoFactor;
 use Tests\Traits\WithoutAppOnlyRedirect;
 
@@ -36,6 +43,8 @@ use Tests\Traits\WithoutAppOnlyRedirect;
 class CompanyIntegrationsTest extends TestCase
 {
     use BuildsCompanyGroup;
+    use BuildsNetworkFixtures;
+    use BuildsSubscriptionBilling;
     use EnrollsTwoFactor;
     use RefreshDatabase;
     use WithoutAppOnlyRedirect;
@@ -441,6 +450,52 @@ class CompanyIntegrationsTest extends TestCase
         $latest = Activity::query()->where('log_name', 'integration')->where('description', 'saved')->latest('id')->firstOrFail();
         $this->assertSame([], $latest->properties['fields'], 'a save that changed nothing names no field');
         $this->assertFalse($latest->properties['is_enabled']);
+    }
+
+    /** @return array{0: NetworkAccount, 1: NasDevice} an account and a NAS row of the company, both still waiting for RADIUS */
+    private function waitingForRadius(Company $company, string $username): array
+    {
+        $reason = RadiusException::disabled()->getMessage();
+        $account = $this->networkAccountFor($this->subscriptionIn($company), ['username' => $username.'@'.$this->realmOf($company)]);
+        $nas = NasDevice::factory()->create(['company_id' => $company->id]);
+
+        $account->forceFill(['sync_status' => 'pending', 'last_error' => $reason])->save();
+        $nas->forceFill(['last_error' => $reason])->save();
+
+        return [$account, $nas];
+    }
+
+    public function test_enabling_radius_clears_disabled_errors_and_queues_sync(): void
+    {
+        Queue::fake();
+        [$mine, $myNas] = $this->waitingForRadius($this->head, 'budi');
+        [$theirs, $theirNas] = $this->waitingForRadius($this->subA, 'sari');
+        $other = $this->networkAccountFor($this->subscriptionIn($this->head), ['username' => 'ani@'.$this->realmOf($this->head)]);
+        $other->forceFill(['sync_status' => 'pending', 'last_error' => RadiusException::unavailable()->getMessage()])->save();
+
+        $this->save('radius', $this->radius())->assertSessionHasNoErrors();
+
+        $this->assertNull(NetworkAccount::withoutCompany()->find($mine->id)->last_error, 'the reason of waiting is over');
+        $this->assertNull(NasDevice::withoutCompany()->find($myNas->id)->last_error);
+        $this->assertSame('pending', NetworkAccount::withoutCompany()->find($mine->id)->sync_status, 'the sweep applies it, the page does not pretend it was');
+        $this->assertSame(RadiusException::unavailable()->getMessage(), NetworkAccount::withoutCompany()->find($other->id)->last_error, 'another reason stays');
+        $this->assertSame(RadiusException::disabled()->getMessage(), NetworkAccount::withoutCompany()->find($theirs->id)->last_error, 'another company keeps its own rows');
+        $this->assertSame(RadiusException::disabled()->getMessage(), NasDevice::withoutCompany()->find($theirNas->id)->last_error);
+        Queue::assertPushed(SyncCompanyNetworkJob::class, 1);
+        Queue::assertPushed(SyncCompanyNetworkJob::class, fn (SyncCompanyNetworkJob $job): bool => $job->companyId === $this->head->id);
+    }
+
+    public function test_saving_radius_switched_off_or_another_card_touches_nothing(): void
+    {
+        Queue::fake();
+        [$account, $nas] = $this->waitingForRadius($this->head, 'budi');
+
+        $this->save('radius', ['is_enabled' => false])->assertSessionHasNoErrors();
+        $this->save('midtrans', $this->midtrans())->assertSessionHasNoErrors();
+
+        $this->assertSame(RadiusException::disabled()->getMessage(), NetworkAccount::withoutCompany()->find($account->id)->last_error);
+        $this->assertSame(RadiusException::disabled()->getMessage(), NasDevice::withoutCompany()->find($nas->id)->last_error);
+        Queue::assertNotPushed(SyncCompanyNetworkJob::class);
     }
 
     /** @return array<string, array{string, array<string, mixed>, list<string>}> */

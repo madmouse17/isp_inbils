@@ -167,7 +167,11 @@ class EnforceImpersonation
             return response()->json(['message' => $message], 403);
         }
 
-        return response($message, 403);
+        // A page visit gets the standalone error page with the reason, as every other refusal does: bare text left a white
+        // page for an address typed in the browser and a raw text in the iframe the Inertia client shows for a non-page.
+        return Inertia::render('Error', ['status' => 403, 'message' => $message, 'requestId' => $request->attributes->get('request_id')])
+            ->toResponse($request)
+            ->setStatusCode(403);
     }
 
     private function leave(Request $request, ActiveImpersonation $active, string $reason): Response

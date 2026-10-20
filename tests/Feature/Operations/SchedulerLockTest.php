@@ -53,6 +53,7 @@ class SchedulerLockTest extends TestCase
             'billing:whatsapp-reminders' => 120,
             'promo-banners:cleanup-images' => 120,
             'inbils:activity-log:prune' => 120,
+            'inventory:send-digest' => 120,
         ];
 
         $events = collect($this->app->make(Schedule::class)->events());

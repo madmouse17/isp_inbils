@@ -59,6 +59,7 @@ class NasDeviceController extends Controller
                 'sort_dir' => $request->input('sort_dir', $request->input('direction')),
                 'per_page' => $request->input('per_page'),
             ],
+            'radiusEnabled' => app(IntegrationConfig::class)->isEnabled('radius'),
             'can' => ['create' => $request->user()?->can('network_asset.nas.manage') ?? false],
         ]);
     }
@@ -131,15 +132,22 @@ class NasDeviceController extends Controller
         $removed = NasDeviceService::delete($nasDevice);
         $redirect = redirect()->route('admin.nas-devices.index')->with('success', 'Router NAS dihapus.');
 
-        return $removed ? $redirect : $redirect->with('warning', 'Baris klien RADIUS tidak dapat dihapus (RADIUS dimatikan atau tidak terjangkau). Hapus dari tabel nas secara manual.');
+        return $removed ? $redirect : $redirect->with('warning', 'Baris klien RADIUS tidak dapat dihapus (RADIUS belum dikonfigurasi atau tidak terjangkau). Hapus dari tabel nas secara manual.');
     }
 
-    /** A saved row that RADIUS does not know yet is not an error: the sync writes it later. */
+    /** A saved row that RADIUS does not know yet is not an error: the sync writes it once RADIUS can be reached. */
     private function saved(RedirectResponse $redirect, NasDevice $nasDevice, string $message): RedirectResponse
     {
         $redirect->with('success', $message);
 
-        return $nasDevice->last_error === null ? $redirect : $redirect->with('warning', 'Tersimpan, tetapi RADIUS belum diperbarui: '.$nasDevice->last_error.' Sinkronisasi mencoba lagi setiap 15 menit.');
+        if ($nasDevice->last_error === null) {
+            return $redirect;
+        }
+
+        // The sweep does nothing while the company has no RADIUS, so that case promises no retry.
+        return $redirect->with('warning', app(IntegrationConfig::class)->isEnabled('radius')
+            ? 'Tersimpan, tetapi RADIUS belum diperbarui. '.$nasDevice->last_error
+            : 'Tersimpan, tetapi belum dikirim ke RADIUS karena RADIUS belum dikonfigurasi untuk perusahaan ini.');
     }
 
     private function realm(): ?string

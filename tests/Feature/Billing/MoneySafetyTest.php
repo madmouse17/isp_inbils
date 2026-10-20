@@ -32,7 +32,7 @@ class MoneySafetyTest extends TestCase
         $this->assertSame('1.00', Money::round('1.004'));
     }
 
-    public function test_recalculate_produces_exact_cents_for_repeating_decimals(): void
+    public function test_recalculate_rounds_each_line_to_whole_rupiah_without_float_drift(): void
     {
         $user = $this->createCompanyUser();
         $this->actingAs($user);
@@ -42,13 +42,13 @@ class MoneySafetyTest extends TestCase
             'status' => 'draft',
         ]);
 
-        // 0.1 + 0.2 style drift across three lines of 3.33... unit prices.
+        // Prices that cannot be held in a binary float: 3 x 33333.33 is 99999.99, then 66666.67 on its own line.
         InvoiceItem::create([
             'company_id' => $user->company_id,
             'invoice_id' => $invoice->id,
             'description' => 'line',
             'quantity' => 3,
-            'unit_price' => 0.1,
+            'unit_price' => 33333.33,
             'line_total' => 0,
         ]);
         InvoiceItem::create([
@@ -56,13 +56,14 @@ class MoneySafetyTest extends TestCase
             'invoice_id' => $invoice->id,
             'description' => 'line2',
             'quantity' => 1,
-            'unit_price' => 0.2,
+            'unit_price' => 66666.67,
             'line_total' => 0,
         ]);
 
         BillingService::recalculate($invoice);
 
-        $this->assertSame('0.50', (string) $invoice->fresh()->subtotal);
+        $this->assertSame(['100000.00', '66667.00'], $invoice->items()->orderBy('id')->pluck('line_total')->all());
+        $this->assertSame('166667.00', (string) $invoice->fresh()->subtotal);
     }
 
     public function test_invoice_sisa_attribute_tracks_remaining_balance(): void

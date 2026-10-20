@@ -12,6 +12,7 @@ use App\Http\Resources\SubscriptionResource;
 use App\Models\Core\Customer;
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\CompanyService;
+use App\Services\Core\IntegrationConfig;
 use App\Services\Core\SubscriptionService;
 use App\Support\ExportQuery;
 use App\Support\OptimisticLock;
@@ -28,6 +29,7 @@ use Inertia\OptionalProp;
 use Inertia\Response as InertiaResponse;
 use Modules\Ipam\Queries\IpPrefixUtilisationQuery;
 use Modules\Ipam\Services\IpAssignmentService;
+use Modules\NetworkAsset\Models\NetworkAccount;
 use Modules\NetworkAsset\Queries\OdnOccupancyQuery;
 use Modules\NetworkAsset\Services\OdnService;
 use Modules\Service\Models\ServicePackage;
@@ -115,6 +117,9 @@ class SubscriptionController extends Controller
             ...($canAssignDrop ? ['dropPortOptions' => OdnOccupancyQuery::dropPortOptions($request, $subscription->serving_pop_id)] : []),
             // The packages a subscription can move to; evaluated only on a partial reload that asks for it.
             ...($canChangePackage ? ['packageOptions' => $this->packageOptions()] : []),
+            'radiusEnabled' => app(IntegrationConfig::class)->isEnabled('radius'),
+            // The date the confirm dialog of "Aktifkan kembali" promises (K27): what reactivating moves the next invoice to.
+            'reactivationNextInvoiceDate' => $subscription->status === 'suspended' ? SubscriptionService::nextBillingDate((int) $subscription->billing_day)->toDateString() : null,
             'can' => ['assignIp' => $canAssignIp, 'assignDrop' => $canAssignDrop, 'block' => $user?->can('customer.subscription.block') ?? false, 'changePackage' => $canChangePackage],
         ]);
     }
@@ -200,7 +205,12 @@ class SubscriptionController extends Controller
 
         SubscriptionService::block($subscription, $validated['reason']);
 
-        return back()->with('success', 'Internet langganan diblokir.');
+        return $this->routerTold(
+            $subscription,
+            'Internet langganan diblokir.',
+            'Blokir disimpan. Sesi pelanggan diputus setelah router menjawab.',
+            'Blokir disimpan, tetapi belum dikirim ke router karena RADIUS belum dikonfigurasi.',
+        );
     }
 
     public function unblock(Request $request, ServiceSubscription $subscription): RedirectResponse
@@ -212,7 +222,12 @@ class SubscriptionController extends Controller
 
         SubscriptionService::unblock($subscription, $validated['reason'] ?? null);
 
-        return back()->with('success', 'Blokir internet langganan dibuka.');
+        return $this->routerTold(
+            $subscription,
+            'Blokir internet langganan dibuka.',
+            'Blokir dibuka. Sesi pelanggan diputus setelah router menjawab dan tersambung ulang dengan layanan normal.',
+            'Blokir dibuka, tetapi belum dikirim ke router karena RADIUS belum dikonfigurasi.',
+        );
     }
 
     public function reactivate(Request $request, ServiceSubscription $subscription): RedirectResponse
@@ -311,6 +326,21 @@ class SubscriptionController extends Controller
                 'price_mrc' => $package->getAttribute('price_mrc'),
             ])
             ->all());
+    }
+
+    /**
+     * The toast of a block or an unblock says what the router was told: a subscription without a network account has
+     * nothing to tell, a company without RADIUS cannot be told, any other router is told once it answers.
+     */
+    private function routerTold(ServiceSubscription $subscription, string $withoutAccount, string $whenOn, string $whenOff): RedirectResponse
+    {
+        if (! NetworkAccount::query()->where('subscription_id', $subscription->id)->exists()) {
+            return back()->with('success', $withoutAccount);
+        }
+
+        return app(IntegrationConfig::class)->isEnabled('radius')
+            ? back()->with('success', $whenOn)
+            : back()->with('warning', $whenOff);
     }
 
     private function ensureSameCompany(Customer|ServiceSubscription $model): void

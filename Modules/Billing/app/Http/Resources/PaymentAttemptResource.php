@@ -29,6 +29,13 @@ class PaymentAttemptResource extends JsonResource
             'expires_at' => $this->expires_at->toIso8601String(),
             'settled_at' => $this->settled_at?->toIso8601String(),
             'created_at' => $this->created_at->toIso8601String(),
+            /** Who closed an exception as refunded, when, and the reference and note they gave; null for any other status. */
+            'refund' => $this->status === PaymentAttempt::STATUS_REFUNDED ? [
+                'at' => $this->resolved_at?->toIso8601String(),
+                'by' => $this->resolver?->name,
+                'reference' => $this->resolution_reference,
+                'note' => $this->resolution_note,
+            ] : null,
         ];
     }
 }

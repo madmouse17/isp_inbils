@@ -81,7 +81,7 @@ Warna aplikasi mengikuti warna merek ISP Anda, dan logo ISP tampil di kiri atas 
    - Satu baris koneksi, **Online sejak 08.12** atau **Offline, terakhir online 07.55**, pada layanan Aktif, Diisolir, dan Ditangguhkan. Baris ini hanya tampil bila server bisa membaca status koneksi layanan itu.
    - **Tagihan**: "Sisa yang harus dibayar" dengan jumlahnya, tanggal jatuh tempo, dan nomor tagihan. Bila tidak ada tagihan terbuka, kartu menulis "Semua tagihan lunas" dan "Tagihan berikutnya {tanggal}". Warna kartu mengikuti keadaan: warna merek ISP bila aman, warna peringatan bila jatuh tempo dalam 1 sampai 7 hari ("Jatuh tempo 7 hari lagi") atau hari ini ("Jatuh tempo hari ini"), dan merah bila terlambat ("Lewat 3 hari") atau layanan diisolir. Teks dan ikon di dalam kartu menyampaikan hal yang sama, jadi warna bukan satu-satunya petunjuk. Aplikasi menampilkan tagihan terbuka yang paling awal pada semua kartu layanan, lengkap dengan nomornya.
    - Tombol besar **Bayar** membuka tagihan itu (tombolnya **Lihat tagihan** bila tagihan tidak bisa dibayar online). Di bawahnya tertulis QRIS, VA bank, e-wallet, dan minimarket sebagai metode yang bisa muncul di halaman pembayaran. Metode yang benar-benar tersedia ditentukan oleh Midtrans dan ISP.
-   - Layanan **Diisolir** menulis penyebabnya ("Layanan dinonaktifkan karena tagihan {nomor} yang jatuh tempo {tanggal} belum dibayar.") dan "Layanan aktif kembali otomatis setelah pembayaran diterima." Layanan **Ditangguhkan** menulis "Layanan Anda sedang ditangguhkan. Hubungi {nama ISP} untuk informasi lebih lanjut." dengan tombol **Hubungi ISP**. Layanan **Menunggu** menulis "Layanan Anda belum aktif."
+   - Layanan **Diisolir** karena tunggakan menampilkan semua tagihan yang masih menahan reaktivasi di bawah judul **Lunasi tagihan berikut agar layanan aktif kembali**. Setiap baris memuat nomor, jumlah, dan jatuh tempo, lalu **Total**. Satu tagihan memakai tombol **Bayar**. Dua tagihan atau lebih memakai **Bayar semua (Rp {total})**. Layanan **Ditangguhkan** karena alasan lain menulis "Layanan Anda sedang ditangguhkan. Hubungi {nama ISP} untuk informasi lebih lanjut." dengan tombol **Hubungi ISP**. Layanan **Menunggu** menulis "Layanan Anda belum aktif."
 4. **Aksi cepat**: **Bayar**, **Laporkan gangguan**, **Riwayat pembayaran**, dan **Hubungi ISP**. **Bayar** membuka tagihan paling awal yang belum dibayar, atau tab **Tagihan** bila tidak ada. **Laporkan gangguan** membuka formulir tiket baru (bab 6). **Hubungi ISP** membuka lembar kontak dengan WhatsApp, telepon, email, situs web, dan jam layanan yang diisi ISP. Ketuk satu baris untuk membukanya. Bila ISP belum mengisi kontak, lembar itu mengarahkan Anda ke tab **Bantuan**.
 5. **Sedang berjalan**: kunjungan teknisi yang berikutnya, lalu sampai tiga tiket aktif Anda. Kartu kunjungan memuat nomor SPK, jenis kunjungan (misalnya **Instalasi** atau **Perawatan**), tahap sekarang (**Ditugaskan**, **Dalam perjalanan**, atau **Sedang dikerjakan**), dan tanggal jadwal bila ada. Ketuk kartu itu untuk membuka detail kunjungan (bagian **Kunjungan teknisi** di bab 5). Kartu tiket menampilkan statusnya; ketuk satu tiket untuk membukanya, atau **Lihat semua** untuk ke tab **Bantuan**. Bila tidak ada kunjungan dan tidak ada tiket, tertulis "Tidak ada tiket aktif".
 
@@ -224,19 +224,20 @@ Tersedia pada versi berikutnya: kecepatan paket (misalnya **Hingga 50 Mbps**), t
 
 ## Isolir: arti dan cara pulih
 
-**Isolir** berarti ISP menghentikan layanan internet Anda sementara karena ada tagihan yang belum dibayar. Di aplikasi, langganan itu berstatus **Ditangguhkan**. Langganan yang diisolir tidak ditagih lagi sampai aktif kembali.
+**Isolir** berarti ISP membatasi layanan internet sementara. Isolir karena tunggakan dapat pulih otomatis setelah semua tagihan yang menahannya lunas. Penangguhan manual dan blokir petugas tidak dibuka oleh pembayaran.
 
-Isolir otomatis hanya berjalan bila ISP mengaktifkannya. Biasanya terjadi bila tagihan sudah lewat jatuh tempo lebih dari jumlah hari yang ditetapkan ISP (bawaan sistem: 7 hari). ISP juga bisa mengisolir langganan secara manual.
+Cara melunasi isolir karena tunggakan:
 
-Cara memulihkan layanan:
+1. Hubungkan ponsel lewat **data seluler** atau jaringan lain.
+2. Buka Inbils Pelanggan. Bila router membuka halaman **Layanan internet Anda sedang dibatasi**, gunakan tombol **Buka aplikasi {nama ISP}**. Halaman juga menyediakan **Telepon** dan **WhatsApp** bila ISP mengisinya.
+3. Pada kartu layanan **Diisolir**, baca daftar **Lunasi tagihan berikut agar layanan aktif kembali**. Daftar ini hanya memuat tagihan yang masih menahan reaktivasi.
+4. Untuk satu tagihan, ketuk **Bayar**. Untuk dua tagihan atau lebih, ketuk **Bayar semua (Rp {total})**. Aplikasi membayar tagihan satu per satu, dari jatuh tempo paling lama.
+5. Selesaikan pembayaran tagihan pertama. Saat Anda kembali ke aplikasi, langkah **Tagihan 1 dari N** tetap terlihat. Bila tagihan berikutnya masih ada, lembar **Tagihan {nomor} lunas. Lanjut bayar {nomor berikut} (Rp {jumlah})** muncul. Ketuk **Lanjut bayar**.
+6. Ulangi sampai aplikasi menulis **Semua tagihan lunas. Layanan aktif kembali dalam beberapa menit.** Jangan membayar tagihan yang sama lagi saat menunggu konfirmasi.
 
-1. Karena layanan rumah terhenti, hubungkan ponsel lewat **data seluler** atau jaringan lain.
-2. Buka aplikasi Inbils Pelanggan dan masuk. Bila router mengarahkan Anda ke halaman web "Layanan internet Anda sedang diisolir" yang meminta masuk, buka aplikasinya, bukan halaman webnya. Halaman itu juga menampilkan telepon dan email ISP.
-3. Buka tab **Tagihan** dan pilih tagihan yang belum dibayar atau lewat jatuh tempo.
-4. Bayar lewat **Bayar** (bagian "Bayar lewat Midtrans" di bab 3). Bayar **semua** tagihan yang masih terbuka untuk langganan itu sampai sisanya nol; pembayaran sebagian belum cukup.
-5. Setelah pembayaran tercatat, sistem mengaktifkan kembali langganan secara otomatis dan status berubah menjadi **Aktif**. Proses ini berjalan di latar belakang, jadi bisa butuh beberapa menit.
+Pembayaran sebagian belum cukup. Bila salah satu pembayaran belum dikonfirmasi, periksa statusnya dari tab **Tagihan** sebelum melanjutkan. Setelah seluruh tagihan penahan tercatat lunas, sistem mengaktifkan layanan di latar belakang.
 
-Pemulihan otomatis hanya untuk isolir karena tagihan. Langganan yang diisolir **manual** oleh petugas tidak dibuka otomatis; hubungi ISP. Bila Anda sudah membayar tetapi layanan belum aktif setelah beberapa waktu, hubungi ISP dengan nomor tagihan. Jangan membayar lagi.
+Pemulihan otomatis hanya berlaku untuk isolir karena tunggakan dan bila ISP mengaktifkannya. Untuk penangguhan manual atau blokir, gunakan **Hubungi ISP**. Bila semua tagihan penahan sudah lunas tetapi layanan belum aktif setelah beberapa menit, hubungi ISP dengan nomor tagihan.
 
 ## Kunjungan teknisi
 
@@ -296,7 +297,7 @@ Status tiket:
 | Ditugaskan | Tiket sudah diserahkan ke petugas. |
 | Diproses | Petugas sedang menangani. |
 | Selesai | Petugas menyatakan masalah sudah selesai. |
-| Ditutup | Tiket ditutup; tidak bisa diubah lagi. |
+| Ditutup | Tiket ditutup dan tidak menerima balasan atau lampiran baru. Bila masalah masih ada, buat tiket baru. |
 
 ## Ada masalah? Coba langkah cepat dulu
 
@@ -341,15 +342,16 @@ Bila ISP mengaktifkan WhatsApp untuk Anda, pesan "tiket dibuat" dikirim setelah 
 
 Layar memuat kartu judul dengan status, tahap progres (**Dibuka**, **Ditangani**, **Selesai**), kategori, dan layanan terkait, lalu **Deskripsi**, **Catatan penyelesaian** (bila petugas mengisi), **Lampiran**, dan **Balasan**. Ikon salin di bilah atas menyalin kode tiket. Tarik ke bawah untuk memuat ulang.
 
-Tersedia pada versi berikutnya: **Prioritas**, tenggat respons dan penyelesaian, waktu respons pertama, serta nama depan petugas yang menangani tiket Anda. Datanya sudah dikirim server, tetapi aplikasi belum menampilkannya.
+Tiket **Ditutup** mengganti kolom balasan dengan kartu **Tiket ditutup. Masih bermasalah? Buat tiket baru** dan tombol **Buat tiket baru**. Tombol membuka formulir tiket baru dengan kategori dan layanan dari tiket lama sudah terisi. Tiket tertutup tidak menerima komentar atau lampiran baru.
 
 ## Komentar (balasan)
 
-1. Buka detail tiket.
-2. Ketik di kolom **Balasan Anda** di bagian bawah layar. Batas 2000 karakter; penghitung di bawah kolom menunjukkan jumlahnya.
-3. Ketuk ikon kirim.
+1. Buka detail tiket yang belum **Ditutup**.
+2. Tiket **Selesai** menampilkan petunjuk **Membalas akan membuka kembali tiket ini.** Balasan Anda mengubah tiket menjadi **Ditugaskan** bila petugasnya masih ada, atau **Terbuka** bila tidak.
+3. Ketik di kolom **Balasan Anda**. Batas 2000 karakter; penghitung di bawah kolom menunjukkan jumlahnya.
+4. Ketuk ikon kirim.
 
-Balasan Anda tampil di sisi kanan dengan label "Anda"; balasan petugas berlabel nama petugas atau "Tim Inbils". Hanya balasan yang ditujukan kepada pelanggan yang tampil; catatan internal ISP tidak terlihat. Bila gagal terkirim, tulisan Anda tetap di kolom dan muncul pesan kesalahan; ketuk kirim lagi. Mengetuk dua kali tidak membuat dua balasan.
+Balasan Anda tampil di sisi kanan dengan label "Anda"; balasan petugas berlabel nama petugas atau "Tim Inbils". Setelah tiket **Selesai** dibuka kembali, aplikasi memuat status baru dan petugas ISP menerima pemberitahuan. Bila tiket ditutup saat layar masih terbuka, server menolak balasan dengan kartu **Tiket ditutup. Masih bermasalah? Buat tiket baru**.
 
 ## Lampiran
 

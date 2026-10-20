@@ -78,6 +78,22 @@ class StockServiceTest extends TestCase
         StockService::release($this->productId, $this->locationId, 5);
     }
 
+    public function test_insufficient_stock_message_names_product_place_and_unit(): void
+    {
+        // No stock row yet: nothing is left.
+        $empty = $this->refusal(fn () => StockService::issue($this->productId, $this->locationId, 18));
+
+        $this->assertSame('Stok Router di WH-A tersisa 0 PCS, dibutuhkan 18 PCS.', $empty->getMessage());
+        $this->assertSame(['Router', 'PCS', 'WH-A', '18', '0'], [$empty->productName, $empty->unit, $empty->locationName, $empty->requested, $empty->available]);
+
+        // Reserved stock is not available; quantities read with a decimal comma, trimmed, grouped by thousands.
+        StockService::receive($this->productId, $this->locationId, 1500.5);
+        StockService::reserve($this->productId, $this->locationId, 500);
+
+        $this->assertSame('Stok Router di WH-A tersisa 1.000,5 PCS, dibutuhkan 2.000 PCS.', $this->refusal(fn () => StockService::issue($this->productId, $this->locationId, 2000))->getMessage());
+        $this->assertSame('Stok Router di WH-A tersisa 1.000,5 PCS, dibutuhkan 1.000,55 PCS.', $this->refusal(fn () => StockService::reserve($this->productId, $this->locationId, 1000.55))->getMessage());
+    }
+
     public function test_free_text_reference_type_rejects_without_writing(): void
     {
         try {
@@ -406,5 +422,16 @@ class StockServiceTest extends TestCase
             'min_stock' => 0,
             'is_active' => true,
         ]);
+    }
+
+    private function refusal(callable $operation): InsufficientStockException
+    {
+        try {
+            $operation();
+        } catch (InsufficientStockException $e) {
+            return $e;
+        }
+
+        $this->fail('The stock operation must be refused.');
     }
 }

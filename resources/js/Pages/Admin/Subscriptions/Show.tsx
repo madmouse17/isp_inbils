@@ -67,6 +67,10 @@ interface ShowProps extends Record<string, unknown> {
     dropPortOptions?: DropPortOption[];
     /** Active packages, loaded when the Ganti paket dialog opens; only for holders of customer.subscription.manage. */
     packageOptions?: PackageOption[];
+    /** The company's RADIUS switch: with it off the block dialog promises nothing about the router. */
+    radiusEnabled: boolean;
+    /** The day a reactivation moves the next invoice to (`Y-m-d`); null unless the subscription is suspended. */
+    reactivationNextInvoiceDate: string | null;
     can: { assignIp: boolean; assignDrop: boolean; block: boolean; changePackage: boolean };
 }
 
@@ -228,6 +232,8 @@ export default function Show({
     dropPort,
     dropPortOptions,
     packageOptions,
+    radiusEnabled,
+    reactivationNextInvoiceDate,
     can: { block: canBlock, changePackage: canChangePackage, ...assignable },
 }: ShowProps) {
     const s = subscription.data;
@@ -520,6 +526,7 @@ export default function Show({
                               }
                             : null
                     }
+                    radiusEnabled={radiusEnabled}
                     onClose={() => setBlockOpen(false)}
                 />
 
@@ -536,7 +543,11 @@ export default function Show({
                 <ConfirmDialog
                     open={pending === 'reactivate'}
                     title={`Aktifkan kembali langganan ${s.code}?`}
-                    description="Layanan yang ditangguhkan dipulihkan kembali."
+                    description={
+                        reactivationNextInvoiceDate
+                            ? `Layanan yang ditangguhkan dipulihkan kembali. Tagihan berikutnya akan menjadi ${formatDate(reactivationNextInvoiceDate)}. Periode selama ditangguhkan tidak ditagih.`
+                            : 'Layanan yang ditangguhkan dipulihkan kembali.'
+                    }
                     confirmLabel="Aktifkan kembali"
                     processing={sending}
                     error={Object.values(refusal)[0]}
@@ -565,6 +576,11 @@ export default function Show({
                     title="Tangguhkan Langganan"
                 >
                     <form onSubmit={doAction} className="space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                            Pelanggan melihat status Ditangguhkan dengan tombol Hubungi ISP.
+                            Internet diisolir. Pembayaran tidak mengaktifkan kembali; aktifkan
+                            kembali dari halaman ini.
+                        </p>
                         <Input
                             label="Alasan"
                             value={data.reason}

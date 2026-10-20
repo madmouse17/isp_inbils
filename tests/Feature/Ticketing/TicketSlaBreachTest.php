@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Ticketing;
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
@@ -202,5 +203,82 @@ class TicketSlaBreachTest extends TestCase
         $this->assertGreaterThan(0, $job->tries);
         $this->assertNotNull($job->timeout);
         $this->assertNotEmpty($job->backoff ?? $job->backoff());
+    }
+
+    public function test_resolution_breach_goes_to_assignee_and_dispatch_never_customer(): void
+    {
+        Notification::fake();
+        $dispatcher = $this->createCompanyUser();
+        $customerUser = User::factory()->create(['company_id' => $dispatcher->company_id, 'is_active' => true]);
+        $handler = $this->staff($dispatcher, 'ticket.start');
+        $inactiveDispatcher = $this->staff($dispatcher, 'ticket.assign', active: false);
+        $outsider = $this->staff($dispatcher, 'ticket.view');
+        $ticket = $this->ticket($dispatcher, [
+            'status' => 'assigned', 'assigned_to' => $handler->id, 'created_by' => $customerUser->id, 'sla_deadline' => now()->subHour(),
+        ]);
+
+        (new CheckTicketSlaBreachesJob())->handle();
+
+        foreach ([$handler, $dispatcher] as $watcher) {
+            Notification::assertSentTo($watcher, TicketSlaBreachedNotification::class, fn (TicketSlaBreachedNotification $notice): bool => $notice->kind === 'resolution' && $notice->ticketId === $ticket->id);
+        }
+        Notification::assertNotSentTo($customerUser, TicketSlaBreachedNotification::class);
+        Notification::assertNotSentTo($inactiveDispatcher, TicketSlaBreachedNotification::class);
+        Notification::assertNotSentTo($outsider, TicketSlaBreachedNotification::class);
+    }
+
+    public function test_breach_has_no_mail_channel(): void
+    {
+        $dispatcher = $this->createCompanyUser();
+        $notice = new TicketSlaBreachedNotification(1, 'TKT-2026-00001', 'resolution', $dispatcher->company_id);
+
+        $this->assertSame(['database'], $notice->via($dispatcher));
+        $this->assertFalse(method_exists($notice, 'toMail'));
+    }
+
+    public function test_response_breach_is_notified_once(): void
+    {
+        Notification::fake();
+        $dispatcher = $this->createCompanyUser();
+        $handler = $this->staff($dispatcher, 'ticket.start');
+        $silent = $this->ticket($dispatcher, ['status' => 'assigned', 'assigned_to' => $handler->id, 'response_deadline' => now()->subMinutes(5)]);
+        $this->ticket($dispatcher, ['status' => 'open', 'response_deadline' => now()->subMinutes(5), 'first_response_at' => now()->subMinutes(20)]);
+        $this->ticket($dispatcher, ['status' => 'on_progress', 'assigned_to' => $handler->id, 'response_deadline' => now()->subMinutes(5)]);
+        $this->ticket($dispatcher, ['status' => 'open', 'response_deadline' => now()->addMinutes(5)]);
+
+        (new CheckTicketSlaBreachesJob())->handle();
+
+        foreach ([$handler, $dispatcher] as $watcher) {
+            Notification::assertSentToTimes($watcher, TicketSlaBreachedNotification::class, 1);
+            Notification::assertSentTo($watcher, TicketSlaBreachedNotification::class, fn (TicketSlaBreachedNotification $notice): bool => $notice->kind === 'response' && $notice->ticketId === $silent->id);
+        }
+        $this->assertNotNull($silent->fresh()->response_breached_notified_at);
+        $this->assertNull($silent->fresh()->sla_breached_notified_at, 'the resolution target is not missed yet');
+
+        Notification::fake();
+        (new CheckTicketSlaBreachesJob())->handle();
+        Notification::assertNothingSent();
+    }
+
+    private function staff(User $inCompanyOf, string $permission, bool $active = true): User
+    {
+        $user = User::factory()->create(['company_id' => $inCompanyOf->company_id, 'is_active' => $active]);
+        $user->givePermissionTo($permission);
+
+        return $user;
+    }
+
+    /** @param array<string, mixed> $overrides */
+    private function ticket(User $inCompanyOf, array $overrides = []): Ticket
+    {
+        $category = TicketCategory::query()->firstOrCreate(['company_id' => $inCompanyOf->company_id, 'code' => 'SLA-JOB'], [
+            'name' => 'Support', 'default_sla_hours' => 24, 'default_priority' => 'high', 'is_active' => true,
+        ]);
+
+        return Ticket::query()->create($overrides + [
+            'company_id' => $inCompanyOf->company_id, 'code' => 'TKT-'.uniqid(), 'title' => 'Internet mati', 'description' => 'late',
+            'source' => 'customer', 'category_id' => $category->id, 'status' => 'open', 'priority' => 'high',
+            'sla_deadline' => now()->addDay(), 'created_by' => $inCompanyOf->id,
+        ]);
     }
 }

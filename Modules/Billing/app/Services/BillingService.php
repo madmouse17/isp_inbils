@@ -28,6 +28,17 @@ use Throwable;
 
 class BillingService
 {
+    /** Why a subscription gets no invoice for a period: the code the preview returns and the words staff read. */
+    public const SKIP_REASONS = [
+        'already_issued' => 'Tagihan periode ini sudah ada',
+        'zero_amount' => 'Nominal Rp 0',
+        'not_active' => 'Belum aktif pada periode ini',
+        'suspended' => 'Ditangguhkan',
+    ];
+
+    /** How many skipped subscriptions the preview names; the count still covers all of them. */
+    private const SKIPPED_ROWS_LIMIT = 50;
+
     public static function taxRateFor(int $companyId): float
     {
         $settings = Company::find($companyId)?->settings ?? [];
@@ -42,6 +53,12 @@ class BillingService
         return (int) ($settings['invoice_due_days'] ?? 14);
     }
 
+    /** The billing month in progress by the clock of the company's own timezone, as 'YYYY-MM'. */
+    public static function currentPeriodFor(int $companyId): string
+    {
+        return now(Company::query()->whereKey($companyId)->value('timezone') ?: (string) config('app.timezone'))->format('Y-m');
+    }
+
     /**
      * Generate postpaid recurring invoices for a billing period ('YYYY-MM').
      * Idempotent; safe to re-run. $dryRun computes rows without writing.
@@ -50,7 +67,7 @@ class BillingService
      * period again behind a person's back (a disputed period is billed by hand as a one-time invoice). One subscription
      * that fails is reported and counted in `failed`; the rest of the company is still billed.
      *
-     * @return array{created: int, skipped: int, failed: int, rows: list<array<string, mixed>>}
+     * @return array{created: int, skipped: int, failed: int, rows: list<array<string, mixed>>, skipped_rows: list<array{subscription_code: string, customer: string, reason: string, reason_label: string}>}
      */
     public static function generateForPeriod(string $period, bool $dryRun = false, ?int $companyId = null): array
     {
@@ -71,14 +88,22 @@ class BillingService
             ->get();
 
         $rows = [];
+        $skippedRows = [];
         $created = 0;
         $skipped = 0;
         $failed = 0;
+        $skip = function (ServiceSubscription $sub, string $reason) use (&$skipped, &$skippedRows): void {
+            $skipped++;
+
+            if (count($skippedRows) < self::SKIPPED_ROWS_LIMIT) {
+                $skippedRows[] = self::skippedRow($sub, $reason);
+            }
+        };
 
         foreach ($subscriptions as $sub) {
             try {
                 if (self::recurringIssued($sub->id, $periodStart)) {
-                    $skipped++;
+                    $skip($sub, 'already_issued');
 
                     continue;
                 }
@@ -86,13 +111,13 @@ class BillingService
                 [$activeDays, $daysInPeriod, $amount] = self::prorationFor($sub, $periodStart, $periodEnd);
 
                 if (Money::compare($amount, '0') <= 0) {
-                    $skipped++;
+                    $skip($sub, 'zero_amount');
 
                     continue;
                 }
 
                 $taxRate = self::taxRateFor($sub->company_id);
-                $tax = Money::round(Money::div(Money::mul($amount, $taxRate), '100'));
+                $tax = self::lineTax($amount, $taxRate);
 
                 $row = [
                     'subscription_id' => $sub->public_id,
@@ -101,8 +126,8 @@ class BillingService
                     'package' => $sub->servicePackage?->name ?? '-',
                     'active_days' => $activeDays,
                     'days_in_period' => $daysInPeriod,
-                    'amount' => Money::round($amount),
-                    'tax' => Money::round($tax),
+                    'amount' => $amount,
+                    'tax' => $tax,
                     'total' => Money::round(Money::add($amount, $tax)),
                 ];
 
@@ -116,18 +141,60 @@ class BillingService
                     $rows[] = $row;
                     $created++;
                 } else {
-                    $skipped++;
+                    $skip($sub, 'already_issued');
                 }
             } catch (UniqueConstraintViolationException) {
                 // Another run was first: the unique key on invoices.active_recurring_period refused this one.
-                $skipped++;
+                $skip($sub, 'already_issued');
             } catch (Throwable $e) {
                 report($e);
                 $failed++;
             }
         }
 
-        return ['created' => $created, 'skipped' => $skipped, 'failed' => $failed, 'rows' => $rows];
+        [$unbilled, $unbilledRows] = self::unbilledSubscriptions($companyId, $periodEnd, self::SKIPPED_ROWS_LIMIT - count($skippedRows));
+
+        return [
+            'created' => $created,
+            'skipped' => $skipped + $unbilled,
+            'failed' => $failed,
+            'rows' => $rows,
+            'skipped_rows' => [...$skippedRows, ...$unbilledRows],
+        ];
+    }
+
+    /**
+     * The subscriptions the schedule never looks at: waiting, isolated, or active only after the period ended. They
+     * count as skipped and up to $room of them are named, so a preview of "0 tagihan" says why.
+     *
+     * @return array{0: int, 1: list<array<string, string>>}
+     */
+    private static function unbilledSubscriptions(int $companyId, CarbonImmutable $periodEnd, int $room): array
+    {
+        $unbilled = ServiceSubscription::withoutCompany()
+            ->where('company_id', $companyId)
+            ->where(fn ($query) => $query
+                ->whereIn('status', ['pending', 'suspended'])
+                ->orWhere(fn ($later) => $later->where('status', 'active')->whereDate('activation_date', '>', $periodEnd)));
+
+        $count = $unbilled->count();
+        $named = $count > 0 && $room > 0 ? $unbilled->with('customer:id,name')->orderBy('id')->limit($room)->get() : collect();
+
+        return [
+            $count,
+            $named->map(fn (ServiceSubscription $sub): array => self::skippedRow($sub, $sub->status === 'suspended' ? 'suspended' : 'not_active'))->all(),
+        ];
+    }
+
+    /** @return array{subscription_code: string, customer: string, reason: string, reason_label: string} */
+    private static function skippedRow(ServiceSubscription $sub, string $reason): array
+    {
+        return [
+            'subscription_code' => $sub->code,
+            'customer' => $sub->customer?->name ?? '-',
+            'reason' => $reason,
+            'reason_label' => self::SKIP_REASONS[$reason],
+        ];
     }
 
     /** Any recurring invoice of the period, whatever its status; $lock waits for a run that is issuing it right now. */
@@ -217,8 +284,8 @@ class BillingService
 
         $activeDays = (int) $from->diffInDays($until) + 1;
         $amount = $activeDays >= $daysInPeriod
-            ? Money::round($sub->mrc_amount)
-            : Money::round(Money::mul(Money::div((string) $activeDays, (string) $daysInPeriod), (string) $sub->mrc_amount));
+            ? Money::rupiah($sub->mrc_amount)
+            : Money::rupiah(Money::div(Money::mul((string) $sub->mrc_amount, (string) $activeDays), (string) $daysInPeriod));
 
         return [$activeDays, $daysInPeriod, $amount];
     }
@@ -229,6 +296,7 @@ class BillingService
             $invoice = Invoice::withoutCompany()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
             self::assertCompanyId($invoice->company_id);
             abort_if($invoice->status !== 'draft', 422, 'Hanya tagihan draf yang bisa dikirim.');
+            abort_if(Money::compare($invoice->total, '0') <= 0, 422, 'Tagihan tanpa item atau bernilai Rp 0 tidak bisa dikirim.');
 
             InvoiceParty::freeze($invoice);
             $invoice->update(['status' => 'sent', 'sent_at' => now()]);
@@ -377,7 +445,7 @@ class BillingService
                     ->findOrFail($productId);
             }
 
-            $lineTotal = Money::round(Money::sub(Money::mul($data['quantity'], $data['unit_price']), $data['discount_amount'] ?? 0));
+            $lineTotal = self::lineTotal($data['quantity'], $data['unit_price'], $data['discount_amount'] ?? 0);
 
             InvoiceItem::create([
                 'company_id' => $invoice->company_id,
@@ -457,7 +525,20 @@ class BillingService
 
     public static function createFromSpk(int $workOrderId): Invoice
     {
-        return CreateInvoiceFromSpkAction::execute($workOrderId);
+        return CreateInvoiceFromSpkAction::execute($workOrderId)
+            ?? abort(422, 'SPK ini tidak punya biaya atau bahan yang bisa ditagihkan.');
+    }
+
+    /** One line in whole rupiah (K1): quantity times unit price, less the line discount. */
+    public static function lineTotal(string|int|float $quantity, string|int|float $unitPrice, string|int|float $discount = 0): string
+    {
+        return Money::rupiah(Money::sub(Money::mul($quantity, $unitPrice), $discount));
+    }
+
+    /** The tax of one line in whole rupiah (K1), rounded line by line so every figure of an invoice is a whole number. */
+    public static function lineTax(string $lineTotal, string|int|float $taxRate): string
+    {
+        return Money::rupiah(Money::div(Money::mul($lineTotal, $taxRate), '100'));
     }
 
     public static function recalculate(Invoice $invoice): void
@@ -469,10 +550,10 @@ class BillingService
             $taxAmount = '0.00';
 
             foreach ($invoice->items as $item) {
-                $lineTotal = Money::round(Money::sub(Money::mul($item->quantity, $item->unit_price), $item->discount_amount));
+                $lineTotal = self::lineTotal($item->quantity, $item->unit_price, $item->discount_amount);
                 $item->update(['line_total' => $lineTotal]);
                 $subtotal = Money::add($subtotal, $lineTotal);
-                $taxAmount = Money::add($taxAmount, Money::round(Money::div(Money::mul($lineTotal, $item->tax_rate), '100')));
+                $taxAmount = Money::add($taxAmount, self::lineTax($lineTotal, $item->tax_rate));
             }
 
             $total = Money::sub(Money::add($subtotal, $taxAmount), $invoice->discount_amount);
@@ -480,7 +561,8 @@ class BillingService
             $invoice->update([
                 'subtotal' => Money::round($subtotal),
                 'tax_amount' => Money::round($taxAmount),
-                'total' => Money::round($total),
+                // A discount typed with cents must not leave cents on the invoice: it could no longer be paid online.
+                'total' => Money::rupiah($total),
             ]);
         }, 3);
     }

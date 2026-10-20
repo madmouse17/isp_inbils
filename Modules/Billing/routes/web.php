@@ -4,10 +4,11 @@ use App\Http\Controllers\Admin\LifecycleController;
 use App\Http\Middleware\EnsureCustomerAccess;
 use Illuminate\Support\Facades\Route;
 use Modules\Billing\Http\Controllers\InvoiceController;
+use Modules\Billing\Http\Controllers\PaymentAttemptController;
 use Modules\Billing\Http\Controllers\Portal\PaymentReturnController;
 use Modules\Billing\Models\Invoice;
 
-Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->prefix('admin')->name('admin.')->whereUlid(['invoice', 'payment', 'item'])->group(function () {
+Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->prefix('admin')->name('admin.')->whereUlid(['invoice', 'payment', 'item', 'attempt'])->group(function () {
     Route::get('invoices/export', [InvoiceController::class, 'export'])->name('invoices.export');
     Route::get('billing/receivables', [InvoiceController::class, 'receivables'])->name('billing.receivables');
     Route::post('invoices/create-from-spk', [InvoiceController::class, 'createFromSpk'])->name('invoices.create-from-spk');
@@ -22,6 +23,7 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
     Route::post('invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('invoices.cancel');
     Route::post('invoices/{invoice}/items', [InvoiceController::class, 'addItem'])->name('invoices.items.store');
     Route::delete('invoices/{invoice}/items/{item}', [InvoiceController::class, 'removeItem'])->name('invoices.items.destroy');
+    Route::post('payment-attempts/{attempt}/refund', [PaymentAttemptController::class, 'refund'])->name('payment-attempts.refund');
 });
 
 Route::inertia('pembayaran/selesai', 'Portal/Payments/Finished')->name('payments.finished');

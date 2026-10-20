@@ -169,12 +169,32 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
+        // A refused write of an Inertia page (no permission, a record that vanished, a state rule) must not swap the page
+        // for an error screen: the user stays where they are and the toast says why. A 403 is always the one sentence,
+        // because the text of a policy or of the framework is not for the screen. A validation error is not an HTTP
+        // exception and keeps its errors bag, 409 is answered above, and 419 and 5xx keep the error page.
+        $exceptions->render(function (HttpExceptionInterface $e, Request $request) {
+            $status = $e->getStatusCode();
+
+            if (! $request->header('X-Inertia') || $request->isMethod('GET') || $request->isMethod('HEAD') || ! in_array($status, [403, 404, 422], true)) {
+                return null;
+            }
+
+            $message = match ($status) {
+                403 => 'Anda tidak punya izin untuk tindakan ini.',
+                404 => 'Data tidak ditemukan atau sudah berubah.',
+                default => $e->getMessage() ?: 'Permintaan tidak dapat diproses.',
+            };
+
+            return back(in_array($request->method(), ['PUT', 'PATCH', 'DELETE'], true) ? 303 : 302)->with('error', $message);
+        });
+
         $exceptions->render(function (InsufficientStockException $e, $request) {
             if ($request->is('admin/*') && $request->expectsJson()) {
                 return response()->json(['message' => $e->getMessage()], 422);
             }
 
-            return back()->withInput()->withErrors(['quantity' => $e->getMessage()]);
+            return back()->withInput()->withErrors(['quantity' => $e->getMessage()])->with('error', $e->getMessage());
         });
 
         // Browser errors render the Inertia Error page. JSON clients, the mobile API, webhook callbacks and the
@@ -182,14 +202,21 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->respond(function (SymfonyResponse $response, Throwable $e, Request $request) {
             $status = $response->getStatusCode();
 
-            if (! in_array($status, [403, 404, 419, 429, 500, 503], true)
+            if (! in_array($status, [403, 404, 419, 422, 429, 500, 503], true)
                 || $request->expectsJson()
                 || $request->is('api/*', 'webhooks/*', 'up', 'ready')
                 || ($status === 500 && config('app.debug'))) {
                 return $response;
             }
 
-            $page = Inertia::render('Error', ['status' => $status, 'requestId' => $request->attributes->get('request_id')])
+            $props = ['status' => $status, 'requestId' => $request->attributes->get('request_id')];
+
+            // A refusal the code worded for the user, abort(422, '...'), is shown. The text of a 403, a 404 or an error is not.
+            if ($status === 422 && $e instanceof HttpExceptionInterface && $e->getMessage() !== '') {
+                $props['message'] = $e->getMessage();
+            }
+
+            $page = Inertia::render('Error', $props)
                 ->toResponse($request)
                 ->setStatusCode($status);
 

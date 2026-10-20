@@ -5,6 +5,7 @@ namespace App\Services\Core;
 use App\Models\Core\Customer;
 use App\Models\Core\CustomerAddress;
 use App\Models\Core\ServiceSubscription;
+use App\Notifications\SubscriptionStatusNotification;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -99,6 +100,11 @@ class SubscriptionService
 
             CustomerStatusRecalculator::recalculate($subscription->customer_id);
 
+            // A block already isolated the customer, who was told then.
+            if ($subscription->blocked_at === null) {
+                self::tellCustomer($subscription, $source === 'overdue' ? 'overdue' : 'manual');
+            }
+
             return $subscription->fresh();
         });
     }
@@ -123,6 +129,11 @@ class SubscriptionService
 
             CustomerStatusRecalculator::recalculate($subscription->customer_id);
 
+            // A block keeps the customer isolated; they are told when it is lifted.
+            if ($subscription->blocked_at === null) {
+                self::tellCustomer($subscription, null);
+            }
+
             return $subscription->fresh();
         });
     }
@@ -145,6 +156,11 @@ class SubscriptionService
                 'reason' => $reason,
             ], $subscription);
 
+            // Only an active subscription is served: for any other the customer sees no change.
+            if ($subscription->status === 'active') {
+                self::tellCustomer($subscription, 'blocked');
+            }
+
             return $subscription->fresh();
         });
     }
@@ -165,6 +181,11 @@ class SubscriptionService
                 'code' => $subscription->code,
                 'note' => $note,
             ], $subscription);
+
+            // A suspended subscription stays isolated until it is reactivated.
+            if ($subscription->status === 'active') {
+                self::tellCustomer($subscription, null);
+            }
 
             return $subscription->fresh();
         });
@@ -275,7 +296,11 @@ class SubscriptionService
         });
     }
 
-    private static function nextBillingDate(int $billingDay): Carbon
+    /**
+     * The next invoice date `activate` and `reactivate` set: this month's billing day while it is still ahead, else next
+     * month's. Public so the subscription page can show it in the reactivate dialog before staff confirm (K27).
+     */
+    public static function nextBillingDate(int $billingDay): Carbon
     {
         $today = now();
 
@@ -295,6 +320,19 @@ class SubscriptionService
     private static function lockCustomer(int $customerId): void
     {
         Customer::query()->whereKey($customerId)->lockForUpdate()->value('id');
+    }
+
+    /**
+     * The customer hears it, in the bell and on the phone when the app is installed, when the service goes from served to
+     * isolated or back (`$isolatedBy` null). The row is written after the surrounding transaction committed and carries ids only.
+     * A customer without a login in the app has no bell, so nothing is queued for them.
+     *
+     * @param  'overdue'|'manual'|'blocked'|null  $isolatedBy
+     */
+    private static function tellCustomer(ServiceSubscription $subscription, ?string $isolatedBy): void
+    {
+        Customer::query()->whereKey($subscription->customer_id)->whereNotNull('user_id')->first()
+            ?->notify(new SubscriptionStatusNotification((int) $subscription->company_id, $subscription->id, $isolatedBy));
     }
 
     /** @return array{package: string, version: int, mrc_amount: string, otc_installation_fee: string} */

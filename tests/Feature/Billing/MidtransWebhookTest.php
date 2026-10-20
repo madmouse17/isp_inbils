@@ -12,6 +12,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use InvalidArgumentException;
@@ -302,17 +303,33 @@ class MidtransWebhookTest extends TestCase
         $this->assertCount(0, $this->payments());
     }
 
-    public function test_an_unknown_order_is_not_found_whatever_the_signature(): void
+    public function test_legacy_unknown_order_answers_200_and_logs_foreign_order(): void
     {
         $attempt = $this->attemptFor();
         $notification = $this->midtransPayload($attempt, ['order_id' => '999-999-doesnotexist']);
+        Log::spy();
 
-        // No order means no company, and without a company there is no key to check a signature against.
-        $this->postJson('/webhooks/midtrans', $notification)->assertNotFound();
-        $this->postJson('/webhooks/midtrans', [...$notification, 'signature_key' => str_repeat('a', 128)])->assertNotFound();
+        // No order means no company, and without a company there is no key to check a signature against: the legacy URL
+        // cannot tell a foreign order of a shared merchant from junk, so it answers 200 to both (no retry storm), writes
+        // nothing and logs the order id as unverified.
+        $this->postJson('/webhooks/midtrans', $notification)->assertOk()->assertSee('OK');
+        $this->postJson('/webhooks/midtrans', [...$notification, 'signature_key' => str_repeat('a', 128)])->assertOk();
 
+        Log::shouldHaveReceived('info')->with('midtrans.foreign_order', ['order_id' => '999-999-doesnotexist', 'verified' => false])->twice();
         Http::assertNothingSent();
         $this->assertCount(0, $this->payments());
+        $this->assertSame(0, Activity::query()->where('log_name', 'payment_attempt')->count());
+        $this->assertSame('pending', $this->freshAttempt($attempt)->status);
+    }
+
+    public function test_the_foreign_order_log_keeps_at_most_64_characters_of_the_order_id(): void
+    {
+        $attempt = $this->attemptFor();
+        Log::spy();
+
+        $this->postJson('/webhooks/midtrans', $this->midtransPayload($attempt, ['order_id' => str_repeat('x', 100)]))->assertOk();
+
+        Log::shouldHaveReceived('info')->once()->with('midtrans.foreign_order', ['order_id' => str_repeat('x', 64), 'verified' => false]);
     }
 
     public function test_only_a_json_body_is_read(): void

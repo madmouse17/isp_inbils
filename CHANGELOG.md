@@ -4,6 +4,22 @@ Semua perubahan notable di project inbils. Format [Keep a Changelog](https://kee
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/) (v0.x.x
 selama development, v1.0.0 saat release).
 
+### Changed - Flow audit fixes Wave 1: blockers and data integrity (2026-10-20)
+
+- Installation approval now always creates a one-time invoice when the SPK has a billable installation fee or material line. **Kirim tagihan pemasangan otomatis** sends it immediately when enabled. When disabled, the invoice stays **Draf**, billing staff receive a bell and push notification, and the finance dashboard shows **Tagihan draf menunggu dikirim**.
+- Used installation materials are not billed by default. Enable **Tagihkan bahan terpakai** to add one **Bahan terpakai: {nama barang}** line per product. Installation fees use the **Biaya pemasangan** label.
+- Inventory events no longer send one email per event. They use the bell, plus push for technician-facing updates. Eligible users may enable the opt-in daily inventory email digest in **Profil**.
+- Ticket SLA notices no longer use email. First-response and resolution notices use the bell and push, and go only to the active handler plus users holding `ticket.assign` as defined for each stage.
+- The PPPoE account of an installation SPK (K18) is made at first assignment, and by the approval when missing, only for a company with RADIUS enabled; without RADIUS none is made and the technician card says **Akun PPPoE belum dibuat**. Reassigning the SPK of a `pending` subscription to a different technician replaces the PPPoE secret (audited without it) and queues the apply job; the cancel cleanup and this rotation act only on an existing account.
+- Closed tickets now refuse staff and customer replies. A customer reply to a resolved ticket reopens it, keeps its deadlines, and notifies the handler and dispatch users.
+- Deploy: back up the database, then run `php artisan migrate --force` for additive migrations M1-M4. M3 backfills existing ticket response sources in chunks.
+- Deploy: run `php artisan queue:restart`, then `npm run build`. The scheduler picks up `inventory:send-digest` at 00:00 UTC.
+- Deploy: identify already-issued invoices with fractional rupiah using `SELECT company_id, number, total FROM invoices WHERE status IN ('sent','partial','overdue') AND total <> ROUND(total)`. Give the read-only result to each company's billing staff. Do not update those invoices automatically.
+- Deploy communication to every ISP admin must cover installation drafts, the material policy, the inventory digest in Profil, SLA bell and push notices, and closed-ticket reply refusal.
+- Development only: if `/ready` reports `storage_link: fail`, run `./vendor/bin/sail artisan storage:link`. Test and E2E files now use `storage/app/{private,public}/{testing,e2e}`.
+- Release both Android apps with the server. The technician app adds the PPPoE credential card and warehouse availability. The customer app adds the closed-ticket card, reactivation holds, **Bayar semua**, and subscription notices. API additions remain compatible with older apps.
+- Run the required security review for payment, permission, PPPoE secret, user-preference, and tenant-export changes before release. After all gates pass, update the OMP ledger and lane tickets.
+
 ### Added - Logs and audit trail: security rows, request id, audited exports, retention, redaction (2026-10-19)
 
 - Lane `log-audit` (`.scratch/log-audit`). The audit trail now answers who did what, from where and under which request, and the technical logs are bounded and traceable.

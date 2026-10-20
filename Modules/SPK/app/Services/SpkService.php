@@ -2,6 +2,7 @@
 
 namespace Modules\SPK\Services;
 
+use App\Exceptions\ApiException;
 use App\Models\Core\Customer;
 use App\Models\Core\EmployeeProfile;
 use App\Models\User;
@@ -9,6 +10,7 @@ use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
 use App\Support\FieldCheckIn;
+use App\Support\Notifications\StaffRecipients;
 use App\Support\OptimisticLock;
 use App\Support\RecordNotFound;
 use Carbon\CarbonInterface;
@@ -19,8 +21,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification;
 use Modules\Inventory\Models\Product;
+use Modules\NetworkAsset\Models\NetworkAccount;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\NetworkAsset\Models\NetworkAssetInstallation;
+use Modules\NetworkAsset\Services\NetworkAccountService;
 use Modules\SPK\Actions\CompleteSpkAction;
 use Modules\SPK\Models\WorkOrder;
 use Modules\SPK\Models\WorkOrderAssignment;
@@ -30,6 +34,7 @@ use Modules\SPK\Notifications\VisitCompletedNotification;
 use Modules\SPK\Notifications\WorkOrderApprovedNotification;
 use Modules\SPK\Notifications\WorkOrderRejectedNotification;
 use Modules\SPK\Notifications\WorkOrderScheduledNotification;
+use Modules\SPK\Notifications\WorkOrderSubmittedForReviewNotification;
 use Modules\SPK\Support\WorkOrderSite;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
@@ -41,6 +46,15 @@ class SpkService
 
     /** The statuses in which its item lines may be added, changed and deleted: until it goes to review. */
     public const ITEM_EDITABLE_STATUSES = ['draft', 'generated', 'assigned', 'in_progress', 'rejected'];
+
+    /** The statuses in which an SPK can be given to a technician: a plan, a rework, a visit not started yet and a visit under way. */
+    public const ASSIGNABLE_STATUSES = ['draft', 'generated', 'rejected', 'assigned', 'in_progress'];
+
+    /** The statuses in which somebody holds the visit and another technician may take it over ("Ganti teknisi"); a subset of the above. */
+    public const REASSIGNABLE_STATUSES = ['assigned', 'in_progress'];
+
+    /** The statuses in which the technician an installation SPK is assigned to may be shown the PPPoE login (K18). */
+    public const CREDENTIAL_STATUSES = ['assigned', 'in_progress'];
 
     private const MISSING_EXPECTED_ASSIGNED_TO = '__missing_expected_assigned_to__';
 
@@ -145,7 +159,7 @@ class SpkService
             self::assertCanonicalExpectedUpdatedAt($expectedUpdatedAt);
             $wo = self::lockedWorkOrder($wo->id);
             self::assertCompany($wo);
-            abort_if(! in_array($wo->status, ['generated', 'draft', 'rejected', 'assigned']), 422, 'SPK harus berstatus draf, menunggu penugasan, ditolak, atau ditugaskan untuk bisa ditugaskan.');
+            abort_if(! in_array($wo->status, self::ASSIGNABLE_STATUSES, true), 422, 'SPK harus berstatus draf, menunggu penugasan, ditolak, ditugaskan, atau dikerjakan untuk bisa ditugaskan.');
 
             $ability = $wo->assigned_to === null ? 'spk.assign' : 'spk.reassign';
             self::assertAssignmentActor($assignedBy, $wo->company_id, $ability);
@@ -197,10 +211,13 @@ class SpkService
             ]);
 
             $previousTechnicianId = $wo->assigned_to;
-            $changes = ['status' => 'assigned', 'assigned_to' => $technician->id];
+            // The technician of a visit under way who is named again keeps their run: nothing of it starts over.
+            $keepsTheRun = $wo->status === 'in_progress' && $previousTechnicianId === $technician->id;
+            $changes = $keepsTheRun ? ['assigned_to' => $technician->id] : ['status' => 'assigned', 'assigned_to' => $technician->id];
             // The trip, the start and the finish belong to one technician's one run of the work: a new technician, or the
             // rework after a rejection, starts all three over, so a reworked visit shows nothing of its earlier run above a
-            // stepper that begins at "Ditugaskan" again. The earlier start stays in the `started` activity.
+            // stepper that begins at "Ditugaskan" again. The earlier start stays in the `started` activity, and the check-in
+            // and the evidence stay where they were: a visit that changes hands while it is under way loses nothing it recorded.
             if ($previousTechnicianId !== $technician->id || $wo->status === 'rejected') {
                 $changes['en_route_at'] = null;
                 $changes['started_at'] = null;
@@ -212,6 +229,13 @@ class SpkService
                 'technician_id' => $technician->id,
                 'assigned_by' => $assignedBy,
             ], $wo);
+
+            // K18: the technician needs the PPPoE login on site before the review. Lock order, global: SPK row first, then
+            // customer, then subscription (CompleteSpkAction, NetworkAssetService::install and this all follow it); what the
+            // account work locks of the subscription comes after the SPK row. A new technician makes the old secret void.
+            // No-op for any other type or an existing account.
+            NetworkAccountService::rotateForReassignedInstallation($wo, $previousTechnicianId, $technician->id);
+            NetworkAccountService::provisionForInstallation($wo);
 
             self::notifyScheduled($wo, $technician, $previousTechnicianId);
 
@@ -484,9 +508,24 @@ class SpkService
             $wo->update(['status' => 'waiting_review', 'submitted_at' => $wo->submitted_at ?? now()]);
 
             AuditService::log('work_order', 'submitted_for_review', ['code' => $wo->code], $wo);
+            self::notifySubmitted($wo);
 
             return $wo->fresh();
         }, 3);
+    }
+
+    /**
+     * The people who may approve hear that an SPK waits for them, in the bell and on the phone of a technician-app
+     * install, once the submit commits. Not the technician who submitted it and not the person who made it: the
+     * maker-checker rule keeps both from approving it.
+     */
+    private static function notifySubmitted(WorkOrder $wo): void
+    {
+        $wo->loadMissing('assignee');
+        $approvers = StaffRecipients::holding((int) $wo->company_id, 'spk.approve', $wo->assigned_to === null ? null : (int) $wo->assigned_to)
+            ->reject(fn (User $user): bool => (int) $user->id === (int) $wo->created_by);
+
+        DB::afterCommit(fn () => self::notifySafely($approvers, new WorkOrderSubmittedForReviewNotification($wo->company_id, $wo->id, (string) $wo->code, $wo->assignee?->name)));
     }
 
     public static function approve(WorkOrder $wo): WorkOrder
@@ -605,7 +644,45 @@ class SpkService
                 'code' => $wo->code, 'reason' => $reason,
             ], $wo);
 
+            // K18: a cancelled installation must not leave the login it handed out working.
+            NetworkAccountService::disableForCancelledInstallation($wo);
+
             return $wo->fresh();
+        }, 3);
+    }
+
+    /**
+     * K18: the PPPoE login of an installation, for the technician the SPK is assigned to now and only while it is assigned or
+     * in progress. Every check runs again under the SPK's lock against the current assignee, so a reassignment or a cancel
+     * that commits first ends the access; the audit entry is written in the same transaction, before the secret leaves.
+     *
+     * @return array{username: string, password: string}
+     *
+     * @throws ApiException work_order_closed (409) or credentials_not_ready (422); any other refusal is a plain 404
+     */
+    public static function revealNetworkCredentials(WorkOrder $wo, User $technician): array
+    {
+        return DB::transaction(function () use ($wo, $technician): array {
+            $wo = self::lockedWorkOrder($wo->id);
+            self::assertCompany($wo);
+            // Another technician's SPK, another company's and a type without an account are the same 404 as an unknown one.
+            RecordNotFound::abortUnless($wo->assigned_to !== null && (int) $wo->assigned_to === (int) $technician->id && $wo->type === 'installation');
+
+            if (! in_array($wo->status, self::CREDENTIAL_STATUSES, true)) {
+                throw new ApiException(409, 'work_order_closed', 'SPK ini sudah tidak aktif.');
+            }
+
+            $subscription = $wo->subscription;
+            $account = NetworkAccount::query()->where('subscription_id', $wo->subscription_id)->where('service_type', 'pppoe')->first();
+
+            if ($account === null || $subscription === null || $subscription->trashed() || $subscription->status === 'terminated') {
+                throw new ApiException(422, 'credentials_not_ready', 'Akun PPPoE belum dibuat. Hubungi kantor.');
+            }
+
+            return [
+                'username' => $account->username,
+                'password' => NetworkAccountService::reveal($account, ['work_order_id' => $wo->id, 'via' => 'technician_app']),
+            ];
         }, 3);
     }
 

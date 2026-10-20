@@ -23,6 +23,7 @@ class TicketAttachmentController extends Controller
             $request->user(),
             $request->safe()->only(['file', 'caption']),
             $request->attributes->get(EnforceIdempotency::KEY_ATTRIBUTE),
+            $request->attributes->get(EnsureCustomerAccess::CUSTOMER_ATTRIBUTE) !== null,
         );
         $media->setRelation('model', $ticket);
 

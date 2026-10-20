@@ -74,7 +74,7 @@ class ProfileAndSubscriptionsTest extends TestCase
             ->json('data.0');
 
         $this->assertSame([
-            'id', 'code', 'status', 'suspension_reason', 'suspended_at', 'package', 'sla_tier', 'pppoe_username', 'mrc_amount', 'installation_address',
+            'id', 'code', 'status', 'suspension_reason', 'suspended_at', 'reactivation_holds', 'package', 'sla_tier', 'pppoe_username', 'mrc_amount', 'installation_address',
             'activation_date', 'billing_day', 'next_invoice_date', 'contract_months', 'expiration_date',
         ], array_keys($list));
         $this->assertSame(['id', 'name', 'category', 'download_mbps', 'upload_mbps', 'speed_label'], array_keys($list['package']));
@@ -83,6 +83,7 @@ class ProfileAndSubscriptionsTest extends TestCase
         $this->assertSame(ServicePackage::withoutCompany()->whereKey($subscription->service_package_id)->value('public_id'), $list['package']['id']);
         $this->assertSame(['id' => $this->bisnisCategory($customer)->public_id, 'name' => 'Bisnis'], $list['package']['category']);
         $this->assertSame(['address', 'city', 'label', 'lat', 'lng'], array_keys($list['installation_address']));
+        $this->assertSame([], $list['reactivation_holds'], 'an active subscription is held by nothing');
         $this->assertNoForbiddenKeys($list);
 
         $this->api('GET', 'customer/subscriptions/'.$subscription->public_id, token: $this->issueToken($user, 'customer'))

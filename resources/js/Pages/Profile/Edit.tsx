@@ -5,6 +5,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import GuestLayout from '@/Layouts/GuestLayout';
 import type { PageProps } from '@/types';
 import DeleteUserForm from './Partials/DeleteUserForm';
+import NotificationPreferencesForm from './Partials/NotificationPreferencesForm';
 import TwoFactorAuthenticationForm, {
     type TwoFactorStatus,
 } from './Partials/TwoFactorAuthenticationForm';
@@ -15,8 +16,14 @@ export default function Edit({
     mustVerifyEmail,
     status,
     twoFactor,
+    notificationPreferences,
     appOnly,
-}: PageProps<{ mustVerifyEmail: boolean; status?: string; twoFactor: TwoFactorStatus }>) {
+}: PageProps<{
+    mustVerifyEmail: boolean;
+    status?: string;
+    twoFactor: TwoFactorStatus;
+    notificationPreferences: { inventory_digest: boolean; eligible: boolean };
+}>) {
     const sections = (
         <div className="grid gap-6 xl:grid-cols-2">
             <Card>
@@ -39,6 +46,16 @@ export default function Edit({
                     <TwoFactorAuthenticationForm twoFactor={twoFactor} />
                 </CardContent>
             </Card>
+
+            {notificationPreferences.eligible && (
+                <Card className="xl:col-span-2">
+                    <CardContent className="pt-6">
+                        <NotificationPreferencesForm
+                            inventoryDigest={notificationPreferences.inventory_digest}
+                        />
+                    </CardContent>
+                </Card>
+            )}
 
             <Card className="xl:col-span-2">
                 <CardContent className="pt-6">

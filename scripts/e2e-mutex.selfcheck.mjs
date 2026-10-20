@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import {
     existsSync,
+    mkdirSync,
     mkdtempSync,
     readFileSync,
     readdirSync,
@@ -212,6 +213,7 @@ test('review blocker: malformed WMIC CreationDate never proves PID reuse or deat
 
     assert.equal(
         getProcessStartToken(1234, {
+            _platform: 'win32',
             _spawnSync: () => ({
                 status: 0,
                 stdout: 'Node,CreationDate\r\nNODE,20260829130000.000000+000\r\n',
@@ -220,6 +222,204 @@ test('review blocker: malformed WMIC CreationDate never proves PID reuse or deat
         }),
         null,
     );
+});
+
+// A fake /proc: the boot id and one stat line per pid. Field 22 of a stat line is the start time in clock ticks since boot.
+const BOOT_ID = '5e332119-6a6c-4988-8dad-f851df4f5347';
+const LINUX_TOKEN = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}:\d+$/;
+const statLine = (pid, comm, start) =>
+    `${pid} (${comm}) S 1 ${pid} ${pid} 0 -1 4194560 100 0 0 0 1 2 0 0 20 0 1 0 ${start} 12345678 100 18446744073709551615 1 1 0 0 0 0 0 0 0 0 0 0 17 0 0 0 0 0 0 0 0 0 0 0 0 0 0\n`;
+
+function fakeProc(stats, bootId = `${BOOT_ID}\n`) {
+    const root = mkdtempSync(join(tmpdir(), 'inbils-proc-'));
+    mkdirSync(join(root, 'sys/kernel/random'), { recursive: true });
+    if (bootId !== null) writeFileSync(join(root, 'sys/kernel/random/boot_id'), bootId);
+    for (const [pid, stat] of Object.entries(stats)) {
+        mkdirSync(join(root, String(pid)), { recursive: true });
+        writeFileSync(join(root, String(pid), 'stat'), stat);
+    }
+    return root;
+}
+
+test('Linux start token is the boot id and the process start time read from /proc', () => {
+    const proc = fakeProc({
+        4242: statLine(4242, 'node', 9428346),
+        // The command name is free text: spaces and parentheses must not shift the fields after it.
+        4243: statLine(4243, 'tricky ) name (x', 77),
+    });
+
+    try {
+        const linux = { _platform: 'linux', _procRoot: proc };
+        assert.equal(getProcessStartToken(4242, linux), `${BOOT_ID}:9428346`);
+        assert.equal(getProcessStartToken(4243, linux), `${BOOT_ID}:77`);
+        assert.equal(getProcessStartToken(4244, linux), null, 'no /proc entry, no token');
+        assert.equal(getProcessStartToken(4242, { _platform: 'darwin', _procRoot: proc }), null);
+
+        writeFileSync(join(proc, '4242', 'stat'), 'not a stat line');
+        assert.equal(getProcessStartToken(4242, linux), null, 'a stat line that does not parse is no token');
+        writeFileSync(join(proc, '4242', 'stat'), statLine(4242, 'node', 'abc'));
+        assert.equal(getProcessStartToken(4242, linux), null, 'a start time that is not a number is no token');
+    } finally {
+        rmSync(proc, { recursive: true, force: true });
+    }
+
+    const noBoot = fakeProc({ 4242: statLine(4242, 'node', 5) }, null);
+    const badBoot = fakeProc({ 4242: statLine(4242, 'node', 5) }, 'not-a-boot-id\n');
+    try {
+        assert.equal(getProcessStartToken(4242, { _platform: 'linux', _procRoot: noBoot }), null);
+        assert.equal(getProcessStartToken(4242, { _platform: 'linux', _procRoot: badBoot }), null);
+    } finally {
+        rmSync(noBoot, { recursive: true, force: true });
+        rmSync(badBoot, { recursive: true, force: true });
+    }
+});
+
+test('on a real Linux host the token of a live process is stable and a dead pid has none', { skip: process.platform !== 'linux' }, () => {
+    const token = getProcessStartToken(process.pid);
+
+    assert.match(token, LINUX_TOKEN);
+    assert.equal(getProcessStartToken(process.pid), token);
+    assert.equal(getProcessStartToken(999999), null);
+});
+
+test('Linux liveness compares the recorded token: same process alive, any other means the pid was reused', () => {
+    const proc = fakeProc({ [process.pid]: statLine(process.pid, 'node', 500) });
+
+    try {
+        const probe = (expectedStartToken, procRoot = proc) =>
+            probeProcessLiveness(process.pid, { _platform: 'linux', _procRoot: procRoot, expectedStartToken });
+
+        const same = probe(`${BOOT_ID}:500`);
+        assert.equal(same.state, 'alive');
+        assert.equal(same.identityVerified, true);
+
+        for (const other of [`${BOOT_ID}:499`, '11111111-1111-1111-1111-111111111111:500']) {
+            const reused = probe(other);
+            assert.equal(reused.state, 'dead', other);
+            assert.equal(reused.reason, 'pid-reused-by-another-process', other);
+        }
+
+        const unreadable = probe(`${BOOT_ID}:500`, join(proc, 'missing'));
+        assert.equal(unreadable.state, 'alive', 'an identity that cannot be read never proves the pid dead');
+        assert.equal(unreadable.identityVerified, false);
+
+        const foreign = probe('20260829120000.000000+000');
+        assert.equal(foreign.state, 'alive', 'a token of another platform keeps the earlier answer');
+        assert.equal(foreign.identityVerified, true);
+    } finally {
+        rmSync(proc, { recursive: true, force: true });
+    }
+});
+
+// What a canonical run needs from the lock on Linux: pgrep finds no children and no port is held.
+const linuxLockOptions = (proc, extra = {}) => ({
+    _platform: 'linux',
+    _procRoot: proc,
+    _spawnSync: (cmd) =>
+        cmd === 'pgrep' ? { status: 1, stdout: '', stderr: '' } : { status: 0, stdout: '', stderr: '' },
+    _probePortListener: () => ({ state: 'free' }),
+    ...extra,
+});
+
+const linuxStalePayload = (ownerPid, startToken) => ({
+    nonce: `linux-stale-${ownerPid}`,
+    ownerPid,
+    processStartToken: startToken,
+    schema: 'inbils_test',
+    runner: 'stale-runner',
+    acquiredAt: new Date(Date.now() - 3600000).toISOString(),
+});
+
+test('F0-D01: a dead owner that recorded a Linux start token is reclaimed on Linux', () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'inbils-linux-reclaim-'));
+    const lockPath = join(tempDir, 'canonical-e2e.lock');
+    const proc = fakeProc({ [process.pid]: statLine(process.pid, 'node', 800) });
+
+    try {
+        writeFileSync(lockPath, JSON.stringify(linuxStalePayload(999999, `${BOOT_ID}:321`), null, 2));
+
+        const lock = acquireCanonicalMutex({
+            lockPath,
+            schema: 'inbils_test',
+            pid: process.pid,
+            runner: 'new-runner',
+            ...linuxLockOptions(proc),
+        });
+
+        const payload = readLockPayload(lockPath);
+        assert.equal(payload.runner, 'new-runner');
+        assert.equal(payload.processStartToken, `${BOOT_ID}:800`, 'the new lock records the owner identity too');
+        assert.equal(lock.release(), true);
+    } finally {
+        rmSync(proc, { recursive: true, force: true });
+        rmSync(tempDir, { recursive: true, force: true });
+    }
+});
+
+test('F0-D01: a live pid that now belongs to another process does not hold the lock on Linux', () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'inbils-linux-reused-'));
+    const lockPath = join(tempDir, 'canonical-e2e.lock');
+    // The pid in the lock is alive, but started long after the run that wrote the lock.
+    const proc = fakeProc({ [process.pid]: statLine(process.pid, 'node', 900) });
+
+    try {
+        writeFileSync(lockPath, JSON.stringify(linuxStalePayload(process.pid, `${BOOT_ID}:100`), null, 2));
+
+        const lock = acquireCanonicalMutex({
+            lockPath,
+            schema: 'inbils_test',
+            pid: 12345,
+            processStartToken: `${BOOT_ID}:5`,
+            runner: 'new-runner',
+            ...linuxLockOptions(proc),
+        });
+
+        assert.equal(readLockPayload(lockPath).runner, 'new-runner');
+        lock.release();
+    } finally {
+        rmSync(proc, { recursive: true, force: true });
+        rmSync(tempDir, { recursive: true, force: true });
+    }
+});
+
+test('F0-D01: the very process that wrote the lock still holds it on Linux', () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'inbils-linux-alive-'));
+    const lockPath = join(tempDir, 'canonical-e2e.lock');
+    const proc = fakeProc({ [process.pid]: statLine(process.pid, 'node', 900) });
+
+    try {
+        writeFileSync(lockPath, JSON.stringify(linuxStalePayload(process.pid, `${BOOT_ID}:900`), null, 2));
+
+        assert.throws(
+            () =>
+                acquireCanonicalMutex({
+                    lockPath,
+                    schema: 'inbils_test',
+                    pid: 12345,
+                    processStartToken: `${BOOT_ID}:5`,
+                    ...linuxLockOptions(proc),
+                }),
+            /Refusing concurrent canonical E2E run: lock is currently held by active process/,
+        );
+        assert.equal(readLockPayload(lockPath).nonce, `linux-stale-${process.pid}`);
+    } finally {
+        rmSync(proc, { recursive: true, force: true });
+        rmSync(tempDir, { recursive: true, force: true });
+    }
+});
+
+test('a lock taken on a real Linux host records the start token of its owner', { skip: process.platform !== 'linux' }, () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'inbils-linux-token-'));
+    const lockPath = join(tempDir, 'canonical-e2e.lock');
+
+    try {
+        const lock = acquireCanonicalMutex({ lockPath, schema: 'inbils_test', pid: process.pid });
+
+        assert.match(readLockPayload(lockPath).processStartToken, LINUX_TOKEN);
+        lock.release();
+    } finally {
+        rmSync(tempDir, { recursive: true, force: true });
+    }
 });
 
 test('acquireCanonicalMutex acquires lock with nonce, stores metadata, and releases cleanly', () => {

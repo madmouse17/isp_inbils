@@ -2,6 +2,7 @@
 
 namespace Modules\Ticketing\Services;
 
+use App\Exceptions\ApiException;
 use App\Models\Core\Customer;
 use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
@@ -9,10 +10,12 @@ use App\Models\User;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
+use App\Support\Notifications\StaffRecipients;
 use App\Support\OptimisticLock;
 use App\Support\RecordNotFound;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
@@ -26,6 +29,7 @@ use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Models\TicketComment;
 use Modules\Ticketing\Notifications\TicketAssignedNotification;
 use Modules\Ticketing\Notifications\TicketCustomerUpdateNotification;
+use Modules\Ticketing\Notifications\TicketStaffNotification;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
@@ -64,6 +68,10 @@ class TicketService
             ], $ticket);
 
             self::notifyCustomer($ticket, 'created');
+            Notification::send(
+                StaffRecipients::holding($ticket->company_id, 'ticket.assign', $createdBy),
+                new TicketStaffNotification($ticket->company_id, $ticket->id, 'created'),
+            );
 
             return $ticket->fresh();
         });
@@ -250,27 +258,124 @@ class TicketService
             self::assertAssignedActor($ticket, 'ticket.start');
             self::throwStatusConflictIfChanged($ticket, $expectedStatus, 'assigned', 'Konflik: status tiket sudah diubah oleh pengguna lain.');
             abort_if($ticket->status !== 'assigned', 422, 'Tiket harus berstatus ditugaskan untuk bisa dimulai.');
-            $ticket->update([
-                'status' => 'on_progress',
-                'first_response_at' => $ticket->first_response_at ?? now(),
-            ]);
+            // A public reply may have answered the customer before the handler pressed Mulai: then that reply stays the first response.
+            $firstResponse = $ticket->first_response_at === null ? ['first_response_at' => now(), 'first_response_source' => 'start'] : [];
+            $ticket->update(['status' => 'on_progress', ...$firstResponse]);
 
             AuditService::log('ticket', 'started', ['code' => $ticket->code], $ticket);
+
+            self::notifyCustomer($ticket, 'started');
 
             return $ticket->fresh();
         });
     }
 
+    /**
+     * A comment by staff. A closed ticket takes none. The first public one is the first response, unless Mulai came first,
+     * and the customer hears of every public one. An internal note does neither.
+     *
+     * @param  array{body: string, is_internal?: bool}  $data
+     */
     public static function addComment(Ticket $ticket, array $data, int $authorId): TicketComment
     {
         self::assertCompany($ticket);
 
-        return TicketComment::create([
-            'ticket_id' => $ticket->id,
-            'author_id' => $authorId,
-            'body' => $data['body'],
-            'is_internal' => $data['is_internal'] ?? false,
+        return DB::transaction(function () use ($ticket, $data, $authorId): TicketComment {
+            $ticket = self::lockedTicket($ticket->id);
+            abort_if($ticket->status === 'closed', 422, 'Tiket sudah ditutup.');
+
+            $internal = (bool) ($data['is_internal'] ?? false);
+            $comment = TicketComment::create([
+                'ticket_id' => $ticket->id,
+                'author_id' => $authorId,
+                'body' => $data['body'],
+                'is_internal' => $internal,
+            ]);
+
+            if (! $internal) {
+                if ($ticket->first_response_at === null) {
+                    $ticket->update(['first_response_at' => now(), 'first_response_source' => 'reply']);
+                }
+
+                self::notifyCustomer($ticket, 'replied', $authorId);
+            }
+
+            return $comment;
+        });
+    }
+
+    /**
+     * The customer's reply from the app. A closed ticket takes none; a resolved one comes back to its handler (to dispatch
+     * when it has none). Either way the handler and dispatch hear of it. It is never a response by staff.
+     *
+     * @param  array{body: string}  $data
+     */
+    public static function addCustomerReply(Ticket $ticket, array $data, User $customerUser): TicketComment
+    {
+        self::assertCompany($ticket);
+
+        return DB::transaction(function () use ($ticket, $data, $customerUser): TicketComment {
+            $ticket = self::lockedTicket($ticket->id);
+            self::assertOpenForCustomer($ticket);
+
+            $comment = TicketComment::create([
+                'ticket_id' => $ticket->id,
+                'author_id' => $customerUser->id,
+                'body' => $data['body'],
+                'is_internal' => false,
+            ]);
+
+            $reopens = $ticket->status === 'resolved';
+            if ($reopens) {
+                self::reopen($ticket, 'customer');
+            }
+
+            Notification::send(
+                self::staffWatching($ticket),
+                new TicketStaffNotification($ticket->company_id, $ticket->id, $reopens ? 'reopened' : 'customer_replied'),
+            );
+
+            return $comment;
+        });
+    }
+
+    /**
+     * A resolved ticket goes back to work: assigned when it still has a handler, else open. The resolution leaves the
+     * ticket and stays in the audit row; the targets are not restarted. Expects the ticket row locked by the caller.
+     */
+    public static function reopen(Ticket $ticket, string $by): Ticket
+    {
+        $previousStatus = $ticket->status;
+        $resolutionNote = $ticket->resolution_note;
+
+        $ticket->update([
+            'status' => $ticket->assigned_to === null ? 'open' : 'assigned',
+            'resolved_at' => null,
+            'resolution_note' => null,
+            'reopened_at' => now(),
         ]);
+
+        AuditService::log('ticket', 'reopened', [
+            'previous_status' => $previousStatus,
+            'resolution_note' => $resolutionNote,
+            'by' => $by,
+        ], $ticket);
+
+        return $ticket;
+    }
+
+    /**
+     * Whoever must hear that something reached a ticket: its handler while active, and dispatch (the holders of
+     * ticket.assign), each once.
+     *
+     * @return EloquentCollection<int, User>
+     */
+    public static function staffWatching(Ticket $ticket): EloquentCollection
+    {
+        $dispatch = StaffRecipients::holding((int) $ticket->company_id, 'ticket.assign');
+        $handler = $ticket->assigned_to === null ? null : User::query()->where('is_active', true)->find($ticket->assigned_to);
+
+        return $handler === null ? $dispatch : $dispatch->push($handler)->unique('id')->values();
     }
 
     /**
@@ -310,16 +415,20 @@ class TicketService
 
     /**
      * Files go to the private disk. The Idempotency-Key is kept on the media, so a retry that outlives the
-     * response cache still finds the file it already stored instead of adding a second one.
+     * response cache still finds the file it already stored instead of adding a second one. A customer's upload
+     * is refused once the ticket is closed, like their reply.
      *
      * @param  array{file: UploadedFile, caption?: ?string}  $data
      */
-    public static function addAttachment(Ticket $ticket, User $actor, array $data, ?string $idempotencyKey = null): Media
+    public static function addAttachment(Ticket $ticket, User $actor, array $data, ?string $idempotencyKey = null, bool $asCustomer = false): Media
     {
-        return DB::transaction(function () use ($ticket, $actor, $data, $idempotencyKey): Media {
+        return DB::transaction(function () use ($ticket, $actor, $data, $idempotencyKey, $asCustomer): Media {
             $ticket = self::lockedTicket($ticket->id);
             self::assertCompany($ticket);
             self::assertMayAttach($actor, $ticket);
+            if ($asCustomer) {
+                self::assertOpenForCustomer($ticket);
+            }
 
             if ($idempotencyKey !== null) {
                 $existing = $ticket->getMedia('attachments')->first(
@@ -412,6 +521,8 @@ class TicketService
 
             AuditService::log('ticket', 'closed', ['code' => $ticket->code], $ticket);
 
+            self::notifyCustomer($ticket, 'closed');
+
             return $ticket->fresh();
         });
     }
@@ -472,15 +583,24 @@ class TicketService
     }
 
     /**
-     * WhatsApp to the ticket's customer, when it has one. The notification is queued after the surrounding
-     * transaction commits, so a change that rolls back tells nobody.
+     * The ticket's customer hears of a stage in the bell and on the phone, and on WhatsApp for the stages that have a
+     * template. The notification is queued after the surrounding transaction commits, so a change that rolls back
+     * tells nobody. Whoever caused the stage is not told of their own act.
      */
-    private static function notifyCustomer(Ticket $ticket, string $stage): void
+    private static function notifyCustomer(Ticket $ticket, string $stage, ?int $exceptUserId = null): void
     {
         $customer = $ticket->customer_id === null ? null : Customer::query()->find($ticket->customer_id);
 
-        if ($customer !== null) {
+        if ($customer !== null && ($exceptUserId === null || (int) $customer->user_id !== $exceptUserId)) {
             Notification::send($customer, new TicketCustomerUpdateNotification($ticket->company_id, $ticket->id, $stage));
+        }
+    }
+
+    /** A closed ticket takes nothing more from its customer, who is pointed to a new one. */
+    private static function assertOpenForCustomer(Ticket $ticket): void
+    {
+        if ($ticket->status === 'closed') {
+            throw new ApiException(422, 'ticket_closed', 'Tiket ditutup. Masih bermasalah? Buat tiket baru.');
         }
     }
 

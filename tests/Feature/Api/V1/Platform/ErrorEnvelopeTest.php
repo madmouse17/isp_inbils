@@ -31,7 +31,7 @@ class ErrorEnvelopeTest extends TestCase
             Route::get('forbidden', fn () => abort(403, 'You may not.'));
             Route::get('validation', fn (Request $request) => $request->validate(['name' => ['required'], 'age' => ['integer']]));
             Route::get('missing-model', fn () => User::query()->findOrFail(0));
-            Route::get('stock', fn () => throw InsufficientStockException::forIssue(5, 2));
+            Route::get('stock', fn () => throw InsufficientStockException::forShortfall(5, 2, 'Kabel Drop', 'm', 'Gudang A'));
             Route::get('domain', fn () => throw new ApiException(403, 'app_not_allowed', 'Not in this app.', ['X-Probe' => 'yes']));
             Route::get('payload', fn () => abort(413));
             Route::get('gone', fn () => abort(410, 'Retired.'));
@@ -102,7 +102,7 @@ class ErrorEnvelopeTest extends TestCase
         $response = $this->getJson('/api/v1/_probe/stock');
 
         $this->assertEnvelope($response, 422, 'unprocessable');
-        $response->assertJsonPath('message', 'Stok tidak mencukupi. Diminta: 5, Tersedia: 2.');
+        $response->assertJsonPath('message', 'Stok Kabel Drop di Gudang A tersisa 2 m, dibutuhkan 5 m.');
     }
 
     public function test_a_domain_exception_carries_its_own_code_and_headers(): void

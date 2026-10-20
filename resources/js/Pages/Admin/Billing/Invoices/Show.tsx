@@ -22,11 +22,16 @@ import {
     THead,
     TR,
 } from '@/Components/ui';
-import { PageHeader } from '@/Components/composite';
+import { PageHeader, RefundAttemptDialog, type RefundTarget } from '@/Components/composite';
 import { ConfirmDialog } from '@/Components/composite/ConfirmDialog';
 import { useCompany } from '@/hooks/useCompany';
-import { usePermission } from '@/hooks/usePermission';
-import { formatDate, formatDateTime, formatRupiah } from '@/lib/format';
+import {
+    formatDate,
+    formatDateTime,
+    formatDecimal,
+    formatPercent,
+    formatRupiah,
+} from '@/lib/format';
 import {
     INVOICE_SOURCE,
     INVOICE_STATUS,
@@ -36,8 +41,7 @@ import {
     PAYMENT_METHOD,
     PAYMENT_STATE,
 } from '@/lib/statuses';
-import type { Invoice } from '@/types/billing';
-import type { PaymentAttemptEntry } from '@/types/portal';
+import type { Invoice, InvoiceCan, InvoiceItemEntry, InvoicePaymentAttempt } from '@/types/billing';
 
 /** What the invoice printed when it was issued; null on a draft and on invoices that predate the snapshot. */
 interface InvoiceSnapshots {
@@ -49,21 +53,25 @@ interface InvoiceSnapshots {
 
 interface ShowProps extends Record<string, unknown> {
     invoice: { data: Invoice & InvoiceSnapshots };
-    onlinePayments: { enabled: boolean; attempts: { data: PaymentAttemptEntry[] } };
+    onlinePayments: { enabled: boolean; attempts: { data: InvoicePaymentAttempt[] } };
+    can: InvoiceCan;
 }
 
 // Staff record these; `midtrans` is written only by the payment gateway (RecordPaymentRequest).
 const MANUAL_METHODS = optionsOf(PAYMENT_METHOD).filter((option) => option.value !== 'midtrans');
 
-export default function Show({ invoice, onlinePayments }: ShowProps) {
+export default function Show({ invoice, onlinePayments, can }: ShowProps) {
     const inv = invoice.data;
     const attempts = onlinePayments.attempts.data;
+    const items = inv.items ?? [];
     const company = useCompany();
-    const { can } = usePermission();
     const [paymentModal, setPaymentModal] = useState(false);
     const [itemModal, setItemModal] = useState(false);
     const [cancelModal, setCancelModal] = useState(false);
     const [reverseTarget, setReverseTarget] = useState<string | null>(null);
+    const [refundTarget, setRefundTarget] = useState<RefundTarget | null>(null);
+    const [removeTarget, setRemoveTarget] = useState<InvoiceItemEntry | null>(null);
+    const [removing, setRemoving] = useState(false);
     const [sendOpen, setSendOpen] = useState(false);
     const [sending, setSending] = useState(false);
     const { data, setData, post, processing, reset, errors } = useForm({
@@ -88,9 +96,15 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
         !isDraft &&
         Boolean(inv.customer_name_snapshot) &&
         inv.customer_name_snapshot !== inv.customer?.name;
+    const canSend = isDraft && can.send;
+    const canEditItems = isDraft && can.update;
     const canRecordPayment =
-        ['sent', 'partial', 'overdue'].includes(inv.status) && Number(inv.sisa) > 0;
-    const canCancel = !['cancelled', 'paid'].includes(inv.status);
+        can.record_payment &&
+        ['sent', 'partial', 'overdue'].includes(inv.status) &&
+        Number(inv.sisa) > 0;
+    const canCancel = can.cancel && !['cancelled', 'paid'].includes(inv.status);
+    // The server refuses a draft with nothing to bill; the button says why before it is pressed.
+    const nothingToSend = isDraft && (items.length === 0 || Number(inv.total) <= 0);
 
     const submitPayment = (e: FormEvent) => {
         e.preventDefault();
@@ -270,21 +284,35 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                     </Card>
                 </div>
 
-                {(isDraft || canRecordPayment || canCancel) && (
+                {(canSend || canEditItems || canRecordPayment || canCancel) && (
                     <Card>
                         <CardHeader>
                             <CardTitle>Aksi</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="flex flex-wrap gap-2">
-                                {isDraft && (
-                                    <Button
-                                        type="button"
-                                        variant="primary"
-                                        onClick={() => setSendOpen(true)}
-                                    >
-                                        Kirim tagihan
-                                    </Button>
+                            <div className="flex flex-wrap items-start gap-2">
+                                {canSend && (
+                                    <div className="space-y-1">
+                                        <Button
+                                            type="button"
+                                            variant="primary"
+                                            disabled={nothingToSend}
+                                            aria-describedby={
+                                                nothingToSend ? 'send-blocked' : undefined
+                                            }
+                                            onClick={() => setSendOpen(true)}
+                                        >
+                                            Kirim tagihan
+                                        </Button>
+                                        {nothingToSend && (
+                                            <p
+                                                id="send-blocked"
+                                                className="max-w-xs text-sm text-muted-foreground"
+                                            >
+                                                Tambahkan minimal satu item sebelum mengirim.
+                                            </p>
+                                        )}
+                                    </div>
                                 )}
                                 {canRecordPayment && (
                                     <Button
@@ -295,7 +323,7 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                                         Catat pembayaran
                                     </Button>
                                 )}
-                                {isDraft && (
+                                {canEditItems && (
                                     <Button
                                         type="button"
                                         variant="outline"
@@ -352,29 +380,50 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                                     <TH>Diskon</TH>
                                     <TH>Pajak</TH>
                                     <TH>Total baris</TH>
+                                    {canEditItems && (
+                                        <TH>
+                                            <span className="sr-only">Aksi</span>
+                                        </TH>
+                                    )}
                                 </TR>
                             </THead>
                             <TBody>
-                                {(inv.items ?? []).length === 0 ? (
+                                {items.length === 0 ? (
                                     <TR>
                                         <TD
-                                            colSpan={6}
+                                            colSpan={canEditItems ? 7 : 6}
                                             className="text-center text-muted-foreground"
                                         >
                                             Tidak ada item.
                                         </TD>
                                     </TR>
                                 ) : (
-                                    (inv.items ?? []).map((i) => (
+                                    items.map((i) => (
                                         <TR key={i.id}>
                                             <TD>{i.description}</TD>
-                                            <TD>{Number(i.quantity)}</TD>
+                                            <TD>{formatDecimal(i.quantity, 2)}</TD>
                                             <TD>{formatRupiah(i.unit_price, company)}</TD>
                                             <TD>{formatRupiah(i.discount_amount, company)}</TD>
-                                            <TD>{Number(i.tax_rate)}%</TD>
+                                            <TD>{formatPercent(i.tax_rate, 2)}</TD>
                                             <TD className="font-medium">
                                                 {formatRupiah(i.line_total, company)}
                                             </TD>
+                                            {canEditItems && (
+                                                <TD>
+                                                    <Button
+                                                        type="button"
+                                                        variant="destructive-outline"
+                                                        size="sm"
+                                                        onClick={() => setRemoveTarget(i)}
+                                                    >
+                                                        Hapus
+                                                        <span className="sr-only">
+                                                            {' '}
+                                                            item {i.description}
+                                                        </span>
+                                                    </Button>
+                                                </TD>
+                                            )}
                                         </TR>
                                     ))
                                 )}
@@ -431,17 +480,16 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                                                 />
                                             </TD>
                                             <TD>
-                                                {!p.cancelled_at &&
-                                                    can('billing.payment.reverse') && (
-                                                        <Button
-                                                            type="button"
-                                                            variant="destructive-outline"
-                                                            size="sm"
-                                                            onClick={() => setReverseTarget(p.id)}
-                                                        >
-                                                            Batalkan pembayaran
-                                                        </Button>
-                                                    )}
+                                                {!p.cancelled_at && can.reverse_payment && (
+                                                    <Button
+                                                        type="button"
+                                                        variant="destructive-outline"
+                                                        size="sm"
+                                                        onClick={() => setReverseTarget(p.id)}
+                                                    >
+                                                        Batalkan pembayaran
+                                                    </Button>
+                                                )}
                                             </TD>
                                         </TR>
                                     ))
@@ -456,8 +504,8 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                         <CardHeader>
                             <CardTitle>Pembayaran online</CardTitle>
                             <CardDescription>
-                                Percobaan pembayaran lewat Midtrans untuk tagihan ini. Hanya bisa
-                                dilihat: pembayaran baru tercatat setelah Midtrans mengonfirmasinya.
+                                Percobaan pembayaran lewat Midtrans untuk tagihan ini. Pembayaran
+                                baru tercatat setelah Midtrans mengonfirmasinya.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -496,6 +544,43 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                                                         >
                                                             Alasan: {a.status_reason}
                                                         </p>
+                                                    )}
+                                                    {a.refund && (
+                                                        <div className="space-y-0.5 mt-1 max-w-xs text-xs break-words text-muted-foreground">
+                                                            <p>
+                                                                Dikembalikan{' '}
+                                                                {formatDateTime(
+                                                                    a.refund.at,
+                                                                    company,
+                                                                )}
+                                                                {a.refund.by
+                                                                    ? ` oleh ${a.refund.by}`
+                                                                    : ''}
+                                                            </p>
+                                                            {a.refund.reference && (
+                                                                <p>Ref {a.refund.reference}</p>
+                                                            )}
+                                                            {a.refund.note && (
+                                                                <p>Catatan: {a.refund.note}</p>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                    {a.status === 'exception' && can.refund && (
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="mt-2"
+                                                            onClick={() =>
+                                                                setRefundTarget({
+                                                                    id: a.id,
+                                                                    invoiceNumber: inv.number,
+                                                                    amount: a.amount,
+                                                                })
+                                                            }
+                                                        >
+                                                            Tandai dikembalikan
+                                                        </Button>
                                                     )}
                                                 </TD>
                                                 <TD className="font-medium">
@@ -692,6 +777,30 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                         </div>
                     </form>
                 </Modal>
+
+                <RefundAttemptDialog target={refundTarget} onClose={() => setRefundTarget(null)} />
+
+                <ConfirmDialog
+                    open={removeTarget !== null}
+                    title={`Hapus item ${removeTarget?.description ?? ''}?`}
+                    description="Total tagihan dihitung ulang tanpa item ini."
+                    confirmLabel="Hapus item"
+                    tone="danger"
+                    processing={removing}
+                    onConfirm={() => {
+                        if (!removeTarget) return;
+                        router.delete(
+                            route('admin.invoices.items.destroy', [inv.id, removeTarget.id]),
+                            {
+                                preserveScroll: true,
+                                onStart: () => setRemoving(true),
+                                onSuccess: () => setRemoveTarget(null),
+                                onFinish: () => setRemoving(false),
+                            },
+                        );
+                    }}
+                    onClose={() => setRemoveTarget(null)}
+                />
             </div>
         </AdminLayout>
     );

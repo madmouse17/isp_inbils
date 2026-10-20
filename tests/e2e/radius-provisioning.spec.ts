@@ -4,8 +4,9 @@
  * Two describes in one file, picked by E2E_RADIUS_LAB:
  *
  * 1. CI (default, DEMO has no RADIUS integration row): every server-side RADIUS call is skipped, so the pages show
- *    the honest state ("Menunggu ditulis", accounts "Menunggu" with the missing integration as the reason). The engine
- *    against a fake RADIUS database is covered by tests/Feature/NetworkAsset; this drives the UI.
+ *    the honest state (routers "RADIUS belum dikonfigurasi", accounts "Menunggu" with the missing integration as the
+ *    reason, toasts that say a change was saved but not sent). The engine against a fake RADIUS database is covered by
+ *    tests/Feature/NetworkAsset; this drives the UI.
  *    Flow: register NAS (secret never shown again) -> router page -> edit keeps the stored secret -> account
  *    with realm suffix and one-time secret -> reveal -> Block/Unblock on Subscriptions/Show -> Block/Unblock
  *    next to Isolir on Receivables -> public isolir page -> role gates (403 from the server) -> layouts at
@@ -66,7 +67,15 @@ const REGISTERED_ROUTER_ASSET = 'E2E-ROUTER-002';
 const SUBSCRIPTION = 'E2E-LINKED-SUB';
 const CUSTOMER = 'E2E Linked Customer';
 const REALM = 'demo';
-const SWITCH_OFF_REASON = 'RADIUS belum dikonfigurasi untuk perusahaan ini (Pengaturan → Integrasi).';
+const SWITCH_OFF_REASON =
+    'RADIUS belum dikonfigurasi untuk perusahaan ini (Pengaturan → Integrasi).';
+const SWITCH_OFF_BADGE = 'RADIUS belum dikonfigurasi';
+const SAVED_NOT_SENT_TO_RADIUS =
+    'Tersimpan, tetapi belum dikirim ke RADIUS karena RADIUS belum dikonfigurasi untuk perusahaan ini.';
+// The customer app listing tests/e2e/setup.php gives the demo company; the isolir page links to it.
+const CUSTOMER_PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=id.inbils.customer';
+// Contact fields of the company profile form: the isolir page test fills them and then puts the fixture's own back.
+const CONTACT_FIELDS = ['Telepon', 'Email', 'Situs web', 'WhatsApp', 'Jam layanan'] as const;
 const ORIGIN = 'http://127.0.0.1:8010';
 const FAKE_NAS_SECRET = 'e2e-fake-nas-secret';
 
@@ -157,7 +166,7 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await expect(mainOf(page).getByRole('heading', { name: 'Router NAS' })).toBeVisible();
         const fixture = page.getByRole('row').filter({ hasText: REGISTERED_ROUTER_ASSET });
         await expect(fixture).toContainText('10.99.9.2');
-        await expect(fixture).toContainText('Menunggu ditulis');
+        await expect(fixture).toContainText(SWITCH_OFF_BADGE);
         await expect(page.getByRole('row').filter({ hasText: ROUTER_ASSET })).toHaveCount(0);
 
         await page.getByLabel('Cari', { exact: true }).fill('10.99.9.2');
@@ -211,6 +220,7 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
             mainOf(page).getByRole('heading', { name: `Router NAS ${ROUTER_ASSET}` }),
         ).toBeVisible();
         await expect(page.getByText('Router NAS didaftarkan.')).toBeVisible();
+        await expect(page.getByText(SAVED_NOT_SENT_TO_RADIUS)).toBeVisible();
     });
 
     test('the router page shows the restart notice, the switch banner and the isolir URL, never the secret', async ({
@@ -222,7 +232,7 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await page.goto(`/admin/nas-devices/${state.routerId}`);
 
         // The row is saved, but nothing reached RADIUS: the page says so and why.
-        await expect(detail(page, 'Klien RADIUS')).toContainText('Gagal ditulis');
+        await expect(detail(page, 'Klien RADIUS')).toContainText(SWITCH_OFF_BADGE);
         await expect(detail(page, 'Terakhir ditulis')).toHaveText('Belum pernah');
         await expect(
             page.getByRole('alert').filter({ hasText: 'Kesalahan terakhir' }),
@@ -281,6 +291,7 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await page.getByRole('button', { name: 'Simpan router' }).click();
         await expect(page).toHaveURL(new RegExp(`/admin/nas-devices/${state.routerId}$`));
         await expect(page.getByText('Router NAS diperbarui.')).toBeVisible();
+        await expect(page.getByText(SAVED_NOT_SENT_TO_RADIUS)).toBeVisible();
         await expect(detail(page, 'Target CoA')).toHaveText('10.99.9.1:3799');
         await expect(detail(page, 'Secret RADIUS')).toHaveText('Tersimpan');
     });
@@ -402,11 +413,16 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await expect(secretPanel(page)).toHaveCount(0);
 
         await page.getByRole('button', { name: 'Sinkron ulang' }).click();
-        await page
-            .getByRole('alertdialog', { name: /Sinkron ulang akun/ })
-            .getByRole('button', { name: 'Sinkron ulang' })
-            .click();
-        await expect(page.getByText('Sinkron ulang dijadwalkan.')).toBeVisible();
+        const resync = page.getByRole('alertdialog', { name: /Sinkron ulang akun/ });
+        await expect(resync).toContainText(
+            'RADIUS belum dikonfigurasi. Perubahan disimpan dan dikirim ke router setelah RADIUS aktif.',
+        );
+        await resync.getByRole('button', { name: 'Sinkron ulang' }).click();
+        await expect(
+            page.getByText(
+                'Perubahan disimpan, tetapi belum dikirim ke router karena RADIUS belum dikonfigurasi untuk perusahaan ini.',
+            ),
+        ).toBeVisible();
     });
 
     test('Block and Unblock on Subscriptions need a reason, show the badge and isolate the account', async ({
@@ -422,6 +438,9 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await page.keyboard.press('Enter');
         const dialog = page.getByRole('dialog');
         await expect(dialog.getByText(`Blokir internet ${SUBSCRIPTION}?`)).toBeVisible();
+        await expect(dialog).toContainText(
+            'RADIUS belum dikonfigurasi. Blokir disimpan dan dikirim ke router setelah RADIUS aktif.',
+        );
         // The reason is required: nothing is sent while it is empty.
         const submit = dialog.getByRole('button', { name: 'Blokir internet', exact: true });
         await expect(submit).toBeDisabled();
@@ -442,7 +461,11 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
             'Blokir internet',
         );
         expect((await request).postDataJSON()).toMatchObject({ reason: 'E2E abuse report' });
-        await expect(page.getByText('Internet langganan diblokir.')).toBeVisible();
+        await expect(
+            page.getByText(
+                'Blokir disimpan, tetapi belum dikirim ke router karena RADIUS belum dikonfigurasi.',
+            ),
+        ).toBeVisible();
 
         // Reason, author and time are on the page; the status itself is untouched.
         await expect(detail(page, 'Alasan blokir')).toContainText('E2E abuse report');
@@ -471,11 +494,15 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await page.goto(`/admin/subscriptions/${state.subscriptionId}`);
         await page.getByRole('button', { name: 'Buka blokir', exact: true }).click();
         await expect(page.getByRole('dialog')).toContainText(
-            'Sesi pelanggan diputus dan layanan normal kembali saat router menyambung ulang.',
+            'RADIUS belum dikonfigurasi. Pembukaan blokir disimpan dan dikirim ke router setelah RADIUS aktif.',
         );
         // The note is optional.
         await submitBlockModal(page, `Buka blokir internet ${SUBSCRIPTION}?`, '', 'Buka blokir');
-        await expect(page.getByText('Blokir internet langganan dibuka.')).toBeVisible();
+        await expect(
+            page.getByText(
+                'Blokir dibuka, tetapi belum dikirim ke router karena RADIUS belum dikonfigurasi.',
+            ),
+        ).toBeVisible();
         await expect(detail(page, 'Alasan blokir')).toHaveCount(0);
         await expect(
             page.getByRole('button', { name: 'Blokir internet', exact: true }),
@@ -568,13 +595,18 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         );
     });
 
-    test('the public isolir page shows the company, its contacts and the login link only', async ({
+    test('the public isolir page shows the company, both explanations and the ways out, and no login link', async ({
         page,
     }) => {
         test.setTimeout(90_000);
         // Give the company contact fields through the profile form, as staff would.
         await loginAs(page, 'admin');
         await page.goto('/admin/company/profile');
+        const contacts = await Promise.all(
+            CONTACT_FIELDS.map(
+                async (label) => [label, await page.getByLabel(label).inputValue()] as const,
+            ),
+        );
         await page.getByLabel('Telepon').fill('(021)5550100');
         await page.getByLabel('Email').fill('support@demo.inbils.test');
         await page.getByLabel('Situs web').fill('https://demo.inbils.test');
@@ -602,29 +634,42 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await logout(page);
         const response = await page.goto(state.isolirUrl);
         expect(response?.status()).toBe(200);
-        await expect(page).toHaveTitle(/Layanan diisolir/);
+        await expect(page).toHaveTitle(/Layanan dibatasi/);
         await expect(
-            page.getByRole('heading', { name: 'Layanan internet Anda sedang diisolir', level: 1 }),
+            page.getByRole('heading', { name: 'Layanan internet Anda sedang dibatasi', level: 1 }),
         ).toBeVisible();
         await expect(page.getByText('Inbils Demo Company').first()).toBeVisible();
-        await expect(page.getByText('karena ada tagihan yang belum dibayar')).toBeVisible();
 
-        const login = page.getByRole('link', { name: 'Masuk untuk melihat dan membayar tagihan' });
-        await expect(login).toHaveAttribute('href', /\/login$/);
-        const box = await login.boundingBox();
+        // One page for both causes. Unpaid bills: pay in the app, which the customer app listing opens.
+        const bills = page.getByRole('region', { name: 'Tagihan belum dibayar' });
+        await expect(bills).toContainText(
+            'Ada tagihan yang belum dibayar? Bayar lewat aplikasi Inbils Demo Company. Layanan aktif kembali otomatis setelah pembayaran diterima.',
+        );
+        const app = bills.getByRole('link', { name: 'Buka aplikasi Inbils Demo Company' });
+        await expect(app).toHaveAttribute('href', CUSTOMER_PLAY_STORE_URL);
+        const box = await app.boundingBox();
         expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
 
-        await expect(page.getByRole('link', { name: '(021)5550100' })).toHaveAttribute(
+        // Any other cause: call or write. A landline has no WhatsApp, so no button is guessed.
+        const other = page.getByRole('region', { name: 'Dibatasi karena alasan lain' });
+        await expect(other).toContainText(
+            'Dibatasi oleh Inbils Demo Company karena alasan lain? Hubungi kami.',
+        );
+        await expect(other.getByRole('link', { name: /^Telepon/ })).toHaveAttribute(
             'href',
             'tel:0215550100',
         );
-        await expect(page.getByRole('link', { name: 'support@demo.inbils.test' })).toHaveAttribute(
+        await expect(other.getByRole('link', { name: 'WhatsApp' })).toHaveCount(0);
+        await expect(other.getByRole('link', { name: 'support@demo.inbils.test' })).toHaveAttribute(
             'href',
             'mailto:support@demo.inbils.test',
         );
-        const website = page.getByRole('link', { name: 'https://demo.inbils.test' });
+        const website = other.getByRole('link', { name: 'https://demo.inbils.test' });
         await expect(website).toHaveAttribute('rel', /noopener/);
         await expect(website).toHaveAttribute('target', '_blank');
+
+        // Customers use the app, not the web: there is no login link.
+        await expect(page.getByRole('link', { name: /Masuk/ })).toHaveCount(0);
 
         // Public means public: no admin shell, nothing about a subscriber, a username, a router or a secret.
         await expect(page.getByRole('navigation')).toHaveCount(0);
@@ -640,14 +685,10 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         }
         expect((await page.request.get('/isolir/NO-SUCH-COMPANY')).status()).toBe(404);
 
-        // Restore the shared fixture: the profile had no contact fields.
+        // Restore the shared fixture: the contact fields as the fixture had them, and no brand colour.
         await loginAs(page, 'admin');
         await page.goto('/admin/company/profile');
-        await page.getByLabel('Telepon').fill('');
-        await page.getByLabel('Email').fill('');
-        await page.getByLabel('Situs web').fill('');
-        await page.getByLabel('WhatsApp').fill('');
-        await page.getByLabel('Jam layanan').fill('');
+        for (const [label, value] of contacts) await page.getByLabel(label).fill(value);
         await page.getByLabel('Kode warna').fill('');
         await page.getByRole('button', { name: 'Simpan', exact: true }).click();
         await expect(page.getByText('Profil perusahaan diperbarui.').first()).toBeVisible();
@@ -817,7 +858,7 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
                 await page.goto(state.isolirUrl);
                 await setTheme(page, width, dark);
                 await expect(
-                    page.getByRole('link', { name: 'Masuk untuk melihat dan membayar tagihan' }),
+                    page.getByRole('link', { name: 'Buka aplikasi Inbils Demo Company' }),
                 ).toBeVisible();
                 await expectNoHorizontalOverflow(
                     page,
@@ -1024,7 +1065,9 @@ test.describe('@lifecycle radius provisioning (FreeRADIUS lab)', () => {
             'E2E lab abuse test',
             'Blokir internet',
         );
-        await expect(page.getByText('Internet langganan diblokir.')).toBeVisible();
+        await expect(
+            page.getByText('Blokir disimpan. Sesi pelanggan diputus setelah router menjawab.'),
+        ).toBeVisible();
         await expect(page.getByText('Diblokir', { exact: true })).toBeVisible();
 
         await expect.poll(() => labEvents().map((event) => event.result)).toEqual(['ACK']);
@@ -1059,7 +1102,11 @@ test.describe('@lifecycle radius provisioning (FreeRADIUS lab)', () => {
             'E2E lab unblock',
             'Buka blokir',
         );
-        await expect(page.getByText('Blokir internet langganan dibuka.')).toBeVisible();
+        await expect(
+            page.getByText(
+                'Blokir dibuka. Sesi pelanggan diputus setelah router menjawab dan tersambung ulang dengan layanan normal.',
+            ),
+        ).toBeVisible();
 
         await expect.poll(() => labEvents().map((event) => event.result)).toEqual(['ACK', 'ACK']);
         await expect

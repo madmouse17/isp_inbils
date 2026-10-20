@@ -28,6 +28,7 @@ import {
     IndonesiaRegionFields,
     CustomerAcquirerField,
     CustomerDataFields,
+    MoneyInput,
     PageHeader,
     type CodeSequence,
     type IndonesiaRegionOptions,
@@ -379,8 +380,8 @@ export default function Create({
         setData('subscription', {
             ...data.subscription,
             service_package_id: packageId,
-            mrc_amount: selected ? String(selected.price_mrc) : '',
-            otc_installation_fee: selected ? String(selected.price_otc) : '',
+            mrc_amount: selected ? String(Number(selected.price_mrc)) : '',
+            otc_installation_fee: selected ? String(Number(selected.price_otc)) : '',
             contract_months:
                 selected && selected.contract_min_months > 0
                     ? String(selected.contract_min_months)
@@ -959,29 +960,40 @@ export default function Create({
                                                 error={formErrors['subscription.contract_months']}
                                                 placeholder="Otomatis dari paket"
                                             />
-                                            <Input
+                                            <MoneyInput
+                                                id="subscription-mrc-amount"
                                                 label="Biaya bulanan"
-                                                type="number"
-                                                min={0}
-                                                value={data.subscription.mrc_amount}
-                                                onChange={(event) =>
+                                                value={
+                                                    data.subscription.mrc_amount === ''
+                                                        ? null
+                                                        : Number(data.subscription.mrc_amount)
+                                                }
+                                                onChange={(value) =>
                                                     setData('subscription', {
                                                         ...data.subscription,
-                                                        mrc_amount: event.target.value,
+                                                        mrc_amount:
+                                                            value === null ? '' : String(value),
                                                     })
                                                 }
                                                 error={formErrors['subscription.mrc_amount']}
                                                 placeholder="Otomatis dari paket"
                                             />
-                                            <Input
+                                            <MoneyInput
+                                                id="subscription-otc-installation-fee"
                                                 label="Biaya pemasangan"
-                                                type="number"
-                                                min={0}
-                                                value={data.subscription.otc_installation_fee}
-                                                onChange={(event) =>
+                                                value={
+                                                    data.subscription.otc_installation_fee === ''
+                                                        ? null
+                                                        : Number(
+                                                              data.subscription
+                                                                  .otc_installation_fee,
+                                                          )
+                                                }
+                                                onChange={(value) =>
                                                     setData('subscription', {
                                                         ...data.subscription,
-                                                        otc_installation_fee: event.target.value,
+                                                        otc_installation_fee:
+                                                            value === null ? '' : String(value),
                                                     })
                                                 }
                                                 error={

@@ -24,14 +24,16 @@ use Modules\Service\Models\SpeedProfile;
  * apply() is one code path for every trigger (observer, account save, resync, sync drift) and idempotent: a second
  * run against an unchanged RADIUS makes no write. Callers run it inside CompanyService::runAs().
  *
- * The record (`provisioned_*`) says what RADIUS was last known to hold and only advances after every call of the run,
- * the Disconnects included, succeeded. A run that failed half way finds the old record again and finishes the job:
- * an isolated or removed subscriber never keeps a running session.
+ * The record (`provisioned_*`) says what RADIUS was last known to hold. It advances once RADIUS is written, before the
+ * Disconnects go out, so a router that does not answer leaves the group that was really written on the record and the
+ * Disconnect still owed (`pending_disconnect_at`); the retry finishes it. A Disconnect owed to a name that only the old
+ * record remembers (a rename, a removal) keeps the old record until it succeeded: an isolated or removed subscriber
+ * never keeps a running session.
  *
  * A Disconnect is owed when the group changed, the static address RADIUS hands out differs from the one IPAM holds
  * (a session only gets its address when it starts), the user was removed or renamed, or staff pressed Resync (which
- * sets `pending_disconnect_at` and forces a rewrite). The flag is written before RADIUS is touched and cleared with the
- * record advance. A secret change alone owes none: the running session keeps working.
+ * sets `pending_disconnect_at` and forces a rewrite). The flag is written before RADIUS is touched and cleared once every
+ * Disconnect succeeded. A secret change alone owes none: the running session keeps working.
  *
  * The static address of the subscription (IPAM) is the user's `Framed-IP-Address` reply, kept in every state: an
  * isolated subscriber keeps its address. RADIUS itself is read for what it holds, so the record needs no column for it.
@@ -48,7 +50,10 @@ class NetworkAccountProvisioner
 
     public function __construct(private readonly RadiusDirectory $radius, private readonly RadiusDisconnectClient $coa) {}
 
-    /** pending and active subscriptions are enabled; suspended or blocked ones isolated; terminated or deleted ones absent. */
+    /**
+     * pending and active subscriptions are enabled; suspended or blocked ones isolated; terminated or deleted ones absent.
+     * A pending one whose installation was cancelled, with no installation underway, is absent too (K18).
+     */
     public function desiredState(NetworkAccount $account): string
     {
         return $this->stateOf($account->subscription);
@@ -57,7 +62,7 @@ class NetworkAccountProvisioner
     /** The same rule for a subscription that has no network account (yet). */
     public function stateOf(?ServiceSubscription $subscription): string
     {
-        if ($subscription === null || $subscription->trashed() || ! in_array($subscription->status, ['pending', 'active', 'suspended'], true)) {
+        if ($subscription === null || $subscription->trashed() || ! in_array($subscription->status, ['pending', 'active', 'suspended'], true) || NetworkAccountService::installationAbandoned($subscription)) {
             return self::ABSENT;
         }
 
@@ -125,26 +130,42 @@ class NetworkAccountProvisioner
             $this->radius->putUser($username, $account->password, (string) $group, $framedIp);
         }
 
-        $unsent = $this->disconnect($account, $owed);
-
         $after = ['provisioned_username' => $present ? $username : null, 'provisioned_group' => $group];
         $changed = $moved || $after !== ['provisioned_username' => $recordedName, 'provisioned_group' => $recordedGroup];
 
-        $account->forceFill($after + [
+        // The record goes first unless the Disconnect is owed to a name only the old record remembers.
+        $recordFirst = $present && $owed !== [] && array_diff($owed, [$username]) === [];
+
+        $record = $after + [
             'provisioned_password_hash' => $present ? $secretHash : null,
             'provisioned_at' => $present ? ($changed || $needsWrite || $account->provisioned_at === null ? now() : $account->provisioned_at) : null,
+        ];
+
+        $details = ['username' => $username, 'service_type' => $account->service_type, 'state' => $state, 'group' => $group, 'framed_ip' => $framedIp];
+        $audit = function () use ($account, $changed, $drifted, $details, $recordedGroup, $heldIp): void {
+            if ($changed) {
+                AuditService::log('network_account', 'provisioned', $details + ['previous_group' => $recordedGroup, 'previous_framed_ip' => $heldIp], $account);
+            } elseif ($drifted) {
+                AuditService::log('network_account', 'drift_corrected', $details, $account);
+            }
+        };
+
+        if ($recordFirst) {
+            $account->forceFill($record)->save();
+            $audit();
+        }
+
+        $unsent = $this->disconnect($account, $owed);
+
+        $account->forceFill(($recordFirst ? [] : $record) + [
             'pending_disconnect_at' => null,
             'sync_status' => 'synced',
-            'last_error' => $unsent === [] ? null : Str::limit('No NAS of this company owns the address of an open session: '.implode(', ', $unsent), 255, ''),
+            'last_error' => $unsent === [] ? null : Str::limit('Sesi terbuka berasal dari router yang belum didaftarkan: '.implode(', ', $unsent).'.', 255, ''),
             'last_attempt_at' => now(),
         ])->save();
 
-        $details = ['username' => $username, 'service_type' => $account->service_type, 'state' => $state, 'group' => $group, 'framed_ip' => $framedIp];
-
-        if ($changed) {
-            AuditService::log('network_account', 'provisioned', $details + ['previous_group' => $recordedGroup, 'previous_framed_ip' => $heldIp], $account);
-        } elseif ($drifted) {
-            AuditService::log('network_account', 'drift_corrected', $details, $account);
+        if (! $recordFirst) {
+            $audit();
         }
 
         return true;
@@ -198,7 +219,7 @@ class NetworkAccountProvisioner
     public function writeNas(NasDevice $nas): bool
     {
         try {
-            $realm = $nas->realm ?? throw RadiusException::rejected('The company code cannot be used as a RADIUS realm.');
+            $realm = $nas->realm ?? throw RadiusException::invalidRealm();
             $label = (string) $nas->networkAsset?->code;
             $name = (string) $nas->networkAsset?->name;
 
@@ -281,7 +302,7 @@ class NetworkAccountProvisioner
         }
 
         if ($failed > 0) {
-            throw new DisconnectPendingException("{$failed} Disconnect-Request(s) got no usable answer from the NAS; retrying.");
+            throw new DisconnectPendingException('Router belum menjawab permintaan pemutusan sesi; dicoba lagi otomatis.');
         }
 
         return array_values(array_unique($unsent));
@@ -295,7 +316,7 @@ class NetworkAccountProvisioner
     private function groupFor(NetworkAccount $account, string $state): string
     {
         $realm = Realm::forCompany((int) $account->company_id)
-            ?? throw RadiusException::rejected('The company code cannot be used as a RADIUS realm.');
+            ?? throw RadiusException::invalidRealm();
 
         if ($state === self::ISOLATED) {
             return $this->groupName($realm, 'isolir');
@@ -304,7 +325,7 @@ class NetworkAccountProvisioner
         $name = $account->subscription?->packageVersion?->speedProfile?->getAttribute('radius_profile_name');
 
         if (! is_string($name) || $name === '') {
-            throw RadiusException::rejected('The speed profile of the package has no RADIUS profile name.');
+            throw RadiusException::rejected('Profil kecepatan paket ini belum punya nama profil RADIUS.');
         }
 
         return $this->groupName($realm, $name);
@@ -315,7 +336,7 @@ class NetworkAccountProvisioner
         $group = $realm.'/'.$name;
 
         if (mb_strlen($group) > 64) {
-            throw RadiusException::rejected('The RADIUS group name is longer than 64 characters.');
+            throw RadiusException::rejected('Nama grup RADIUS lebih dari 64 karakter.');
         }
 
         return $group;

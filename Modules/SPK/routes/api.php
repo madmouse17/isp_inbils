@@ -5,6 +5,7 @@ use Modules\SPK\Http\Controllers\Api\V1\Customer\WorkOrderController as Customer
 use Modules\SPK\Http\Controllers\Api\V1\Technician\WorkOrderController;
 use Modules\SPK\Http\Controllers\Api\V1\Technician\WorkOrderEvidenceController;
 use Modules\SPK\Http\Controllers\Api\V1\Technician\WorkOrderItemController;
+use Modules\SPK\Http\Controllers\Api\V1\Technician\WorkOrderNetworkCredentialsController;
 
 Route::middleware('api.customer')->prefix('customer')->name('customer.')->group(function (): void {
     Route::get('work-orders', [CustomerWorkOrderController::class, 'index'])->name('work-orders.index');
@@ -21,4 +22,6 @@ Route::middleware(['api.technician', 'can:assignedTo,wo'])->prefix('technician/w
     Route::delete('{wo}/evidence/{mediaId}', [WorkOrderEvidenceController::class, 'destroy'])->whereUlid(['wo', 'mediaId'])->name('evidence.destroy');
     Route::post('{wo}/items', [WorkOrderItemController::class, 'store'])->whereUlid('wo')->name('items.store');
     Route::delete('{wo}/items/{item}', [WorkOrderItemController::class, 'destroy'])->whereUlid(['wo', 'item'])->name('items.destroy');
+    // The secret is shown only here: audited, 5 a minute, never cached and never kept for an Idempotency-Key replay.
+    Route::post('{wo}/network-credentials', WorkOrderNetworkCredentialsController::class)->whereUlid('wo')->middleware('throttle:api-credentials')->name('network-credentials');
 });

@@ -37,6 +37,7 @@ final class ReadinessChecker
             'failed_jobs' => $this->failedJobs(),
             'scheduler' => $this->scheduler(),
             'backup' => $this->backup(),
+            'storage_link' => $this->storageLink(),
         ];
 
         $status = $this->aggregate($checks);
@@ -161,5 +162,29 @@ final class ReadinessChecker
         } catch (Throwable) {
             return 'unknown';
         }
+    }
+
+    /**
+     * F1-D01: an uploaded logo showed as a broken image because `public/storage` was a real directory (a copy made once),
+     * so /storage/... never reached the public disk. Ok when every link config/filesystems.php declares is a link to its
+     * target. PHPUnit never serves a file, so a test run is not asked: the answer would depend on the checkout.
+     */
+    private function storageLink(): string
+    {
+        $links = config('filesystems.links', []);
+
+        if (app()->environment('testing') || ! is_array($links) || $links === []) {
+            return 'unknown';
+        }
+
+        foreach ($links as $link => $target) {
+            $resolved = is_link($link) ? realpath($link) : false;
+
+            if ($resolved === false || $resolved !== realpath($target)) {
+                return 'fail';
+            }
+        }
+
+        return 'ok';
     }
 }

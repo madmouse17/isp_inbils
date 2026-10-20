@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
-import { AlertTriangle, CheckCircle2, Clock, XCircle, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock, Undo2, XCircle, type LucideIcon } from 'lucide-react';
 import { Button } from '@/Components/ui';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { useCompany } from '@/hooks/useCompany';
@@ -51,6 +51,12 @@ const outcomes: Record<
         body: 'Tagihan ini sudah dibayar atau dibatalkan sebelum pembayaran online selesai. Bila saldo Anda terpotong, hubungi kami.',
         Icon: XCircle,
         tone: 'text-destructive-text',
+    },
+    refunded: {
+        title: 'Pembayaran dikembalikan',
+        body: 'Dana pembayaran ini sudah dikembalikan. Hubungi ISP Anda bila ada pertanyaan.',
+        Icon: Undo2,
+        tone: 'text-muted-foreground',
     },
 };
 

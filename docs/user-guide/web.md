@@ -198,7 +198,7 @@ Bila nama saat ini berbeda, halaman detail menulis nama yang beku, disusul "(saa
 - Isian wajib ditandai bintang merah di belakang namanya dan harus terisi sebelum menyimpan. Pesan merah di bawah isian menjelaskan apa yang salah. Di kanan atas layar, toast merah "Data gagal disimpan. Periksa input." menandai bahwa penyimpanan gagal.
 - Toast hijau menandai penyimpanan berhasil. Teksnya berbahasa Indonesia dan datang dari server, misalnya "Pelanggan dihapus." Toast hilang sendiri setelah sekitar 4 detik. Klik tombol x di toast untuk menutupnya lebih cepat.
 - Tombol yang sedang memproses menampilkan indikator putar dan tidak bisa diklik dua kali.
-- Rupiah tampil tanpa desimal. Format tanggal mengikuti pengaturan perusahaan (bagian 8.1), dan jam memakai format 24 jam.
+- Rupiah baru dihitung sebagai rupiah penuh dengan pembulatan setengah ke atas. Layar, aplikasi, dan PDF menampilkan nilai penuh seperti `Rp 147.702`. Data lama yang masih punya sen tetap tampil tanpa kehilangan nilainya, misalnya `Rp 147.701,62`. Persentase dan angka desimal memakai koma desimal, misalnya `63,6%` dan `4,8`. Format tanggal mengikuti pengaturan perusahaan, dan jam memakai format 24 jam.
 
 ### Pesan benturan
 
@@ -214,7 +214,7 @@ Empat pesan ini berarti server menolak penyimpanan Anda karena keadaan data suda
 - Isian yang memilih data lain (pelanggan, lokasi, barang, pengguna, dan sebagainya) adalah kotak pencarian: ketik untuk mencari, lalu pilih. Klik isian, ketik sebagian nama atau kode, lalu klik hasilnya, atau tekan tombol panah dan Enter. Tidak ada isian yang meminta Anda mengetik ID.
 - Pada tabel besar (misalnya pelanggan, langganan, dan barang), pencarian berjalan di server setelah Anda mengetik minimal 2 huruf, dan daftar menampilkan paling banyak 20 hasil. Di bawah 2 huruf daftar menulis "Ketik minimal 2 huruf untuk mencari.", selama mencari menulis "Mencari...", dan bila tidak ada yang cocok menulis "Tidak ada hasil." atau kalimat khusus isian itu.
 - Pilihan yang sudah dipilih tetap ada selama Anda mengetik. Pilihan berubah hanya bila Anda memilih hasil lain atau mengklik tombol x (**Hapus pilihan**).
-- Isian tanggal menerima tanggal yang diketik dalam format perusahaan (misalnya 15 Okt 2026 untuk format d M Y). Tekan Enter atau pindah ke isian lain untuk menetapkannya. Atau klik ikon kalender (**Buka kalender**), pilih hari, atau klik **Hari ini**. Tombol x (**Hapus tanggal**) mengosongkan isian. Isian kosong menampilkan petunjuk seperti "Pilih tanggal". Tulisan yang bukan tanggal ditolak dengan pesan "Format tanggal tidak valid." disusul contoh.
+- Isian tanggal menerima format perusahaan dan format angka `20/10/2026`, `20-10-2026`, atau `2026-10-20`. Tekan Enter atau pindah ke isian lain untuk menetapkannya. Anda juga dapat klik ikon kalender (**Buka kalender**), pilih hari, atau klik **Hari ini**. Tombol x (**Hapus tanggal**) mengosongkan isian. Isian kosong menampilkan petunjuk seperti "Pilih tanggal". Tulisan yang bukan tanggal ditolak dengan pesan "Format tanggal tidak valid." disusul contoh, dan formulir tidak dapat dikirim sampai tanggal diperbaiki.
 - Isian tanggal dan jam ("Pilih tanggal dan jam"), bulan ("Pilih bulan"), dan jam ("Pilih jam") bekerja dengan cara yang sama: ketik, atau buka pemilihnya. Jam dipilih dari daftar per 30 menit atau diketik dalam format 24 jam. Pada tanggal dan jam, hari yang dipilih tanpa jam dimulai pukul 00:00, dan jam tanpa hari memakai hari ini.
 
 ### Halaman galat
@@ -270,7 +270,8 @@ Profil memuat data akun Anda sendiri. Halaman ini sama untuk semua peran.
 2. Untuk mengubah nama atau email, ubah isian **Nama** atau **Email** di bagian **Data akun**, lalu klik **Simpan**. Tulisan "Tersimpan." muncul di samping tombol.
 3. Untuk mengganti kata sandi, isi **Kata sandi saat ini**, **Kata sandi baru**, dan **Ulangi kata sandi baru** di bagian **Ganti kata sandi**, lalu klik **Simpan**. Kata sandi baru minimal 8 karakter. Ketiga isian kosong lagi setelah tersimpan.
 4. Bagian **Autentikasi dua langkah** dijelaskan di bagian 1.4.
-5. Bagian **Hapus akun** menghapus akun Anda, dan akun yang dihapus tidak bisa Anda pulihkan sendiri. Klik **Hapus akun**, isi **Kata sandi** di dialog **Hapus akun Anda?**, lalu klik **Hapus akun** sekali lagi. Klik **Batal** untuk membatalkan. Jangan lakukan ini kecuali admin memintanya. Untuk menutup akses, lebih aman minta admin menonaktifkan akun (bagian 8.5).
+5. Bagian **Notifikasi email** hanya tampil bila tugas Anda mencakup persetujuan, persiapan, penyerahan permintaan barang, penerimaan retur, atau penyelesaian selisih. Nyalakan **Ringkasan harian permintaan barang dan retur** untuk menerima satu email setiap pagi tentang antrean yang menunggu Anda. Bila saklar mati, pemberitahuan per kejadian tetap muncul di lonceng, dan pemberitahuan untuk teknisi juga memakai push. Tidak ada email per kejadian.
+6. Bagian **Hapus akun** menghapus akun Anda, dan akun yang dihapus tidak bisa Anda pulihkan sendiri. Klik **Hapus akun**, isi **Kata sandi** di dialog **Hapus akun Anda?**, lalu klik **Hapus akun** sekali lagi. Klik **Batal** untuk membatalkan. Jangan lakukan ini kecuali admin memintanya. Untuk menutup akses, lebih aman minta admin menonaktifkan akun (bagian 8.5).
 
 ### Kesalahan umum
 
@@ -312,6 +313,7 @@ Peran yang dapat memakai: semua akun web dengan izin `dashboard.view` (**Lihat d
 | Antrean retur material | Pengembalian material yang menunggu diproses. Rincian: **Pengecualian** | **Permintaan Barang**, tab **Antrean Pengembalian** (6.8) | Pemegang `inventory.return.view.all` yang juga boleh menerima atau menyelesaikan pengembalian, dan boleh membuka Permintaan Barang |
 | Stok di bawah minimum | Baris stok (satu barang di satu lokasi) yang jumlahnya sama dengan atau di bawah stok minimum | **Stok** (6.5), daftar hanya berisi baris stok rendah. Layar Stok tidak punya kontrol filter untuk ini | Pemegang `inventory.view` |
 | Tagihan jatuh tempo | Tagihan terbuka yang lewat jatuh tempo dan masih bersisa. Rincian: **Terutang** | **Tagihan** (7.1), dengan **Status** di **Lewat jatuh tempo** | Pemegang `billing.view` |
+| Tagihan draf menunggu dikirim | Tagihan draf perusahaan dan total nilainya | **Tagihan** (7.1), dengan **Status** di **Draf** | Pemegang `billing.send` |
 
 ### Kesalahan umum
 
@@ -432,7 +434,7 @@ SPK yang ditolak reviewer di **Persetujuan** (bagian 3.2) berstatus **Ditolak** 
 - Pesan merah "Pilih petugas tiket penerima penugasan." (SPK: "Pilih teknisi lapangan penerima penugasan."): isian belum dipilih. Pilih satu nama, lalu simpan lagi.
 - Alert **Data berubah** dengan pesan "Konflik penugasan: tiket ini sudah ditugaskan oleh pengguna lain." (SPK: "Konflik penugasan: SPK ini sudah ditugaskan oleh pengguna lain."): pengguna lain mengubah item saat dialog terbuka. Klik **Muat ulang antrean**. Dialog memuat data terbaru, atau menutup bila item tidak bisa ditugaskan lagi. Bila pemuatan ulang gagal, alert **Muat ulang belum berhasil** menjelaskan sebabnya.
 - Alert **Terjadi kesalahan** memuat pesan dari server, misalnya bila pengguna yang dipilih bukan petugas perusahaan Anda.
-- Penolakan server "Tiket harus berstatus terbuka atau ditugaskan untuk bisa ditugaskan." atau "SPK harus berstatus draf, menunggu penugasan, ditolak, atau ditugaskan untuk bisa ditugaskan.": status item sudah berubah, misalnya petugas sudah memulainya. Muat ulang halaman.
+- Penolakan server "Tiket harus berstatus terbuka atau ditugaskan untuk bisa ditugaskan." atau "SPK harus berstatus draf, menunggu penugasan, ditolak, ditugaskan, atau dikerjakan untuk bisa ditugaskan.": status item sudah berubah dan tidak menerima penugasan. Muat ulang halaman.
 - Penolakan server "Kebijakan perusahaan melarang menugaskan diri sendiri.": perusahaan Anda melarang menugaskan item ke akun sendiri. Pilih orang lain. Pengaturan larangan ini tidak ada di layar **Pengaturan Perusahaan**.
 
 ## 3.2 Persetujuan
@@ -474,8 +476,8 @@ Hasil setiap keputusan:
 
 - SPK disetujui: status **Selesai**. Sistem memakai stok material yang tercatat di SPK, memasang aset berseri pada SPK pemasangan, dan mengaktifkan langganan pelanggan yang masih **Menunggu**.
 - SPK ditolak: status **Ditolak**. Stok tidak berubah, karena SPK tidak mencadangkan stok. Alasan tersimpan di SPK dan riwayat audit. SPK muncul lagi di **Penugasan** (bagian 3.1) untuk ditugaskan ulang.
-- Permintaan barang disetujui: status **Disetujui**, stok direservasi di gudang sumber, dan pemohon menerima email. Gudang lalu menyiapkan dan menyerahkan barang (bagian 6.1).
-- Permintaan barang ditolak: status **Ditolak**, dan pemohon menerima email berisi alasan.
+- Permintaan barang disetujui: status **Disetujui**, stok direservasi di gudang sumber, dan pemohon menerima notifikasi di lonceng serta push. Gudang lalu menyiapkan dan menyerahkan barang (bagian 6.1).
+- Permintaan barang ditolak: status **Ditolak**, dan pemohon menerima lonceng serta push berisi alasan.
 
 ### Kesalahan umum
 
@@ -484,8 +486,8 @@ Hasil setiap keputusan:
 - Pesan "Alasan penolakan wajib diisi.", "Alasan penolakan minimal 3 karakter." (permintaan barang), atau "Alasan penolakan maksimal 500 karakter.": sesuaikan isian **Alasan penolakan**, lalu klik **Konfirmasi tolak**.
 - Alert **Gagal memproses tindakan** dengan pesan "SPK harus berstatus menunggu review untuk bisa disetujui." (untuk menolak: "... untuk bisa ditolak."), "Permintaan barang bukan berstatus menunggu persetujuan." atau "Hanya permintaan berstatus menunggu persetujuan yang dapat ditolak.": pengguna lain sudah memproses item itu. Klik **Muat ulang antrean**.
 - Setujui SPK gagal dengan pesan "SPK belum bisa disetujui sampai seluruh retur material berstatus direkonsiliasi atau diselesaikan.": selesaikan retur material SPK itu di Pengembalian Barang (bagian 6.8) sampai berstatus **Diterima** atau **Selisih diselesaikan**, klik **Muat ulang antrean**, lalu setujui lagi.
-- Setujui SPK gagal dengan pesan "Stok tidak mencukupi. Diminta: ..., Tersedia: ...": stok produk di **Lokasi** SPK kurang dari jumlah **Terpakai**. Tambah stok (bagian 6.5), lalu setujui lagi.
-- Setujui permintaan barang gagal dengan pesan "Stok tidak mencukupi untuk produk ID ...": stok di gudang sumber kurang. Tambah stok (bagian 6.5), atau setujui sebagian jumlah dari **Lihat detail**.
+- Setujui SPK gagal dengan pesan seperti "Stok Kabel Fiber Optic di POP Bandung tersisa 0 m, dibutuhkan 18 m.": stok produk di lokasi yang disebut kurang dari jumlah **Terpakai**. Tambah stok (bagian 6.5), lalu setujui lagi.
+- Setujui permintaan barang gagal dengan pesan `Stok {nama barang} di {nama gudang} tersisa {tersedia} {satuan}, dibutuhkan {diminta} {satuan}.`: stok gudang sumber kurang. Tambah stok (bagian 6.5), atau setujui sebagian jumlah dari **Lihat detail**.
 - Setujui permintaan barang gagal dengan pesan "Lokasi gudang sumber wajib ditentukan untuk reservasi.": permintaan itu tersimpan tanpa gudang, dan kotak masuk ini tidak punya pilihan gudang. Buka permintaannya lewat **Lihat detail** (bagian 6.1). Dialog setujui di halaman itu juga belum punya pilihan gudang, jadi permintaan seperti ini belum bisa disetujui dari web.
 
 ## 3.3 SPK
@@ -593,11 +595,14 @@ Izin: `spk.assign`, atau `spk.reassign` bila SPK sudah punya teknisi (misalnya s
 3. Di **Teknisi** (wajib), ketik nama, nomor karyawan, organisasi, atau telepon ("Cari karyawan teknisi"), lalu klik teknisi dari hasil pencarian. Teks yang diketik belum memilih teknisi.
 4. Klik **Tugaskan**. Muncul toast "SPK berhasil ditugaskan.", status menjadi **Ditugaskan**, dan **Riwayat penugasan** menambah satu baris. **Batal** menutup dialog tanpa menyimpan.
 
+Pada penugasan pertama SPK **Instalasi**, Inbils membuat akun PPPoE langganan secara otomatis bila belum ada. Nama pengguna berasal dari kode pelanggan dan dibuat unik. Kegagalan karena profil RADIUS atau realm belum siap tidak membatalkan penugasan. Perbaiki pengaturan jaringan, lalu gunakan proses sinkronisasi yang tersedia.
+Teknisi yang ditugaskan melihat kartu **Akun PPPoE** di aplikasi teknisi. Nama pengguna selalu terlihat. Kata sandi hanya terbuka setelah **Tampilkan**, tersamar lagi setelah 60 detik atau saat layar ditutup, dibatasi 5 kali per menit, dan setiap pengungkapan dicatat di Log Audit. Secret tidak disimpan di cache offline atau log aplikasi.
+
 Daftar **Teknisi** memuat karyawan aktif (bagian 8.3) yang akun penggunanya aktif dan memegang `spk.start` atau `spk.submit`, lewat perannya atau sebagai izin langsung. Tiap pilihan menampilkan nama, dengan nomor karyawan, organisasi, dan telepon di bawahnya. Bila tidak ada yang cocok, tertulis "Tidak ada karyawan teknisi yang cocok."
 
 Bila WhatsApp perusahaan aktif, teknisi menerima pesan berisi nomor, judul, tanggal kunjungan, dan tautan SPK. Pelanggan menerima satu pesan jadwal pada penugasan pertama, bila SPK punya **Pelanggan** dan **Jadwal**.
 
-Untuk mengganti teknisi SPK berstatus **Ditugaskan**, pakai Penugasan (bagian 3.1), karena halaman ini tidak menampilkan **Tugaskan** pada status itu. Bila dialog menampilkan alert **SPK sudah berubah** dengan pesan "Konflik penugasan: SPK ini sudah ditugaskan oleh pengguna lain.", pengguna lain mengubah SPK lebih dulu: klik **Muat ulang SPK**, lalu ulangi dari langkah 2.
+Untuk mengganti teknisi SPK berstatus **Ditugaskan** atau **Dikerjakan**, klik **Ganti teknisi** di halaman SPK atau pakai Penugasan (bagian 3.1). Penggantian saat **Dikerjakan** mengembalikan SPK ke **Ditugaskan** untuk teknisi baru dan memulai ulang waktu kunjungan. Bila teknisi yang sama dipilih lagi pada SPK **Dikerjakan**, progresnya dipertahankan. Bila dialog menampilkan alert **SPK sudah berubah** dengan pesan "Konflik penugasan: SPK ini sudah ditugaskan oleh pengguna lain.", pengguna lain mengubah SPK lebih dulu. Klik **Muat ulang SPK**, lalu ulangi.
 
 ### Memulai dan mengajukan SPK
 
@@ -672,10 +677,12 @@ Pembatalan tidak bisa dibalik, dan alasannya hanya tercatat di Log Audit (bagian
 - Tanpa **Lokasi**, aset tidak dipasang, dan stok barang yang tidak pernah diminta lewat permintaan barang tidak berubah. Stok yang kurang membuat persetujuan gagal.
 - Pada SPK **Instalasi**, setiap baris produk **Aset** memasang **Aset jaringan** yang dipilih: aset berstatus **Terpasang** pada lokasi, pelanggan, dan langganan SPK (bagian 5.2). Aset pertama dicatat sebagai ONT langganan bila langganan belum punya.
 - Langganan SPK yang berstatus **Menunggu** menjadi **Aktif**, dengan tanggal aktivasi hari itu dan tanggal tagihan berikutnya dari hari tagih langganan (bagian 4.1). Jenis **Peningkatan layanan** dan **Pindah lokasi** tidak mengubah paket, alamat, atau aset langganan.
-- Bila saklar "Buat tagihan otomatis saat SPK selesai" aktif di **Pengaturan Perusahaan** (bagian 8.1), sistem membuat satu tagihan **Sekali bayar** berstatus **Draf** dengan jatuh tempo 14 hari (bagian 7.1). Isinya setiap item **Terpakai** dikali harga jual produk, ditambah baris "Biaya Instalasi &lt;jenis SPK&gt;" bila langganan punya biaya pemasangan, dengan pajak perusahaan.
+- Pada SPK **Instalasi**, sistem memastikan akun PPPoE langganan sudah ada. Akun biasanya dibuat saat SPK pertama kali ditugaskan. Persetujuan hanya menjadi pengaman bila akun masih belum ada.
+- Bila SPK **Instalasi** punya biaya yang dapat ditagih, sistem selalu membuat satu tagihan **Sekali bayar**. Baris biaya paket berlabel **Biaya pemasangan**. Bahan terpakai tidak ditagih secara bawaan. Bila **Tagihkan bahan terpakai** menyala di **Pengaturan Perusahaan**, tiap bahan menjadi baris **Bahan terpakai: {nama barang}** dengan harga jualnya.
+- Bila **Kirim tagihan pemasangan otomatis** menyala, tagihan langsung dikirim dan pelanggan dapat melihatnya. Bila saklar mati, tagihan tetap **Draf**, pemegang `billing.send` menerima lonceng dan push, dan Dasbor Keuangan menampilkan kartu **Tagihan draf menunggu dikirim** beserta total nilainya.
 - SPK menjadi **Selesai** dan menyimpan nama teknisi, kode lokasi, dan unit organisasi teknisi pada saat itu. Mengganti nama akun teknisi atau kode lokasi sesudahnya tidak mengubah SPK yang sudah selesai. Bila nilainya sekarang berbeda, kartu **Rincian** menulis nilai yang tersimpan disusul "(saat selesai)" pada baris **Teknisi** dan **Lokasi**.
 
-Satu SPK paling banyak punya satu tagihan, dan web tidak punya tombol untuk membuatnya manual.
+Satu SPK paling banyak punya satu tagihan. Tagihan tidak dibuat bila SPK tidak punya biaya pemasangan atau bahan yang dipilih untuk ditagih.
 
 ### Kesalahan umum
 
@@ -687,7 +694,7 @@ Satu SPK paling banyak punya satu tagihan, dan web tidak punya tombol untuk memb
 - **Setujui** gagal dan hanya muncul toast "Data gagal disimpan. Periksa input.": dialog di halaman SPK tidak menulis penyebabnya. Penyebab yang mungkin: Anda pembuat atau teknisi SPK itu, bukti belum ada, retur material belum **Diterima** atau **Selisih diselesaikan**, atau stok di **Lokasi** kurang. Buka SPK dari **Persetujuan** (bagian 3.2) supaya penyebabnya tampil di panel tinjauan, atau minta orang lain menyetujui.
 - Tombol **Tambah item** hilang dan kartu **Item** menulis "Item dikunci selama SPK menunggu review.", "SPK selesai, item tidak bisa diubah." atau "SPK dibatalkan, item tidak bisa diubah.": item hanya bisa diubah sampai SPK diajukan untuk review. SPK **Ditolak** masih bisa diubah itemnya. Bila SPK berpindah status saat dialog **Tambah item** terbuka, server menolak dengan "Item SPK tidak bisa diubah saat SPK menunggu review, selesai, atau dibatalkan."
 - Stok tidak berkurang dan aset tidak terpasang setelah **Setujui**: SPK tidak punya **Lokasi**. Isi **Lokasi** saat membuat SPK, karena tidak bisa diubah sesudahnya.
-- Tagihan tidak muncul setelah **Setujui**: saklar "Buat tagihan otomatis saat SPK selesai" mati, dan itu nilai awalnya.
+- Tagihan tidak muncul setelah **Setujui**: SPK bukan jenis **Instalasi**, atau SPK tidak punya biaya pemasangan dan tidak punya bahan yang diaktifkan untuk ditagih. Periksa **Kirim tagihan pemasangan otomatis** untuk menentukan apakah tagihan yang dibuat langsung dikirim atau tetap **Draf**.
 - Jumlah salah pada **Tambah item**: tambahkan lagi produk yang sama dengan jumlah yang benar, dan baris lama diganti.
 - Unggahan bukti ditolak: berkas bukan `jpg`, `jpeg`, `png`, `pdf`, `doc`, atau `docx`, atau lebih dari 10 MB. Formulir unggah tidak tampil bagi pengguna tanpa `spk.update`, atau bila SPK sudah **Selesai** atau **Dibatalkan**.
 - Tombol **Batal** di dalam dialog hanya menutup dialog. Untuk membatalkan SPK, klik **Batalkan** di kartu **Tindakan**.
@@ -730,11 +737,11 @@ Kartu **SLA terlampaui** di Dasbor (bagian 2.1) membuka daftar ini dengan filter
 |---|---|---|---|
 | **Terbuka** | Tiket baru, belum ada petugas | **Tugaskan** | `ticket.assign` |
 | **Ditugaskan** | Petugas sudah ditunjuk | **Mulai** | Petugas tiket itu, izin `ticket.start` |
-| **Dikerjakan** | Petugas bekerja, **Respons pertama** terisi | **Selesaikan** dengan catatan | Petugas tiket itu, izin `ticket.resolve` |
-| **Diselesaikan** | Selesai, menunggu pemeriksaan | **Tutup** | Pemegang `ticket.close` yang bukan petugas tiket itu |
-| **Ditutup** | Selesai dan ditutup, final | Tidak ada | Tidak ada |
+| **Dikerjakan** | Petugas bekerja. **Respons pertama** terisi saat petugas pertama kali menekan **Mulai** atau mengirim balasan publik | **Selesaikan** dengan catatan | Petugas tiket itu, izin `ticket.resolve` |
+| **Diselesaikan** | Selesai, menunggu pemeriksaan. Balasan pelanggan membuka tiket kembali | **Tutup**, atau tunggu balasan pelanggan | Pemegang `ticket.close` yang bukan petugas tiket itu |
+| **Ditutup** | Selesai dan ditutup, final. Komentar serta lampiran baru ditolak | Buat tiket baru bila masalah muncul lagi | Tidak ada |
 
-Mengganti petugas tiket **Ditugaskan** memakai `ticket.reassign` lewat Penugasan (bagian 3.1), karena tombol **Tugaskan** di halaman tiket hanya tampil pada tiket **Terbuka**. Web tidak punya status atau tombol untuk membuka kembali tiket **Diselesaikan** atau **Ditutup**, jadi catat masalah yang muncul lagi sebagai tiket baru.
+Mengganti petugas tiket **Ditugaskan** memakai `ticket.reassign` lewat Penugasan (bagian 3.1), karena tombol **Tugaskan** di halaman tiket hanya tampil pada tiket **Terbuka**. Balasan pelanggan pada tiket **Diselesaikan** membuka tiket menjadi **Ditugaskan** bila masih punya petugas, atau **Terbuka** bila tidak. Tiket **Ditutup** tidak dapat dibalas oleh staf atau pelanggan. Masalah yang muncul lagi harus dicatat sebagai tiket baru.
 
 ### Membuat tiket
 
@@ -764,9 +771,9 @@ Mengganti petugas tiket **Ditugaskan** memakai `ticket.reassign` lewat Penugasan
 
 2. Baca halaman dari atas ke bawah. Judul halaman adalah judul tiket, dengan nomor tiket di bawahnya.
    - Kartu **Rincian** memuat **Kategori**, **Sumber** (lencana **Pelanggan**, **NOC**, atau **Internal**), **Pelanggan**, **Langganan**, **Aset jaringan**, **Lokasi**, **Petugas**, dan **Deskripsi**. **Catatan penyelesaian** muncul setelah tiket diselesaikan. Isian kosong tampil sebagai `-`. Tiket **Ditutup** menyimpan nama kategori dan nama petugas saat ditutup: mengganti nama kategori atau akun petugas sesudahnya tidak mengubah tiket itu, dan bila nama sekarang berbeda halaman menulis nama beku disusul "(saat ditutup)". Tiket yang belum ditutup mengikuti nama yang berlaku.
-   - Kartu **Status** memuat **Kode**, **Status**, **Prioritas**, **Target respons**, **Respons pertama**, **Target penyelesaian**, **Check-in**, **Diselesaikan**, dan **Ditutup**. **Target respons** dan **Target penyelesaian** memuat waktu tenggat dan sumbernya dalam tanda kurung, misalnya `(Target Gold)` bila berasal dari tingkat SLA atau `(Target kategori No Internet)` bila berasal dari kategori. Tiket lama tanpa target respons menulis "Tanpa target respons". Lencana **Respons terlambat** dan **Penyelesaian terlambat** tampil di samping tenggatnya bila terlewat. **Respons pertama** berisi waktu **Mulai**, atau `-` bila belum ada. Semua waktu tampil dalam format tanggal perusahaan diikuti jam.
-   - **Check-in** memuat catatan lokasi dari aplikasi teknisi saat tiket dimulai: jarak dari lokasi dan akurasinya, atau alasan lokasi tidak tersedia (misalnya izin lokasi ditolak). Tanpa catatan, tertulis "Belum ada check-in".
-   - Kartu **Tindakan** memuat tombol langkah berikut. **Tugaskan** tampil pada tiket **Terbuka**, **Mulai** bagi petugas yang boleh memulai, **Selesaikan** pada tiket **Ditugaskan** dan **Dikerjakan**, **Tutup** bagi yang boleh menutup, dan **Buat SPK** pada tiket **Ditugaskan** dan **Dikerjakan** selama belum ada catatan penyelesaian. **Selesaikan** dan **Buat SPK** tampil tanpa memeriksa izin Anda. Server menolak klik tanpa izin dengan halaman **Akses ditolak**. **Tambah komentar** selalu tampil.
+   - Kartu **Status** memuat **Kode**, **Status**, **Prioritas**, **Target respons**, **Respons pertama**, **Target penyelesaian**, **Check-in**, **Diselesaikan**, dan **Ditutup**. **Target respons** dan **Target penyelesaian** memuat waktu tenggat dan sumbernya dalam tanda kurung. **Respons pertama** menyebut **lewat balasan** atau **lewat tombol Mulai**. Tiket yang dibuka kembali menampilkan lencana **Dibuka kembali {waktu}**. Semua waktu tampil dalam format tanggal perusahaan diikuti jam.
+   - **Check-in** memuat catatan lokasi dari aplikasi teknisi saat tiket dimulai: jarak dari lokasi dan akurasinya, atau alasan lokasi tidak tersedia. Tanpa catatan, tertulis "Belum ada check-in".
+   - Kartu **Tindakan** hanya menampilkan tindakan yang diizinkan untuk akun dan status saat ini. Tiket **Ditutup** tidak menampilkan **Tambah komentar** dan menulis "Tiket sudah ditutup. Komentar baru tidak bisa ditambahkan.".
    - Kartu **Komentar** dan **Lampiran**.
 
 ### Menugaskan petugas
@@ -786,7 +793,7 @@ Bila dialog menampilkan **Tiket sudah berubah**, pengguna lain mengubah tiket le
 
 Petugas memulai dan menyelesaikan tiket di aplikasi teknisi. Di web, langkah yang sama ada di halaman tiket dan di Pekerjaan Saya (bagian 3.6).
 
-1. Buka tiket berstatus **Ditugaskan**, lalu klik **Mulai**. Tidak ada dialog. Muncul toast "Tiket mulai dikerjakan.", status menjadi **Dikerjakan**, dan **Respons pertama** terisi saat tiket pertama kali dimulai. Izin `ticket.start`.
+1. Buka tiket berstatus **Ditugaskan**, lalu klik **Mulai**. Muncul toast "Tiket mulai dikerjakan.", status menjadi **Dikerjakan**, dan **Respons pertama** terisi bila belum pernah tercatat. Balasan publik pertama dari staf juga dapat mengisi **Respons pertama** dengan sumber **lewat balasan**. Catatan internal dan balasan pelanggan tidak dihitung. Izin `ticket.start`.
 2. Pada tiket **Dikerjakan**, klik **Selesaikan**. Dialog **Selesaikan tiket** terbuka.
 3. Isi **Catatan penyelesaian** (wajib, maksimal 1000 karakter).
 4. Klik **Selesaikan**. Muncul toast "Tiket diselesaikan.", status menjadi **Diselesaikan**, dan catatan tampil di **Catatan penyelesaian**. Izin `ticket.resolve`.
@@ -799,18 +806,16 @@ Hanya petugas yang ditunjuk pada tiket yang boleh memulai dan menyelesaikan, ter
 
 ### Komentar dan lampiran
 
-1. Di kartu **Tindakan**, klik **Tambah komentar**. Dialog **Tambah komentar** terbuka.
-2. Isi **Komentar** (wajib, maksimal 2000 karakter), lalu pilih **Terlihat oleh**: **Semua, termasuk pelanggan** (isian awal) atau **Internal saja**.
-3. Klik **Kirim komentar**. Muncul toast "Komentar ditambahkan." Komentar tampil di kartu **Komentar** dengan nama penulis dan waktu, dan komentar internal diberi lencana **Internal**. Kartu yang masih kosong menulis "Belum ada komentar. Pakai tombol Tambah komentar untuk mencatat penanganan."
+1. Pada tiket yang belum **Ditutup**, klik **Tambah komentar** di kartu **Tindakan**.
+2. Isi **Komentar** (wajib, maksimal 2000 karakter), lalu pilih **Terlihat oleh**: **Semua, termasuk pelanggan** atau **Internal saja**.
+3. Klik **Kirim komentar**. Komentar publik pertama dari staf mengisi **Respons pertama** bila belum ada, dan pelanggan menerima lonceng serta push. Komentar internal tidak dihitung sebagai respons pertama dan tidak terlihat oleh pelanggan.
 
-Izin `ticket.comment.create`. Komentar untuk semua terlihat oleh pelanggan di aplikasinya, sedangkan komentar **Internal saja** hanya terlihat oleh pengguna web dan teknisi. Komentar tidak bisa diubah atau dihapus.
+Izin `ticket.comment.create`. Komentar tidak bisa diubah atau dihapus. Server menolak komentar pada tiket **Ditutup** dengan "Tiket sudah ditutup.". Balasan pelanggan pada tiket **Diselesaikan** membuka tiket kembali dan memberi tahu petugas serta pemegang `ticket.assign`.
 
 4. Untuk melampirkan berkas, klik **telusuri** pada area "Seret berkas ke sini atau telusuri" di kartu **Lampiran**, atau seret satu berkas ke area itu.
 5. Klik **Unggah**. Bilah **Mengunggah lampiran** menunjukkan kemajuan, lalu muncul toast "Lampiran berhasil diunggah."
 
-Izin `ticket.attachment.upload`. Berkas boleh `jpg`, `jpeg`, `png`, `pdf`, `doc`, `docx`, atau `txt`, maksimal 10 MB, satu berkas per unggahan. Formulir tampil bagi semua pengguna, tetapi server menolak unggahan tanpa izin dengan halaman **Akses ditolak**. Berkas yang tidak memenuhi syarat menampilkan toast "Lampiran gagal diunggah." dengan keterangan "Periksa jenis berkas yang diizinkan dan ukuran maksimal 10 MB."
-
-Berkas tampil dengan nama, waktu, dan tombol **Unduh**, serta **Buka** untuk gambar. Aturan server: hanya pengunggah yang boleh menghapus lampiran, dan hanya selama tiket **Terbuka**, **Ditugaskan**, atau **Dikerjakan**. Web tidak punya tombol hapus lampiran.
+Izin `ticket.attachment.upload`. Berkas boleh `jpg`, `jpeg`, `png`, `pdf`, `doc`, `docx`, atau `txt`, maksimal 10 MB. Lampiran baru pada tiket **Ditutup** ditolak. Berkas tampil dengan nama, waktu, tombol **Unduh**, dan **Buka** untuk gambar.
 
 ### Membuat SPK dari tiket
 
@@ -830,7 +835,7 @@ Satu tiket hanya boleh melahirkan satu SPK. Halaman tiket tidak menampilkan taut
 
 Setiap tiket baru mendapat dua tenggat saat dibuat. Keduanya dihitung dalam jam kalender dari waktu pembuatan:
 
-- **Target respons**: batas waktu sampai petugas menekan **Mulai**. Klik itu mengisi **Respons pertama**.
+- **Target respons**: batas waktu sampai petugas mengirim balasan publik pertama atau menekan **Mulai**.
 - **Target penyelesaian**: batas waktu sampai tiket diselesaikan lewat **Selesaikan**.
 
 Sumber kedua target:
@@ -849,7 +854,7 @@ Halaman tiket menandai pelanggaran dengan dua lencana:
 - **Respons terlambat**: respons pertama datang setelah **Target respons**, atau belum ada respons dan targetnya sudah lewat. Tiket tanpa target respons tidak pernah mendapat lencana ini.
 - **Penyelesaian terlambat**: tiket lewat **Target penyelesaian** dan belum **Diselesaikan** atau **Ditutup**.
 
-Setiap 15 menit sistem memeriksa tiket yang lewat **Target penyelesaian** dan mengirim notifikasi **SLA tiket terlampaui** (isinya "Tiket &lt;kode tiket&gt; melewati batas SLA.") kepada pembuat tiket, satu kali per tiket. Pembuat tiket juga menerima email dengan subjek "SLA terlampaui: &lt;kode tiket&gt;". Pemeriksaan ini tidak memakai target respons, jadi respons terlambat tidak memicu notifikasi.
+Setiap 15 menit sistem memeriksa target respons dan penyelesaian. Peringatan respons yang mendekati batas dikirim kepada petugas tiket, atau kepada pemegang `ticket.assign` bila tiket belum ditugaskan. Pelanggaran target respons dan penyelesaian dikirim lewat lonceng dan push kepada petugas aktif serta pemegang `ticket.assign`, tanpa email dan tidak kepada pembuat tiket hanya karena ia pembuatnya.
 
 ### Kategori Tiket
 
@@ -1197,7 +1202,7 @@ Admin dapat mengubah susunan izin melalui **Peran** dan **Hak Akses**. Tombol ya
    | **Hentikan** | **Aktif** atau **Ditangguhkan** | Hentikan langganan (`customer.subscription.terminate`) | Dialog **Hentikan Langganan** meminta **Alasan** (wajib, maksimal 500 karakter). Menjadi **Berhenti**, melepas IP statis dan port drop, menghapus blok |
 
    Toast hasilnya: **Langganan diaktifkan.**, **Langganan ditangguhkan.**, **Langganan diaktifkan kembali.**, **Internet langganan diblokir.**, **Blokir internet langganan dibuka.**, dan **Langganan dihentikan.**
-8. Persetujuan SPK pemasangan yang berstatus **Menunggu review** juga mengaktifkan langganan **Menunggu**. Jika pengaturan **Buat tagihan otomatis saat SPK selesai** aktif, persetujuan itu membuat tagihan biaya pemasangan satu kali. Lihat SPK (bagian 3.3) dan Tagihan (bagian 7.1).
+8. Persetujuan SPK pemasangan yang berstatus **Menunggu review** juga mengaktifkan langganan **Menunggu**. Persetujuan membuat tagihan pemasangan bila ada biaya yang dapat ditagih. **Kirim tagihan pemasangan otomatis** menentukan apakah tagihan langsung dikirim atau tetap **Draf**. **Tagihkan bahan terpakai** menentukan apakah bahan menjadi baris terpisah. Lihat SPK (bagian 3.3) dan Tagihan (bagian 7.1).
 9. Aktivasi tidak langsung membuat tagihan bulanan. Proses Tagihan membuat invoice pascabayar per periode dan menghitung prorata sejak tanggal aktivasi. Langganan **Ditangguhkan** tidak masuk tagihan berkala. Langganan **Berhenti** dapat ditagih prorata sampai tanggal terminasi.
 10. Penangguhan manual tidak dibuka otomatis setelah pembayaran. Penangguhan dengan sumber tunggakan dapat kembali aktif setelah seluruh syarat pembayaran terpenuhi dan pengaturan reaktivasi otomatis menyala.
 11. **Blokir internet** berbeda dari penangguhan. Pembayaran tidak menghapus blokir. Gunakan **Buka blokir** secara terpisah.
@@ -1910,14 +1915,13 @@ Isolir otomatis berjalan bila admin menyalakan **Tangguhkan langganan yang menun
 
 Setiap hari pukul 08:00 UTC (15:00 WIB), Inbils mengisolir langganan Aktif yang punya tagihan belum lunas dan sudah lewat lebih dari batas hari. Jatuh tempo tepat pada batas belum cukup. Langganan menjadi Ditangguhkan dengan sumber `overdue`, Log audit mencatat alasan `Automatic isolir: an invoice is more than <N> days past due.`, dan langganan itu tidak menerima tagihan berulang baru selama Ditangguhkan.
 
-Alamat halaman isolir ada di kartu **Halaman isolir** pada rincian router, dan bentuknya `/isolir/` diikuti kode perusahaan. Halaman ini publik, tanpa login, dan tidak memuat data pelanggan. Kode yang salah atau perusahaan yang nonaktif menghasilkan halaman 404. Pelanggan melihat:
+Alamat halaman isolir ada di kartu **Halaman isolir** pada rincian router, dan bentuknya `/isolir/` diikuti kode perusahaan. Halaman ini publik, tanpa login dan tanpa data pelanggan. Kode yang salah atau perusahaan nonaktif menghasilkan halaman 404. Halaman menampilkan kedua kemungkinan berikut karena URL tidak membawa identitas pelanggan:
 
-- Nama perusahaan, judul `Layanan internet Anda sedang diisolir`, dan penjelasan bahwa layanan dihentikan sementara karena ada tagihan yang belum dibayar dan akan aktif kembali setelah pembayaran tercatat.
-- Bagian **Cara mengaktifkan kembali** dengan dua langkah: masuk ke akun pelanggan, lalu buka tagihan yang belum dibayar dan bayar secara online.
-- Tombol **Masuk untuk melihat dan membayar tagihan**, yang membuka halaman masuk web. Akun pelanggan dipakai di aplikasi Android, jadi akun pelanggan murni yang masuk di web diarahkan ke halaman `Gunakan aplikasi Inbils`.
-- Teks `Sudah membayar tetapi layanan belum aktif? Hubungi kami.` dengan **Telepon**, **Email** dan **Situs web** perusahaan. Baris yang kosong tidak tampil.
+- Bagian tagihan: "Ada tagihan yang belum dibayar? Bayar lewat aplikasi {nama ISP}. Layanan aktif kembali otomatis setelah pembayaran diterima."
+- Bagian pembatasan lain: "Dibatasi oleh {nama ISP} karena alasan lain? Hubungi kami."
+- Tombol **Telepon**, **WhatsApp**, dan **Buka aplikasi {nama ISP}**. Setiap tombol hanya tampil bila nomor atau tautan aplikasinya tersedia. Halaman tidak punya tombol masuk web.
 
-Nama dan kontak itu berasal dari profil perusahaan (**Nama**, **Telepon**, **Email**, **Situs web**), yang admin ubah di menu Perusahaan (bagian 8.1).
+Nama, telepon, dan WhatsApp berasal dari profil perusahaan. Tautan aplikasi berasal dari alamat Play Store aplikasi pelanggan pada pengaturan sistem.
 
 ### Mengaktifkan kembali langganan
 
@@ -1951,7 +1955,7 @@ Server menolak dengan "Internet langganan sudah diblokir." bila langganan sudah 
 - Kata sandi akun ditolak dengan `Kata sandi tidak boleh berisi spasi.`: pakai 6 sampai 64 karakter tanpa spasi. Nama pengguna ditolak dengan `Gunakan 3 sampai 40 huruf kecil, angka, titik, tanda hubung, atau garis bawah.`: pakai hanya karakter itu.
 - **Tampilkan kata sandi** dan **Sinkron ulang** mengembalikan galat setelah dipakai berulang: server membatasi **Tampilkan kata sandi** 10 kali per menit dan **Sinkron ulang** 6 kali per menit.
 - Pelanggan sudah membayar tetapi tetap terisolir: periksa sumber isolirnya. Isolir `manual` dan blokir tidak dibuka oleh pembayaran. Periksa juga apakah **Aktifkan kembali saat tagihan lunas** menyala, tidak ada tagihan belum lunas yang lewat batas hari, dan setiap tagihan yang jatuh tempo paling lambat pada hari isolir sudah lunas.
-- Pelanggan yang diblokir manual tetap melihat halaman isolir yang menyebut tagihan belum dibayar. Halaman publik memakai teks yang sama untuk semua pelanggan terisolir dan tidak membaca sumber isolirnya. Jelaskan alasan blokir lewat petugas atau kontak perusahaan.
+- Pelanggan yang diblokir manual melihat satu halaman yang menjelaskan kemungkinan tunggakan dan pembatasan lain. Halaman tidak mengetahui penyebab isolir pelanggan. Minta pelanggan memakai **Telepon** atau **WhatsApp** bila masalahnya bukan tagihan.
 
 ## 5.4 Alamat IP
 
@@ -2427,7 +2431,7 @@ Izin: `inventory.request.create`. Sistem memberi nomor permintaan otomatis.
 4. Klik **Tambah Barang** untuk menambah baris (**Barang 2**, dan seterusnya). Satu barang hanya boleh muncul satu kali. Klik ikon tempat sampah (**Hapus barang 1**, **Hapus barang 2**, dan seterusnya) untuk menghapus baris; baris terakhir tidak dapat dihapus.
 5. Klik **Simpan sebagai Draf** untuk menyimpan tanpa mengajukan, atau **Ajukan ke Antrean Gudang** untuk menyimpan sekaligus mengajukan.
 
-Halaman detail permintaan baru terbuka dengan pesan `Permintaan barang berhasil dibuat.` Statusnya **Draf** atau **Menunggu persetujuan**. Pada pilihan kedua, pengguna berizin `inventory.request.approve` menerima email pemberitahuan **Permintaan Barang Baru**.
+Halaman detail permintaan baru terbuka dengan pesan `Permintaan barang berhasil dibuat.` Statusnya **Draf** atau **Menunggu persetujuan**. Pada pilihan kedua, pemegang `inventory.request.approve` menerima pemberitahuan di lonceng. Email hanya tersedia melalui ringkasan harian yang dinyalakan sendiri di Profil.
 
 ### Mengajukan draf ke gudang
 
@@ -2450,7 +2454,7 @@ Izin: `inventory.request.approve`. Permintaan harus berstatus **Menunggu persetu
    - **Catatan Persetujuan (opsional)**: maksimal 1000 karakter. Catatan tampil di kartu **Detail Permohonan**.
 4. Klik **Setujui & Reservasi**, atau **Batal**.
 
-Sistem memeriksa stok tersedia (**Jumlah** dikurangi **Dicadangkan**) di Gudang Tujuan untuk setiap barang. Bila semuanya cukup, stok direservasi, status menjadi **Disetujui**, kolom **Jumlah Disetujui** terisi, pemohon menerima email **Permintaan Barang Disetujui**, dan muncul pesan `Permintaan barang disetujui dan stok berhasil direservasi.` Bila satu barang kurang, tidak ada stok yang direservasi, dialog tetap terbuka dan menampilkan pesan kesalahan di kotak merah (lihat Kesalahan umum).
+Sistem memeriksa stok tersedia (**Jumlah** dikurangi **Dicadangkan**) di Gudang Tujuan untuk setiap barang. Bila semuanya cukup, stok direservasi, status menjadi **Disetujui**, kolom **Jumlah Disetujui** terisi, pemohon menerima lonceng dan push, dan muncul pesan `Permintaan barang disetujui dan stok berhasil direservasi.` Bila satu barang kurang, tidak ada stok yang direservasi, dialog tetap terbuka dan menampilkan pesan kesalahan yang menyebut nama barang, gudang, jumlah tersedia, dan jumlah dibutuhkan.
 
 Dialog persetujuan belum punya pilihan gudang. Permintaan yang disimpan tanpa **Gudang Tujuan** karena itu tidak dapat disetujui dari web (lihat Kesalahan umum).
 
@@ -2463,14 +2467,14 @@ Izin: `inventory.request.reject`. Syaratnya sama dengan persetujuan.
 3. Isi **Alasan Penolakan** di dialog **Tolak Permintaan Barang**. Wajib, 3 sampai 1000 karakter. Tombol **Tolak Permintaan** di dialog baru aktif setelah alasan berisi minimal 3 karakter.
 4. Klik **Tolak Permintaan** pada dialog, atau **Batal**.
 
-Status menjadi **Ditolak**, banner **Permintaan Barang Ditolak** memuat alasannya, pemohon menerima email **Permintaan Barang Ditolak** berisi alasan itu, dan muncul pesan `Permintaan barang telah ditolak.` Stok tidak berubah, dan penolakan tidak dapat dibatalkan.
+Status menjadi **Ditolak**, banner **Permintaan Barang Ditolak** memuat alasannya, pemohon menerima lonceng serta push, dan muncul pesan `Permintaan barang telah ditolak.` Stok tidak berubah, dan penolakan tidak dapat dibatalkan.
 
 ### Menyiapkan dan menyerahkan barang
 
 Izin: `inventory.request.prepare` untuk langkah 1 dan 2, `inventory.request.issue` untuk langkah 3. Langkah gudang ini dilakukan berurutan pada halaman detail permintaan.
 
 1. Pada status **Disetujui**, klik **Mulai Penyiapan Barang**, lalu klik **Ya, Mulai Penyiapan** pada dialog **Mulai Penyiapan Barang di Gudang?**. Muncul pesan `Status permintaan diubah menjadi sedang disiapkan gudang.` dan status menjadi **Disiapkan**.
-2. Setelah barang terkumpul, klik **Tandai Siap Diambil**, lalu klik **Tandai Siap Diambil** di dialog **Tandai Barang Siap Diambil?**. Muncul pesan `Status permintaan diubah menjadi siap diambil.`, status menjadi **Siap diambil**, dan pemohon menerima email serta notifikasi di sistem.
+2. Setelah barang terkumpul, klik **Tandai Siap Diambil**, lalu klik **Tandai Siap Diambil** di dialog **Tandai Barang Siap Diambil?**. Muncul pesan `Status permintaan diubah menjadi siap diambil.`, status menjadi **Siap diambil**, dan pemohon menerima lonceng serta push.
 3. Saat pemohon menerima barang fisik, klik **Serah Terima & Kurangi Stok**, lalu klik **Konfirmasi Serah Terima** di dialog **Konfirmasi serah terima barang?**. Status menjadi **Diserahkan** dan muncul pesan `Barang berhasil diserahterimakan dan stok berkurang.`
 
 Serah terima bersifat permanen. Reservasi dilepas, stok fisik berkurang sebesar jumlah disetujui, kolom **Jumlah Diserahkan** terisi, dan sistem membuka berkas pengembalian untuk pemohon (bagian 6.8). Stok dikurangi sekali, saat serah terima: persetujuan SPK terkait tidak mengurangi lagi jumlah yang sudah diserahkan lewat permintaan ini.
@@ -2490,7 +2494,7 @@ Muncul pesan `Permintaan barang berhasil dibatalkan.` Status menjadi **Dibatalka
 
 - Tombol **Setujui & Reservasi Stok**, **Tolak Permintaan**, **Mulai Penyiapan Barang**, atau **Serah Terima & Kurangi Stok** tidak muncul. Cek status permintaan, izin peran Anda, dan apakah Anda pemohon atau penyetuju permintaan itu. Bila ya, minta pengguna lain yang berhak melanjutkan.
 - Dialog persetujuan menampilkan `Permintaan barang tidak dapat disetujui karena status telah berubah atau Anda tidak berwenang.` (atau `... tidak dapat ditolak ...` pada dialog penolakan): pengguna lain sudah memutuskan lebih dulu, atau izin Anda berubah. Tutup dialog dan muat ulang halaman.
-- Dialog persetujuan menampilkan `Stok tidak mencukupi untuk produk ID <id> di lokasi ID <id>. Tersedia: <jumlah>, Diminta: <jumlah>.` Pesan ini memakai nomor ID barang dan lokasi, bukan namanya. Kurangi jumlah di dialog atau tambah stok lebih dulu (bagian 6.5), lalu setujui lagi. Bila tidak dapat dipenuhi, tolak permintaan dengan alasan.
+- Dialog persetujuan menampilkan `Stok {nama barang} di {nama gudang} tersisa {tersedia} {satuan}, dibutuhkan {diminta} {satuan}.` Kurangi jumlah di dialog atau tambah stok lebih dulu (bagian 6.5), lalu setujui lagi. Bila tidak dapat dipenuhi, tolak permintaan dengan alasan.
 - Dialog persetujuan menolak jumlah 0 dengan pesan `jumlah disetujui harus lebih besar dari 0.`, dan menolak jumlah di atas permintaan dengan pesan `Jumlah barang yang disetujui (<jumlah>) tidak boleh melampaui jumlah yang diminta (<jumlah>).` Setiap barang harus disetujui lebih dari 0, jadi barang tidak dapat dicoret sebagian. Bila sebagian tidak dapat dipenuhi, tolak permintaan dan minta pemohon membuat ulang.
 - Pesan `Lokasi gudang sumber wajib ditentukan untuk reservasi.` muncul di dialog persetujuan bila **Gudang Tujuan** dikosongkan saat membuat permintaan. Dialog persetujuan tidak punya pilihan lokasi, jadi tolak permintaan itu dan buat ulang dengan lokasi terpilih.
 - Draf tidak dapat diubah setelah disimpan. Batalkan draf yang salah dan buat permintaan baru.
@@ -2745,8 +2749,8 @@ Izin untuk tiga operasi ini ada, tetapi halaman Stok tidak menyediakan tombolnya
 - Dialog keputusan menampilkan `Permintaan penyesuaian stok tidak dapat disetujui karena status telah berubah atau Anda tidak berwenang.` (atau `... tidak dapat ditolak ...`): pengguna lain sudah memutuskan lebih dulu, atau izin Anda berubah. Tutup dialog dan muat ulang halaman.
 - Toast merah `Stok berubah sejak dihitung; hitung ulang.` saat **Setujui**: stok barang itu di lokasi tersebut berubah (barang masuk, keluar, atau penyesuaian lain) antara pengajuan dan persetujuan. Stok tidak berubah dan permintaan tetap menunggu. Minta penyetuju menolaknya, lalu ajukan ulang dengan hasil hitung yang baru. Penyesuaian langsung oleh admin tidak melalui pemeriksaan ini.
 - **Jumlah baru (hasil hitung fisik)** salah isi: angka ini adalah total hasil hitung fisik, bukan selisih, dan tidak boleh negatif. Pemohon tidak bisa mengubah atau membatalkan permintaan yang sudah diajukan. Minta penyetuju menolaknya, lalu ajukan ulang.
-- Persetujuan gagal dengan toast `Data gagal disimpan. Periksa input.` dan dialog tetap terbuka: **Jumlah baru** lebih kecil dari jumlah **Dicadangkan** barang itu di lokasi tersebut, dan stok tidak boleh turun di bawah jumlah yang dicadangkan. Pesan rincinya (`Stok tidak mencukupi. Diminta: <jumlah dicadangkan>, Tersedia: <jumlah baru>.`) tidak tampil di layar. Tolak permintaan, tunggu reservasi selesai, lalu ajukan ulang.
-- Pemindahan ditolak karena lokasi asal sama dengan tujuan (`Lokasi asal dan tujuan harus berbeda.`), atau jumlah melebihi **Tersedia** di asal (`Stok tidak mencukupi. Diminta: <jumlah>, Tersedia: <jumlah>.`). Pilih dua lokasi berbeda dan kurangi jumlah. Karena layar pemindahan belum ada, galat ini hanya mungkin pada panggilan langsung ke rute backend.
+- Persetujuan gagal dengan pesan yang menyebut nama barang, lokasi, jumlah tersedia, dan jumlah dibutuhkan bila **Jumlah baru** lebih kecil dari jumlah **Dicadangkan**. Tolak permintaan, tunggu reservasi selesai, lalu ajukan ulang.
+- Pemindahan ditolak bila lokasi asal sama dengan tujuan (`Lokasi asal dan tujuan harus berbeda.`), atau jumlah melebihi **Tersedia** di asal dengan pesan stok bernama. Pilih dua lokasi berbeda dan kurangi jumlah.
 
 ## 6.6 Cari Barang
 
@@ -2869,7 +2873,7 @@ Pengembalian tidak punya menu sendiri. Daftarnya adalah satu tab pada halaman Pe
 
 ### Mendeklarasikan pemakaian
 
-Teknisi mengerjakannya di aplikasi teknisi. Untuk setiap barang, jumlah dipakai, sisa baik, dan selisih harus berjumlah sama dengan jumlah yang dikeluarkan. Jika ada selisih, deklarasi wajib menyebut jenis selisihnya (rusak, hilang, atau lainnya). Alasan selisih bersifat opsional, maksimal 1000 karakter. Setelah laporan masuk, status berkas menjadi **Menunggu penerimaan gudang**, pengguna berizin `inventory.return.receive` menerima email berjudul `Deklarasi Pengembalian Material: <kode permintaan>`, dan stok belum berubah.
+Teknisi mengerjakannya di aplikasi teknisi. Untuk setiap barang, jumlah dipakai, sisa baik, dan selisih harus berjumlah sama dengan jumlah yang dikeluarkan. Jika ada selisih, deklarasi wajib menyebut jenis selisihnya. Setelah laporan masuk, status berkas menjadi **Menunggu penerimaan gudang**, pemegang `inventory.return.receive` menerima pemberitahuan di lonceng, dan stok belum berubah.
 
 Di web, tombol **Laporkan Pemakaian & Ajukan Pengembalian** hanya muncul bagi pemilik berkas yang memegang `inventory.return.declare`, misalnya admin yang membuat permintaannya sendiri. Tombol itu muncul saat status berkas **Menunggu deklarasi teknisi** atau **Perlu koreksi**.
 
@@ -2896,7 +2900,7 @@ Izin: `inventory.return.receive`. Berkas harus berstatus **Menunggu penerimaan g
 
 Pada setiap barang yang diproses lewat dialog web, **Dipakai Riil** ditambah **Diterima Baik** ditambah **Rusak** harus sama dengan **Dikeluarkan**. Dialog web tidak menyediakan isian hilang atau lainnya, jadi kasus itu tidak dapat dicatat secara tepat melalui dialog ini. Jangan mencatat barang hilang sebagai rusak hanya agar jumlahnya cocok.
 
-Jumlah **Diterima Baik** langsung menambah stok di **Gudang Tujuan** berkas, dan Mutasi Stok (bagian 6.7) mencatat baris berjenis **Masuk** dengan catatan `Penerimaan Fisik Pengembalian Material: <kode permintaan>`. Bila **Rusak** nol di semua barang, status menjadi **Diterima**. Bila ada barang dengan **Rusak** lebih dari nol, status menjadi **Selisih perlu penyelesaian** dan pengguna berizin `inventory.return.resolve` menerima email berjudul `Selisih Material Perlu Diselesaikan: <kode permintaan>`. Bila tidak ada pemegang izin itu, email dikirim ke pemegang izin `inventory.request.approve`.
+Jumlah **Diterima Baik** langsung menambah stok di **Gudang Tujuan**. Bila **Rusak** nol di semua barang, status menjadi **Diterima**. Bila ada barang rusak, status menjadi **Selisih perlu penyelesaian** dan pemegang `inventory.return.resolve` menerima pemberitahuan di lonceng.
 
 ### Menolak penyerahan fisik
 
@@ -2906,7 +2910,7 @@ Izin dan syarat sama dengan penerimaan. Pakai langkah ini bila barang belum samp
 2. Isi **Alasan Penolakan Fisik** di dialog **Tolak Penyerahan Fisik Barang** (petunjuk `Jelaskan mengapa penyerahan fisik ditolak`). Wajib, 3 sampai 1000 karakter. Tombol **Tolak Penyerahan** baru aktif setelah alasan berisi 3 karakter.
 3. Klik **Tolak Penyerahan**.
 
-Status menjadi **Perlu koreksi**, banner **Penyerahan Fisik Ditolak Gudang** memuat alasannya, dan stok tidak berubah. Teknisi menerima email berjudul `Penyerahan Pengembalian Material Ditolak: <kode permintaan>` berisi alasan, lalu melapor ulang. Setelah laporan baru masuk, status kembali ke **Menunggu penerimaan gudang**.
+Status menjadi **Perlu koreksi**, banner **Penyerahan Fisik Ditolak Gudang** memuat alasannya, dan stok tidak berubah. Teknisi menerima lonceng serta push berisi alasan, lalu melapor ulang. Setelah laporan baru masuk, status kembali ke **Menunggu penerimaan gudang**.
 
 ### Menyelesaikan selisih
 
@@ -3036,7 +3040,7 @@ Izin yang dibutuhkan: `billing.create`. Pakai tagihan manual untuk biaya di luar
 
 ### Menambah item dan mengirim tagihan draf
 
-Izin yang dibutuhkan: `billing.update` untuk **Tambah item** dan `billing.send` untuk **Kirim tagihan**. Hanya tagihan **Draf** yang bisa diberi item.
+Izin yang dibutuhkan: `billing.update`, atau `billing.create` untuk menyusun tagihan **Draf**, serta `billing.send` untuk **Kirim tagihan**. Hanya tagihan **Draf** yang bisa diberi atau dihapus itemnya.
 
 1. Buka detail tagihan **Draf**, lalu klik **Tambah item**.
 2. Isi jendela **Tambah item**:
@@ -3052,7 +3056,7 @@ Per baris, **Total baris** adalah **Kuantitas** kali **Harga satuan** dikurangi 
 
 - **Pajak (%)** tidak terisi otomatis dengan PPN perusahaan. Isi tarifnya sendiri untuk item yang kena PPN. Tagihan bulanan dan tagihan dari SPK memakai tarif perusahaan otomatis.
 - Layar tidak punya tombol untuk mengubah atau menghapus item. Setelah **Kirim tagihan**, item tidak bisa ditambah. Server menolak dengan "Hanya tagihan draf yang bisa diberi item." Bila isi tagihan salah, batalkan tagihan itu (lihat di bawah) dan buat ulang.
-- **Kirim tagihan** tidak memeriksa jumlah item, jadi draf tanpa item terkirim dengan **Total** Rp 0. Karena **Sisa** nya 0, tombol **Catat pembayaran** tidak tampil untuk tagihan itu, dan satu-satunya langkah berikut adalah **Batalkan tagihan**. Server menolak kirim ulang dengan "Hanya tagihan draf yang bisa dikirim."
+- **Kirim tagihan** nonaktif selama draf belum punya item atau totalnya Rp 0. Petunjuknya menulis "Tambahkan minimal satu item sebelum mengirim." Server juga menolak keadaan itu dengan "Tagihan tanpa item atau bernilai Rp 0 tidak bisa dikirim."
 - Setelah **Kirim tagihan**, pelanggan melihat tagihan di aplikasi pelanggan. Pelanggan juga menerima WhatsApp "Tagihan terbit" bila WhatsApp aktif di Pengaturan Perusahaan (bagian 8.1), jenis pesan itu dicentang, dan pelanggan sudah menyetujui pesan WhatsApp.
 
 ### Mencatat pembayaran
@@ -3103,16 +3107,14 @@ Sistem menolak pembatalan bila tagihan masih punya pembayaran aktif ("Tagihan ya
 
 ### Melihat tagihan dari SPK
 
-Tagihan sekali bayar dari SPK dibuat oleh sistem. Layar tidak punya tombol untuk membuatnya.
+Tagihan sekali bayar dibuat hanya dari persetujuan SPK **Instalasi** yang punya biaya untuk ditagih.
 
-1. Setujui SPK yang menunggu review di halaman SPK (bagian 3.3). Status SPK menjadi Selesai.
-2. Bila saklar **Buat tagihan otomatis saat SPK selesai** menyala, sistem membuat satu tagihan **Draf** untuk SPK itu (berjenis Sekali bayar, bersumber SPK).
-3. Buka **Tagihan**, cari nomor atau nama pelanggannya, lalu buka tagihan itu.
-4. Periksa item dan tambahkan bila perlu lewat **Tambah item**. Klik **Kirim tagihan** setelah isinya benar.
+1. Setujui SPK **Instalasi** yang menunggu review. Status SPK menjadi **Selesai**.
+2. Sistem membuat tagihan bila langganan punya biaya pemasangan lebih dari Rp 0, atau bila **Tagihkan bahan terpakai** aktif dan SPK punya bahan terpakai. Biaya paket menjadi baris **Biaya pemasangan**. Setiap bahan menjadi **Bahan terpakai: {nama barang}**.
+3. Bila **Kirim tagihan pemasangan otomatis** aktif, tagihan langsung menjadi **Belum dibayar**. Bila mati, tagihan tetap **Draf**, staf penagihan menerima notifikasi, dan kartu **Tagihan draf menunggu dikirim** muncul di Dasbor Keuangan.
+4. Untuk draf, buka **Tagihan**, periksa item, tambahkan atau hapus item bila perlu, lalu klik **Kirim tagihan**. Draf tanpa item atau dengan total Rp 0 tidak dapat dikirim.
 
-Item berasal dari bahan SPK yang terpakai (jumlah terpakai kali harga jual barang, dengan PPN perusahaan) dan satu baris "Biaya Instalasi" diikuti kode jenis SPK (misalnya `installation`) bila langganan punya biaya instalasi. **Jatuh tempo** adalah 14 hari setelah penyetujuan. Satu SPK hanya punya satu tagihan, dan pembuat tagihan adalah penyetuju SPK.
-
-Bila saklar itu mati, tidak ada tagihan yang terbit. Buat tagihan manual lewat **Buat tagihan** bila biaya SPK tetap perlu ditagih. Pengaturan Perusahaan (bagian 8.1) menampilkan saklar itu di kartu **Tagihan** hanya bila kuncinya sudah ada di pengaturan perusahaan. Pengaturan sistem dengan nama kunci yang sama juga dapat menyalakannya.
+Satu SPK paling banyak punya satu tagihan. SPK **Perawatan**, **Peningkatan layanan**, dan **Pindah lokasi** tidak membuat tagihan melalui alur pemasangan ini.
 
 ### Memantau jatuh tempo dan isolir otomatis
 
@@ -3132,8 +3134,8 @@ Bila saklar itu mati, tidak ada tagihan yang terbit. Buat tagihan manual lewat *
 - **Jumlah** lebih besar dari sisa ditolak (galat 422, "Jumlah pembayaran melebihi sisa tagihan."). **Referensi** yang sama dengan pembayaran aktif lain juga ditolak ("Referensi pembayaran sudah ada."). Perbaiki isiannya. Tagihan yang statusnya tidak menerima pembayaran ditolak dengan "Tagihan tidak menerima pembayaran pada statusnya saat ini."
 - Pembatalan atau pembatalan pembayaran oleh pembuatnya ditolak ("Tagihan yang Anda buat sendiri tidak bisa Anda batalkan.", "Pembayaran yang Anda catat sendiri tidak bisa Anda batalkan."). Minta pengguna lain dengan izin yang sama.
 - Pembatalan tagihan ditolak bila ada pembayaran aktif ("Tagihan yang punya pembayaran aktif tidak bisa dibatalkan. Batalkan pembayarannya dulu."). Batalkan pembayarannya dulu. Bila tagihan atau pembayaran sudah dibatalkan, server menjawab "Tagihan sudah dibatalkan." atau "Pembayaran sudah dibatalkan.".
-- Draf tanpa item terkirim dengan **Total** Rp 0 dan tidak bisa diisi lagi. Tambahkan item sebelum **Kirim tagihan**.
-- **Periode** di **Buat tagihan bulanan** hanya diperiksa formatnya. Bulan berjalan atau bulan depan tetap diproses dan langsung terbit sebagai **Belum dibayar**. Pastikan bulannya benar sebelum klik **Buat &lt;n&gt; tagihan**. Bila **Periode** dikosongkan, **Lihat pratinjau** tidak menampilkan apa pun.
+- Draf tanpa item atau dengan **Total** Rp 0 tidak bisa dikirim. Tambahkan item bernilai lebih dari Rp 0 sebelum **Kirim tagihan**.
+- Periode tagihan bulanan tidak boleh melewati bulan berjalan. Untuk bulan berjalan, pratinjau menampilkan peringatan dan tombol pembuatan baru aktif setelah Anda mencentang **Saya mengerti, buat tagihan periode berjalan**. Bulan depan ditolak dengan "Periode tagihan paling lambat bulan berjalan.".
 - **Langganan (opsional)** kosong lagi setelah Anda mengganti **Pelanggan**. Ini disengaja karena daftar langganan mengikuti pelanggan. Pilih langganannya lagi. Bila server menolak simpan dengan pesan merah "langganan yang dipilih tidak sesuai dengan pelanggan yang dipilih.", langganan itu milik pelanggan lain: pilih pelanggan yang benar atau kosongkan isiannya. Pesan "Langganan yang dipilih tidak ditemukan." berarti langganan itu bukan milik perusahaan ini atau sudah dihapus.
 - Tagihan yang dibuat dengan **Jatuh tempo** kosong jatuh tempo 14 hari dari hari ini, bukan dari **Tanggal terbit**. Isi **Jatuh tempo** sendiri bila tanggal terbitnya berbeda.
 - Tagihan bulanan memakai isian **Jatuh tempo tagihan** di Pengaturan Perusahaan (bagian 8.1). Awalan nomor tagihan diatur di **Penomoran** (bagian 7.13).
@@ -3784,11 +3786,12 @@ Peran yang dapat memakai: admin. Izin: `company.manage`. Manajer dan staf tidak 
 
    ![Layar Pengaturan Perusahaan: judul, tombol Profil perusahaan dan kartu pengaturan Tagihan](images/web/company-settings.png)
 
-2. Ubah kartu pengaturan tagihan dan penangguhan. Setiap pengaturan punya nama, satuan dalam tanda kurung (bila ada) dan satu kalimat keterangan. Kartu **Tagihan** dan **Penangguhan otomatis** selalu tampil. Kartu **Format tanggal** dan baris **Buat tagihan otomatis saat SPK selesai** tampil hanya bila perusahaan sudah menyimpan pengaturan itu.
-   - **Tarif PPN (%)**: angka 0 sampai 100, langkah 0,01, bawaan 11. Tarif pajak pada tagihan bulanan dan pada tagihan yang dibuat dari SPK. Keterangan: "Dipakai menghitung pajak pada tagihan baru."
-   - **Jatuh tempo tagihan (hari)**: angka bulat 1 sampai 365, bawaan 14. Jumlah hari dari tanggal terbit sampai jatuh tempo pada tagihan bulanan buatan sistem (bagian 7.1).
-   - **Rekening pembayaran**: kotak teks banyak baris, bawaan kosong. Tulis satu rekening per baris. Isinya tercetak di PDF tagihan di bawah label **Pembayaran:**.
-   - **Buat tagihan otomatis saat SPK selesai**: saklar. Bila aktif, tagihan draf dibuat otomatis saat SPK selesai (bab 3).
+2. Ubah kartu pengaturan tagihan dan penangguhan. Setiap pengaturan punya nama, satuan bila ada, dan satu kalimat keterangan. Kartu **Tagihan** dan **Penangguhan otomatis** selalu tampil.
+   - **Tarif PPN (%)**: angka 0 sampai 100, langkah 0,01, bawaan 11. Tarif pajak pada tagihan bulanan dan tagihan dari SPK.
+   - **Jatuh tempo tagihan (hari)**: angka bulat 1 sampai 365, bawaan 14.
+   - **Rekening pembayaran**: kotak teks banyak baris. Isinya tercetak di PDF tagihan.
+   - **Kirim tagihan pemasangan otomatis**: saklar, bawaan mati. Mati berarti tagihan pemasangan dibuat sebagai **Draf**, staf dengan `billing.send` diberi tahu, dan kartu Dasbor Keuangan muncul. Nyala berarti tagihan langsung dikirim saat SPK pemasangan disetujui.
+   - **Tagihkan bahan terpakai**: saklar, bawaan mati. Mati berarti bahan termasuk biaya pemasangan dan tidak menjadi item tagihan. Nyala berarti setiap bahan ditagih per baris dengan label **Bahan terpakai**.
    - **Tangguhkan langganan yang menunggak**: saklar, bawaan mati. Bila aktif, sistem menangguhkan (mengisolir) langganan aktif yang punya tagihan belum lunas dan lewat jatuh tempo lebih dari **Batas keterlambatan (hari)**. Pemeriksaannya berjalan setiap hari pukul 08:00.
    - **Batas keterlambatan (hari)**: angka bulat 1 sampai 60, bawaan 7.
    - **Aktifkan kembali saat tagihan lunas**: saklar, bawaan aktif. Bila aktif, langganan yang ditangguhkan otomatis kembali aktif setelah pembayaran, selama tidak ada lagi tagihannya yang lewat masa tenggang. Penangguhan manual tidak pernah dibuka otomatis.
@@ -4454,8 +4457,8 @@ Siapkan dulu:
    - Stok bahan yang tercatat di **Jumlah terpakai** berkurang di **Lokasi** SPK, dan **Mutasi Stok** mencatatnya sebagai **Keluar** (bagian 6.7). Jumlah yang sudah keluar lewat permintaan barang tidak dikurangi dua kali.
    - Pada SPK **Instalasi**, aset yang dipilih menjadi **Terpasang** pada pelanggan dan langganan (bagian 5.2).
    - Langganan **Menunggu** menjadi **Aktif**, dan status pelanggan menjadi **Aktif**.
-   - Bila saklar **Buat tagihan otomatis saat SPK selesai** di **Pengaturan Perusahaan** menyala, Inbils membuat tagihan sekali bayar berstatus **Draf** dengan jatuh tempo 14 hari. Isinya bahan terpakai dan baris "Biaya Instalasi installation" bila langganan punya biaya pemasangan.
-10. Untuk tagihan pemasangan, buka **Tagihan** (bagian 7.1) dan cari tagihan **Draf** itu. Periksa itemnya, tambah item lewat **Tambah item** bila perlu (izin `billing.update`, admin dan manajer), lalu klik **Kirim tagihan**. Status menjadi **Belum dibayar**, dan pelanggan melihatnya di aplikasi pelanggan. Bila saklar **Buat tagihan otomatis saat SPK selesai** mati, tidak ada tagihan otomatis. Buat tagihan lewat **Buat tagihan** bila biaya pemasangan tetap perlu ditagih.
+   - Bila SPK punya biaya pemasangan atau bahan yang dipilih untuk ditagih, Inbils membuat tagihan sekali bayar. Baris biaya bernama **Biaya pemasangan**. Bahan hanya menjadi baris **Bahan terpakai** bila saklarnya menyala.
+10. Bila **Kirim tagihan pemasangan otomatis** menyala, pelanggan langsung melihat tagihan. Bila mati, buka kartu **Tagihan draf menunggu dikirim** di Dasbor Keuangan, periksa draf, lalu klik **Kirim tagihan**. Pemegang `billing.send` juga menerima lonceng dan push.
 11. Untuk tagihan bulanan, klik **Buat tagihan bulanan** di **Tagihan**, pilih **Periode**, klik **Lihat pratinjau**, lalu **Buat &lt;n&gt; tagihan**. Penerbitan juga berjalan terjadwal setiap hari. Tagihan langsung berstatus **Belum dibayar**, dan bulan pertama dihitung prorata sejak tanggal aktivasi. Langganan yang **Menunggu** atau **Ditangguhkan** tidak ikut tagihan bulanan.
 12. Pelanggan membayar lewat aplikasi pelanggan. Pembayaran masuk ke tagihan setelah Midtrans mengonfirmasi. Pemegang izin `billing.payment.record` (admin, manajer, dan staf) juga dapat mencatat pembayaran: buka tagihan yang belum lunas (**Belum dibayar**, **Sebagian**, atau **Lewat jatuh tempo**), klik **Catat pembayaran**, isi **Jumlah** (tidak lebih dari sisa) dan **Metode** (**Tunai**, **Transfer**, **Cek**, atau **Lainnya**), isi **Referensi** bila ada, lalu klik **Simpan**. Tagihan menjadi **Sebagian** atau **Lunas**.
 13. Bila tagihan tidak dibayar sampai lewat jatuh tempo, pekerjaan terjadwal menandainya **Lewat jatuh tempo**. Pelanggan juga menerima pengingat WhatsApp tiga hari dan satu hari sebelum jatuh tempo, dan satu hari sesudahnya. Bila saklar **Tangguhkan langganan yang menunggak** menyala di **Pengaturan Perusahaan** (bagian 8.1), langganan yang tagihannya melewati **Batas keterlambatan** diisolir otomatis dan berstatus **Ditangguhkan**. Pembayaran yang melunasi semua tunggakan mengaktifkan kembali langganan yang diisolir otomatis, bila saklar **Aktifkan kembali saat tagihan lunas** menyala. Nilai awalnya: penangguhan mati, batas 7 hari, aktif kembali menyala. Penangguhan manual dan blokir internet tidak pernah dibuka otomatis. Admin dan manajer juga dapat mengisolir atau memblokir sendiri dari **Tunggakan** (bagian 7.2 dan 5.3).
@@ -4468,7 +4471,7 @@ Hasil akhirnya: langganan **Aktif** dan tagihan **Lunas**. Tagihan dan pembayara
 - Anda mendaftarkan pelanggan lalu tidak bisa menyetujui SPK-nya. Itu aturan pemisahan tugas dan berlaku juga untuk admin. Di **Persetujuan**, SPK itu tidak punya tombol **Tinjau**, dan kolom **Tindakan** menulis "Perlu penyetuju lain". Minta rekan yang berhak menyetujuinya.
 - Langganan masih **Menunggu** padahal teknisi sudah selesai: SPK belum disetujui. Buka **Persetujuan**.
 - Stok tidak berkurang dan aset tidak terpasang setelah persetujuan: SPK tidak punya **Lokasi**. SPK dari pendaftaran selalu punya **Lokasi**, tetapi SPK manual belum tentu, dan layar SPK tidak punya tombol untuk mengubah **Lokasi** sesudah SPK dibuat.
-- Tagihan pemasangan tidak muncul setelah persetujuan: saklar **Buat tagihan otomatis saat SPK selesai** mati. Nilai awalnya mati.
+- Tagihan pemasangan tidak muncul setelah persetujuan: SPK tidak punya biaya pemasangan atau bahan yang diaktifkan untuk ditagih. Bila tagihan ada tetapi pelanggan belum melihatnya, periksa kartu **Tagihan draf menunggu dikirim** dan saklar **Kirim tagihan pemasangan otomatis**.
 - Pelanggan tidak bisa masuk ke aplikasi: **Akun aktif** mati saat pendaftaran sehingga email tidak terkirim, atau tautannya sudah lewat 60 menit. Aktifkan pelanggan di Pelanggan (bagian 4.1) dan penggunanya di Pengguna (bagian 8.5), lalu klik **Kirim ulang link akses**. Bila salah satunya nonaktif, Inbils menolak dengan pesan "Customer atau akun portalnya nonaktif, tautan akses tidak dikirim." Tombol ini dibatasi tiga kali per menit.
 - Pelanggan tidak menerima WhatsApp: buka kartu **WhatsApp** di detail pelanggan. Kolom **Status** dan **Keterangan** menyebut alasan pesan dilewati, misalnya "Pelanggan belum setuju" atau "WhatsApp perusahaan nonaktif".
 - Pembayaran gagal dengan pesan "Jumlah pembayaran melebihi sisa tagihan." atau "Referensi pembayaran sudah ada.": kurangi **Jumlah** atau pakai referensi lain (bagian 7.1).
@@ -4498,10 +4501,10 @@ Gangguan yang selesai dari jarak jauh melewati langkah 5 sampai 9 dan tidak butu
 
 - **Buat SPK** tidak tampil: tiket harus **Ditugaskan** atau **Dikerjakan** dan belum punya catatan penyelesaian. Bila tombol tampil tetapi server menolak, penyebabnya salah satu dari ini: Anda tidak memegang `ticket.spawn_spk`, atau tiket itu sudah punya SPK ("SPK sudah dibuat dari tiket ini.").
 - SPK perbaikan tidak bisa Anda setujui sendiri karena Anda pembuatnya. Server menolak dengan pesan "Pembuat SPK tidak boleh menyetujui SPK sendiri." Minta rekan yang berhak.
-- Persetujuan SPK perbaikan ikut membuat tagihan: bila saklar **Buat tagihan otomatis saat SPK selesai** menyala, Inbils membuat tagihan **Draf** berisi bahan terpakai, dan baris "Biaya Instalasi maintenance" bila langganan punya biaya pemasangan. Periksa tagihan itu di **Tagihan** (bagian 7.1) sebelum **Kirim tagihan**. Tagihan yang tidak perlu dibatalkan oleh pengguna lain dengan izin `billing.cancel`, karena pembuat tagihan adalah penyetuju SPK ("Tagihan yang Anda buat sendiri tidak bisa Anda batalkan.").
+- Persetujuan SPK **Perawatan** tidak membuat tagihan pemasangan. Alur tagihan pemasangan hanya berlaku untuk SPK **Instalasi**.
 - **Selesaikan** ditolak pada tiket **Ditugaskan**: petugas klik **Mulai** dulu. Pesannya "Tiket harus berstatus dikerjakan untuk bisa diselesaikan."
 - **Tutup** tidak tampil: tiket belum **Diselesaikan**, Anda tidak memegang `ticket.close`, atau Anda petugas tiket itu.
-- Tiket yang **Diselesaikan** atau **Ditutup** tidak bisa dibuka lagi di web. Catat masalah yang muncul lagi sebagai tiket baru.
+- Tiket **Diselesaikan** dibuka kembali saat pelanggan membalas. Tiket **Ditutup** tidak menerima balasan; catat masalah yang muncul lagi sebagai tiket baru.
 
 ## 9.3 Permintaan barang sampai pengeluaran stok
 
@@ -4510,16 +4513,16 @@ Alur ketiga mengikuti barang dari permintaan sampai keluar dari gudang, lalu sis
 ### Langkah
 
 1. Pemohon membuat permintaan. Teknisi membuatnya di aplikasi teknisi, dan permintaan itu langsung berstatus **Menunggu persetujuan**. Di web, hanya peran yang memegang `inventory.request.create` (admin pada peran bawaan) melihat **Buat Permintaan Barang** di **Permintaan Barang** (bagian 6.1). Isi **Gudang Tujuan**, **Alasan Kebutuhan Barang** (wajib), dan **Tanggal Dibutuhkan** bila perlu. Di **Rujukan (opsional)**, pilih SPK atau tiket, lalu ketik kodenya untuk mencari dan pilih. Di **Barang 1**, ketik nama atau SKU barang habis pakai dan isi **Jumlah**. Klik **Tambah Barang** untuk baris berikutnya. Klik **Ajukan ke Antrean Gudang**. **Simpan sebagai Draf** menyimpan tanpa mengajukan, dan draf diajukan nanti lewat **Ajukan ke Gudang** di halaman detail. Pastikan **Gudang Tujuan** terisi: dialog persetujuan di web tidak punya pilihan gudang, jadi permintaan tanpa gudang tidak bisa disetujui dari web.
-2. Pengguna dengan izin setujui menerima email **Permintaan Barang Baru** dengan kode permintaan. Permintaan masuk ke **Persetujuan** (bagian 3.2) dan ke kartu **Menunggu persetujuan saya** di Dasbor.
-3. Manajer atau admin yang bukan pemohon memutuskan. Di **Persetujuan**, klik **Tinjau** lalu **Setujui** untuk menyetujui seluruh jumlah. Untuk menyetujui sebagian, buka halaman detail permintaan (klik kodenya), klik **Setujui & Reservasi Stok**, ubah **Jumlah yang disetujui** per barang, lalu klik **Setujui & Reservasi**. Untuk menolak dari **Persetujuan**, klik **Tinjau**, **Tolak**, isi **Alasan penolakan** (3 sampai 500 karakter), lalu **Konfirmasi tolak**. Dari halaman detail, klik **Tolak Permintaan**, isi **Alasan Penolakan** (3 sampai 1000 karakter), lalu klik **Tolak Permintaan** di dialog. Pemohon menerima email **Permintaan Barang Ditolak** berisi alasannya.
-4. Saat disetujui, Inbils memeriksa stok tersedia (**Jumlah** dikurangi **Dicadangkan**) di **Gudang Tujuan** untuk setiap barang. Bila semuanya cukup, stok direservasi (**Mutasi Stok** mencatat **Dicadangkan**), status menjadi **Disetujui**, dan pemohon menerima email **Permintaan Barang Disetujui**. Bila satu barang kurang, tidak ada yang direservasi dan dialog menampilkan pesan kesalahan.
-5. Petugas gudang yang bukan penyetuju membuka tab **Persiapan & Antrean Gudang** (kartu **Antrean permintaan gudang** di Dasbor membukanya) lalu membuka detail permintaan. Klik **Mulai Penyiapan Barang** lalu **Ya, Mulai Penyiapan**. Status menjadi **Disiapkan**.
-6. Setelah barang terkumpul, klik **Tandai Siap Diambil** lalu konfirmasi dengan **Tandai Siap Diambil**. Status menjadi **Siap diambil**, dan pemohon menerima email serta notifikasi di lonceng.
+2. Pemegang izin setujui menerima pemberitahuan **Permintaan Barang Baru** di lonceng. Permintaan masuk ke **Persetujuan** dan kartu **Menunggu persetujuan saya** di Dasbor.
+3. Manajer atau admin yang bukan pemohon memutuskan. Penolakan memberi pemohon lonceng serta push berisi alasan.
+4. Saat disetujui, Inbils memeriksa stok tersedia di **Gudang Tujuan**. Bila cukup, stok direservasi, status menjadi **Disetujui**, dan pemohon menerima lonceng serta push. Bila kurang, tidak ada reservasi dan pesan menyebut barang, gudang, jumlah tersedia, serta jumlah dibutuhkan.
+5. Petugas gudang yang bukan penyetuju membuka tab **Persiapan & Antrean Gudang**, lalu menjalankan **Mulai Penyiapan Barang**. Status menjadi **Disiapkan**.
+6. Setelah barang terkumpul, klik **Tandai Siap Diambil** dan konfirmasi. Status menjadi **Siap diambil**, dan pemohon menerima lonceng serta push.
 7. Saat pemohon menerima barang fisik, petugas yang bukan pemohon dan bukan penyetuju klik **Serah Terima & Kurangi Stok**, lalu **Konfirmasi Serah Terima**. Status menjadi **Diserahkan**. Reservasi dilepas (**Mutasi Stok** mencatat **Cadangan dilepas**), stok fisik berkurang (**Keluar**), dan **Jumlah Diserahkan** terisi. Serah terima tidak bisa dibatalkan.
 8. Inbils membuka berkas pengembalian untuk permintaan itu dengan status **Menunggu deklarasi teknisi**. Setelah pekerjaan selesai, teknisi melaporkan pemakaian aktual dan sisa barang di aplikasi teknisi. Pemilik berkas yang bekerja di web memakai **Laporkan Pemakaian & Ajukan Pengembalian** di halaman detail permintaan, mengisi **Dipakai Aktual** dan **Sisa Dikembalikan**, lalu klik **Kirim Laporan Deklarasi**. Jumlah dipakai, sisa baik, dan selisih harus berjumlah sama dengan jumlah **Dikeluarkan**. Berkas menjadi **Menunggu penerimaan gudang**, dan stok belum berubah.
 9. Pemegang `inventory.return.receive` yang bukan pemilik berkas membuka **Permintaan Barang**, tab **Antrean Pengembalian** (bagian 6.8), lalu klik **Buka Permintaan & Terima Barang**. Di halaman detail, klik **Terima Pengembalian Fisik**, isi **Diterima Baik (Tambah Stok)** dan **Rusak** per barang, lalu klik **Konfirmasi Penerimaan Fisik**. Barang baik masuk kembali ke stok (**Mutasi Stok** mencatat **Masuk**).
-10. Bila tidak ada barang rusak, berkas menjadi **Diterima**. Bila ada, berkas menjadi **Selisih perlu penyelesaian**, dan pemegang `inventory.return.resolve` menerima email. Manajer yang bukan penerima fisik klik **Buka & Selesaikan Selisih**, **Selesaikan Selisih**, isi **Catatan Penyelesaian**, lalu **Konfirmasi Penyelesaian**. Berkas menjadi **Selisih diselesaikan**, dan stok tidak berubah lagi.
-11. Bila barang tidak sampai di meja gudang atau tidak sesuai laporan, klik **Tolak Fisik Barang**, isi **Alasan Penolakan Fisik**, lalu **Tolak Penyerahan**. Berkas menjadi **Perlu koreksi**. Teknisi menerima email berisi alasan dan melapor ulang.
+10. Bila tidak ada barang rusak, berkas menjadi **Diterima**. Bila ada, berkas menjadi **Selisih perlu penyelesaian**, dan pemegang `inventory.return.resolve` menerima pemberitahuan di lonceng. Manajer yang bukan penerima fisik menyelesaikan selisih dengan catatan.
+11. Bila barang tidak sampai atau tidak sesuai laporan, tolak penyerahan fisik. Berkas menjadi **Perlu koreksi**. Teknisi menerima lonceng serta push berisi alasan dan melapor ulang.
 12. Periksa hasilnya. **Stok** (bagian 6.5) menunjukkan **Jumlah**, **Dicadangkan**, dan **Tersedia**. **Mutasi Stok** (bagian 6.7) menunjukkan jejak **Dicadangkan**, **Cadangan dilepas**, **Keluar**, dan **Masuk** untuk permintaan itu. Catatan mutasi **Keluar** memuat kode permintaan, jadi kode itu dapat dicari di kotak **Cari mutasi**.
 
 Permintaan yang masih **Draf** atau **Menunggu persetujuan** bisa dibatalkan lewat **Batalkan Permintaan**. Pemohon membatalkan permintaannya sendiri bila perannya memegang `inventory.request.cancel.own` (admin pada peran bawaan). Pemegang `inventory.request.approve` yang tidak memegang izin itu (manajer pada peran bawaan) dapat membatalkan permintaan siapa pun. Setelah disetujui, layar ini tidak menyediakan pembatalan.

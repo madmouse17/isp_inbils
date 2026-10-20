@@ -113,10 +113,10 @@ class InvoiceOnlinePaymentsPanelTest extends TestCase
         $this->actingAs($technician)->get(route('admin.invoices.show', $invoice))->assertRedirect(route('app-only'));
     }
 
-    public function test_no_staff_route_can_change_an_attempt(): void
+    public function test_no_staff_route_can_change_an_attempt_except_the_refund_mark_of_an_exception(): void
     {
         $names = collect(Route::getRoutes()->getRoutesByName())->keys();
 
-        $this->assertSame([], $names->filter(fn (string $name): bool => str_contains($name, 'attempt'))->values()->all());
+        $this->assertSame(['admin.payment-attempts.refund'], $names->filter(fn (string $name): bool => str_contains($name, 'attempt'))->values()->all());
     }
 }

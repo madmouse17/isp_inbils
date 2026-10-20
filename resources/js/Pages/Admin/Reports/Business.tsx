@@ -19,7 +19,7 @@ import {
     type DateRange,
 } from '@/Components/ui';
 import { useVisitPending } from '@/hooks/useVisitPending';
-import { formatNumber } from '@/lib/format';
+import { formatNumber, formatPercent } from '@/lib/format';
 import type { BusinessChartData, ReportMeta } from '@/types';
 import { DrillLink, type DrillLinks } from './components/DrillLink';
 import { MoneyFigure } from './components/MoneyFigure';
@@ -104,7 +104,7 @@ export default function Business({
         if (!data) return '';
         if (kind === 'count') return formatNumber(data[key] ?? 0);
 
-        return `${data[key] ?? 0}%`;
+        return formatPercent(data[key]);
     };
 
     return (

@@ -24,6 +24,8 @@ rm -f storage/app/private/firebase-service-account.json
 
 `storage/app/private/*` is ignored by Git. Delete the temporary copy when the check is done.
 
+The process that calls `notify()` decides. `FcmChannel::for()` reads `FIREBASE_CREDENTIALS` in that process, so a button in the web app needs the key in the web process, and a notification sent from a queued job needs it in the worker; with the key missing in either one, that action leaves no push in the queue and nothing says why. The `env FIREBASE_CREDENTIALS=... sail artisan` line above covers that one command only. To try a push from the web app, put the path in the Sail `.env` and restart the worker (`sail artisan queue:restart`, or recreate the `workers` containers), so web and worker both have it.
+
 ### Production Docker
 
 Put the host path in the ignored `.env.docker`:
@@ -144,6 +146,11 @@ Pengaturan → Integrasi shows a read-only card **Notifikasi aplikasi (Firebase)
 ### E2E
 
 `tests/e2e/tenant-integrations.spec.ts` calls the push-test API and expects `202`, so `.env.e2e` must set `FIREBASE_CREDENTIALS` (`.env.e2e.example` points it at `storage/app/e2e-firebase-missing.json`, a file that does not exist: the push job fails at once and nothing calls Google).
+
+### Emulator and device checks (dev)
+
+- **Offline mode.** The dev setup runs `adb reverse tcp:8010 tcp:8010` (and `tcp:80`) so the app on the emulator reaches the host server. The reverse keeps the app online even in airplane mode, which hides the offline queue: an "offline" test then books the action as if nothing were wrong. For a real offline test use airplane mode and `adb reverse --remove tcp:8010`, and set the reverse again afterwards.
+- **One AVD at a time.** An emulator takes several GB of RAM; two of them next to a browser and a language server ran the host out of memory and the AVD was killed three times (F12-D19). Check `uptime` before you boot one, do not boot it while a build or an E2E run holds `/tmp/inbils-build.lock` or `/tmp/inbils-e2e.lock`, and close what you do not need.
 
 ## Troubleshooting
 

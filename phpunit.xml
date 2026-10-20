@@ -26,6 +26,8 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="LOG_CHANNEL" value="stderr"/>
+        <!-- One storage tree for the test run (config/filesystems.php): what a test writes never mixes with the dev site's files. -->
+        <env name="STORAGE_ENV_SUFFIX" value="/testing" force="true"/>
         <env name="CACHE_STORE" value="array"/>
         <env name="DB_CONNECTION" value="mysql" force="true"/>
         <env name="DB_HOST" value="mysql" force="true"/>
@@ -55,5 +57,6 @@
         <server name="DB_USERNAME" value="inbils" force="true"/>
         <server name="DB_PASSWORD" value="inbils_local_change_me" force="true"/>
         <server name="DB_URL" value="" force="true"/>
+        <server name="STORAGE_ENV_SUFFIX" value="/testing" force="true"/>
     </php>
 </phpunit>

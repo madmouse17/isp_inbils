@@ -5,6 +5,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite';
 import { RemoteSearchSelect, type RemoteOption } from '@/Components/composite/RemoteSearchSelect';
 import { Button, Card, CardContent, CardHeader, CardTitle, DateRangePicker } from '@/Components/ui';
+import { formatDecimal, formatPercent } from '@/lib/format';
 import type { ReportMeta, TechnicianChartData } from '@/types';
 import { DrillLink, type DrillLinks } from './components/DrillLink';
 import { ReportExportMenu } from './components/ReportExportMenu';
@@ -204,7 +205,7 @@ export default function Technician({
                             </CardHeader>
                             <CardContent>
                                 <p className="text-2xl font-bold">
-                                    {data.sla_compliance_pct ?? 0}%
+                                    {formatPercent(data.sla_compliance_pct)}
                                 </p>
                                 <DrillLink
                                     href={drill.sla_compliance_pct}
@@ -217,7 +218,9 @@ export default function Technician({
                                 <CardTitle>{meta.metrics.avg_score.label}</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-2xl font-bold">{data.avg_score ?? '-'}</p>
+                                <p className="text-2xl font-bold">
+                                    {formatDecimal(data.avg_score)}
+                                </p>
                                 <DrillLink
                                     href={drill.avg_score}
                                     label={meta.metrics.avg_score.label}
@@ -229,7 +232,9 @@ export default function Technician({
                                 <CardTitle>{meta.metrics.avg_frt_minutes.label}</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-2xl font-bold">{data.avg_frt_minutes ?? '-'}</p>
+                                <p className="text-2xl font-bold">
+                                    {formatDecimal(data.avg_frt_minutes)}
+                                </p>
                                 <DrillLink
                                     href={drill.avg_frt_minutes}
                                     label={meta.metrics.avg_frt_minutes.label}

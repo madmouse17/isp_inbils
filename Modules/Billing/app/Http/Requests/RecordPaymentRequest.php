@@ -2,7 +2,10 @@
 
 namespace Modules\Billing\Http\Requests;
 
+use App\Support\Money;
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
+use Modules\Billing\Models\Invoice;
 
 class RecordPaymentRequest extends FormRequest
 {
@@ -15,7 +18,15 @@ class RecordPaymentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'amount' => ['required', 'numeric', 'min:0.01'],
+            // Whole rupiah, so an invoice balance stays whole. The one exception: the exact balance of an invoice issued
+            // before whole-rupiah billing, which carries cents and could never be cleared otherwise.
+            'amount' => ['bail', 'required', 'numeric', 'min:0.01', function (string $attribute, mixed $value, Closure $fail): void {
+                $invoice = $this->route('invoice');
+
+                if (! preg_match('/^\d+(\.0{1,2})?$/', (string) $value) && ! ($invoice instanceof Invoice && Money::compare((float) $value, $invoice->sisa) === 0)) {
+                    $fail('Jumlah pembayaran harus rupiah penuh, tanpa sen.');
+                }
+            }],
             'method' => ['required', 'string', 'in:cash,transfer,cheque,other'],
             'reference' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:500'],

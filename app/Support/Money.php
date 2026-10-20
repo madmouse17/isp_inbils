@@ -53,6 +53,35 @@ final class Money
         return $negative ? bcsub('0', $rounded, 2) : bcadd($rounded, '0', 2);
     }
 
+    /**
+     * Round to whole rupiah, half up (half away from zero for a negative), as a 2-decimal string ("147702.00") so it
+     * stores and compares like every other amount. One guard digit of the full-precision value decides, so 147701.495
+     * stays 147701 instead of passing through cents (147701.50) and rounding up a second time.
+     */
+    public static function rupiah(string|int|float $a): string
+    {
+        $value = bcadd(self::norm($a), '0', 1);
+        $negative = str_starts_with($value, '-');
+        [$whole, $tenths] = explode('.', ltrim($value, '+-'), 2);
+        $rounded = (int) $tenths >= 5 ? bcadd($whole, '1', 0) : $whole;
+
+        return ($negative && $rounded !== '0' ? '-' : '').$rounded.'.00';
+    }
+
+    /**
+     * An amount as id-ID text for Blade and PDF: "147.702", and "147.701,62" only when it has cents. A stored amount is
+     * never rounded here, so an invoice that predates whole-rupiah billing still prints what it owes.
+     */
+    public static function display(string|int|float $a): string
+    {
+        $value = self::round($a);
+        $negative = str_starts_with($value, '-');
+        [$whole, $cents] = explode('.', ltrim($value, '-'), 2);
+        $grouped = (string) preg_replace('/\B(?=(\d{3})+(?!\d))/', '.', $whole);
+
+        return ($negative ? '-' : '').$grouped.($cents === '00' ? '' : ','.$cents);
+    }
+
     /** bccomp semantics at cent precision: -1, 0, or 1. */
     public static function compare(string|int|float $a, string|int|float $b): int
     {

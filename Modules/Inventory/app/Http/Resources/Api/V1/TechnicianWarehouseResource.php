@@ -20,6 +20,8 @@ class TechnicianWarehouseResource extends JsonResource
             'id' => $this->resource->public_id,
             'name' => $this->resource->name,
             'code' => $this->resource->code,
+            /** True for the warehouse of the caller's latest request: the picker of a new request starts there. */
+            'last_used' => (bool) $this->resource->getAttribute('last_used'),
         ];
     }
 }

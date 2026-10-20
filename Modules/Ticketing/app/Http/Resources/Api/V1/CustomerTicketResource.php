@@ -14,6 +14,10 @@ class CustomerTicketResource extends JsonResource
     public function toArray(Request $request): array
     {
         return array_merge($this->summary(), [
+            /** False once the ticket is closed: replies are refused and the customer is pointed to a new ticket. */
+            'can_reply' => $this->status !== 'closed',
+            /** When a reply of the customer last brought the resolved ticket back; null if it never did. */
+            'reopened_at' => $this->reopened_at,
             'description' => $this->when($this->resource->relationLoaded('comments'), $this->description),
             'resolution_note' => $this->when($this->resource->relationLoaded('comments'), $this->resolution_note),
             'comments' => CustomerTicketCommentResource::collection($this->whenLoaded('comments')),

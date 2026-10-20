@@ -8,6 +8,7 @@ use App\Models\Core\Customer;
 use App\Models\Core\Location;
 use App\Models\User;
 use App\Queries\Admin\ApprovalInboxQuery;
+use Carbon\Carbon;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
@@ -194,11 +195,13 @@ class ApprovalInboxTest extends TestCase
     {
         [$company, $manager] = $this->approver();
         $creator = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
+        $technician = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
 
-        // 1. Eligible SPK (created by creator, not assigned to manager)
+        // 1. Eligible SPK (created by creator, done and submitted by the technician, not assigned to manager)
         $eligibleSpk = $this->waitingSpk($company, $creator, [
             'code' => 'SPK-ELIGIBLE',
             'type' => 'maintenance',
+            'assigned_to' => $technician->id,
         ]);
 
         // 2. Non-eligible SPK: created by manager
@@ -238,9 +241,9 @@ class ApprovalInboxTest extends TestCase
                 ->has('items.data', 1)
                 ->where('items.data.0.id', $eligibleSpk->public_id)
                 ->where('summary.waiting_for_me', 1)
-                // Manager must NOT appear in requesters options
+                // Manager must NOT appear in requesters options: the requester of an SPK is its technician
                 ->has('requesters', 1)
-                ->where('requesters.0.id', $creator->public_id)
+                ->where('requesters.0.id', $technician->public_id)
                 // Types must NOT leak installation or repair
                 ->has('types', 1)
                 ->where('types.0', 'maintenance')
@@ -263,9 +266,9 @@ class ApprovalInboxTest extends TestCase
             ->post(route('admin.spk.reject', $assignedSpk), ['reason' => 'Reject assigned'])
             ->assertStatus(422);
 
-        // Leakage test: filtering by creator who also created $assignedSpk only returns eligible SPK
+        // Leakage test: filtering by the technician only returns the eligible SPK, never the one assigned to the manager
         $this->actingAs($manager)
-            ->get(route('admin.approvals.index', ['creator' => $creator->public_id]))
+            ->get(route('admin.approvals.index', ['creator' => $technician->public_id]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('items.data', 1)
@@ -354,16 +357,18 @@ class ApprovalInboxTest extends TestCase
         [$company, $manager] = $this->approver();
         $creatorA = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
         $creatorB = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
+        $technicianA = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
+        $technicianB = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
         $nonRequester = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
-        $a = $this->waitingSpk($company, $creatorA, ['type' => 'installation', 'code' => 'SPK-TEST-0001']);
-        $b = $this->waitingSpk($company, $creatorB, ['type' => 'maintenance', 'code' => 'SPK-TEST-0002']);
+        $a = $this->waitingSpk($company, $creatorA, ['type' => 'installation', 'code' => 'SPK-TEST-0001', 'assigned_to' => $technicianA->id]);
+        $b = $this->waitingSpk($company, $creatorB, ['type' => 'maintenance', 'code' => 'SPK-TEST-0002', 'assigned_to' => $technicianB->id]);
 
         $otherCompany = Company::factory()->create();
         $foreignCreator = User::factory()->create(['company_id' => $otherCompany->id, 'is_active' => true]);
-        $this->waitingSpk($otherCompany, $foreignCreator);
+        $this->waitingSpk($otherCompany, $foreignCreator, ['assigned_to' => $foreignCreator->id]);
 
         $this->actingAs($manager)
-            ->get(route('admin.approvals.index', ['type' => 'maintenance', 'creator' => $creatorB->public_id]))
+            ->get(route('admin.approvals.index', ['type' => 'maintenance', 'creator' => $technicianB->public_id]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('items.data', 1)
@@ -509,14 +514,15 @@ class ApprovalInboxTest extends TestCase
     {
         [$company, $manager] = $this->approver();
         $creator = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
-        $this->waitingSpk($company, $creator);
+        $technician = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
+        $this->waitingSpk($company, $creator, ['assigned_to' => $technician->id]);
 
         $this->actingAs($manager)
             ->get(route('admin.approvals.index'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('requesters', 1)
-                ->where('requesters.0.id', $creator->public_id)
+                ->where('requesters.0.id', $technician->public_id)
             );
     }
 
@@ -824,6 +830,46 @@ class ApprovalInboxTest extends TestCase
         $this->assertSame(1, $spkSummary['waiting_for_me']);
         $this->assertSame(1, $spkSummary['processed']);
         $this->assertSame(1, ApprovalInboxQuery::filtered($spkRequest)->count());
+    }
+
+    public function test_spk_rows_use_submitted_at_and_technician(): void
+    {
+        Carbon::setTestNow('2026-10-14 09:00:00');
+        [$company, $manager] = $this->approver();
+        $creator = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
+        $ani = User::factory()->create(['company_id' => $company->id, 'is_active' => true, 'name' => 'Ani Teknisi']);
+        $budi = User::factory()->create(['company_id' => $company->id, 'is_active' => true, 'name' => 'Budi Teknisi']);
+
+        // Made long before it was done: the queue shows when the technician submitted it, and who did the work.
+        $recent = $this->waitingSpk($company, $creator, ['code' => 'SPK-RECENT', 'assigned_to' => $ani->id, 'submitted_at' => '2026-10-14 03:15:00']);
+        $recent->forceFill(['created_at' => '2026-10-01 08:00:00'])->saveQuietly();
+        // Made recently, submitted long ago.
+        $older = $this->waitingSpk($company, $creator, ['code' => 'SPK-OLDER', 'assigned_to' => $budi->id, 'submitted_at' => '2026-10-02 10:00:00']);
+        $older->forceFill(['created_at' => '2026-10-13 08:00:00'])->saveQuietly();
+        // Reached review before the submit time was recorded: its creation time stands in.
+        $legacy = $this->waitingSpk($company, $creator, ['code' => 'SPK-LEGACY', 'assigned_to' => $ani->id, 'submitted_at' => null]);
+        $legacy->forceFill(['created_at' => '2026-10-12 08:00:00'])->saveQuietly();
+
+        $request = Request::create(route('admin.approvals.index'));
+        $request->setUserResolver(fn () => $manager);
+        $row = (new ApprovalInboxItemResource($recent->fresh('assignee')))->toArray($request);
+
+        $this->assertSame(['id' => $ani->public_id, 'name' => 'Ani Teknisi'], $row['requester']);
+        $this->assertSame($recent->fresh()->submitted_at->toISOString(), $row['submitted_at']);
+        $this->assertSame(20700, $row['age_seconds']);
+        $this->assertSame($legacy->fresh()->created_at->toISOString(), (new ApprovalInboxItemResource($legacy->fresh('assignee')))->toArray($request)['submitted_at']);
+
+        $codes = fn (array $query): array => collect($this->actingAs($manager)->get(route('admin.approvals.index', $query))->assertOk()->inertiaProps('items.data'))->pluck('code')->sort()->values()->all();
+
+        $this->assertSame(['SPK-LEGACY', 'SPK-OLDER', 'SPK-RECENT'], $codes([]));
+        $this->assertSame(['SPK-LEGACY', 'SPK-RECENT'], $codes(['creator' => $ani->public_id]), 'the technician is the requester');
+        $this->assertSame(['SPK-LEGACY', 'SPK-OLDER', 'SPK-RECENT'], $codes(['creator' => $creator->public_id]), 'whoever made the SPK is no requester: the filter is ignored');
+        $this->assertSame(['SPK-LEGACY', 'SPK-RECENT'], $codes(['date_from' => '2026-10-10']), 'by the day it was submitted, a legacy row by its creation day');
+        $this->assertSame(['SPK-OLDER'], $codes(['date_to' => '2026-10-05']));
+        $this->assertSame(['id' => $ani->public_id, 'name' => 'Ani Teknisi'], $this->actingAs($manager)->get(route('admin.approvals.index', ['creator' => $ani->public_id]))->inertiaProps('items.data.0.requester'));
+        $this->assertSame([$ani->public_id, $budi->public_id], collect($this->actingAs($manager)->get(route('admin.approvals.index'))->inertiaProps('requesters'))->pluck('id')->all());
+
+        Carbon::setTestNow();
     }
 
     private function approver(): array

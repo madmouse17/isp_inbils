@@ -10,6 +10,7 @@ use Modules\Inventory\Models\InventoryRequest;
 use Modules\Inventory\Models\InventoryRequestItem;
 use Modules\Inventory\Models\Product;
 use Modules\Inventory\Models\Stock;
+use Modules\Inventory\Models\Unit;
 use Modules\Inventory\Services\InventoryRequestService;
 use Modules\Inventory\Services\StockService;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -40,7 +41,8 @@ class StockQuantityPrecisionTest extends TestCase
 
         $this->user = $this->createCompanyUser();
         $this->actingAs($this->user);
-        $this->product = Product::factory()->create(['company_id' => $this->user->company_id]);
+        $this->product = Product::factory()->create(['company_id' => $this->user->company_id, 'name' => 'Kabel Drop']);
+        Unit::withoutCompany()->whereKey($this->product->unit_id)->update(['symbol' => 'm']);
         $this->from = $this->location('WH-A');
         $this->to = $this->location('WH-B');
     }
@@ -49,7 +51,7 @@ class StockQuantityPrecisionTest extends TestCase
     {
         $this->stockAt($this->from, '100.10', '100.00');
 
-        $this->assertShort(fn () => StockService::issue($this->product->id, $this->from->id, 0.11), 'Stok tidak mencukupi. Diminta: 0.11, Tersedia: 0.1.');
+        $this->assertShort(fn () => StockService::issue($this->product->id, $this->from->id, 0.11), 'Stok Kabel Drop di WH-A tersisa 0,1 m, dibutuhkan 0,11 m.');
 
         StockService::issue($this->product->id, $this->from->id, 0.10);
 
@@ -60,7 +62,7 @@ class StockQuantityPrecisionTest extends TestCase
     {
         $this->stockAt($this->from, '100.10', '100.00');
 
-        $this->assertShort(fn () => StockService::transfer($this->product->id, $this->from->id, $this->to->id, 0.11), 'Stok tidak mencukupi. Diminta: 0.11, Tersedia: 0.1.');
+        $this->assertShort(fn () => StockService::transfer($this->product->id, $this->from->id, $this->to->id, 0.11), 'Stok Kabel Drop di WH-A tersisa 0,1 m, dibutuhkan 0,11 m.');
 
         StockService::transfer($this->product->id, $this->from->id, $this->to->id, 0.10);
 
@@ -72,7 +74,7 @@ class StockQuantityPrecisionTest extends TestCase
     {
         $this->stockAt($this->from, '100.10', '100.00');
 
-        $this->assertShort(fn () => StockService::reserve($this->product->id, $this->from->id, 0.11), 'Stok tersedia tidak mencukupi untuk reservasi. Diminta: 0.11, Tersedia: 0.1.');
+        $this->assertShort(fn () => StockService::reserve($this->product->id, $this->from->id, 0.11), 'Stok Kabel Drop di WH-A tersisa 0,1 m, dibutuhkan 0,11 m.');
 
         StockService::reserve($this->product->id, $this->from->id, 0.10);
 
@@ -83,7 +85,7 @@ class StockQuantityPrecisionTest extends TestCase
     {
         $this->stockAt($this->from, '5.00', '0.30');
 
-        $this->assertShort(fn () => StockService::release($this->product->id, $this->from->id, 0.31), 'Stok tersedia tidak mencukupi untuk reservasi. Diminta: 0.31, Tersedia: 0.3.');
+        $this->assertShort(fn () => StockService::release($this->product->id, $this->from->id, 0.31), 'Cadangan Kabel Drop di WH-A hanya 0,3 m, tidak bisa dilepas 0,31 m.');
 
         // 0.1 + 0.2 is 0.30000000000000004 as a float: the reservation of 0.30 still covers it.
         StockService::release($this->product->id, $this->from->id, 0.1 + 0.2);
@@ -95,7 +97,7 @@ class StockQuantityPrecisionTest extends TestCase
     {
         $this->stockAt($this->from, '100.10', '100.00');
 
-        $this->assertShort(fn () => StockService::stockMovement($this->product->id, $this->from->id, null, 'issue', 0.11), 'Stok tidak mencukupi. Diminta: 0.11, Tersedia: 0.1.');
+        $this->assertShort(fn () => StockService::stockMovement($this->product->id, $this->from->id, null, 'issue', 0.11), 'Stok Kabel Drop di WH-A tersisa 0,1 m, dibutuhkan 0,11 m.');
 
         StockService::stockMovement($this->product->id, $this->from->id, null, 'issue', 0.10);
         $this->assertSame(['100.00', '100.00'], $this->stockOf($this->from));
@@ -111,7 +113,7 @@ class StockQuantityPrecisionTest extends TestCase
     {
         $this->stockAt($this->from, '5.00', '0.30');
 
-        $this->assertShort(fn () => StockService::adjust($this->product->id, $this->from->id, 0.29, 'Hitung ulang'), 'Stok tidak mencukupi. Diminta: 0.3, Tersedia: 0.29.');
+        $this->assertShort(fn () => StockService::adjust($this->product->id, $this->from->id, 0.29, 'Hitung ulang'), 'Stok Kabel Drop di WH-A tidak bisa diturunkan ke 0,29 m, karena 0,3 m sudah dicadangkan.');
 
         // 0.7 - 0.4 is 0.29999999999999993 as a float: it is the reserved 0.30 to the cent.
         StockService::adjust($this->product->id, $this->from->id, 0.7 - 0.4, 'Hitung ulang');

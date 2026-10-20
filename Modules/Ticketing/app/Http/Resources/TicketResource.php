@@ -39,7 +39,9 @@ class TicketResource extends JsonResource
             'sla_deadline' => $this->sla_deadline,
             'response_deadline' => $this->response_deadline,
             'first_response_at' => $this->first_response_at,
+            'first_response_source' => $this->first_response_source,
             'resolved_at' => $this->resolved_at,
+            'reopened_at' => $this->reopened_at,
             'closed_at' => $this->closed_at,
             'resolution_note' => $this->resolution_note,
             'is_sla_breached' => $this->is_sla_breached,
@@ -63,11 +65,33 @@ class TicketResource extends JsonResource
             'deadline_source' => $this->when($request->routeIs('admin.tickets.show'), fn (): array => TicketService::deadlineSource($this->resource)),
             // Show page only: the page words the check-in itself, and the technician's own coordinates stay out of it.
             'check_in' => $this->when($request->routeIs('admin.tickets.show'), fn (): ?array => ($record = FieldCheckIn::recordFor($this->resource, 'ticket')) === null ? null : Arr::only($record, ['status', 'distance_m', 'accuracy_m', 'reason'])),
-            // Show page only: lists and exports skip the per-row policy checks.
+            // Show page only: lists and exports skip the per-row policy checks. A button shows only for what the click would do.
             'can' => $this->when($request->routeIs('admin.tickets.show'), fn (): array => [
                 'start' => (bool) $request->user()?->can('start', $this->resource),
                 'close' => (bool) $request->user()?->can('close', $this->resource),
+                'resolve' => (bool) $request->user()?->can('resolve', $this->resource),
+                'spawn_spk' => $this->mayShowSpawnSpk($request),
+                'comment' => $this->mayComment($request),
             ]),
         ];
+    }
+
+    /** The service refuses an SPK for any ticket but an assigned or started one without an SPK yet, so the button follows it. */
+    private function mayShowSpawnSpk(Request $request): bool
+    {
+        return in_array($this->status, ['assigned', 'on_progress'], true)
+            && $this->spawned_spk_id === null
+            && (bool) $request->user()?->can('spawnSpk', $this->resource);
+    }
+
+    /** A closed ticket takes no comment, and the form behind the button asks for the permission to comment. */
+    private function mayComment(Request $request): bool
+    {
+        $user = $request->user();
+
+        return $this->status !== 'closed'
+            && $user !== null
+            && $user->can('ticket.comment.create')
+            && $user->can('comment', $this->resource);
     }
 }

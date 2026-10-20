@@ -109,6 +109,18 @@ class MidtransGatewayTest extends TestCase
         });
     }
 
+    public function test_snap_payload_forces_3ds(): void
+    {
+        $attempt = $this->attempt();
+        $this->enableMidtrans();
+        Http::fake([self::SNAP_URL => Http::response($this->snapReply(), 201)]);
+
+        $this->gateway->createSnapTransaction($attempt, $attempt->invoice, self::FINISH_URL);
+
+        // K3: a card payment always goes through 3-D Secure; no setting of the company turns it off.
+        Http::assertSent(fn (Request $request): bool => $request->url() === self::SNAP_URL && ($request->data()['credit_card'] ?? null) === ['secure' => true]);
+    }
+
     public function test_an_https_install_sends_the_company_webhook_as_the_notification_url_for_each_order(): void
     {
         $attempt = $this->attempt();

@@ -4,10 +4,10 @@ namespace Modules\Inventory\Notifications;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Modules\Inventory\Notifications\Concerns\LinksToInventoryRequest;
 
+/** In the bell of everyone who may approve: a request was submitted and waits for a decision. Mail is only the daily digest. */
 class InventoryRequestSubmittedNotification extends Notification implements ShouldQueue
 {
     use LinksToInventoryRequest;
@@ -24,16 +24,7 @@ class InventoryRequestSubmittedNotification extends Notification implements Shou
     /** @return list<string> */
     public function via(object $notifiable): array
     {
-        return ['mail'];
-    }
-
-    public function toMail(object $notifiable): MailMessage
-    {
-        return (new MailMessage())
-            ->subject('Permintaan Barang Baru: '.$this->requestCode)
-            ->line('Ada permintaan barang baru yang perlu ditinjau dan disetujui gudang.')
-            ->line('Kode Permintaan: '.$this->requestCode)
-            ->action('Lihat Permintaan', $this->requestUrl());
+        return ['database'];
     }
 
     /** @return array<string, mixed> */

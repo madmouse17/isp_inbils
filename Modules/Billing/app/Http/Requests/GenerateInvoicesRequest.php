@@ -2,7 +2,10 @@
 
 namespace Modules\Billing\Http\Requests;
 
+use App\Services\Core\CompanyService;
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
+use Modules\Billing\Services\BillingService;
 
 class GenerateInvoicesRequest extends FormRequest
 {
@@ -15,7 +18,12 @@ class GenerateInvoicesRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'period' => ['required', 'date_format:Y-m'],
+            // A period is billed once it has ended; the month in progress is allowed (the dialog asks first), a later one never.
+            'period' => ['bail', 'required', 'date_format:Y-m', function (string $attribute, mixed $value, Closure $fail): void {
+                if ($value > BillingService::currentPeriodFor((int) CompanyService::currentId())) {
+                    $fail('Periode tagihan paling lambat bulan berjalan.');
+                }
+            }],
         ];
     }
 

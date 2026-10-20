@@ -2,12 +2,13 @@
 
 namespace Modules\Inventory\Notifications;
 
+use App\Notifications\Channels\FcmChannel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Modules\Inventory\Notifications\Concerns\LinksToReturnPage;
 
+/** In the bell, and on the phone of a technician-app install, of the technician: the warehouse refused the handover, with the reason. */
 class MaterialReturnRejectedNotification extends Notification implements ShouldQueue
 {
     use LinksToReturnPage;
@@ -25,20 +26,7 @@ class MaterialReturnRejectedNotification extends Notification implements ShouldQ
     /** @return list<string> */
     public function via(object $notifiable): array
     {
-        return ['mail'];
-    }
-
-    public function toMail(object $notifiable): MailMessage
-    {
-        $records = $this->returnRecords();
-        $mail = (new MailMessage())
-            ->subject($this->returnSubject('Penyerahan Pengembalian Material Ditolak', $records))
-            ->line('Gudang menolak penyerahan fisik pengembalian material Anda.');
-
-        return $this->returnReference($mail, $records)
-            ->line('Alasan Penolakan: '.$this->reason)
-            ->line('Periksa kembali barang fisik atau perbaiki deklarasi pengembalian Anda.')
-            ->action('Lihat Kasus Pengembalian', $this->returnPageUrl($records));
+        return ['database', ...FcmChannel::for($notifiable)];
     }
 
     /** @return array<string, mixed> */

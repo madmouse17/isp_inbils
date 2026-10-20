@@ -153,7 +153,12 @@ class InvoiceController extends Controller
     {
         Gate::authorize('billing.create');
 
-        return response()->json(BillingService::generateForPeriod($request->input('period'), dryRun: true));
+        $period = $request->input('period');
+
+        return response()->json([
+            ...BillingService::generateForPeriod($period, dryRun: true),
+            'is_current_period' => $period === BillingService::currentPeriodFor((int) CompanyService::currentId()),
+        ]);
     }
 
     public function generate(GenerateInvoicesRequest $request): RedirectResponse
@@ -227,7 +232,7 @@ class InvoiceController extends Controller
             : $export->streamCsv($columns, $map, "invoices-export-{$stamp}.csv");
     }
 
-    public function show(Invoice $invoice, MidtransGateway $gateway): InertiaResponse
+    public function show(Request $request, Invoice $invoice, MidtransGateway $gateway): InertiaResponse
     {
         $this->ensureSameCompany($invoice);
         Gate::authorize('view', $invoice);
@@ -239,6 +244,14 @@ class InvoiceController extends Controller
             'onlinePayments' => [
                 'enabled' => $gateway->isEnabled(),
                 'attempts' => PaymentAttemptResource::collection($invoice->paymentAttempts()->latest('id')->limit(20)->get()),
+            ],
+            'can' => [
+                'update' => $request->user()?->can('update', $invoice) ?? false,
+                'send' => $request->user()?->can('billing.send') ?? false,
+                'cancel' => $request->user()?->can('billing.cancel') ?? false,
+                'record_payment' => $request->user()?->can('billing.payment.record') ?? false,
+                'reverse_payment' => $request->user()?->can('billing.payment.reverse') ?? false,
+                'refund' => $request->user()?->can('billing.payment.reverse') ?? false,
             ],
         ]);
     }
@@ -271,9 +284,12 @@ class InvoiceController extends Controller
             'totals' => $result['totals'],
             'filters' => $result['filters'],
             'paymentExceptions' => $this->paymentExceptions(),
+            // The default of OverdueSuspensionService::settings(): the isolir dialog tells which way the customer comes back.
+            'autoReactivate' => filter_var(CompanyService::current()?->settings['auto_reactivate_on_payment'] ?? true, FILTER_VALIDATE_BOOL),
             'can' => [
                 'suspend' => $request->user()?->can('customer.subscription.suspend') ?? false,
                 'block' => $request->user()?->can('customer.subscription.block') ?? false,
+                'refund' => $request->user()?->can('billing.payment.reverse') ?? false,
             ],
         ]);
     }
@@ -294,6 +310,7 @@ class InvoiceController extends Controller
                 ->limit(10)
                 ->get()
                 ->map(fn (PaymentAttempt $attempt): array => [
+                    'id' => $attempt->public_id,
                     'invoice_id' => $attempt->invoice?->public_id,
                     'invoice_number' => $attempt->invoice?->number,
                     'order_id' => $attempt->order_id,
@@ -396,7 +413,7 @@ class InvoiceController extends Controller
     public function addItem(StoreInvoiceItemRequest $request, Invoice $invoice): RedirectResponse
     {
         $this->ensureSameCompany($invoice);
-        Gate::authorize('billing.update');
+        Gate::authorize('update', $invoice);
         abort_if($invoice->status !== 'draft', 422, 'Hanya tagihan draf yang bisa diberi item.');
 
         BillingService::addItem($invoice, $request->validated());
@@ -407,7 +424,7 @@ class InvoiceController extends Controller
     public function removeItem(Invoice $invoice, InvoiceItem $item): RedirectResponse
     {
         $this->ensureSameCompany($invoice);
-        Gate::authorize('billing.update');
+        Gate::authorize('update', $invoice);
         BillingService::removeItem($invoice, $item->id);
 
         return back()->with('success', 'Item dihapus.');

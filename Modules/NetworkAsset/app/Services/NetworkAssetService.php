@@ -30,6 +30,18 @@ class NetworkAssetService
 
             abort_unless($subscriptionId === null || $customerId !== null, 422, 'Pelanggan wajib diisi saat memasang aset dengan langganan.');
 
+            $workOrder = null;
+            if ($spkId !== null) {
+                // Lock order, global: SPK row, then customer, then subscription (SpkService::assign, CompleteSpkAction).
+                $workOrder = DB::table('work_orders')
+                    ->whereNull('deleted_at')
+                    ->where('id', $spkId)
+                    ->lockForUpdate()
+                    ->first();
+                abort_unless($workOrder !== null, 404, 'SPK tidak ditemukan.');
+                abort_unless((int) $workOrder->company_id === (int) $asset->company_id, 404, 'SPK tidak ditemukan.');
+            }
+
             $customer = null;
             if ($customerId !== null) {
                 $customer = self::lockCompanyModel(Customer::query(), $customerId, 'Pelanggan');
@@ -40,17 +52,6 @@ class NetworkAssetService
             if ($subscriptionId !== null) {
                 $subscription = self::lockCompanyModel(ServiceSubscription::query(), $subscriptionId, 'Langganan');
                 abort_unless((int) $subscription->company_id === (int) $asset->company_id, 422, 'Langganan harus milik perusahaan yang sama dengan aset.');
-            }
-
-            $workOrder = null;
-            if ($spkId !== null) {
-                $workOrder = DB::table('work_orders')
-                    ->whereNull('deleted_at')
-                    ->where('id', $spkId)
-                    ->lockForUpdate()
-                    ->first();
-                abort_unless($workOrder !== null, 404, 'SPK tidak ditemukan.');
-                abort_unless((int) $workOrder->company_id === (int) $asset->company_id, 404, 'SPK tidak ditemukan.');
             }
 
             if ($customer !== null && $subscription !== null && (int) $subscription->customer_id !== (int) $customer->id) {

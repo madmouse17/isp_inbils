@@ -17,6 +17,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\NetworkAsset\Jobs\SyncCompanyNetworkJob;
+use Modules\NetworkAsset\Models\NasDevice;
+use Modules\NetworkAsset\Models\NetworkAccount;
+use Modules\NetworkAsset\Services\Radius\RadiusException;
 
 /**
  * Pengaturan → Integrasi: the company's own Midtrans, WhatsApp, e-mail and RADIUS accounts. Secrets are write-only (the
@@ -99,6 +103,10 @@ class CompanyIntegrationController extends Controller
             AuditService::log('integration', 'saved', ['provider' => $provider, 'fields' => $fields, 'is_enabled' => $row->is_enabled], $row);
         });
 
+        if ($provider === 'radius' && $request->boolean('is_enabled')) {
+            $this->radiusIsLive();
+        }
+
         return back()->with('success', 'Integrasi '.CompanyIntegration::LABELS[$provider].' disimpan.');
     }
 
@@ -149,5 +157,20 @@ class CompanyIntegrationController extends Controller
             'phone_number_id' => $value === null ? null : (string) $value,
             default => $value,
         };
+    }
+
+    /**
+     * The company saved its RADIUS card enabled: the reason accounts and NAS rows kept for waiting ("belum dikonfigurasi")
+     * is over, so it goes now instead of at the next apply, and one sweep writes what waited for RADIUS.
+     */
+    private function radiusIsLive(): void
+    {
+        $companyId = (int) CompanyService::currentId();
+        $waiting = RadiusException::disabled()->getMessage();
+
+        NetworkAccount::forCompany($companyId)->where('last_error', $waiting)->update(['last_error' => null]);
+        NasDevice::forCompany($companyId)->where('last_error', $waiting)->update(['last_error' => null]);
+
+        SyncCompanyNetworkJob::dispatch($companyId);
     }
 }

@@ -5,8 +5,10 @@ namespace Tests\Feature\Platform;
 use App\Jobs\Platform\BuildTenantExportJob;
 use App\Models\Core\Company;
 use App\Models\Core\CompanyIntegration;
+use App\Models\Core\Customer;
 use App\Models\Platform\TenantExport;
 use App\Models\User;
+use App\Services\Core\CompanyService;
 use App\Services\Platform\PlatformAuditService;
 use App\Support\Platform\TenantTableRegistry;
 use App\Support\PublicId;
@@ -14,9 +16,13 @@ use Database\Seeders\DemoDataSeeder;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Filesystem\FilesystemAdapter;
+use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
@@ -28,6 +34,9 @@ use Modules\Billing\Models\PaymentAttempt;
 use Modules\NetworkAsset\Models\NasDevice;
 use RuntimeException;
 use Spatie\Activitylog\Models\Activity;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Spatie\MediaLibrary\Support\PathGenerator\PathGeneratorFactory;
+use Spatie\Permission\Models\Role;
 use Tests\Traits\BuildsNetworkFixtures;
 use Tests\Traits\BuildsSubscriptionBilling;
 use ZipArchive;
@@ -146,6 +155,56 @@ class TenantExportTest extends PurgeTestCase
         $tenant = $this->buildTenant($code, $name);
 
         return ['export' => $this->export($tenant['root']), 'root' => $tenant['root'], 'child' => $tenant['child']];
+    }
+
+    /**
+     * A file the way the app stores one: through the media library, in the company context a request has, so the row and
+     * the path are the ones the path generator gives it. The oldest rows carry no company id of their own
+     * (`$stamped = false`): their company is the one of the row they hang on.
+     */
+    private function upload(Model $owner, string $contents, string $name, string $disk = 'local', string $collection = 'documents', bool $stamped = true): Media
+    {
+        $companyId = (int) ($owner instanceof Company ? $owner->id : $owner->getAttribute('company_id'));
+        $media = CompanyService::runAs($companyId, function () use ($owner, $contents, $name, $disk, $collection, $stamped, $companyId): Media {
+            $adder = $owner->addMediaFromString($contents)->usingFileName($name);
+
+            return ($stamped ? $adder->withCustomProperties(['company_id' => $companyId]) : $adder)->toMediaCollection($collection, $disk);
+        });
+
+        // Later calls of the path generator find the owner here, outside any company context.
+        return $media->setRelation('model', $owner);
+    }
+
+    /** @return array<string, string> archive entry => contents, for the files of an archive */
+    private function archivedFiles(TenantExport $export): array
+    {
+        return array_filter($this->entries($export), fn (string $name): bool => str_starts_with($name, 'files/'), ARRAY_FILTER_USE_KEY);
+    }
+
+    /** A media row on a disk the test controls, with no file behind it: the way a remote disk is told apart from a local one. */
+    private function mediaRow(Company $owner, string $disk, string $fileName): Media
+    {
+        $id = DB::table('media')->insertGetId([
+            'public_id' => PublicId::new(),
+            'model_type' => Company::class,
+            'model_id' => $owner->id,
+            'uuid' => (string) Str::uuid(),
+            'collection_name' => 'documents',
+            'name' => pathinfo($fileName, PATHINFO_FILENAME),
+            'file_name' => $fileName,
+            'mime_type' => 'application/pdf',
+            'disk' => $disk,
+            'conversions_disk' => $disk,
+            'size' => 5,
+            'manipulations' => '[]',
+            'custom_properties' => json_encode(['company_id' => $owner->id]),
+            'generated_conversions' => '[]',
+            'responsive_images' => '[]',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return Media::query()->findOrFail($id)->setRelation('model', $owner);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -331,11 +390,11 @@ class TenantExportTest extends PurgeTestCase
             $audit->support('impersonation.started', ['reason' => 'complaint'], $company, $this->operator);
         }
 
-        Storage::disk('local')->put("companies/{$alpha->id}/customers/1/documents/5/ktp.pdf", 'alpha-private-bytes');
-        Storage::disk('local')->put("companies/{$child->id}/tickets/2/attachments/6/foto.jpg", 'child-private-bytes');
-        Storage::disk('public')->put("companies/{$alpha->id}/company-logo/7/logo.webp", 'alpha-logo-bytes');
-        Storage::disk('local')->put("companies/{$beta->id}/customers/1/documents/8/ktp.pdf", 'beta-private-bytes');
-        Storage::disk('public')->put("companies/{$beta->id}/company-logo/9/logo.webp", 'beta-logo-bytes');
+        $alphaDoc = $this->upload($alpha, 'alpha-private-bytes', 'ktp.pdf');
+        $childDoc = $this->upload($child, 'child-private-bytes', 'foto.jpg');
+        $alphaLogo = $this->upload($alpha, 'alpha-logo-bytes', 'logo.webp', 'public', 'logo');
+        $this->upload($beta, 'beta-private-bytes', 'ktp.pdf');
+        $this->upload($beta, 'beta-logo-bytes', 'logo.webp', 'public', 'logo');
 
         $alphaIds = [$alpha->id, $child->id];
         $alphaTruth = $this->truthOf($alphaIds);
@@ -348,9 +407,9 @@ class TenantExportTest extends PurgeTestCase
         $this->assertHoldsOnly($betaExport, [$beta->id], $betaTruth, ['alp-admin@tenant.test', 'Tenant ALP', 'alpha-private-bytes', 'child-private-bytes', 'alpha-logo-bytes']);
 
         $entries = $this->entries($alphaExport);
-        $this->assertSame('alpha-private-bytes', $entries["files/local/companies/{$alpha->id}/customers/1/documents/5/ktp.pdf"]);
-        $this->assertSame('child-private-bytes', $entries["files/local/companies/{$child->id}/tickets/2/attachments/6/foto.jpg"]);
-        $this->assertSame('alpha-logo-bytes', $entries["files/public/companies/{$alpha->id}/company-logo/7/logo.webp"]);
+        $this->assertSame('alpha-private-bytes', $entries["files/local/{$alphaDoc->getPathRelativeToRoot()}"]);
+        $this->assertSame('child-private-bytes', $entries["files/local/{$childDoc->getPathRelativeToRoot()}"]);
+        $this->assertSame('alpha-logo-bytes', $entries["files/public/{$alphaLogo->getPathRelativeToRoot()}"]);
         $this->assertSame('id', $this->header($entries['data/companies.csv'])[0], 'the companies file starts with the id');
         $this->assertSame([$alpha->code, $child->code], array_column($this->csv($entries['data/companies.csv']), 'code'));
         $links = fn (array $companyIds): int => DB::table('announcement_location')->whereIn('announcement_id', DB::table('announcements')->whereIn('company_id', $companyIds)->select('id'))->count();
@@ -477,8 +536,10 @@ class TenantExportTest extends PurgeTestCase
 
         $manifest = json_decode($entries['manifest.json'], true, flags: JSON_THROW_ON_ERROR);
         $this->assertSame(count(array_filter($archived, fn (string $_, string $name): bool => str_starts_with($name, 'files/local/'), ARRAY_FILTER_USE_BOTH)), $manifest['media']['local']);
-        $counted = array_filter($export->row_counts, fn (int $count, string $table): bool => ! in_array($table, ['announcement_location', 'announcement_service_package_category', 'location_promo_banner', 'promo_banner_service_package_category'], true), ARRAY_FILTER_USE_BOTH);
+        $counted = array_filter($export->row_counts, fn (int $count, string $table): bool => ! in_array($table, ['announcement_location', 'announcement_service_package_category', 'location_promo_banner', 'promo_banner_service_package_category', 'media', 'user_roles'], true), ARRAY_FILTER_USE_BOTH);
         $expectedCounts = array_filter(array_map('count', $truth)) + ['companies' => count($ids)];
+        $this->assertSame(count($this->csv($entries['data/media.csv'])), $export->row_counts['media'], 'the media rows of the tenant are counted like its tables');
+        $this->assertSame(count($this->csv($entries['data/user_roles.csv'])), $export->row_counts['user_roles']);
         ksort($counted);
         ksort($expectedCounts);
         $this->assertSame($expectedCounts, array_filter($counted), 'the record carries the count of every table that has rows');
@@ -510,7 +571,7 @@ class TenantExportTest extends PurgeTestCase
         $entries = $this->entries($export);
         $registry = app(TenantTableRegistry::class);
 
-        $expected = ['manifest.json', 'data/companies.csv'];
+        $expected = ['manifest.json', 'data/companies.csv', 'data/media.csv', 'data/user_roles.csv'];
 
         foreach (array_diff($registry->tables(), ['tenant_exports']) as $table) {
             $expected[] = "data/{$table}.csv";
@@ -536,6 +597,8 @@ class TenantExportTest extends PurgeTestCase
         $this->assertSame(3, $manifest['row_counts']['users']);
         $this->assertSame(0, $manifest['row_counts']['customers'], 'a table with no rows is still listed');
         $this->assertSame(3, $manifest['row_counts']['company_user'], 'memberships');
+        $this->assertSame(0, $manifest['row_counts']['media'], 'no file, no media row');
+        $this->assertSame(3, $manifest['row_counts']['user_roles'], 'the admin, the staff user and the manager each hold one role');
         $this->assertSame(['local' => 0, 'public' => 0], $manifest['media']);
     }
 
@@ -680,14 +743,21 @@ class TenantExportTest extends PurgeTestCase
         // A disk the tenant's media rows name (a local one here), and a remote one that is only readable as a stream.
         config(['filesystems.disks.archive' => ['driver' => 'local', 'root' => storage_path('framework/testing/disks/archive')], 'filesystems.disks.cloud' => ['driver' => 's3']]);
         Storage::fake('archive');
-        Storage::disk('archive')->put("companies/{$root->id}/customers/1/documents/5/old.pdf", 'archive-bytes');
-        Storage::disk('archive')->put("companies/{$other['root']->id}/customers/1/documents/5/old.pdf", 'foreign-archive-bytes');
+        $old = $this->upload($root, 'archive-bytes', 'old.pdf', 'archive');
+        $this->upload($other['root'], 'foreign-archive-bytes', 'old.pdf', 'archive');
 
+        $private = $this->upload($root, 'private-bytes', 'ktp.pdf');
+        $branch = $this->upload($child, 'child-bytes', 'foto.jpg');
+        $this->upload($other['root'], 'foreign-bytes', 'ktp.pdf');
+        $logo = $this->upload($root, 'logo-bytes', 'logo.webp', 'public', 'logo');
+        $this->upload($other['root'], 'foreign-logo-bytes', 'logo.webp', 'public', 'logo');
+        Storage::disk('local')->put('platform/exports/previous.zip', 'another archive');
+
+        $scanPath = $this->mediaRow($root, 'cloud', 'scan.pdf')->getPathRelativeToRoot();
         $cloud = Mockery::mock(FilesystemAdapter::class);
         $cloud->shouldReceive('getAdapter')->andReturn(Mockery::mock(FlysystemAdapter::class));
-        $cloud->shouldReceive('allFiles')->with("companies/{$root->id}")->andReturn(["companies/{$root->id}/customers/1/documents/6/scan.pdf"]);
-        $cloud->shouldReceive('allFiles')->with("companies/{$child->id}")->andReturn([]);
-        $cloud->shouldReceive('readStream')->with("companies/{$root->id}/customers/1/documents/6/scan.pdf")->andReturnUsing(function () {
+        $cloud->shouldReceive('exists')->with($scanPath)->andReturn(true);
+        $cloud->shouldReceive('readStream')->with($scanPath)->andReturnUsing(function () {
             $stream = fopen('php://memory', 'w+b');
             fwrite($stream, 'cloud-bytes');
             rewind($stream);
@@ -696,48 +766,180 @@ class TenantExportTest extends PurgeTestCase
         });
         Storage::set('cloud', $cloud);
 
-        Storage::disk('local')->put("companies/{$root->id}/customers/1/documents/4/ktp.pdf", 'private-bytes');
-        Storage::disk('local')->put("companies/{$child->id}/tickets/2/attachments/3/foto.jpg", 'child-bytes');
-        Storage::disk('local')->put("companies/{$other['root']->id}/customers/1/documents/4/ktp.pdf", 'foreign-bytes');
-        Storage::disk('public')->put("companies/{$root->id}/company-logo/7/logo.webp", 'logo-bytes');
-        Storage::disk('public')->put("companies/{$other['root']->id}/company-logo/9/logo.webp", 'foreign-logo-bytes');
-        Storage::disk('local')->put('platform/exports/previous.zip', 'another archive');
-
-        foreach (['archive', 'cloud'] as $disk) {
-            DB::table('media')->insert([
-                'public_id' => PublicId::new(),
-                'model_type' => Company::class,
-                'model_id' => $root->id,
-                'uuid' => (string) Str::uuid(),
-                'collection_name' => 'documents',
-                'name' => 'f',
-                'file_name' => 'f.pdf',
-                'mime_type' => 'application/pdf',
-                'disk' => $disk,
-                'conversions_disk' => $disk,
-                'size' => 5,
-                'manipulations' => '[]',
-                'custom_properties' => json_encode(['company_id' => $root->id]),
-                'generated_conversions' => '[]',
-                'responsive_images' => '[]',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        }
-
         $entries = $this->entries($this->build($root));
         $files = array_filter($entries, fn (string $name): bool => str_starts_with($name, 'files/'), ARRAY_FILTER_USE_KEY);
 
         $this->assertEquals([
-            "files/archive/companies/{$root->id}/customers/1/documents/5/old.pdf" => 'archive-bytes',
-            "files/cloud/companies/{$root->id}/customers/1/documents/6/scan.pdf" => 'cloud-bytes',
-            "files/local/companies/{$child->id}/tickets/2/attachments/3/foto.jpg" => 'child-bytes',
-            "files/local/companies/{$root->id}/customers/1/documents/4/ktp.pdf" => 'private-bytes',
-            "files/public/companies/{$root->id}/company-logo/7/logo.webp" => 'logo-bytes',
+            "files/archive/{$old->getPathRelativeToRoot()}" => 'archive-bytes',
+            "files/cloud/{$scanPath}" => 'cloud-bytes',
+            "files/local/{$branch->getPathRelativeToRoot()}" => 'child-bytes',
+            "files/local/{$private->getPathRelativeToRoot()}" => 'private-bytes',
+            "files/public/{$logo->getPathRelativeToRoot()}" => 'logo-bytes',
         ], $files);
         $this->assertStringNotContainsString('foreign', implode("\n", $entries));
         $this->assertStringNotContainsString('another archive', implode("\n", $entries), 'an archive never carries the archives');
         $this->assertSame(['archive' => 1, 'cloud' => 1, 'local' => 2, 'public' => 1], json_decode($entries['manifest.json'], true)['media']);
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Files and roles come from the tenant's rows (K21)
+    // ---------------------------------------------------------------------------------------------
+
+    public function test_files_come_from_media_rows_not_folders(): void
+    {
+        $alpha = $this->buildTenant('ALP', 'Alpha Net');
+        $beta = $this->buildTenant('BET', 'Beta Link');
+        $root = $alpha['root'];
+        $child = $alpha['child'];
+        $customer = Customer::factory()->create(['company_id' => $child->id]);
+
+        $own = $this->upload($root, 'own-bytes', 'ktp.pdf');
+        $logo = $this->upload($root, 'logo-bytes', 'logo.webp', 'public', 'logo');
+        $branch = $this->upload($child, 'branch-bytes', 'foto.jpg');
+        // The oldest rows carry no company id of their own: the company is the one of the row they hang on.
+        $legacy = $this->upload($customer, 'legacy-bytes', 'scan.pdf', stamped: false);
+        $this->upload($beta['root'], 'foreign-bytes', 'ktp.pdf');
+
+        $this->assertStringStartsWith("companies/{$child->id}/customers/{$customer->id}/documents/", $legacy->getPathRelativeToRoot());
+
+        $export = $this->build($root);
+
+        $this->assertEquals([
+            "files/local/{$own->getPathRelativeToRoot()}" => 'own-bytes',
+            "files/public/{$logo->getPathRelativeToRoot()}" => 'logo-bytes',
+            "files/local/{$branch->getPathRelativeToRoot()}" => 'branch-bytes',
+            "files/local/{$legacy->getPathRelativeToRoot()}" => 'legacy-bytes',
+        ], $this->archivedFiles($export));
+        $this->assertStringNotContainsString('foreign-bytes', implode("\n", $this->entries($export)));
+    }
+
+    public function test_stray_file_in_tenant_folder_is_not_exported(): void
+    {
+        $tenant = $this->buildTenant('ALP', 'Alpha Net');
+        $root = $tenant['root'];
+        $kept = $this->upload($root, 'kept-bytes', 'ktp.pdf');
+
+        // What a reused company id, a restored backup or a test run leaves behind: files with no row of this tenant.
+        Storage::disk('local')->put("companies/{$root->id}/leftover.txt", 'stray-bytes');
+        Storage::disk('local')->put("companies/{$root->id}/customers/9/documents/99/old.pdf", 'orphan-bytes');
+        Storage::disk('local')->put("companies/{$tenant['child']->id}/tickets/2/attachments/6/foto.jpg", 'child-stray-bytes');
+        Storage::disk('public')->put("companies/{$root->id}/company-logo/98/logo.webp", 'stray-logo-bytes');
+
+        $export = $this->build($root);
+        $entries = $this->entries($export);
+
+        $this->assertSame(["files/local/{$kept->getPathRelativeToRoot()}"], array_keys($this->archivedFiles($export)));
+
+        foreach (['stray-bytes', 'orphan-bytes', 'child-stray-bytes', 'stray-logo-bytes'] as $stray) {
+            $this->assertStringNotContainsString($stray, implode("\n", $entries));
+        }
+
+        $this->assertSame(['local' => 1, 'public' => 0], json_decode($entries['manifest.json'], true)['media']);
+    }
+
+    public function test_media_csv_and_user_roles_csv_are_written(): void
+    {
+        $alpha = $this->buildTenant('ALP', 'Alpha Net');
+        $beta = $this->buildTenant('BET', 'Beta Link');
+        $first = $this->upload($alpha['root'], 'first-bytes', 'ktp.pdf');
+        $second = $this->upload($alpha['child'], 'second-bytes', 'foto.jpg', 'public');
+        $this->upload($beta['root'], 'third-bytes', 'ktp.pdf');
+
+        $export = $this->build($alpha['root']);
+        $entries = $this->entries($export);
+
+        // media.csv: the tenant's rows, every column, so a file can be tied back to its record.
+        $this->assertSame(Schema::getColumnListing('media'), $this->header($entries['data/media.csv']));
+        $media = $this->csv($entries['data/media.csv']);
+        $this->assertSame([$first->id, $second->id], array_map('intval', array_column($media, 'id')));
+        $this->assertSame(['ktp.pdf', 'foto.jpg'], array_column($media, 'file_name'));
+        $this->assertSame(['local', 'public'], array_column($media, 'disk'));
+        $this->assertSame([Company::class, Company::class], array_column($media, 'model_type'));
+        $this->assertSame([(string) $alpha['root']->id, (string) $alpha['child']->id], array_column($media, 'model_id'));
+        $this->assertSame([$first->public_id, $second->public_id], array_column($media, 'public_id'));
+
+        // user_roles.csv: the roles of the tenant's users by name, nobody else's.
+        $this->assertSame(['user_id', 'role_id', 'role_name'], $this->header($entries['data/user_roles.csv']));
+        $expected = [];
+
+        foreach ([[$alpha['admin'], 'admin'], [$alpha['staff'], 'staff'], [$alpha['branch'], 'manager']] as [$user, $role]) {
+            $expected[] = ['user_id' => (string) $user->id, 'role_id' => (string) Role::findByName($role)->id, 'role_name' => $role];
+        }
+
+        $this->assertSame($expected, $this->csv($entries['data/user_roles.csv']));
+        $this->assertSame(2, $export->row_counts['media']);
+        $this->assertSame(3, $export->row_counts['user_roles']);
+        $this->assertSame([], array_intersect(array_column($this->csv($entries['data/user_roles.csv']), 'user_id'), [(string) $beta['admin']->id, (string) $beta['staff']->id, (string) $beta['branch']->id]));
+    }
+
+    public function test_generated_conversions_of_a_media_row_are_archived(): void
+    {
+        $root = $this->buildTenant('ALP', 'Alpha Net')['root'];
+        $media = $this->upload($root, 'original-bytes', 'ktp.jpg');
+        $conversions = PathGeneratorFactory::create($media)->getPathForConversions($media);
+        Storage::disk('local')->put($conversions.'ktp-thumb.webp', 'thumb-bytes');
+        $media->markAsConversionGenerated('thumb');
+
+        // A row that generated nothing owns nothing in its conversions folder.
+        $plain = $this->upload($root, 'plain-bytes', 'plain.jpg');
+        Storage::disk('local')->put(PathGeneratorFactory::create($plain)->getPathForConversions($plain).'plain-thumb.webp', 'ghost-bytes');
+
+        $this->assertEquals([
+            "files/local/{$media->getPathRelativeToRoot()}" => 'original-bytes',
+            "files/local/{$conversions}ktp-thumb.webp" => 'thumb-bytes',
+            "files/local/{$plain->getPathRelativeToRoot()}" => 'plain-bytes',
+        ], $this->archivedFiles($this->build($root)));
+    }
+
+    public function test_a_media_row_whose_file_is_gone_is_left_out_without_stopping_the_export(): void
+    {
+        // phpunit.xml logs to stderr: capture the warning instead of printing it.
+        config(['logging.default' => 'null']);
+        $logged = [];
+        Log::listen(function (MessageLogged $event) use (&$logged): void {
+            $logged[] = $event;
+        });
+
+        $root = $this->buildTenant('ALP', 'Alpha Net')['root'];
+        $kept = $this->upload($root, 'kept-bytes', 'ktp.pdf');
+        $gone = $this->upload($root, 'gone-bytes', 'lost.pdf');
+        Storage::disk('local')->delete($gone->getPathRelativeToRoot());
+
+        $export = $this->build($root);
+        $entries = $this->entries($export);
+
+        $this->assertSame(TenantExport::READY, $export->status);
+        $this->assertSame(["files/local/{$kept->getPathRelativeToRoot()}"], array_keys($this->archivedFiles($export)));
+        $this->assertSame([$kept->id, $gone->id], array_map('intval', array_column($this->csv($entries['data/media.csv']), 'id')), 'the row stays in media.csv');
+        $this->assertSame(['local' => 1, 'public' => 0], json_decode($entries['manifest.json'], true)['media']);
+
+        $warnings = array_values(array_filter($logged, fn (MessageLogged $event): bool => $event->message === 'tenant_export.media_file_missing'));
+        $this->assertCount(1, $warnings);
+        $this->assertSame(['media_id' => $gone->id, 'disk' => 'local'], $warnings[0]->context, 'ids only: a file name can hold a customer\'s name');
+    }
+
+    public function test_a_media_row_that_points_into_another_tenants_folder_stops_the_export(): void
+    {
+        $root = $this->buildTenant('ALP', 'Alpha Net')['root'];
+        $beta = $this->buildTenant('BET', 'Beta Link')['root'];
+        $this->upload($root, 'own-bytes', 'ktp.pdf');
+
+        // The row hangs on the tenant's company but is stamped with another company, so its file lies in that company's folder.
+        CompanyService::runAs($root->id, fn () => $root->addMediaFromString('foreign-bytes')
+            ->usingFileName('x.pdf')
+            ->withCustomProperties(['company_id' => $beta->id])
+            ->toMediaCollection('documents', 'local'));
+
+        $export = $this->export($root);
+
+        try {
+            app()->call([new BuildTenantExportJob($export->id, $root->id), 'handle']);
+            $this->fail('a file outside the tenant folders must stop the export');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('outside the folders of the tenant', $e->getMessage());
+        }
+
+        $this->assertFalse(Storage::disk('local')->exists("platform/exports/{$export->uuid}.zip"));
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -793,7 +995,7 @@ class TenantExportTest extends PurgeTestCase
         config(['filesystems.disks.broken' => ['driver' => 's3']]);
         $broken = Mockery::mock(FilesystemAdapter::class);
         $broken->shouldReceive('getAdapter')->andReturn(Mockery::mock(FlysystemAdapter::class));
-        $broken->shouldReceive('allFiles')->andThrow(new RuntimeException('S3 is down: '.str_repeat('x', 400)));
+        $broken->shouldReceive('exists')->andThrow(new RuntimeException('S3 is down: '.str_repeat('x', 400)));
         Storage::set('broken', $broken);
         DB::table('media')->insert([
             'public_id' => PublicId::new(),

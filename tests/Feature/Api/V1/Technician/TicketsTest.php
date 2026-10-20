@@ -243,6 +243,28 @@ class TicketsTest extends TestCase
             ->assertJsonPath('data.comments.0.body', 'Public');
     }
 
+    public function test_the_ticket_says_what_counted_as_the_first_response(): void
+    {
+        $replied = $this->assignedTicket('assigned');
+        $this->api('GET', "technician/tickets/{$replied->public_id}", token: $this->token)
+            ->assertOk()
+            ->assertJsonPath('data.first_response_source', null);
+
+        $this->api('POST', "technician/tickets/{$replied->public_id}/comments", ['body' => 'Menuju lokasi', 'is_internal' => false], $this->token)->assertCreated();
+        $this->api('GET', "technician/tickets/{$replied->public_id}", token: $this->token)
+            ->assertOk()
+            ->assertJsonPath('data.first_response_source', 'reply');
+        $this->api('POST', "technician/tickets/{$replied->public_id}/start", token: $this->token)
+            ->assertOk()
+            ->assertJsonPath('data.first_response_source', 'reply');
+
+        $started = $this->assignedTicket('assigned');
+        $this->api('POST', "technician/tickets/{$started->public_id}/comments", ['body' => 'Catatan internal', 'is_internal' => true], $this->token)->assertCreated();
+        $this->api('POST', "technician/tickets/{$started->public_id}/start", token: $this->token)
+            ->assertOk()
+            ->assertJsonPath('data.first_response_source', 'start');
+    }
+
     private function assignedTicket(string $status): Ticket
     {
         return Ticket::query()->create([

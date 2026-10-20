@@ -2571,6 +2571,17 @@
                             ],
                             "maxLength": 100
                         }
+                    },
+                    {
+                        "name": "warehouse_id",
+                        "in": "query",
+                        "description": "A place `GET technician/warehouses` offers (active, holding stock), by its public id. With it every product\nsays how much is free there in `available`; without it `available` is null.",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ]
+                        }
                     }
                 ],
                 "responses": {
@@ -4721,6 +4732,65 @@
                     }
                 }
             }
+        },
+        "/technician/work-orders/{wo}/network-credentials": {
+            "post": {
+                "operationId": "v1.technician.work-orders.network-credentials",
+                "description": "Only for the technician the SPK is assigned to now, and only while it is assigned or in progress; a reassignment ends the access. Every call is audited and counts against 5 a minute. The answer is never cached or kept for an `Idempotency-Key` replay: ask again to see it again. 409 `work_order_closed` when the SPK is no longer active, 422 `credentials_not_ready` when the account is not made yet.",
+                "summary": "Show the PPPoE login of an installation SPK",
+                "tags": [
+                    "WorkOrderNetworkCredentials"
+                ],
+                "parameters": [
+                    {
+                        "name": "wo",
+                        "in": "path",
+                        "required": true,
+                        "description": "The wo public id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "username": {
+                                                    "type": "string"
+                                                },
+                                                "password": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "required": [
+                                                "username",
+                                                "password"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -5047,6 +5117,33 @@
                             "null"
                         ]
                     },
+                    "reactivation_holds": {
+                        "type": "array",
+                        "description": "The unpaid bills a subscription isolated for overdue bills still waits for: it is reconnected by itself once none\nis left, so the customer pays all of them. Oldest due first; empty in every other state, and when the ISP\nreconnects by hand.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "string"
+                                },
+                                "number": {
+                                    "type": "string"
+                                },
+                                "due_date": {
+                                    "type": "string"
+                                },
+                                "sisa": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "id",
+                                "number",
+                                "due_date",
+                                "sisa"
+                            ]
+                        }
+                    },
                     "package": {
                         "type": "object",
                         "properties": {
@@ -5191,6 +5288,7 @@
                     "status",
                     "suspension_reason",
                     "suspended_at",
+                    "reactivation_holds",
                     "package",
                     "sla_tier",
                     "pppoe_username",
@@ -5346,6 +5444,18 @@
                         ],
                         "description": "First name of the staff member handling the ticket; null while unassigned. The rest of the profile stays internal."
                     },
+                    "can_reply": {
+                        "type": "boolean",
+                        "description": "False once the ticket is closed: replies are refused and the customer is pointed to a new ticket."
+                    },
+                    "reopened_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time",
+                        "description": "When a reply of the customer last brought the resolved ticket back; null if it never did."
+                    },
                     "description": {
                         "type": [
                             "string",
@@ -5385,7 +5495,9 @@
                     "first_response_at",
                     "response_deadline",
                     "sla_deadline",
-                    "handler_first_name"
+                    "handler_first_name",
+                    "can_reply",
+                    "reopened_at"
                 ],
                 "title": "CustomerTicketResource"
             },
@@ -6345,17 +6457,27 @@
                             "payment_received",
                             "ticket_created",
                             "ticket_assigned",
+                            "ticket_started",
+                            "ticket_replied",
                             "ticket_resolved",
+                            "ticket_closed",
+                            "ticket_customer_replied",
+                            "ticket_reopened",
                             "ticket_sla_breached",
                             "ticket_first_response_due",
                             "spk_scheduled",
                             "spk_scheduled_customer",
                             "spk_approved",
                             "spk_rejected",
+                            "spk_submitted",
                             "technician_en_route",
                             "visit_completed",
                             "billing_schedule_failed",
                             "payment_attempt_exception",
+                            "invoice_draft_pending",
+                            "subscription_isolated",
+                            "subscription_reactivated",
+                            "subscriptions_isolated_summary",
                             "inventory_request_submitted",
                             "inventory_request_approved",
                             "inventory_request_ready",
@@ -6377,9 +6499,16 @@
                             "Tagihan sudah jatuh tempo",
                             "Pembayaran diterima",
                             "Tiket dibuat",
-                            "Tiket mulai ditangani",
+                            "Tiket baru",
+                            "Petugas ditugaskan",
                             "Tiket ditugaskan",
+                            "Tiket mulai ditangani",
+                            "Balasan baru",
                             "Tiket selesai",
+                            "Tiket ditutup",
+                            "Pelanggan membalas",
+                            "Tiket dibuka kembali",
+                            "Batas respons terlewat",
                             "SLA tiket terlampaui",
                             "Batas respons pertama terlewat",
                             "Respons pertama segera jatuh tempo",
@@ -6387,10 +6516,16 @@
                             "Jadwal kunjungan teknisi",
                             "SPK disetujui",
                             "SPK ditolak",
+                            "SPK menunggu review",
                             "Teknisi dalam perjalanan",
                             "Kunjungan teknisi selesai",
                             "Jadwal penagihan gagal",
                             "Pembayaran online perlu dicek",
+                            "Tagihan draf menunggu dikirim",
+                            "Layanan diisolir",
+                            "Layanan dibatasi",
+                            "Layanan aktif kembali",
+                            "Isolir otomatis hari ini",
                             "Permintaan barang diajukan",
                             "Permintaan barang disetujui",
                             "Permintaan barang siap diambil",
@@ -7245,13 +7380,21 @@
                             "string",
                             "null"
                         ]
+                    },
+                    "available": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "What is free to ask for at the warehouse the request named (stock minus reserved, \"0\" when it holds none of\nthis product), as a decimal without trailing zeros. Null when the request named no warehouse."
                     }
                 },
                 "required": [
                     "id",
                     "sku",
                     "name",
-                    "unit"
+                    "unit",
+                    "available"
                 ],
                 "title": "TechnicianProductResource"
             },
@@ -7401,6 +7544,13 @@
                         ],
                         "description": "First name of the staff member handling the ticket; null while unassigned. The rest of the profile stays internal."
                     },
+                    "first_response_source": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "What counted as the first response: a public staff reply ('reply'), the Mulai button ('start') or nothing yet (null)."
+                    },
                     "check_in": {
                         "type": "object",
                         "properties": {
@@ -7546,6 +7696,7 @@
                     "response_deadline",
                     "sla_deadline",
                     "handler_first_name",
+                    "first_response_source",
                     "check_in",
                     "description",
                     "resolution_note",
@@ -7565,12 +7716,17 @@
                     },
                     "code": {
                         "type": "string"
+                    },
+                    "last_used": {
+                        "type": "boolean",
+                        "description": "True for the warehouse of the caller's latest request: the picker of a new request starts there."
                     }
                 },
                 "required": [
                     "id",
                     "name",
-                    "code"
+                    "code",
+                    "last_used"
                 ],
                 "title": "TechnicianWarehouseResource"
             },
@@ -7837,6 +7993,34 @@
                             "package_name"
                         ]
                     },
+                    "network_account": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "description": "The PPPoE login of an installation, for the technician it is assigned to: the username and where it stands,\nnever the secret (the app asks for that behind \"Tampilkan\", POST network-credentials). Null for any other\ntype, while no account is made, and for anyone but the assignee.",
+                        "properties": {
+                            "username": {
+                                "type": "string"
+                            },
+                            "sync_status": {
+                                "type": "string",
+                                "enum": [
+                                    "pending",
+                                    "synced",
+                                    "error"
+                                ]
+                            },
+                            "can_reveal": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": [
+                            "username",
+                            "sync_status",
+                            "can_reveal"
+                        ]
+                    },
                     "site": {
                         "type": [
                             "object",
@@ -7988,6 +8172,7 @@
                     "ticket",
                     "customer",
                     "subscription",
+                    "network_account",
                     "site",
                     "pop",
                     "items",

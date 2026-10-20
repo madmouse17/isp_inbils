@@ -13,6 +13,8 @@ class TechnicianTicketResource extends CustomerTicketResource
     public function toArray(Request $request): array
     {
         return array_merge($this->summary(), [
+            /** What counted as the first response: a public staff reply ('reply'), the Mulai button ('start') or nothing yet (null). */
+            'first_response_source' => $this->first_response_source,
             'check_in' => FieldCheckIn::apiSummary($this->resource, 'ticket'),
             'description' => $this->description,
             'resolution_note' => $this->resolution_note,

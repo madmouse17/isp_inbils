@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -98,6 +98,23 @@ export function PickerField({
         if (result.ok) commit(result.value);
         else setTypedError(result.message);
     };
+
+    // A text that is not a real value must not let the surrounding form submit: the form would save the old
+    // value in its place, and the typed one is lost without a word. Only while the text is invalid.
+    useEffect(() => {
+        const form = inputRef.current?.form;
+        if (typedError === null || !form) return;
+
+        const block = (event: SubmitEvent) => {
+            event.preventDefault();
+            // React listens on the root, above the form: stopping the event here keeps `onSubmit` from running.
+            event.stopPropagation();
+            inputRef.current?.focus();
+        };
+        form.addEventListener('submit', block);
+
+        return () => form.removeEventListener('submit', block);
+    }, [typedError]);
 
     const pending = text !== shown;
 

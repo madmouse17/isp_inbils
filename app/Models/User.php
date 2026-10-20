@@ -37,6 +37,17 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, HasPublicId, HasRoles, LogsActivity, Notifiable;
 
+    /**
+     * What makes the daily warehouse digest (`inventory_digest`) worth offering: whoever holds one of these has something
+     * to act on in it. Read by the command that sends it and by the profile page that offers the switch.
+     *
+     * @var list<string>
+     */
+    public const INVENTORY_DIGEST_PERMISSIONS = [
+        'inventory.request.approve', 'inventory.request.prepare', 'inventory.request.issue',
+        'inventory.return.receive', 'inventory.return.resolve',
+    ];
+
     protected static $recordEvents = ['created', 'updated', 'deleted'];
 
     /**
@@ -103,6 +114,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'is_active' => 'boolean',
+            'inventory_digest' => 'boolean',
             'last_login_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_secret' => 'encrypted',

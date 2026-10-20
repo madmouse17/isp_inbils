@@ -176,7 +176,7 @@ class ConsolidatedBusinessReportTest extends TestCase
         $user = $this->groupUser($this->head, 'admin', $this->subA);
 
         $this->actingAs($user)->post(route('admin.company.switch'), ['company_id' => $this->subA->public_id]);
-        $this->get(route('admin.reports.consolidated'))->assertForbidden();
+        $this->get(route('admin.reports.consolidated'))->assertRedirect(route('admin.reports.index'));
 
         $this->post(route('admin.company.switch'), ['company_id' => $this->head->public_id]);
         $this->get(route('admin.reports.consolidated', self::JANUARY))->assertOk();
@@ -257,8 +257,39 @@ class ConsolidatedBusinessReportTest extends TestCase
         $this->assertTrue($subAdmin->can('report.consolidated.view'));
 
         $this->actingAs($subAdmin);
-        $this->get(route('admin.reports.consolidated'))->assertForbidden();
-        $this->get(route('admin.reports.consolidated.export'))->assertForbidden();
+        $this->get(route('admin.reports.consolidated'))->assertRedirect(route('admin.reports.index'));
+        $this->get(route('admin.reports.consolidated.export'))->assertRedirect(route('admin.reports.index'));
+
+        // Without the permission there is nothing to explain: still a plain refusal.
+        $manager = $this->groupUser($this->subA, 'manager');
+        $this->actingAs($manager)->get(route('admin.reports.consolidated'))->assertForbidden();
+    }
+
+    public function test_subsidiary_context_redirects_with_message(): void
+    {
+        $this->seedGroupWorld();
+        $user = $this->groupUser($this->head, 'admin', $this->subA);
+        $message = "Metrik Konsolidasi hanya tersedia di perusahaan induk {$this->head->name}. Ganti perusahaan lewat pemilih di menu samping.";
+
+        $this->actingAs($user)->post(route('admin.company.switch'), ['company_id' => $this->subA->public_id]);
+
+        $this->get(route('admin.reports.consolidated', self::JANUARY))
+            ->assertRedirect(route('admin.reports.index'))
+            ->assertSessionHas('warning', $message);
+
+        // The hub that the user lands on hands the sentence to the toast.
+        $this->get(route('admin.reports.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('flash.warning', $message));
+
+        // The file link of a stale tab is answered the same way, and nothing is streamed.
+        $this->get(route('admin.reports.consolidated.export', self::JANUARY))
+            ->assertRedirect(route('admin.reports.index'))
+            ->assertSessionHas('warning', $message);
+
+        // Back in the Head the report opens again.
+        $this->post(route('admin.company.switch'), ['company_id' => $this->head->public_id]);
+        $this->get(route('admin.reports.consolidated', self::JANUARY))->assertOk();
     }
 
     public function test_a_standalone_company_and_a_head_without_subsidiaries_are_not_heads(): void

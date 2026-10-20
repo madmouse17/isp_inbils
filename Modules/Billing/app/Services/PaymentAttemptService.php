@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Support\Money;
+use App\Support\Notifications\StaffRecipients;
 use App\Support\RecordNotFound;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
@@ -25,7 +26,8 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * Online payment attempts: create-or-reuse for the customer, the one settlement path shared by the Midtrans
- * webhook and the reconciliation command, and the closing of pages an invoice change left unpayable (closeOpenFor).
+ * webhook and the reconciliation command, the closing of pages an invoice change left unpayable (closeOpenFor) and
+ * the mark finance puts on money that went back outside Inbils (markRefunded).
  *
  * Lock order is always invoice row first, attempt row second, so a Pay click and a notification
  * for the same invoice can never deadlock.
@@ -134,6 +136,12 @@ class PaymentAttemptService
         return DB::transaction(function () use ($attempt, $payload): PaymentAttempt {
             $invoice = Invoice::withoutCompany()->whereKey($attempt->invoice_id)->lockForUpdate()->firstOrFail();
             $attempt = PaymentAttempt::withoutCompany()->whereKey($attempt->id)->lockForUpdate()->firstOrFail();
+
+            // A person closed it: what Midtrans says later (the refund itself, a replayed settlement) never opens it again.
+            if ($attempt->status === PaymentAttempt::STATUS_REFUNDED) {
+                return $attempt;
+            }
+
             $outcome = self::outcomeOf($payload);
 
             if ($attempt->payment_id !== null) {
@@ -169,9 +177,43 @@ class PaymentAttemptService
     }
 
     /**
+     * Finance closes an exception whose money went back outside Inbils, through the Midtrans dashboard or a bank transfer
+     * (K4): "Dikembalikan", with the reference of the refund and a note, audited. No payment is booked and Midtrans is not
+     * called. Only money no payment of ours stands for qualifies; a booked payment that was returned is reversed instead.
+     *
+     * @throws ValidationException when the attempt is not such an exception
+     */
+    public function markRefunded(PaymentAttempt $attempt, User $by, string $reference, string $note): PaymentAttempt
+    {
+        return DB::transaction(function () use ($attempt, $by, $reference, $note): PaymentAttempt {
+            // Invoice first, attempt second, like every writer of the two: a hand booking of this money commits before the check below or waits for it.
+            Invoice::withoutCompany()->whereKey($attempt->invoice_id)->lockForUpdate()->firstOrFail();
+            $attempt = PaymentAttempt::withoutCompany()->whereKey($attempt->id)->lockForUpdate()->firstOrFail();
+            RecordNotFound::abortUnless($attempt->company_id === (int) CompanyService::currentId());
+
+            $unbookedException = self::whereUnbooked(PaymentAttempt::withoutCompany()->whereKey($attempt->id)->where('status', PaymentAttempt::STATUS_EXCEPTION));
+
+            if (! $unbookedException->exists()) {
+                throw ValidationException::withMessages(['refund' => 'Hanya pembayaran online berstatus Perlu dicek yang belum dibukukan yang bisa ditandai dikembalikan.']);
+            }
+
+            $attempt->update([
+                'status' => PaymentAttempt::STATUS_REFUNDED,
+                'resolved_by' => $by->id,
+                'resolved_at' => now(),
+                'resolution_reference' => $reference,
+                'resolution_note' => $note,
+            ]);
+            $this->audit($attempt, 'refunded', extra: ['reference' => $reference, 'note' => $note]);
+
+            return $attempt;
+        }, 3);
+    }
+
+    /**
      * The exceptions of the current company that a person still has to settle. Money captured and never booked stays open
-     * until a payment carrying the order id as its reference exists or Midtrans took all of it back; a payment that was
-     * booked and then returned stays open until that payment is reversed.
+     * until a payment carrying the order id as its reference exists, Midtrans took all of it back or finance marked it
+     * refunded (markRefunded); a payment that was booked and then returned stays open until that payment is reversed.
      *
      * @return Builder<PaymentAttempt>
      */
@@ -180,12 +222,7 @@ class PaymentAttemptService
         return PaymentAttempt::query()
             ->where('status', PaymentAttempt::STATUS_EXCEPTION)
             ->where(fn (Builder $open) => $open
-                ->where(fn (Builder $unbooked) => $unbooked
-                    ->whereNull('payment_id')
-                    ->whereNotExists(Payment::withoutCompany()->select(DB::raw('1'))
-                        ->whereColumn('payments.company_id', 'payment_attempts.company_id')
-                        ->whereColumn('payments.active_reference', 'payment_attempts.order_id')
-                        ->toBase())
+                ->where(fn (Builder $unbooked) => self::whereUnbooked($unbooked)
                     ->where(fn (Builder $seen) => $seen
                         ->whereNull('last_notification->transaction_status')
                         ->orWhereNotIn('last_notification->transaction_status', ['refund', 'chargeback'])))
@@ -195,6 +232,23 @@ class PaymentAttemptService
                         ->whereColumn('payments.id', 'payment_attempts.payment_id')
                         ->whereNull('payments.cancelled_at')
                         ->toBase())));
+    }
+
+    /**
+     * Money that reached Midtrans and that no payment of ours stands for: none is linked to the attempt and none carries
+     * its order id as the reference (the way staff book such money by hand).
+     *
+     * @param  Builder<PaymentAttempt>  $attempts
+     * @return Builder<PaymentAttempt>
+     */
+    private static function whereUnbooked(Builder $attempts): Builder
+    {
+        return $attempts
+            ->whereNull('payment_id')
+            ->whereNotExists(Payment::withoutCompany()->select(DB::raw('1'))
+                ->whereColumn('payments.company_id', 'payment_attempts.company_id')
+                ->whereColumn('payments.active_reference', 'payment_attempts.order_id')
+                ->toBase());
     }
 
     /**
@@ -353,22 +407,20 @@ class PaymentAttemptService
     private function alertBillingStaff(PaymentAttempt $attempt): void
     {
         DB::afterCommit(function () use ($attempt): void {
-            $staff = User::query()
-                ->where('company_id', $attempt->company_id)
-                ->where('is_active', true)
-                ->permission('billing.payment.record')
-                ->get();
-
-            Notification::send($staff, new PaymentAttemptExceptionNotification((int) $attempt->company_id, $attempt->id));
+            Notification::send(
+                StaffRecipients::holding((int) $attempt->company_id, 'billing.payment.record'),
+                new PaymentAttemptExceptionNotification((int) $attempt->company_id, $attempt->id),
+            );
         });
     }
 
     /**
-     * Ids and amounts only: never keys, headers or the raw payload.
+     * Ids and amounts only: never keys, headers or the raw payload. A refund adds the reference and the note staff typed.
      *
      * @param  array<string, mixed>|null  $payload
+     * @param  array<string, string>  $extra
      */
-    private function audit(PaymentAttempt $attempt, string $event, ?array $payload = null, ?string $reason = null): void
+    private function audit(PaymentAttempt $attempt, string $event, ?array $payload = null, ?string $reason = null, array $extra = []): void
     {
         AuditService::log('payment_attempt', $event, array_filter([
             'order_id' => $attempt->order_id,
@@ -378,6 +430,7 @@ class PaymentAttemptService
             'transaction_status' => $payload['transaction_status'] ?? null,
             'fraud_status' => $payload['fraud_status'] ?? null,
             'reason' => $reason,
+            ...$extra,
         ], fn (mixed $value): bool => $value !== null), $attempt);
     }
 

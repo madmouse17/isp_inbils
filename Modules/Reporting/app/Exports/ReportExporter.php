@@ -27,6 +27,7 @@ use Modules\Reporting\Registry\DateBasis;
 use Modules\Reporting\Registry\MetricDefinition;
 use Modules\Reporting\Registry\MetricRegistry;
 use Modules\Reporting\Registry\ReportType;
+use Modules\Reporting\Support\TimeBuckets;
 use Spatie\Activitylog\Models\Activity;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -53,15 +54,18 @@ final class ReportExporter
     {
         $source = $request->source();
         $kind = $source->kind;
-        $list = new DrillList($source, $request->filters(), $request->user());
+        $filters = $request->filters();
+        $list = new DrillList($source, $filters, $request->user());
+        // A file has no browser to read an offset: its moments are written in the company's own time.
+        $timezone = TimeBuckets::timezoneOf($filters->companyId);
 
         $columns = [];
         foreach ($kind->columns() as $column) {
             $columns[$column['label']] = $column['key'];
         }
 
-        $map = static function (Model $model) use ($kind, $columns): array {
-            $row = $kind->row($model);
+        $map = static function (Model $model) use ($kind, $columns, $timezone): array {
+            $row = $kind->row($model, $timezone);
             $mapped = [];
             foreach ($columns as $label => $key) {
                 $mapped[$label] = $row[$key] ?? null;

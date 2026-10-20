@@ -32,6 +32,10 @@ Schedule::command('ops:scheduler-heartbeat')->everyFiveMinutes();
 // Jakarta, before the default quiet window (21:00-07:00) can matter; "today" is computed per company timezone.
 Schedule::command('billing:whatsapp-reminders')->dailyAt('01:00')->withoutOverlapping(120);
 
+// The warehouse digest, for whoever switched it on in their profile: 00:00 UTC is 07:00 in Jakarta, the start of the
+// working day. An empty day sends nothing.
+Schedule::command('inventory:send-digest')->dailyAt('00:00')->withoutOverlapping(120);
+
 Schedule::command('announcements:publish-scheduled')->everyMinute()->withoutOverlapping(10);
 Schedule::command('promo-banners:cleanup-images')->daily()->withoutOverlapping(120);
 

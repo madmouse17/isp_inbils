@@ -323,7 +323,7 @@ trait BuildsMatrixWorld
             'notifications.read' => [$this->ids['customer_notification']],
             'technician.tickets.show', 'technician.tickets.start', 'technician.tickets.resolve', 'technician.tickets.comments.store', 'technician.tickets.attachments.store' => [$this->ids['technician_ticket']],
             'technician.tickets.attachments.destroy' => [$this->ids['technician_ticket'], $this->ids['technician_attachment']],
-            'technician.work-orders.show', 'technician.work-orders.start', 'technician.work-orders.en-route', 'technician.work-orders.submit', 'technician.work-orders.evidence.store', 'technician.work-orders.items.store' => [$this->ids['work_order']],
+            'technician.work-orders.show', 'technician.work-orders.start', 'technician.work-orders.en-route', 'technician.work-orders.submit', 'technician.work-orders.evidence.store', 'technician.work-orders.items.store', 'technician.work-orders.network-credentials' => [$this->ids['work_order']],
             'technician.work-orders.evidence.destroy' => [$this->ids['work_order'], $this->ids['evidence']],
             'technician.work-orders.items.destroy' => [$this->ids['work_order'], $this->ids['work_order_item']],
             'technician.material-returns.show', 'technician.material-returns.declare' => [$this->ids['material_return']],

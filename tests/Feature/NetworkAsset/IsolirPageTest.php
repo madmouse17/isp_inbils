@@ -4,8 +4,11 @@ namespace Tests\Feature\NetworkAsset;
 
 use App\Models\Core\Company;
 use App\Models\Core\Customer;
+use App\Services\Core\SettingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class IsolirPageTest extends TestCase
@@ -34,18 +37,65 @@ class IsolirPageTest extends TestCase
         ]);
     }
 
-    public function test_a_known_company_code_shows_only_the_four_public_fields_and_the_login_link(): void
+    public function test_a_known_company_code_shows_the_public_contact_fields_and_the_app_link_but_no_login_link(): void
     {
-        $company = $this->company();
+        $company = $this->company(['phone' => '0812-3456-7890']);
+        SettingService::set('play_store_url_customer', 'https://play.google.com/store/apps/details?id=id.inbils.customer');
 
         $response = $this->get(route('isolir.show', $company->code));
 
         $response->assertOk()->assertInertia(fn (Assert $page) => $page
-            ->where('company', ['name' => 'PT Fiber Nusantara', 'phone' => '+62 22 5550 1234', 'email' => 'cs@fiber.example.test', 'website' => 'https://fiber.example.test'])
-            ->where('loginUrl', route('login')));
+            ->where('company', [
+                'name' => 'PT Fiber Nusantara',
+                'phone' => '0812-3456-7890',
+                'whatsapp_url' => 'https://wa.me/6281234567890',
+                'email' => 'cs@fiber.example.test',
+                'website' => 'https://fiber.example.test',
+                'app_url' => 'https://play.google.com/store/apps/details?id=id.inbils.customer',
+            ])
+            ->missing('loginUrl'));
         $props = $response->inertiaProps();
-        $this->assertSame(['name', 'phone', 'email', 'website'], array_keys($props['company']));
+        $this->assertSame(['name', 'phone', 'whatsapp_url', 'email', 'website', 'app_url'], array_keys($props['company']));
         $this->assertSame('/isolir/FIBER', parse_url(route('isolir.show', 'FIBER'), PHP_URL_PATH));
+    }
+
+    /** @return array<string, array{?string, ?string}> */
+    public static function phones(): array
+    {
+        return [
+            'a local mobile number' => ['0812 3456 7890', 'https://wa.me/6281234567890'],
+            'an international mobile number' => ['+62 812-3456-7890', 'https://wa.me/6281234567890'],
+            'a landline has no WhatsApp' => ['+62 22 5550 1234', null],
+            'a foreign number has none' => ['+1 202 555 0100', null],
+            'text instead of a number' => ['hubungi kantor', null],
+            'no phone' => [null, null],
+        ];
+    }
+
+    #[DataProvider('phones')]
+    public function test_the_whatsapp_link_exists_only_for_an_indonesian_mobile_number(?string $phone, ?string $link): void
+    {
+        $company = $this->company(['phone' => $phone]);
+
+        $this->get(route('isolir.show', $company->code))
+            ->assertInertia(fn (Assert $page) => $page->where('company.phone', $phone)->where('company.whatsapp_url', $link));
+    }
+
+    public function test_the_app_link_is_the_customer_play_store_listing_and_nothing_else(): void
+    {
+        $company = $this->company();
+        $page = fn (): TestResponse => $this->get(route('isolir.show', $company->code));
+
+        $page()->assertInertia(fn (Assert $assert) => $assert->where('company.app_url', null));
+
+        SettingService::set('play_store_url_technician', 'https://play.google.com/store/apps/details?id=id.inbils.technician');
+        $page()->assertInertia(fn (Assert $assert) => $assert->where('company.app_url', null));
+
+        SettingService::set('play_store_url_customer', 'https://evil.example.test/inbils.apk');
+        $page()->assertInertia(fn (Assert $assert) => $assert->where('company.app_url', null));
+
+        SettingService::set('play_store_url_customer', 'https://play.google.com/store/apps/details?id=id.inbils.customer');
+        $page()->assertInertia(fn (Assert $assert) => $assert->where('company.app_url', 'https://play.google.com/store/apps/details?id=id.inbils.customer'));
     }
 
     public function test_contact_fields_may_be_missing(): void
@@ -54,7 +104,7 @@ class IsolirPageTest extends TestCase
 
         $this->get(route('isolir.show', $company->code))
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->where('company', ['name' => 'PT Fiber Nusantara', 'phone' => null, 'email' => null, 'website' => null]));
+            ->assertInertia(fn (Assert $page) => $page->where('company', ['name' => 'PT Fiber Nusantara', 'phone' => null, 'whatsapp_url' => null, 'email' => null, 'website' => null, 'app_url' => null]));
     }
 
     public function test_an_unknown_company_code_is_a_404(): void

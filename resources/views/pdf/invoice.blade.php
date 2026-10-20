@@ -28,6 +28,9 @@
             'overdue' => 'Lewat jatuh tempo',
             'cancelled' => 'Dibatalkan',
         ];
+
+        // The same rule as formatRupiah in resources/js/lib/format.ts: whole rupiah, and cents only when the stored amount has them.
+        $rp = fn (string|int|float $amount): string => 'Rp '.\App\Support\Money::display($amount);
     @endphp
     <div class="header">
         <div class="company-name">{{ $company?->name ?? '' }}</div>
@@ -70,25 +73,25 @@
                 <tr>
                     <td>{{ $item->description }}</td>
                     <td class="right">{{ rtrim(rtrim(number_format($item->quantity, 2, ',', '.'), '0'), ',') }}</td>
-                    <td class="right">Rp {{ number_format($item->unit_price, 0, ',', '.') }}</td>
-                    <td class="right">Rp {{ number_format($item->line_total, 0, ',', '.') }}</td>
+                    <td class="right">{{ $rp($item->unit_price) }}</td>
+                    <td class="right">{{ $rp($item->line_total) }}</td>
                 </tr>
             @endforeach
         </tbody>
     </table>
 
     <table class="row totals" style="margin-top: 8px;">
-        <tr><td class="right" style="width: 80%;">Subtotal</td><td class="right">Rp {{ number_format($invoice->subtotal, 0, ',', '.') }}</td></tr>
+        <tr><td class="right" style="width: 80%;">Subtotal</td><td class="right">{{ $rp($invoice->subtotal) }}</td></tr>
         @if ((float) $invoice->tax_amount > 0)
-            <tr><td class="right">PPN</td><td class="right">Rp {{ number_format($invoice->tax_amount, 0, ',', '.') }}</td></tr>
+            <tr><td class="right">PPN</td><td class="right">{{ $rp($invoice->tax_amount) }}</td></tr>
         @endif
         @if ((float) $invoice->discount_amount > 0)
-            <tr><td class="right">Diskon</td><td class="right">- Rp {{ number_format($invoice->discount_amount, 0, ',', '.') }}</td></tr>
+            <tr><td class="right">Diskon</td><td class="right">- {{ $rp($invoice->discount_amount) }}</td></tr>
         @endif
-        <tr><td class="right"><strong>Total</strong></td><td class="right"><strong>Rp {{ number_format($invoice->total, 0, ',', '.') }}</strong></td></tr>
+        <tr><td class="right"><strong>Total</strong></td><td class="right"><strong>{{ $rp($invoice->total) }}</strong></td></tr>
         @if ((float) $invoice->paid_amount > 0)
-            <tr><td class="right">Terbayar</td><td class="right">Rp {{ number_format($invoice->paid_amount, 0, ',', '.') }}</td></tr>
-            <tr><td class="right"><strong>Sisa</strong></td><td class="right"><strong>Rp {{ number_format($invoice->total - $invoice->paid_amount, 0, ',', '.') }}</strong></td></tr>
+            <tr><td class="right">Terbayar</td><td class="right">{{ $rp($invoice->paid_amount) }}</td></tr>
+            <tr><td class="right"><strong>Sisa</strong></td><td class="right"><strong>{{ $rp($invoice->sisa) }}</strong></td></tr>
         @endif
     </table>
 

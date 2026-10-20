@@ -98,9 +98,38 @@ class InvoiceRequestValidationTest extends TestCase
             ->assertJsonPath('errors.due_date.0', 'Format jatuh tempo harus tahun-bulan-tanggal (YYYY-MM-DD).');
 
         $this->actingAs($this->user)
-            ->put(route('admin.invoices.update', $invoice), ['due_date' => '2026-07-31', OptimisticLock::FIELD => $version])
+            ->put(route('admin.invoices.update', $invoice), ['due_date' => now()->addDays(30)->toDateString(), OptimisticLock::FIELD => $version])
             ->assertRedirect(route('admin.invoices.index'))
             ->assertSessionHas('success', 'Tagihan diperbarui.');
+    }
+
+    public function test_due_date_before_issue_date_is_refused_on_store_and_update(): void
+    {
+        $message = 'Jatuh tempo tidak boleh sebelum tanggal terbit.';
+
+        // Store: against the typed issue date, and against today when none is typed (the controller issues it today).
+        $this->actingAs($this->user)
+            ->postJson(route('admin.invoices.store'), ['customer_id' => $this->customer->public_id, 'issue_date' => '2026-07-10', 'due_date' => '2026-07-09'])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.due_date.0', $message);
+        $this->postJson(route('admin.invoices.store'), ['customer_id' => $this->customer->public_id, 'due_date' => now()->subDay()->toDateString()])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.due_date.0', $message);
+        $this->assertSame(0, Invoice::query()->where('customer_id', $this->customer->id)->count());
+
+        $this->post(route('admin.invoices.store'), ['customer_id' => $this->customer->public_id, 'issue_date' => '2026-07-10', 'due_date' => '2026-07-10'])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('admin.invoices.index'));
+
+        // Update: the issue date is not editable, so the stored one is the bound.
+        $invoice = $this->draft();
+        $invoice->forceFill(['issue_date' => '2026-07-10'])->save();
+        $version = OptimisticLock::version($invoice->fresh());
+        $this->putJson(route('admin.invoices.update', $invoice), ['due_date' => '2026-07-09', OptimisticLock::FIELD => $version])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.due_date.0', $message);
+        $this->put(route('admin.invoices.update', $invoice), ['due_date' => '2026-07-10', OptimisticLock::FIELD => $version])
+            ->assertRedirect(route('admin.invoices.index'));
     }
 
     /** @return array<string, array{0: string}> */

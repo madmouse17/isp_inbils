@@ -48,7 +48,9 @@ export type DashboardSection =
     /** Stock rows (product x location), as the Stocks list shows them. */
     | CountSection<'low_stock', 'warehouse'>
     /** `outstanding` is a decimal string with two decimals, for example "1550000.50". */
-    | (CountSection<'overdue_invoices', 'finance'> & { outstanding: string });
+    | (CountSection<'overdue_invoices', 'finance'> & { outstanding: string })
+    /** `total` is what the draft invoices add up to, a decimal string like `outstanding`. */
+    | (CountSection<'draft_invoices', 'finance'> & { total: string });
 
 export interface DashboardNotification {
     id: string;

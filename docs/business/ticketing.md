@@ -90,11 +90,13 @@ Skema: `docs/DATABASE.md` Section 10 (Ticketing).
   traced asset), location_id nullable FK→locations.id (restrict — issue
   location), assigned_to nullable FK→users.id (restrict — active handler),
   spawned_spk_id nullable FK→work_orders.id (restrict — SPK spawned from
-  ticket), sla_deadline timestamp nullable (set saat create = now +
-  category.default_sla_hours), first_response_at timestamp nullable,
-  resolved_at timestamp nullable, closed_at timestamp nullable,
-  resolution_note text nullable, created_by FK→users.id NOT NULL,
-  created_at, updated_at, deleted_at. Saat `close`, dua kolom nama beku diisi:
+  ticket), `response_deadline` timestamp nullable, `sla_deadline` timestamp nullable,
+  `first_response_at` timestamp nullable, `first_response_source` string nullable
+  (`reply|start`), `response_due_notified_at` timestamp nullable,
+  `response_breached_notified_at` timestamp nullable, `resolved_at` timestamp
+  nullable, `reopened_at` timestamp nullable, `closed_at` timestamp nullable,
+  `resolution_note` text nullable, `created_by` FK→users.id NOT NULL, created_at,
+  updated_at, deleted_at. Saat `close`, dua kolom nama beku diisi:
   `category_name_snapshot` string nullable dan `assignee_name_snapshot` string
   nullable (lihat "Snapshot tiket tertutup").
 - Unique: `(company_id, code)`. Index: `(company_id, status)`,
@@ -131,20 +133,22 @@ Lihat `docs/WORKFLOW.md` Section 8 (Ticketing). Ringkas state machine:
 
 ```
 [open] ──assign──→ [assigned] ──start work──→ [on_progress] ──resolve──→ [resolved] ──close──→ [closed]
-                          │
-                          └──assign+self-start──→ [on_progress] (shortcut)
-[resolved] ──reopen (customer not satisfied)──→ [on_progress] (v2)
+                             ↑                                      │
+                             └──── customer public reply ───────────┘
 ```
 
-### Transisi & side effect
+### Transisi dan efek samping
 
-| Dari | Ke | Trigger | Side effect |
+| Dari | Ke | Pemicu | Efek samping |
 |------|-----|---------|-------------|
-| open | assigned | assign(handler, Kepala Unit) | assigned_to set, status=assigned, AuditLog. |
-| open/assigned | on_progress | startWork (handler, set first_response_at if null) | first_response_at=now if null (FRT tracking), status=on_progress. |
-| on_progress | resolved | resolve(resolution_note) | resolved_at=now, resolution_note set, status=resolved. Hitung resolution_time = resolved_at - created_at. SLA compliance check. |
-| resolved | closed | close | closed_at=now, status=closed. Membekukan `category_name_snapshot` (nama kategori) dan `assignee_name_snapshot` (nama petugas, kosong bila tiket tanpa petugas). Terminal v1. |
-| resolved | on_progress | reopen (v2) | status=on_progress, reopen reason. |
+| open | assigned | assign(handler) | `assigned_to` diisi, audit, notifikasi petugas. |
+| assigned | on_progress | `startWork` | `first_response_at` dan `first_response_source=start` diisi bila masih kosong. |
+| open/assigned/on_progress | sama | balasan publik staf | Balasan publik pertama mengisi `first_response_at` dan `first_response_source=reply`; catatan internal tidak dihitung. |
+| on_progress | resolved | resolve(resolution_note) | `resolved_at` dan `resolution_note` diisi. |
+| resolved | assigned atau open | balasan pelanggan | Komentar disimpan, lalu tiket dibuka kembali ke `assigned` bila masih punya petugas atau `open` bila tidak; `resolved_at` dan `resolution_note` dikosongkan, `reopened_at` diisi, tenggat tidak diulang. |
+| resolved | closed | close | `closed_at` diisi, snapshot nama kategori dan petugas dibekukan. |
+
+Tiket `closed` menolak komentar staf dengan 422 "Tiket sudah ditutup." dan menolak balasan atau lampiran pelanggan dengan API 422 `ticket_closed`, "Tiket ditutup. Masih bermasalah? Buat tiket baru.". Tiket tertutup tetap final. Pembukaan kembali manual oleh staf berada di gelombang berikutnya.
 
 ### SLA
 - Saat create: `TicketService::computeDeadlines` menghitung dua tenggat dari
@@ -165,12 +169,11 @@ Lihat `docs/WORKFLOW.md` Section 8 (Ticketing). Ringkas state machine:
   dibuat atau saat prioritas tiket `open` diubah. Langganan yang dipindah lewat
   Ganti paket memberi tiket berikutnya tingkat SLA versi barunya.
 - Saat resolve: `resolution_time = resolved_at - created_at`.
-- Breach: `sla_deadline < now AND status NOT IN (resolved, closed)` →
-  badge "SLA breached" + dashboard widget. Job harian `CheckSlaBreachJob`
-  flag + notify (v2).
-- First Response Time (FRT): `first_response_at - created_at` (saat
-  handler pertama kali respond/start). Dipakai Reporting technician
-  performance.
+- First Response Time (FRT) adalah `first_response_at - created_at`. Sumbernya `reply` untuk balasan publik staf pertama atau `start` untuk tombol Mulai. Balasan pelanggan dan catatan internal tidak dihitung. Migrasi mengisi `start` pada respons lama.
+- Job `CheckTicketSlaBreachesJob` berjalan tiap 15 menit dan mengklaim penanda notifikasi di bawah kunci baris agar tidak mengirim ganda.
+- Peringatan respons maksimal 30 menit sebelum tenggat: tiket `assigned` memberi tahu petugas aktif; tiket `open` memberi tahu pemegang `ticket.assign`.
+- Pelanggaran target respons dan penyelesaian memberi tahu petugas aktif serta pemegang `ticket.assign`, dideduplikasi. Pembuat atau pelanggan tidak menjadi penerima hanya karena membuat tiket.
+- Semua pemberitahuan SLA memakai database bell dan push. Email SLA dihapus.
 
 ### Snapshot tiket tertutup
 - `TicketService::close` mengunci baris tiket, lalu menyimpan nama kategori
@@ -261,23 +264,21 @@ Lihat `docs/API.md` Section 8 (Ticketing group). Ringkas:
 - `POST   /admin/tickets/{ticket}/attachments` (multipart upload)
 - `GET    /admin/tickets/{ticket}/attachments`
 - `DELETE /admin/tickets/{ticket}/attachments/{att}`
+- `GET    /api/v1/customer/tickets/{ticket}` dan daftar menambah `can_reply` serta `reopened_at`
+- `POST   /api/v1/customer/tickets/{ticket}/comments`: tiket `resolved` dibuka kembali; tiket `closed` menjawab 422 `ticket_closed`
+- Unggah lampiran pelanggan mengikuti penolakan tiket `closed` yang sama
 - `POST   /admin/tickets/{ticket}/spawn-spk` (create SPK maintenance from ticket)
 - `GET    /admin/ticket-categories` (+ POST/PUT/DELETE)
 - `GET    /admin/tickets/export`
 
 ## Testing Scenario
 
-### Create + assign + resolve + close
-1. Create ticket: source=customer, category=no_internet, customer C-001,
-   subscription SUB-001, network_asset ONT-123 (traced), location POP-JKT01.
-   sla_deadline = now + 4h. Status=open.
-2. Kepala Unit suggest-handler → ranked (NOC/field team). Assign handler
-   H01. Status=assigned.
-3. H01 start: first_response_at=now (FRT tracking), status=on_progress.
-4. H01 resolve (note "restart ONT, service back"): resolved_at=now,
-   resolution_time computed. SLA compliance check (resolved < deadline =
-   within SLA).
-5. Kepala Unit close: closed_at=now. Terminal.
+### Create, first response, reopen, close
+1. Create ticket with response and resolution deadlines, then assign handler H01.
+2. A public staff reply before **Mulai** sets `first_response_source=reply`; an internal note or customer reply does not.
+3. If no reply exists, H01 starts the ticket and sets `first_response_source=start`, status `on_progress`.
+4. H01 resolves the ticket. A customer reply reopens it to `assigned`, clears the resolution fields, retains both deadlines, and notifies H01 plus `ticket.assign` holders.
+5. Closing makes the ticket terminal. Staff comments and customer comments or attachments are refused.
 
 ### Spawn SPK from ticket
 1. Ticket fiber_issue, on_progress, needs field work (fiber cut).
@@ -287,9 +288,9 @@ Lihat `docs/API.md` Section 8 (Ticketing group). Ringkas:
 3. SPK assigned + completed → ticket resolved (or separate resolve).
 
 ### SLA breach
-1. Ticket no_internet, sla_deadline=now-1h (past), status=on_progress.
-2. `CheckSlaBreachJob` → flag breach. Badge "SLA breached" di list.
-3. Dashboard widget: SLA breach count.
+1. An unanswered `open` or `assigned` ticket crosses `response_deadline`; `CheckTicketSlaBreachesJob` sends one bell and push to the handler plus `ticket.assign` holders.
+2. An unfinished ticket crosses `sla_deadline`; the same recipient rule applies for the resolution notice.
+3. No SLA notice uses mail or targets the ticket creator only because they created it.
 
 ### Validation
 1. Create ticket source=customer tanpa customer_id → 422.

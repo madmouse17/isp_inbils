@@ -7,7 +7,6 @@ use App\Models\Core\Location;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Inertia\Testing\AssertableInertia as Assert;
 use Modules\Inventory\Models\InventoryRequest;
 use Modules\Inventory\Models\Product;
 use Modules\Inventory\Notifications\MaterialReturnDeclaredNotification;
@@ -15,7 +14,10 @@ use Modules\Inventory\Notifications\MaterialReturnExceptionNotification;
 use Modules\Inventory\Notifications\MaterialReturnRejectedNotification;
 use Tests\TestCase;
 
-/** A return mail must open a page: `admin.inventory.returns.show` answers JSON, so the mails point at the request or the returns tab. */
+/**
+ * A return has no page of its own (`admin.inventory.returns.show` answers JSON): its bell row names the request it
+ * belongs to by public id, and the request page shows the return. An integer id never reaches the row.
+ */
 class MaterialReturnNotificationLinkTest extends TestCase
 {
     use RefreshDatabase;
@@ -33,41 +35,34 @@ class MaterialReturnNotificationLinkTest extends TestCase
         $this->actingAs($this->admin);
     }
 
-    public function test_return_mails_open_the_request_page_that_shows_the_return(): void
-    {
-        $request = $this->inventoryRequest();
-
-        foreach ($this->mails($request->id) as $mail) {
-            $url = $mail->toMail($this->admin)->actionUrl;
-
-            $this->assertSame(route('admin.inventory.requests.show', $request), $url, $mail::class);
-            $this->get($url)->assertOk()
-                ->assertInertia(fn (Assert $page) => $page->component('Admin/Inventory/Requests/Show'));
-        }
-    }
-
-    public function test_a_case_without_a_request_opens_the_returns_tab(): void
-    {
-        foreach ($this->mails(null) as $mail) {
-            $url = $mail->toMail($this->admin)->actionUrl;
-
-            $this->assertSame(route('admin.inventory.requests.index', ['tab' => 'returns']), $url, $mail::class);
-            $this->get($url)->assertOk()
-                ->assertInertia(fn (Assert $page) => $page->component('Admin/Inventory/Requests/Index'));
-        }
-    }
-
     public function test_the_stored_payload_keeps_the_request_id(): void
     {
         $request = $this->inventoryRequest();
 
-        $payload = (new MaterialReturnDeclaredNotification(7, null, $this->admin->company_id, $request->id))->toArray($this->admin);
+        foreach ($this->notices($request->id) as $notice) {
+            $payload = $notice->toArray($this->admin);
 
-        $this->assertSame($request->public_id, $payload['inventory_request_id']);
+            $this->assertSame($request->public_id, $payload['inventory_request_id'], $notice::class);
+            $this->assertSame($this->admin->company_id, $payload['company_id'], $notice::class);
+        }
+    }
+
+    public function test_a_case_without_a_request_names_none(): void
+    {
+        foreach ($this->notices(null) as $notice) {
+            $this->assertNull($notice->toArray($this->admin)['inventory_request_id'], $notice::class);
+        }
+    }
+
+    public function test_the_rejection_carries_its_reason(): void
+    {
+        $payload = (new MaterialReturnRejectedNotification(7, 'Barang belum diserahkan', $this->admin->company_id, null))->toArray($this->admin);
+
+        $this->assertSame(['material_return_rejected', 'Barang belum diserahkan'], [$payload['type'], $payload['reason']]);
     }
 
     /** @return list<MaterialReturnDeclaredNotification|MaterialReturnExceptionNotification|MaterialReturnRejectedNotification> */
-    private function mails(?int $requestId): array
+    private function notices(?int $requestId): array
     {
         return [
             new MaterialReturnDeclaredNotification(7, null, $this->admin->company_id, $requestId),

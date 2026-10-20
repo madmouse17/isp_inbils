@@ -42,9 +42,12 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property ?Carbon $sla_deadline
  * @property ?Carbon $response_deadline
  * @property ?Carbon $response_due_notified_at
+ * @property ?Carbon $response_breached_notified_at
  * @property ?Carbon $sla_breached_notified_at
  * @property ?Carbon $first_response_at
+ * @property ?string $first_response_source 'reply' (a public staff comment) or 'start' (the Mulai button); null until the first response
  * @property ?Carbon $resolved_at
+ * @property ?Carbon $reopened_at when a customer reply last brought the resolved ticket back
  * @property ?Carbon $closed_at
  * @property ?string $resolution_note
  * @property ?string $category_name_snapshot the category name as it was when the ticket closed; null until then
@@ -80,8 +83,8 @@ class Ticket extends Model implements HasMedia
     protected $fillable = [
         'company_id', 'code', 'title', 'description', 'source', 'category_id', 'status', 'priority',
         'customer_id', 'subscription_id', 'network_asset_id', 'location_id',
-        'assigned_to', 'spawned_spk_id', 'sla_deadline', 'response_deadline', 'first_response_at',
-        'resolved_at', 'closed_at', 'resolution_note', 'category_name_snapshot', 'assignee_name_snapshot', 'created_by',
+        'assigned_to', 'spawned_spk_id', 'sla_deadline', 'response_deadline', 'first_response_at', 'first_response_source',
+        'resolved_at', 'reopened_at', 'closed_at', 'resolution_note', 'category_name_snapshot', 'assignee_name_snapshot', 'created_by',
     ];
 
     protected $casts = [
@@ -89,6 +92,8 @@ class Ticket extends Model implements HasMedia
         'response_deadline' => 'datetime',
         'first_response_at' => 'datetime',
         'resolved_at' => 'datetime',
+        'reopened_at' => 'datetime',
+        'response_breached_notified_at' => 'datetime',
         'closed_at' => 'datetime',
     ];
 

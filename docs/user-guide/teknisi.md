@@ -157,6 +157,18 @@ Gulir ke bawah untuk membaca kartu **Pelanggan** dan **POP / gudang**.
 - Kartu **POP / gudang** menunjukkan POP atau gudang yang tercatat di SPK, dengan tombol **Buka di Maps** sendiri. Pakai tombol ini untuk ke POP atau gudang, bukan untuk ke rumah pelanggan.
 - SPK tanpa langganan memakai satu kartu **Lokasi kerja** dengan tombol **Buka di Maps**.
 
+### Akun PPPoE untuk pemasangan
+
+SPK **Instalasi** yang sudah ditugaskan menampilkan kartu **Akun PPPoE** bila kantor sudah membuat akun jaringan langganan.
+
+- **Nama pengguna** selalu terlihat dan dapat disalin.
+- **Kata sandi** tersamar. Ketuk **Tampilkan** untuk mengambilnya dari server. Kata sandi terlihat selama 60 detik atau sampai Anda menutup layar, lalu tersamar lagi. Ketuk **Salin** selama masih terlihat.
+- Pengungkapan butuh internet, dibatasi 5 kali per menit, dan setiap percobaan yang berhasil dicatat di log audit. Aplikasi tidak menyimpan kata sandi di cache offline atau log.
+- Status **Menunggu ditulis ke router**, **Siap dipakai**, atau **Belum tertulis, hubungi kantor** menunjukkan keadaan sinkronisasi.
+- Tulisan **Akun PPPoE belum dibuat. Hubungi kantor.** berarti akun belum tersedia. Ini terjadi juga bila perusahaan belum mengaktifkan RADIUS: akun tidak dibuat otomatis tanpa RADIUS. Hubungi kantor melalui tombol yang disediakan.
+
+Hanya teknisi yang sedang ditugaskan pada SPK **Instalasi** berstatus **Ditugaskan** atau **Dikerjakan** yang dapat menampilkan kata sandi. Bila SPK dipindahkan ke teknisi lain, kata sandi diganti: yang pernah Anda lihat tidak berlaku lagi dan Anda tidak dapat menampilkannya lagi. Tanpa internet, aplikasi menulis "Butuh koneksi internet untuk menampilkan kata sandi." Terlalu banyak permintaan menampilkan pesan pembatasan dari server.
+
 ### Saya berangkat
 
 Pakai **Saya berangkat** saat Anda berangkat menuju lokasi pelanggan.
@@ -392,10 +404,10 @@ Ada dua jalan masuk:
 
 Lalu isi formulir:
 
-1. Pilih **Gudang asal**. Bila hanya ada satu gudang, otomatis terpilih. Bila daftar kosong, aplikasi menulis "Belum ada gudang yang bisa dipilih. Hubungi kantor."
-2. Cek kolom **SPK**. Pilihannya **Tanpa SPK** dan SPK Anda yang **Ditugaskan** atau **Dikerjakan**, masing-masing tertulis "kode · judul". Kolom ini terisi sendiri. Bila Anda datang dari **Minta material**, SPK itu yang terpilih. Bila Anda datang dari tab **Material**, yang terpilih adalah SPK yang sedang dikerjakan, atau bila tidak ada, SPK **Ditugaskan** dengan jadwal terdekat. Ganti pilihannya, atau pilih **Tanpa SPK** bila barang itu bukan untuk SPK. Daftar memuat paling banyak sepuluh SPK pertama dari daftar pekerjaan untuk tiap status, jadi SPK yang tidak ada di sana dipilih lewat **Minta material** di detail SPK itu.
+1. Pilih **Gudang asal**. Gudang dari permintaan terakhir Anda sudah terpilih bila masih tersedia. Bila hanya ada satu gudang, gudang itu otomatis terpilih. Mengganti gudang memuat ulang ketersediaan setiap barang. Bila daftar kosong, aplikasi menulis "Belum ada gudang yang bisa dipilih. Hubungi kantor."
+2. Cek kolom **SPK**. Pilihannya **Tanpa SPK** dan SPK Anda yang **Ditugaskan** atau **Dikerjakan**, masing-masing tertulis "kode · judul". Kolom ini terisi sendiri. Bila Anda datang dari **Minta material**, SPK itu yang terpilih. Bila Anda datang dari tab **Material**, yang terpilih adalah SPK yang sedang dikerjakan, atau bila tidak ada, SPK **Ditugaskan** dengan jadwal terdekat. Ganti pilihannya, atau pilih **Tanpa SPK** bila barang itu bukan untuk SPK.
 3. Isi **Alasan (opsional)**, maksimal 2000 karakter. Bila dikosongkan dan SPK terpilih, alasannya tertulis "Permintaan material untuk SPK" disusul nomor SPK.
-4. Ketuk **Tambah barang**. Di layar **Pilih material**, cari dan ketuk barang, lalu isi **Jumlah diminta** dan ketuk **Tambah**. Barang yang sudah ada di daftar tidak bisa dipilih lagi ("Sudah ada di daftar"). Ulangi untuk tiap barang.
+4. Ketuk **Tambah barang**. Di layar **Pilih material**, setiap barang menampilkan **Tersedia: {jumlah} {satuan}** untuk gudang yang dipilih. **Stok kosong** menandai jumlah 0. Cari dan ketuk barang, lalu isi **Jumlah diminta**. Jumlah di atas stok menampilkan peringatan **Melebihi stok tersedia ({jumlah} {satuan})**, tetapi tidak memblokir permintaan karena gudang masih dapat menerima stok. Ketuk **Tambah** dan ulangi untuk barang lain.
 5. Untuk membuang baris barang, ketuk ikon tempat sampah di sebelahnya.
 6. Ketuk **Kirim permintaan**.
 

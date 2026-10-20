@@ -14,6 +14,7 @@ use Illuminate\Support\Str;
 use Modules\Inventory\Models\Category;
 use Modules\Inventory\Models\Product;
 use Modules\Inventory\Models\Unit;
+use Modules\NetworkAsset\Models\NetworkAccount;
 use Modules\Service\Models\ServicePackage;
 use Modules\SPK\Database\Factories\WorkOrderFactory;
 use Modules\SPK\Models\WorkOrder;
@@ -42,7 +43,30 @@ class WorkOrdersTest extends TestCase
             ->assertJsonPath('data.actions.start', true)
             ->assertJsonMissingPath('data.created_by')
             ->assertJsonMissingPath('data.approved_by')
-            ->assertJsonMissingPath('data.network_account');
+            // No account is made yet: the block is there and says so, and it never carries the secret.
+            ->assertJsonPath('data.network_account', null);
+    }
+
+    public function test_an_installation_detail_carries_the_login_name_and_state_of_its_account_never_the_secret(): void
+    {
+        $technician = $this->technicianLogin();
+        $token = $this->issueToken($technician, 'technician');
+        [$workOrder] = $this->workOrderFor($technician, 'assigned');
+        $workOrder->forceFill(['type' => 'installation'])->save();
+        $account = NetworkAccount::factory()->create([
+            'company_id' => $workOrder->company_id,
+            'subscription_id' => $workOrder->subscription_id,
+            'username' => 'budi@'.strtolower($technician->company->code),
+            'password' => 'Rahasia-Tidak-Boleh-Bocor-77',
+        ]);
+
+        $response = $this->api('GET', "technician/work-orders/{$workOrder->public_id}", token: $token)->assertOk();
+
+        $response->assertJsonPath('data.network_account', ['username' => $account->username, 'sync_status' => 'pending', 'can_reveal' => true]);
+        $this->assertStringNotContainsString('Rahasia-Tidak-Boleh-Bocor-77', $response->getContent());
+
+        $workOrder->forceFill(['type' => 'maintenance'])->save();
+        $this->api('GET', "technician/work-orders/{$workOrder->public_id}", token: $token)->assertJsonPath('data.network_account', null);
     }
 
     public function test_start_accepts_gps_check_in_and_records_distance(): void

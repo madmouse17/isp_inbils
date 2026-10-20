@@ -39,7 +39,8 @@ class ProductPickerTest extends TestCase
         $response = $this->api('GET', 'technician/products', token: $this->issueToken($technician, 'technician'))->assertOk();
 
         $this->assertSame(['Cable Tie', 'Drop Cable', 'Patch Cord'], array_column($response->json('data'), 'name'));
-        $this->assertSame(['id', 'sku', 'name', 'unit'], array_keys($response->json('data.1')));
+        $this->assertSame(['id', 'sku', 'name', 'unit', 'available'], array_keys($response->json('data.1')));
+        $this->assertNull($response->json('data.1.available'), 'a picker that names no warehouse says nothing about stock');
         $this->assertSame(['DC-001', 'mtr', $drop->public_id], [$response->json('data.1.sku'), $response->json('data.1.unit'), $response->json('data.1.id')]);
         $this->assertSame('pcs', $response->json('data.0.unit'));
         $response->assertJsonPath('meta.total', 3)->assertJsonPath('meta.per_page', 20)->assertJsonPath('meta.current_page', 1);
@@ -89,6 +90,53 @@ class ProductPickerTest extends TestCase
         $this->api('GET', 'technician/products', token: $token)->assertForbidden()->assertJsonPath('code', 'forbidden');
     }
 
+    public function test_available_per_warehouse(): void
+    {
+        $technician = $this->technicianLogin();
+        $token = $this->issueToken($technician, 'technician');
+        $cable = $this->product($technician, 'Drop Cable', 'DC-001', 'mtr');
+        $tie = $this->product($technician, 'Cable Tie', 'CT-001', 'pcs');
+        $this->product($technician, 'Patch Cord', 'PC-001', 'pcs');
+        $alpha = $this->location($technician, ['name' => 'Gudang Alpha']);
+        $zulu = $this->location($technician, ['name' => 'Gudang Zulu']);
+        $this->stock($cable, $alpha, '40', '12.5');
+        $this->stock($cable, $zulu, '5');
+        $this->stock($tie, $alpha, '3', '3');
+        $this->stock($tie, $zulu, '100');
+
+        $availableAt = fn (Location $warehouse): array => array_column(
+            $this->api('GET', 'technician/products?warehouse_id='.$warehouse->public_id, token: $token)->assertOk()->json('data'),
+            'available',
+            'name',
+        );
+
+        // Quantity minus reserved, trimmed; a product with no stock row there has none.
+        $this->assertSame(['Cable Tie' => '0', 'Drop Cable' => '27.5', 'Patch Cord' => '0'], $availableAt($alpha));
+        $this->assertSame(['Cable Tie' => '100', 'Drop Cable' => '5', 'Patch Cord' => '0'], $availableAt($zulu));
+        $this->assertSame([null, null, null], array_column($this->api('GET', 'technician/products', token: $token)->assertOk()->json('data'), 'available'));
+    }
+
+    public function test_unknown_warehouse_is_422(): void
+    {
+        $technician = $this->technicianLogin();
+        $foreigner = $this->technicianLogin();
+        $token = $this->issueToken($technician, 'technician');
+        $cable = $this->product($technician, 'Drop Cable', 'DC-001', 'mtr');
+        $this->stock($cable, $this->location($technician, ['name' => 'Gudang Alpha']));
+        $closed = $this->location($technician, ['name' => 'Closed Depot', 'is_active' => false]);
+        $this->stock($cable, $closed);
+        $foreign = $this->location($foreigner, ['name' => 'Foreign Depot']);
+        $this->stock($this->product($foreigner, 'Foreign Cable', 'FC-001', 'mtr'), $foreign);
+        $empty = $this->location($technician, ['name' => 'Empty Rack']);
+
+        // Only a place the warehouses endpoint offers: unknown, another company's, closed, holding no stock, an integer id, a list.
+        foreach ([strtolower((string) Str::ulid()), $foreign->public_id, $closed->public_id, $empty->public_id, '5', ['x']] as $warehouse) {
+            $this->api('GET', 'technician/products?'.http_build_query(['warehouse_id' => $warehouse]), token: $token)
+                ->assertStatus(422)
+                ->assertJsonValidationErrors(['warehouse_id'], 'errors');
+        }
+    }
+
     public function test_warehouses_are_the_active_places_of_the_company_that_hold_stock(): void
     {
         $technician = $this->technicianLogin();
@@ -106,8 +154,8 @@ class ProductPickerTest extends TestCase
         $response = $this->api('GET', 'technician/warehouses', token: $this->issueToken($technician, 'technician'))->assertOk();
 
         $this->assertSame([
-            ['id' => $alpha->public_id, 'name' => 'Gudang Alpha', 'code' => 'GD-A'],
-            ['id' => $zulu->public_id, 'name' => 'Gudang Zulu', 'code' => 'GD-Z'],
+            ['id' => $alpha->public_id, 'name' => 'Gudang Alpha', 'code' => 'GD-A', 'last_used' => false],
+            ['id' => $zulu->public_id, 'name' => 'Gudang Zulu', 'code' => 'GD-Z', 'last_used' => false],
         ], $response->json('data'));
         $this->assertSame(['data'], array_keys($response->json()));
     }
@@ -144,10 +192,10 @@ class ProductPickerTest extends TestCase
         return Location::factory()->create(['company_id' => $owner->company_id, 'type' => 'site', ...$overrides]);
     }
 
-    private function stock(Product $product, Location $location, int $quantity = 10): Stock
+    private function stock(Product $product, Location $location, string $quantity = '10', string $reserved = '0'): Stock
     {
         return Stock::query()->create([
-            'company_id' => $product->company_id, 'product_id' => $product->id, 'location_id' => $location->id, 'quantity' => $quantity,
+            'company_id' => $product->company_id, 'product_id' => $product->id, 'location_id' => $location->id, 'quantity' => $quantity, 'reserved_quantity' => $reserved,
         ]);
     }
 }

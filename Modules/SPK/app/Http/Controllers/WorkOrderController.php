@@ -190,8 +190,12 @@ class WorkOrderController extends Controller
                 ['code', 'name'],
                 fn (NetworkAsset $asset): array => ['value' => $asset->public_id, 'label' => $asset->code.' - '.$asset->name],
             ),
+            // The buttons this person can use on this SPK in this status: the page shows no other, so a refusal is never the way to find out.
             'can' => [
                 'uploadEvidence' => $request->user()?->can('uploadEvidence', $wo) ?? false,
+                'start' => $request->user()?->can('start', $wo) ?? false,
+                'cancel' => ! in_array($wo->status, ['completed', 'cancelled'], true) && ($request->user()?->can('cancel', $wo) ?? false),
+                'reassign' => $request->user()?->can('reassign', $wo) ?? false,
             ],
             // Only what the page words itself: the technician's own coordinates stay out of the props.
             'checkIn' => $checkIn === null ? null : Arr::only($checkIn, ['status', 'distance_m', 'accuracy_m', 'reason']),
@@ -205,11 +209,14 @@ class WorkOrderController extends Controller
         ]);
     }
 
-    public function edit(WorkOrder $wo): InertiaResponse
+    public function edit(WorkOrder $wo): InertiaResponse|RedirectResponse
     {
         $this->ensureSameCompany($wo);
         Gate::authorize('edit', $wo);
-        abort_if(! in_array($wo->status, SpkService::EDITABLE_STATUSES, true), 422, 'SPK hanya bisa diubah saat berstatus draf atau menunggu penugasan.');
+
+        if (! in_array($wo->status, SpkService::EDITABLE_STATUSES, true)) {
+            return redirect()->route('admin.spk.show', $wo)->with('error', 'SPK hanya bisa diubah saat berstatus draf atau menunggu penugasan.');
+        }
 
         $wo->load(['customer', 'subscription', 'location', 'assignee']);
 

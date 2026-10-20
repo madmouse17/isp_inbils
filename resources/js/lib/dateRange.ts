@@ -114,7 +114,14 @@ export function formatRange(range: DateRange, dateFnsFormat: string): string {
     return to ? `– ${to}` : '';
 }
 
-/** One typed day in the company format as an ISO day; null when it is not a real day. */
+/**
+ * Numeric days a person types whatever the company format is: `20/10/2026`, `20-10-2026`, `2026-10-20`
+ * (`d` and `M` read one or two digits). They are tried after the company format, so a text that is a
+ * valid day in the company format (`05/06/2026` under `MM/dd/yyyy`) keeps the company's reading.
+ */
+const NUMERIC_DAY_FORMATS = ['d/M/yyyy', 'd-M-yyyy', 'yyyy-MM-dd'];
+
+/** One typed day in the company format, or a common numeric form, as an ISO day; null when it is not a real day. */
 export function parseDay(text: string, dateFnsFormat: string): string | null {
     // Typing "13 Oktober 2026" into a `d M Y` field is as natural as "13 Okt 2026".
     const monthWidths = dateFnsFormat.includes('MMMM')
@@ -123,7 +130,7 @@ export function parseDay(text: string, dateFnsFormat: string): string | null {
           ? [dateFnsFormat, dateFnsFormat.replace('MMM', 'MMMM')]
           : [dateFnsFormat];
 
-    for (const candidate of monthWidths) {
+    for (const candidate of [...monthWidths, ...NUMERIC_DAY_FORMATS]) {
         const date = parse(text, candidate, REFERENCE_DAY, { locale: localeId });
         const year = date.getFullYear();
 

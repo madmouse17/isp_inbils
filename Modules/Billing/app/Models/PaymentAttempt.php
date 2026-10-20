@@ -2,6 +2,7 @@
 
 namespace Modules\Billing\Models;
 
+use App\Models\User;
 use App\Traits\BelongsToCompany;
 use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -21,7 +22,7 @@ use Modules\Billing\Database\Factories\PaymentAttemptFactory;
  * @property int $invoice_id
  * @property string $order_id
  * @property string $amount
- * @property string $status pending|paid|failed|expired|exception|cancelled_locally
+ * @property string $status pending|paid|failed|expired|exception|cancelled_locally|refunded
  * @property string|null $status_reason
  * @property string|null $snap_token
  * @property string|null $redirect_url
@@ -31,6 +32,10 @@ use Modules\Billing\Database\Factories\PaymentAttemptFactory;
  * @property Carbon $expires_at
  * @property Carbon|null $settled_at
  * @property int|null $payment_id
+ * @property int|null $resolved_by
+ * @property Carbon|null $resolved_at
+ * @property string|null $resolution_reference
+ * @property string|null $resolution_note
  * @property Carbon $created_at
  * @property Carbon $updated_at
  */
@@ -55,13 +60,16 @@ class PaymentAttempt extends Model
     /** Inbils closed the page: the invoice was paid or cancelled, or its balance shrank, while the Snap page was open. */
     public const STATUS_CANCELLED_LOCALLY = 'cancelled_locally';
 
+    /** Finance closed an exception whose money went back outside Inbils (K4). Nothing Midtrans says later opens it again. */
+    public const STATUS_REFUNDED = 'refunded';
+
     /** Columns that decide what money an attempt stands for; they never change after creation. */
     private const IMMUTABLE = ['company_id', 'invoice_id', 'order_id', 'amount'];
 
     protected $fillable = [
         'company_id', 'invoice_id', 'order_id', 'amount', 'status', 'status_reason', 'snap_token',
         'redirect_url', 'transaction_id', 'payment_type', 'last_notification', 'expires_at',
-        'settled_at', 'payment_id',
+        'settled_at', 'payment_id', 'resolved_by', 'resolved_at', 'resolution_reference', 'resolution_note',
     ];
 
     /** The Snap token and its URL let anyone pay this invoice: they must never ride along in a serialised model. */
@@ -72,6 +80,7 @@ class PaymentAttempt extends Model
         'last_notification' => 'array',
         'expires_at' => 'datetime',
         'settled_at' => 'datetime',
+        'resolved_at' => 'datetime',
     ];
 
     protected static function booted(): void
@@ -109,6 +118,16 @@ class PaymentAttempt extends Model
     public function payment(): BelongsTo
     {
         return $this->belongsTo(Payment::class, 'payment_id');
+    }
+
+    /**
+     * Who marked an exception as refunded.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function resolver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'resolved_by');
     }
 
     protected static function newFactory(): PaymentAttemptFactory

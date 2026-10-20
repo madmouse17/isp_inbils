@@ -361,6 +361,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api-login', fn (Request $request): Limit => Limit::perMinute(20)->by($request->ip()));
         RateLimiter::for('api-forgot-password', fn (Request $request): Limit => Limit::perMinute(6)->by($request->ip()));
         RateLimiter::for('api-pay', fn (Request $request): Limit => Limit::perMinute(6)->by($perUser($request)));
+        RateLimiter::for('api-credentials', fn (Request $request): Limit => Limit::perMinute(5)->by($perUser($request)));
         RateLimiter::for('api-receipt', fn (Request $request): Limit => Limit::perMinute(6)->by($perUser($request)));
         RateLimiter::for('api-upload', fn (Request $request): Limit => Limit::perMinute(30)->by($perUser($request)));
         RateLimiter::for('api-promo-tap', fn (Request $request): Limit => Limit::perMinute(30)->by($perUser($request)));

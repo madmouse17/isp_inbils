@@ -9,6 +9,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Modules\Billing\Database\Factories\InvoiceFactory;
@@ -215,14 +216,37 @@ class MidtransPerCompanyTest extends TestCase
     {
         $attemptB = $this->attemptFor($this->b);
         $this->midtransSettles($attemptB);
+        Log::spy();
 
-        // Company A's key signs it and A's URL accepts the signature, yet the order is B's: A cannot see it.
-        $this->postJson($this->webhookOf($this->a), $this->midtransPayload($attemptB, key: self::KEY_A))->assertNotFound();
+        // Company A's key signs it and A's URL accepts the signature, yet the order is B's: to A it is a foreign order. It
+        // is acknowledged (a merchant shared by two projects must not be retried for ever) and nothing is touched.
+        $this->postJson($this->webhookOf($this->a), $this->midtransPayload($attemptB, key: self::KEY_A))->assertOk()->assertSee('OK');
 
+        Log::shouldHaveReceived('info')->once()->with('midtrans.foreign_order', ['order_id' => $attemptB->order_id, 'verified' => true]);
         Http::assertNothingSent();
         $this->assertSame(0, Payment::withoutCompany()->count());
         $this->assertSame('pending', $this->fresh($attemptB)->status);
         $this->assertSame(0, Activity::query()->where('log_name', 'payment_attempt')->count());
+    }
+
+    public function test_signed_unknown_order_answers_200_and_writes_nothing(): void
+    {
+        $attemptA = $this->attemptFor($this->a);
+        Log::spy();
+        // A merchant shared with another project: the notification is signed with the company's own key, for an order this install never made.
+        $foreign = $this->midtransPayload($attemptA, ['order_id' => 'OTHER-PROJECT-0001'], self::KEY_A);
+
+        $this->postJson($this->webhookOf($this->a), $foreign)->assertOk()->assertSee('OK');
+        // The signature is still checked first: a forged notification for an unknown order is refused as any other.
+        $this->postJson($this->webhookOf($this->a), [...$foreign, 'signature_key' => str_repeat('a', 128)])->assertForbidden()->assertContent('');
+        // And the key of another company does not pass for this one.
+        $this->postJson($this->webhookOf($this->a), $this->midtransPayload($attemptA, ['order_id' => 'OTHER-PROJECT-0001'], self::KEY_B))->assertForbidden();
+
+        Log::shouldHaveReceived('info')->once()->with('midtrans.foreign_order', ['order_id' => 'OTHER-PROJECT-0001', 'verified' => true]);
+        Http::assertNothingSent();
+        $this->assertSame(0, Payment::withoutCompany()->count());
+        $this->assertSame(0, Activity::query()->where('log_name', 'payment_attempt')->count());
+        $this->assertSame('pending', $this->fresh($attemptA)->status);
     }
 
     public function test_the_legacy_webhook_finds_the_company_from_the_order_id(): void

@@ -16,6 +16,7 @@ use Modules\Billing\Events\PaymentRecorded;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\Payment;
 use Modules\Billing\Services\BillingService;
+use Modules\Billing\Services\OverdueSuspensionService;
 use RuntimeException;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
@@ -125,6 +126,37 @@ class AutoReactivateOnPaymentTest extends TestCase
 
         $this->pay($invoice, 60000);
         $this->assertSame('active', $this->freshSubscription($subscription)->status);
+    }
+
+    public function test_the_holds_listed_are_exactly_the_invoices_that_block_the_reconnection(): void
+    {
+        [$subscription, $first] = $this->isolated();
+        $subscription->forceFill(['suspended_at' => now()->subDay()])->save();
+        $second = $this->invoiceFor($subscription, 40);
+        // Inside the grace, yet due before the isolation (Q16-b); an invoice due today is neither.
+        $beforeIsolation = $this->invoiceFor($subscription, 3);
+        $this->invoiceFor($subscription, 0);
+        $holding = fn (): array => OverdueSuspensionService::holdingInvoices($this->freshSubscription($subscription))->modelKeys();
+
+        $this->assertSame([$second->id, $first->id, $beforeIsolation->id], $holding(), 'oldest due first');
+
+        $this->pay($second);
+        $this->pay($first);
+
+        $this->assertSame([$beforeIsolation->id], $holding());
+        $this->assertSame('suspended', $this->freshSubscription($subscription)->status, 'a hold left: the reconnection waits');
+
+        $this->pay($beforeIsolation);
+
+        $this->assertSame('active', $this->freshSubscription($subscription)->status, 'nothing held it any more');
+    }
+
+    public function test_nothing_holds_a_reconnection_that_staff_do_by_hand(): void
+    {
+        $this->company->update(['settings' => ['auto_suspend_overdue_days' => 7, 'auto_reactivate_on_payment' => false]]);
+        [$subscription] = $this->isolated();
+
+        $this->assertTrue(OverdueSuspensionService::holdingInvoices($this->freshSubscription($subscription))->isEmpty());
     }
 
     public function test_the_company_setting_can_switch_the_reconnection_off(): void

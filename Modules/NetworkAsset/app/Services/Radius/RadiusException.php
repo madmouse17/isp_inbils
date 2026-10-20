@@ -31,7 +31,13 @@ final class RadiusException extends RuntimeException
 
     public static function unavailable(): self
     {
-        return new self(self::UNAVAILABLE, 'The RADIUS database is unavailable.');
+        return new self(self::UNAVAILABLE, 'Basis data RADIUS tidak dapat dihubungi; dicoba lagi otomatis.');
+    }
+
+    /** The company code is not a valid RADIUS realm: no username or NAS client can be written for the company. */
+    public static function invalidRealm(): self
+    {
+        return new self(self::REJECTED, 'Kode perusahaan tidak bisa dipakai sebagai realm RADIUS.');
     }
 
     public static function rejected(string $message): self

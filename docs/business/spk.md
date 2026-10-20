@@ -155,14 +155,14 @@ Lihat `docs/WORKFLOW.md` Section 6 (SPK). Ringkas state machine:
 | Dari | Ke | Trigger | Side effect |
 |------|-----|---------|-------------|
 | draft | generated | generate | System generate code + auto-fill from source (ticket/subscription). Status=generated. |
-| generated/draft | assigned | assign(technician, Kepala Unit) | assigned_to set, WorkOrderAssignment row (unassigned_at=null), AuditLog. Tidak ada stok yang direservasi. |
-| assigned | in_progress | start | started_at=now. |
-| assigned | assigned | enRoute (technician, "Berangkat") | en_route_at=now sekali (ulang = 200, tidak berubah), activity `en_route`, notifikasi database ke pelanggan langganan (jika punya login). Status tetap assigned. |
-| in_progress | waiting_review | submitForReview (technician, setelah evidence upload) | Status=waiting_review, submitted_at ??= now. Wajib min 1 evidence (app guard). |
-| waiting_review | completed | approve (Kepala Unit/admin) | CompleteSpkAction (satu transaksi, SPK dikunci): rekonsiliasi jumlah terpakai dari retur material, consume stok (lihat "Stok pada SPK"), install asset (NetworkAssetService::install if installation), activate subscription (SubscriptionService::activate if installation), create invoice OTC (CreateInvoiceFromSpkAction if Setting spk.auto_invoice or manual trigger). completed_at=now. |
-| waiting_review | rejected | rejectWork (Kepala Unit, reason) | rejection_reason set, status=rejected (rework). Technician fix + re-submit. |
-| rejected | assigned | reassign/rework | New WorkOrderAssignment row (re-assign). |
-| * (except completed/cancelled) | cancelled | cancel(reason) | Status=cancelled. Tidak ada stok yang dilepas, karena SPK tidak mereservasi stok. Permintaan barang yang sudah diserahkan tidak berubah. AuditLog. |
+| draft/generated | assigned | `assign(technician)` | `assigned_to` diisi, riwayat penugasan ditambah, tanpa reservasi stok. Untuk `installation`, akun PPPoE dibuat idempoten bila belum ada. |
+| assigned | assigned | `enRoute` | `en_route_at` diisi sekali; status tetap `assigned`; pelanggan diberi tahu. |
+| assigned | in_progress | `start` | `started_at` diisi. |
+| assigned/in_progress | assigned atau tetap in_progress | `reassign` | Teknisi baru menutup penugasan lama, menambah riwayat, dan mengulang waktu kunjungan dari Ditugaskan. Memilih teknisi yang sama pada `in_progress` mempertahankan progres. |
+| in_progress | waiting_review | `submitForReview` | `submitted_at` diisi bila kosong; minimal satu bukti. |
+| waiting_review | completed | `approve` | `CompleteSpkAction` mengonsumsi stok, memasang aset, mengaktifkan langganan, memastikan akun PPPoE instalasi ada, dan membuat tagihan pemasangan bila ada baris. |
+| waiting_review | rejected | `rejectWork` | Alasan disimpan; SPK kembali untuk perbaikan. |
+| selain completed/cancelled | cancelled | `cancel(reason)` | Tidak ada stok dilepas. Untuk instalasi langganan `pending` yang ditinggalkan, akun PPPoE dinonaktifkan dari RADIUS dan secretnya diganti. |
 
 ### Item SPK: status yang boleh diubah
 
@@ -266,6 +266,19 @@ di halaman SPK) dan di aplikasi teknisi/pelanggan. Server yang memutuskan
   → assign().
 - History: WorkOrderAssignment append-only (track perubahan assignment).
 
+#### Penugasan ulang saat pekerjaan berjalan
+
+- `SpkService::REASSIGNABLE_STATUSES` adalah `assigned` dan `in_progress`; aksi membutuhkan `spk.reassign`.
+- Penggantian teknisi pada `in_progress` mengubah status ke `assigned`, menutup assignment aktif, membuat assignment baru, dan mengosongkan `en_route_at`, `started_at`, serta `submitted_at`. Bukti, check-in, dan audit lama tetap ada.
+- Menugaskan teknisi yang sama pada `in_progress` mempertahankan status dan waktu kunjungannya.
+
+#### Akun PPPoE instalasi
+
+- Penugasan pertama SPK `installation` memanggil `NetworkAccountService::provisionForInstallation`. Username berasal dari kode pelanggan, secret dibuat sistem, dan audit menyimpan `via=installation_spk`. Akun dibuat hanya bila company punya integrasi RADIUS yang aktif; tanpa RADIUS tidak ada akun dibuat (staf membuatnya dengan tangan bila perlu).
+- Persetujuan memanggil provisioning lagi sebagai pengaman idempoten dengan aturan RADIUS yang sama. Kegagalan konfigurasi jaringan tidak membatalkan penugasan atau persetujuan.
+- Teknisi yang sedang ditugaskan dapat membuka secret hanya saat status `assigned` atau `in_progress`, melalui endpoint kredensial yang diaudit, `no-store`, dan dibatasi 5 kali per menit.
+- Membatalkan SPK instalasi untuk langganan `pending` mengganti secret dan mengantre sinkronisasi. Bila tidak ada instalasi lain yang berjalan, proyeksi RADIUS dihapus. Penugasan instalasi berikutnya mengaktifkan kembali akun dengan secret baru. Menugaskan ulang SPK itu ke teknisi lain juga mengganti secret.
+
 ### Status configurable
 - v1: 8 status hardcoded enum + CHECK constraint.
 - v2: Setting `spk.statuses` json (admin add custom status + transition
@@ -312,6 +325,7 @@ Lihat `docs/API.md` Section 6 (SPK group). Ringkas:
 - `POST   /admin/spk/{wo}/approve` (waiting_review→completed — triggers CompleteSpkAction)
 - `POST   /admin/spk/{wo}/reject` (body: reason — waiting_review→rejected)
 - `POST   /admin/spk/{wo}/cancel` (body: reason)
+- `POST   /api/v1/technician/work-orders/{wo}/network-credentials` (current assignee, installation, assigned/in_progress; audited and rate-limited reveal)
 - `GET    /admin/spk/{wo}/assignments` (assignment history)
 - `GET    /admin/spk/export`
 
@@ -328,15 +342,7 @@ Lihat `docs/API.md` Section 6 (SPK group). Ringkas:
 4. Upload evidence (2 foto instalasi). WorkOrderEvidence rows.
 5. Submit for review: status=waiting_review. (Reject if no evidence →
    guard.)
-6. Kepala Unit approve: CompleteSpkAction:
-   - StockService::issue (consume kabel 20m, qty--; bagian yang sudah
-     dikeluarkan permintaan barang yang diserahkan untuk SPK ini dilewati).
-   - NetworkAssetService::install (ONT installed at premise, status=installed,
-     NetworkAssetInstallation spk_id backlink).
-   - SubscriptionService::activate (subscription active, ont_asset_id set,
-     next_invoice_date set).
-   - CreateInvoiceFromSpkAction (invoice OTC 500000, draft, work_order_id
-     link). Status=completed, completed_at=now.
+6. Kepala Unit approve. `CompleteSpkAction` mengeluarkan stok yang belum tercakup permintaan barang, memasang aset, mengaktifkan langganan, memastikan akun PPPoE masih ada, lalu membuat atau mengirim tagihan pemasangan menurut setting. Status menjadi `completed`.
 
 ### Maintenance from ticket
 1. Ticket device_issue, resolved-but-needs-field-work → spawn SPK
@@ -347,13 +353,12 @@ Lihat `docs/API.md` Section 6 (SPK group). Ringkas:
    (maintenance = MRC). NetworkAsset status set maintenance→installed.
 
 ### Validation
-1. Submit for review with no evidence → 422 "evidence required".
-2. Approve SPK not in waiting_review → 422.
-3. Assign draft (not generated) → 422 (must generate first). OR allow
-   direct draft→assigned (configurable).
-4. Cancel assigned → status cancelled, tidak ada stock movement (SPK tidak
-   mereservasi stok).
-5. Complete SPK without assigned_to → 422.
+1. Submit for review with no evidence → 422.
+2. Approve SPK not in `waiting_review` → 422.
+3. Assign `draft`, `generated`, `rejected`, `assigned`, atau `in_progress` → diterima bila izin cocok; status lain ditolak.
+4. Reassign `in_progress` ke teknisi baru → status `assigned`, waktu kunjungan diulang, bukti tetap ada.
+5. Cancel assigned installation pada subscription `pending` → tidak ada stock movement; akun PPPoE dinonaktifkan dari RADIUS dan secretnya diganti bila instalasi ditinggalkan.
+6. Complete SPK without `assigned_to` → 422.
 
 ### Authorization
 1. Technician view assigned-to-self → 200. View assigned-to-other → 403.

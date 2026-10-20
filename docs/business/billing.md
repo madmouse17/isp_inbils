@@ -130,6 +130,14 @@ Skema: `docs/DATABASE.md` Section 11 (Billing).
   `RecordPaymentRequest` membatasi staf ke empat metode manual; `midtrans`
   hanya ditulis oleh jalur gateway.
 
+
+### Aturan rupiah penuh
+
+- Semua nominal baru dibangun dengan `App\Support\Money::rupiah()`: pembulatan setengah ke atas ke rupiah penuh, lalu disimpan sebagai string dua desimal. Nilai `147701.5` menjadi `147702.00`; nilai `147701.495` menjadi `147701.00` karena pembulatan membaca presisi penuh dan tidak melewati pembulatan sen.
+- Prorata, item, pajak per baris, subtotal, dan total dibulatkan per baris ke rupiah penuh. Total adalah jumlah nilai baris yang sudah bulat. Selisih beberapa rupiah terhadap pembulatan pada total akhir adalah perilaku yang disengaja.
+- Pembayaran manual hanya menerima rupiah penuh. Penjaga sen pada pembayaran online tetap ada untuk tagihan lama.
+- `Money::display()` dan pemformat web tidak membulatkan data tersimpan. Nilai bulat tampil tanpa sen, sedangkan tagihan lama yang menyimpan sen tetap menampilkan sen.
+
 ## Workflow
 
 Lihat `docs/WORKFLOW.md` Section 7 (Billing). Ringkas state machine:
@@ -259,18 +267,14 @@ Lihat `docs/WORKFLOW.md` Section 7 (Billing). Ringkas state machine:
   `2026_10_23_100200_add_snapshot_columns_to_invoices_table` dengan data hidup
   saat migrasi berjalan, hanya baris yang snapshot-nya masih kosong.
 
-### One-time OTC from SPK
-- `CreateInvoiceFromSpkAction` (dipanggil CompleteSpkAction saat approve,
-  if Setting `spk.auto_invoice` OR manual trigger button):
-  - Validate work_order.status=completed.
-  - Validate tidak ada invoice existing untuk work_order_id (unique).
-  - Create Invoice type=one_time, source=spk, customer_id (dari SPK),
-    work_order_id link.
-  - InvoiceItem map dari work_order_items (consumable: description=
-    product.name, quantity=quantity_used, unit_price=product.sell_price)
-    + 1 line jasa instalasi (description="Biaya Instalasi {type}",
-    unit_price=subscription.otc_installation_fee).
-  - subtotal + tax + total. Status=draft.
+### Tagihan pemasangan dari SPK
+
+- Hanya persetujuan SPK `installation` yang menjalankan alur ini. `CreateInvoiceFromSpkAction::linesFor()` membangun baris tanpa menulis database.
+- Bila `bill_installation_materials` mati, bahan terpakai tidak ditagih terpisah. Bila menyala, setiap bahan terpakai menjadi baris `Bahan terpakai: {nama barang}` dengan harga jual produk.
+- Biaya pemasangan dari `subscription.otc_installation_fee` menjadi satu baris `Biaya pemasangan`. Semua nominal memakai `Money::rupiah()`.
+- Bila tidak ada baris bernilai lebih dari Rp 0, tidak ada invoice yang dibuat. Satu SPK tetap hanya dapat memiliki satu invoice.
+- Persetujuan selalu membuat invoice `one_time`, `source=spk`, `status=draft` ketika ada baris. Setting lama `spk_auto_invoice` tidak dibaca lagi.
+- `auto_send_installation_invoice=true` mengirim invoice dalam transaksi persetujuan. Bila mati, invoice tetap draf. Setelah commit, pemegang `billing.send` menerima lonceng dan push, dan dashboard keuangan menghitung draf tersebut.
 
 ### Payment processing
 - `record_payment(amount, method, reference)`: paid_amount += amount.
@@ -340,6 +344,10 @@ Lihat `docs/WORKFLOW.md` Section 7 (Billing). Ringkas state machine:
   default = invoice rate, override per line.
 - `tax_amount = sum(line_total * tax_rate / 100)`.
 - `total = subtotal + tax_amount - discount_amount`.
+
+### Pembulatan pajak
+
+`line_total` dan pajak setiap baris dibulatkan setengah ke atas ke rupiah penuh sebelum dijumlahkan. `subtotal`, `tax_amount`, dan `total` karena itu selalu berakhiran `.00` untuk tagihan baru.
 
 ### Number generation
 - `INV-{YEAR}-{NNNNN}`. Lock + transaction per tahun.
@@ -452,11 +460,10 @@ diubah. URL lama `/webhooks/midtrans` tetap hidup selama masa peralihan; tanggal
 `company_id`, `invoice_id`, `order_id` (unik global, ≤ 50 karakter,
 `INB-{ULID}`, tanpa id company atau invoice; attempt lama tetap memakai
 `{company_id}-{invoice_id}-{12 acak}` dan dicari lewat `order_id` yang sama), `amount`, `status`
-(`pending|paid|failed|expired|exception|cancelled_locally`; label **Ditutup** untuk yang terakhir), `status_reason`, `snap_token` dan
+(`pending|paid|failed|expired|exception|cancelled_locally|refunded`; label **Ditutup** untuk `cancelled_locally`, **Dikembalikan** untuk `refunded`), `status_reason`, `snap_token` dan
 `redirect_url` (tidak pernah diserialisasi/ditampilkan), `transaction_id`,
 `payment_type`, `last_notification` (JSON tanpa `signature_key`),
-`expires_at` (24 jam), `settled_at`, `payment_id` (nullable, unik). Kolom
-finansial immutable; attempt tidak bisa dihapus.
+`expires_at` (24 jam), `settled_at`, `payment_id` (nullable, unik), serta `resolved_by`, `resolved_at`, `resolution_reference`, dan `resolution_note` untuk penyelesaian pengembalian. Kolom finansial immutable; attempt tidak bisa dihapus.
 
 ### Webhook `POST /webhooks/midtrans`
 - Tanpa session/CSRF (di luar group `web`); hanya POST dengan signature salah
@@ -529,9 +536,16 @@ dibayar atau dibatalkan saat halaman masih terbuka.
   Midtrans); atau (b) `payment_id` terisi dan pembayaran itu belum dibatalkan (uang dibukukan lalu dikembalikan; ditutup dengan
   membatalkan pembayarannya). Exception yang sudah selesai tidak dihitung.
 
+### Menandai dana dikembalikan
+
+- `POST /admin/payment-attempts/{attempt}/refund` membutuhkan `billing.payment.reverse`, `reference` maksimal 100 karakter, dan `note` maksimal 500 karakter.
+- Aksi hanya menerima attempt `exception` yang uangnya belum dibukukan menjadi `Payment`. Pengembalian uang dilakukan lebih dulu di dashboard Midtrans atau lewat transfer bank. Inbils tidak memanggil API refund.
+- Aksi mengubah status menjadi `refunded` (**Dikembalikan**), menyimpan pelaku, waktu, referensi, dan catatan, lalu menulis audit `payment_attempt.refunded`.
+- Attempt keluar dari daftar exception terbuka. Webhook Midtrans berikutnya tidak membuka status tersebut kembali.
+- Bila pembayaran sudah dibukukan, koreksi dilakukan dengan membatalkan `Payment`, bukan menandai attempt dikembalikan.
+
 ### Panel staf
-Halaman invoice menampilkan panel read-only "Online payments" (status, jumlah, transaction id, jenis pembayaran, alasan
-exception; status `cancelled_locally` tampil **Ditutup**). Tidak ada aksi yang bisa menandai attempt lunas.
+Halaman invoice menampilkan panel **Pembayaran online** dengan status, jumlah, transaction id, jenis pembayaran, alasan exception, dan data pengembalian. `cancelled_locally` tampil **Ditutup**. `refunded` tampil **Dikembalikan** dengan waktu, pelaku, referensi, dan catatan. Attempt `exception` yang belum dibukukan menampilkan **Tandai dikembalikan** bagi pemegang `billing.payment.reverse`; panel tidak pernah menandai attempt lunas secara manual.
 
 ### Deploy dan rollback
 - `php artisan migrate`; `php artisan db:seed --class=RolePermissionSeeder --force`;
@@ -568,14 +582,11 @@ exception; status `cancelled_locally` tampil **Ditutup**). Tidak ada aksi yang b
 5. Subscription suspended: tidak ditagih (hanya `active` dan `terminated`).
 6. Ganti nama pelanggan lalu cetak PDF invoice terbit: nama lama tetap tercetak.
 
-### One-time OTC from SPK
-1. SPK installation completed. CompleteSpkAction (if auto_invoice) OR
-   manual button → CreateInvoiceFromSpkAction.
-2. Invoice type=one_time, source=spk, work_order_id link, customer_id.
-3. Items: consumable lines (kabel 20m @5000=100000) + 1 jasa line
-   ("Biaya Instalasi installation", unit_price=otc_installation_fee
-   500000). subtotal=600000, tax=66000, total=666000. Status draft.
-4. Duplicate call (SPK sudah punya invoice) → 422 (unique per SPK).
+### Tagihan pemasangan dari SPK
+1. Selesaikan SPK `installation` yang punya biaya pemasangan atau bahan yang diaktifkan untuk ditagih.
+2. `CreateInvoiceFromSpkAction::linesFor()` menghasilkan baris rupiah penuh: `Biaya pemasangan` dan, bila setting aktif, `Bahan terpakai: {produk}`.
+3. Persetujuan membuat invoice `one_time`, `source=spk`. Dengan `auto_send_installation_invoice=false`, statusnya `draft` dan staf penagihan diberi tahu. Dengan setting aktif, statusnya langsung `sent`.
+4. SPK tanpa baris bernilai lebih dari Rp 0 tidak membuat invoice. Pemanggilan kedua untuk SPK yang sama ditolak 422.
 
 ### Payment + reactivate
 1. Invoice recurring total 277500, status=sent. Pay 277500 → status=paid.

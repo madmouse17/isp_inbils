@@ -2,6 +2,7 @@ import type { FormEvent, ReactNode } from 'react';
 import { useState } from 'react';
 import { Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
+import { format } from 'date-fns';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
     Alert,
@@ -104,6 +105,15 @@ function localPart(username: string, realm: string | null): string {
     const suffix = realm ? `@${realm}` : '';
 
     return suffix && username.endsWith(suffix) ? username.slice(0, -suffix.length) : username;
+}
+
+/** `14:05` for a moment today; an earlier day keeps its date, so "sejak 00:22" never names the wrong day. */
+function sinceOf(moment: string): string {
+    const at = new Date(moment);
+
+    return at.toDateString() === new Date().toDateString()
+        ? format(at, 'HH:mm')
+        : formatDateTime(moment);
 }
 
 function UsernameField({
@@ -433,6 +443,26 @@ export default function Show({
                     }
                 />
 
+                {radiusEnabled && account?.pending_disconnect_at ? (
+                    <Alert variant="warning">
+                        <AlertDescription className="flex flex-wrap items-center gap-3">
+                            Router belum menjawab sejak {sinceOf(account.pending_disconnect_at)}.
+                            Pemutusan sesi dicoba lagi otomatis.
+                            {can.manage && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    loading={resyncing}
+                                    onClick={resync}
+                                >
+                                    Coba sekarang
+                                </Button>
+                            )}
+                        </AlertDescription>
+                    </Alert>
+                ) : null}
+
                 {!radiusEnabled && (
                     <Alert variant="warning">
                         <AlertDescription className="flex flex-wrap items-center gap-3">
@@ -605,7 +635,13 @@ export default function Show({
                                     <Row label="Online">
                                         <EnumBadge
                                             map={NETWORK_ONLINE_STATE}
-                                            value={session !== null}
+                                            value={
+                                                session === null
+                                                    ? false
+                                                    : account.pending_disconnect_at
+                                                      ? 'pending_disconnect'
+                                                      : true
+                                            }
                                         />
                                     </Row>
                                     {session && (
@@ -695,7 +731,11 @@ export default function Show({
             <ConfirmDialog
                 open={confirmingResync}
                 title={`Sinkron ulang akun ${account?.username ?? subscription.code}?`}
-                description="Akun ditulis ulang ke FreeRADIUS dan sesi yang sedang terbuka diputus. Pelanggan tersambung lagi otomatis, tetapi koneksinya terputus sebentar."
+                description={
+                    radiusEnabled
+                        ? 'Akun ditulis ulang ke FreeRADIUS dan sesi yang sedang terbuka diputus. Pelanggan tersambung lagi otomatis, tetapi koneksinya terputus sebentar.'
+                        : 'RADIUS belum dikonfigurasi. Perubahan disimpan dan dikirim ke router setelah RADIUS aktif.'
+                }
                 confirmLabel="Sinkron ulang"
                 processing={resyncing}
                 onConfirm={resync}

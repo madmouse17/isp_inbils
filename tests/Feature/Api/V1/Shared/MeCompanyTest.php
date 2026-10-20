@@ -46,7 +46,7 @@ class MeCompanyTest extends TestCase
         $this->assertSame([
             'id' => $company->public_id,
             'name' => 'PT Nusa Net',
-            'logo_url' => config('filesystems.disks.public.url')."/companies/{$company->id}/company-logo/{$logoId}/logo.webp",
+            'logo_url' => url(Storage::disk('public')->url("companies/{$company->id}/company-logo/{$logoId}/logo.webp")),
             'brand_color' => '#EA580C',
             'phone' => '021-5550100',
             'whatsapp' => '+6281234567890',

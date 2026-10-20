@@ -146,7 +146,7 @@ class NetworkSyncTest extends TestCase
 
         $nas = $this->nas->fresh();
         $this->assertNull($nas->radius_synced_at);
-        $this->assertSame('The RADIUS database is unavailable.', $nas->last_error);
+        $this->assertSame('Basis data RADIUS tidak dapat dihubungi; dicoba lagi otomatis.', $nas->last_error);
         $this->assertSame(1, $this->auditCount('nas_device', 'radius_failed'));
 
         $this->fakeRadius();

@@ -90,7 +90,7 @@ class NetworkAccountHttpTest extends TestCase
     /** @return list<string> */
     private function accountKeys(): array
     {
-        return ['id', 'service_type', 'username', 'sync_status', 'last_error', 'provisioned_group', 'provisioned_at', 'disconnect_pending'];
+        return ['id', 'service_type', 'username', 'sync_status', 'last_error', 'provisioned_group', 'provisioned_at', 'disconnect_pending', 'pending_disconnect_at'];
     }
 
     public function test_the_page_without_an_account_has_the_contract_shape(): void
@@ -149,11 +149,22 @@ class NetworkAccountHttpTest extends TestCase
             ->where('account.username', "alice@{$this->realm}")
             ->where('account.sync_status', 'pending')
             ->where('account.provisioned_group', null)
-            ->where('account.disconnect_pending', false));
+            ->where('account.disconnect_pending', false)
+            ->where('account.pending_disconnect_at', null));
         $this->assertSame($this->accountKeys(), array_keys($response->inertiaProps()['account']));
         $encoded = json_encode($response->inertiaProps());
         $this->assertStringNotContainsString('fake-subscriber-plain-1', $encoded);
         $this->assertStringNotContainsString('fake-radius-shared-secret', $encoded);
+    }
+
+    public function test_the_page_says_since_when_a_disconnect_is_owed(): void
+    {
+        $since = now()->subMinutes(20);
+        $this->account()->forceFill(['pending_disconnect_at' => $since])->save();
+
+        $this->show()->assertInertia(fn (Assert $page) => $page
+            ->where('account.disconnect_pending', true)
+            ->where('account.pending_disconnect_at', $since->toIso8601String()));
     }
 
     public function test_the_session_and_this_months_usage_are_read_live_from_radius(): void
@@ -414,7 +425,7 @@ class NetworkAccountHttpTest extends TestCase
         $account = $this->account();
         Queue::fake();
 
-        $this->post(route('admin.subscriptions.network-account.resync', $this->subscription))->assertRedirect()->assertSessionHas('success');
+        $this->post(route('admin.subscriptions.network-account.resync', $this->subscription))->assertRedirect()->assertSessionHas('success', 'Sinkron ulang dimulai. Sesi pelanggan diputus setelah router menjawab.');
 
         $this->assertNotNull($account->fresh()->pending_disconnect_at);
         Queue::assertPushed(ApplyNetworkAccountJob::class, 1);

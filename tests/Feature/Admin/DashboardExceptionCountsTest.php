@@ -319,6 +319,28 @@ class DashboardExceptionCountsTest extends TestCase
         $this->assertSame(3, $this->section($manager, 'overdue_invoices')['count']);
     }
 
+    public function test_draft_invoice_card_counts_the_drafts_the_invoice_list_shows_for_status_draft(): void
+    {
+        $company = $this->makeCompany();
+        $other = $this->makeCompany();
+        $manager = $this->userWithRole($company, 'manager');
+        $this->invoice($company, ['status' => 'draft', 'total' => '250000.00']);
+        $this->invoice($company, ['status' => 'draft', 'total' => '50000.50']);
+        $this->invoice($company, ['status' => 'draft'])->delete();
+        $this->invoice($company, ['status' => 'sent']);
+        $this->invoice($company, ['status' => 'cancelled']);
+        $this->invoice($other, ['status' => 'draft']);
+
+        $section = $this->section($manager, 'draft_invoices');
+
+        $this->assertSame(2, $section['count']);
+        $this->assertSame('300000.50', $section['total']);
+        $this->assertSame('warning', $section['severity']);
+        $this->assertSame('finance', $section['group']);
+        $this->assertSame(route('admin.invoices.index', ['status' => 'draft']), $section['href']);
+        $this->assertSame($section['count'], $this->actingAs($manager)->get($section['href'])->inertiaProps('invoices.meta.total'));
+    }
+
     public function test_low_stock_counts_the_same_stock_rows_the_stocks_list_shows_for_low_stock(): void
     {
         $company = $this->makeCompany();
@@ -519,6 +541,7 @@ class DashboardExceptionCountsTest extends TestCase
             'return_queue' => 'warning',
             'low_stock' => 'warning',
             'overdue_invoices' => 'danger',
+            'draft_invoices' => 'neutral',
         ], $severities);
     }
 

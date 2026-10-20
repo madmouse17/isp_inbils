@@ -409,6 +409,8 @@ class WorkOrderSnapshotTest extends TestCase
     public function test_the_invoice_of_an_spk_bills_the_materials_of_a_product_deleted_later(): void
     {
         [$customer] = $this->customerApp();
+        // K7: the materials are part of the installation fee unless the company bills them as lines.
+        $this->admin->company->update(['settings' => [...($this->admin->company->settings ?? []), 'bill_installation_materials' => true]]);
         $product = Product::factory()->create(['company_id' => $this->admin->company_id, 'type' => 'consumable', 'name' => 'Kabel Drop', 'sell_price' => 2500]);
         $workOrder = $this->workOrder('completed', ['customer_id' => $customer->id]);
         WorkOrderItem::create(['company_id' => $workOrder->company_id, 'work_order_id' => $workOrder->id, 'product_id' => $product->id, 'quantity_used' => 3]);
@@ -418,7 +420,7 @@ class WorkOrderSnapshotTest extends TestCase
         $invoice = CreateInvoiceFromSpkAction::execute($workOrder->id);
 
         $line = InvoiceItem::query()->where('invoice_id', $invoice->id)->where('product_id', $product->id)->sole();
-        $this->assertSame(['Kabel Drop', '3.00', '2500.00', '7500.00'], [$line->description, $line->quantity, $line->unit_price, $line->line_total]);
+        $this->assertSame(['Bahan terpakai: Kabel Drop', '3.00', '2500.00', '7500.00'], [$line->description, $line->quantity, $line->unit_price, $line->line_total]);
     }
 
     public function test_the_invoice_of_an_spk_has_no_installation_fee_for_a_deleted_subscription(): void
@@ -426,12 +428,13 @@ class WorkOrderSnapshotTest extends TestCase
         [$customer, $deletedSubscription] = $this->customerApp(columns: ['otc_installation_fee' => 50_000]);
         $deletedSubscription->delete();
         [$liveCustomer, $liveSubscription] = $this->customerApp(columns: ['otc_installation_fee' => 50_000]);
-        $fees = fn (Invoice $invoice): int => InvoiceItem::query()->where('invoice_id', $invoice->id)->where('description', 'like', 'Biaya Instalasi%')->count();
+        // A deleted subscription bills nothing at all, so its SPK leaves no invoice to count lines on.
+        $fees = fn (?Invoice $invoice): int => $invoice === null ? 0 : InvoiceItem::query()->where('invoice_id', $invoice->id)->where('description', 'Biaya pemasangan')->count();
 
         $this->actingAs($this->admin);
-        $withoutFee = CreateInvoiceFromSpkAction::execute($this->workOrder('completed', ['customer_id' => $customer->id, 'subscription_id' => $deletedSubscription->id])->id);
-        $withFee = CreateInvoiceFromSpkAction::execute($this->workOrder('completed', ['customer_id' => $liveCustomer->id, 'subscription_id' => $liveSubscription->id])->id);
+        $withoutFee = CreateInvoiceFromSpkAction::execute($this->workOrder('completed', ['type' => 'installation', 'customer_id' => $customer->id, 'subscription_id' => $deletedSubscription->id])->id);
+        $withFee = CreateInvoiceFromSpkAction::execute($this->workOrder('completed', ['type' => 'installation', 'customer_id' => $liveCustomer->id, 'subscription_id' => $liveSubscription->id])->id);
 
-        $this->assertSame([0, 1], [$fees($withoutFee), $fees($withFee)]);
+        $this->assertSame([null, 1], [$withoutFee, $fees($withFee)]);
     }
 }

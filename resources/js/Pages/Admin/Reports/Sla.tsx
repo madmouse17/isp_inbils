@@ -22,6 +22,7 @@ import {
     type DateRange,
 } from '@/Components/ui';
 import { useVisitPending } from '@/hooks/useVisitPending';
+import { formatDecimal, formatPercent } from '@/lib/format';
 import type { ReportMeta, SlaChartData } from '@/types';
 import { DrillLink, type DrillLinks } from './components/DrillLink';
 import { ReportExportMenu } from './components/ReportExportMenu';
@@ -134,7 +135,9 @@ export default function Sla({ data, charts, filters, meta, can, drill }: Props) 
                                     <p className="text-sm text-muted-foreground">
                                         {meta.metrics.sla_rate.label}
                                     </p>
-                                    <p className="text-2xl font-bold">{data.sla_rate ?? 0}%</p>
+                                    <p className="text-2xl font-bold">
+                                        {formatPercent(data.sla_rate)}
+                                    </p>
                                     <DrillLink
                                         href={drill.sla_rate}
                                         label={meta.metrics.sla_rate.label}
@@ -148,10 +151,7 @@ export default function Sla({ data, charts, filters, meta, can, drill }: Props) 
                                         {meta.metrics.response_rate.label}
                                     </p>
                                     <p className="text-2xl font-bold">
-                                        {data.response_rate === null ||
-                                        data.response_rate === undefined
-                                            ? '-'
-                                            : `${data.response_rate}%`}
+                                        {formatPercent(data.response_rate)}
                                     </p>
                                     <p className="text-sm text-muted-foreground">
                                         {data.response_on_time ?? 0} tepat waktu,{' '}
@@ -184,7 +184,7 @@ export default function Sla({ data, charts, filters, meta, can, drill }: Props) 
                                         {meta.metrics.avg_resolution_minutes.label}
                                     </p>
                                     <p className="text-2xl font-bold">
-                                        {data.avg_resolution_minutes ?? '-'} menit
+                                        {formatDecimal(data.avg_resolution_minutes)} menit
                                     </p>
                                     <DrillLink
                                         href={drill.avg_resolution_minutes}
@@ -238,7 +238,7 @@ export default function Sla({ data, charts, filters, meta, can, drill }: Props) 
                                                         />
                                                     </TD>
                                                     <TD>{c.compliant}</TD>
-                                                    <TD>{c.rate}%</TD>
+                                                    <TD>{formatPercent(c.rate)}</TD>
                                                 </TR>
                                             ))
                                         )}

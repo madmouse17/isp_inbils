@@ -405,7 +405,25 @@ class ReportDrillTest extends TestCase
         $this->assertSame('Terlambat', $rows[$this->w['r_late']->public_id]['response']);
         $this->assertSame('Tanpa target', $rows[$this->w['r_old']->public_id]['response']);
         $this->assertSame('Belum ada respons', $rows[$this->w['r_silent']->public_id]['response']);
-        $this->assertSame('2026-01-12 09:00:00', $rows[$this->w['r_late']->public_id]['response_deadline']);
+        $this->assertSame('2026-01-12T09:00:00+00:00', $rows[$this->w['r_late']->public_id]['response_deadline']);
+    }
+
+    public function test_drill_moments_carry_offset(): void
+    {
+        $support = $this->worldCategory($this->companyId, 'Support', 'SUP-M');
+        $ticket = $this->worldTicket($this->companyId, $support, '2026-01-12 08:00:00', '2026-01-12 08:30:00', '2026-01-12 12:00:00', '2026-01-12 16:00:00', responseDeadline: '2026-01-12 09:00:00');
+        $this->actingAs($this->admin);
+
+        $row = collect($this->drill('sla', 'total_resolved', self::JANUARY)->inertiaProps('rows.data'))->keyBy('id')[$ticket->public_id];
+
+        // An offset-less "2026-01-12 08:00:00" is read as local time by the browser; with the offset it is the moment it is.
+        $this->assertEquals([
+            'created_at' => '2026-01-12T08:00:00+00:00',
+            'first_response_at' => '2026-01-12T08:30:00+00:00',
+            'response_deadline' => '2026-01-12T09:00:00+00:00',
+            'resolved_at' => '2026-01-12T12:00:00+00:00',
+            'sla_deadline' => '2026-01-12T16:00:00+00:00',
+        ], array_intersect_key($row, array_flip(['created_at', 'first_response_at', 'response_deadline', 'resolved_at', 'sla_deadline'])));
     }
 
     // ---------------------------------------------------------------------------------------------
