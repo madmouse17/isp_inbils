@@ -267,7 +267,12 @@ final class TicketDemo
             ];
             if ($creator === 'customer_demo') {
                 // The demo customer login is this customer's portal login, so the ticket flow answers it the way it answers a customer.
+                $previous = $customer->user_id;
                 $customer->forceFill(['user_id' => $c->user('customer')->id])->save();
+                // The portal login onboarding made for this customer now belongs to nobody: it must not sign in as a customer without one.
+                if ($previous !== null && (int) $previous !== (int) $customer->user_id) {
+                    User::query()->whereKey($previous)->update(['is_active' => false]);
+                }
                 $actor = 'customer';
             } else {
                 $actor = $creator === 'customer' ? User::query()->findOrFail($customer->user_id) : $creator;
