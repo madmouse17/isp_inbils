@@ -12,7 +12,7 @@ use App\Services\Platform\PlatformAuditService;
 use App\Support\PublicId;
 use Database\Seeders\CompanySeeder;
 use Database\Seeders\RolePermissionSeeder;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Modules\Reporting\Http\Resources\AuditLogResource;
@@ -23,7 +23,7 @@ use Tests\TestCase;
 
 class AuditLogTenantIsolationTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private Company $companyA;
 

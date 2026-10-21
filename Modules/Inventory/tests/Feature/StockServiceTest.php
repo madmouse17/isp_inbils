@@ -5,7 +5,7 @@ namespace Modules\Inventory\Tests\Feature;
 use App\Models\Core\Company;
 use App\Models\Core\Location;
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\Inventory\Exceptions\InsufficientStockException;
 use Modules\Inventory\Models\Category;
 use Modules\Inventory\Models\Product;
@@ -20,7 +20,7 @@ use Tests\TestCase;
 
 class StockServiceTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private int $productId;
 

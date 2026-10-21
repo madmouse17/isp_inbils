@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Support;
 
+use Illuminate\Support\Facades\ParallelTesting;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -16,10 +17,15 @@ class StorageRootIsolationTest extends TestCase
 {
     public function test_testing_disks_live_under_testing_suffix(): void
     {
-        $this->assertSame('/testing', env('STORAGE_ENV_SUFFIX'), 'phpunit.xml pins the suffix');
-        $this->assertSame(storage_path('app/private/testing'), config('filesystems.disks.local.root'));
-        $this->assertSame(storage_path('app/public/testing'), config('filesystems.disks.public.root'));
-        $this->assertStringEndsWith('/storage/testing', (string) config('filesystems.disks.public.url'));
+        // phpunit.xml pins /testing. A parallel worker's tests get /testing_<token> (TestCase::createApplication): its database
+        // hands out the same company and media ids again, so two workers on one tree would overwrite each other's files.
+        $token = ParallelTesting::token();
+        $suffix = '/testing'.($token === false ? '' : "_{$token}");
+
+        $this->assertSame($suffix, env('STORAGE_ENV_SUFFIX'), 'phpunit.xml pins the suffix, a parallel worker adds its token');
+        $this->assertSame(storage_path('app/private'.$suffix), config('filesystems.disks.local.root'));
+        $this->assertSame(storage_path('app/public'.$suffix), config('filesystems.disks.public.root'));
+        $this->assertStringEndsWith('/storage'.$suffix, (string) config('filesystems.disks.public.url'));
     }
 
     public function test_the_public_link_still_points_at_the_base_public_root(): void

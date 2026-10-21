@@ -26,12 +26,23 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="LOG_CHANNEL" value="stderr"/>
-        <!-- One storage tree for the test run (config/filesystems.php): what a test writes never mixes with the dev site's files. -->
+        <!--
+            One storage tree for the test run (config/filesystems.php): what a test writes never mixes with the dev site's files.
+            Under parallel testing (`artisan test` with its parallel option) Tests\TestCase appends the worker number before the app boots (/testing_1,
+            /testing_2, ...): every worker database hands out the same company and media ids again, so workers on one tree
+            would overwrite and delete each other's files. This pin is the serial value and the base of those.
+        -->
         <env name="STORAGE_ENV_SUFFIX" value="/testing" force="true"/>
         <env name="CACHE_STORE" value="array"/>
         <env name="DB_CONNECTION" value="mysql" force="true"/>
         <env name="DB_HOST" value="mysql" force="true"/>
         <env name="DB_PORT" value="3306" force="true"/>
+        <!--
+            Base schema: every serial run, and the tests without a database trait, use exactly this one. Parallel testing
+            (AGENTS.md, Test Database Rule) runs each worker on its own deterministic schema inbils_test_test_<TEST_TOKEN>: Laravel
+            creates it once, reuses it and moves the tests that have a database trait to it through config() only, so this pin
+            stays the base name and Tests\TestCase::guardPreBootstrapEnvironment() accepts only it or the worker's own schema.
+        -->
         <env name="DB_DATABASE" value="inbils_test" force="true"/>
         <env name="DB_USERNAME" value="inbils" force="true"/>
         <env name="DB_PASSWORD" value="inbils_local_change_me" force="true"/>

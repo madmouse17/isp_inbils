@@ -2,6 +2,8 @@
 
 namespace Tests\Unit;
 
+use Closure;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class PhpUnitTopologyTest extends TestCase
@@ -39,6 +41,7 @@ class PhpUnitTopologyTest extends TestCase
             'DB_USERNAME' => 'inbils',
             'DB_PASSWORD' => 'inbils_local_change_me',
             'DB_URL' => '',
+            'STORAGE_ENV_SUFFIX' => '/testing',
         ];
 
         foreach (['env', 'server'] as $element) {
@@ -87,6 +90,23 @@ class PhpUnitTopologyTest extends TestCase
         $this->assertArrayNotHasKey('APP_CONFIG_CACHE', $environment);
         $this->assertArrayNotHasKey('LARAVEL_CONFIG_CACHE', $environment);
         $this->assertArrayNotHasKey('HOSTILE_UNRELATED_KEY', $environment);
+    }
+
+    public function test_isolated_process_environment_names_the_serial_run_or_the_worker_it_serves(): void
+    {
+        $serial = $this->asWorker(null, fn (): array => self::isolatedProcessEnvironment());
+
+        $this->assertArrayNotHasKey('TEST_TOKEN', $serial);
+        $this->assertArrayNotHasKey('LARAVEL_PARALLEL_TESTING', $serial);
+        $this->assertSame('/testing', $serial['STORAGE_ENV_SUFFIX']);
+
+        $worker = $this->asWorker('3', fn (): array => self::isolatedProcessEnvironment());
+
+        $this->assertSame('3', $worker['TEST_TOKEN']);
+        $this->assertSame('1', $worker['LARAVEL_PARALLEL_TESTING']);
+        $this->assertSame('/testing_3', $worker['STORAGE_ENV_SUFFIX']);
+        // Laravel moves only the classes with a database trait to their worker schema: this one stays on the base schema, and so does its child.
+        $this->assertSame('inbils_test', $worker['DB_DATABASE']);
     }
 
     public function test_sanitized_subprocess_passes_the_pre_bootstrap_guard(): void
@@ -138,6 +158,53 @@ PHP;
         $this->assertFalse($values['configuration_cached']);
         $this->assertSame('inbils_test', $values['selected_schema']);
         $this->assertMatchesRegularExpression('/^inbils@[^@]+$/', $values['service_user']);
+    }
+
+    /** @return array<string, array{?string, ?string, string, bool}> worker number, Laravel runner flag, DB_DATABASE of the child, accepted */
+    public static function workerGuardCases(): array
+    {
+        return [
+            'a serial run on the base schema' => [null, null, 'inbils_test', true],
+            'a worker, whose process environment keeps the base schema' => ['3', '1', 'inbils_test', true],
+            'a race child on the schema of its own worker' => ['3', '1', 'inbils_test_test_3', true],
+            'the schema of another worker' => ['3', '1', 'inbils_test_test_2', false],
+            'a worker schema outside a parallel run' => [null, null, 'inbils_test_test_3', false],
+            'a worker number without the Laravel runner (plain paratest shares the base schema)' => ['3', null, 'inbils_test', false],
+            'a worker number that is not a number' => ['x', '1', 'inbils_test', false],
+            'a worker number with a leading zero' => ['03', '1', 'inbils_test_test_03', false],
+        ];
+    }
+
+    #[DataProvider('workerGuardCases')]
+    public function test_pre_bootstrap_guard_knows_the_schema_of_its_own_worker(?string $token, ?string $runner, string $database, bool $accepted): void
+    {
+        $script = <<<'PHP'
+require getcwd().'/vendor/autoload.php';
+Tests\TestCase::guardPreBootstrapEnvironment();
+fwrite(STDOUT, 'BOOTSTRAP_REACHED');
+PHP;
+        $environment = self::isolatedProcessEnvironment();
+        unset($environment['TEST_TOKEN'], $environment['LARAVEL_PARALLEL_TESTING']);
+        $environment['DB_DATABASE'] = $database;
+
+        if ($token !== null) {
+            $environment['TEST_TOKEN'] = $token;
+        }
+
+        if ($runner !== null) {
+            $environment['LARAVEL_PARALLEL_TESTING'] = $runner;
+        }
+
+        $result = $this->runPhpSubprocess($script, $environment);
+
+        if ($accepted) {
+            $this->assertSame(0, $result['exit_code'], $result['output']);
+            $this->assertStringContainsString('BOOTSTRAP_REACHED', $result['output']);
+        } else {
+            $this->assertNotSame(0, $result['exit_code']);
+            $this->assertStringContainsString('PHPUnit bootstrap safety guard refused to bootstrap Laravel.', $result['output']);
+            $this->assertStringNotContainsString('BOOTSTRAP_REACHED', $result['output']);
+        }
     }
 
     public function test_pre_bootstrap_guard_refuses_a_custom_config_cache_pointer(): void
@@ -199,6 +266,22 @@ PHP;
             @rmdir($cacheDirectory);
             @rmdir($root.'/bootstrap');
             @rmdir($root);
+        }
+    }
+
+    /** Runs $callback as worker $token of a parallel run (as a serial run for null) and puts the real process environment back. */
+    private function asWorker(?string $token, Closure $callback): mixed
+    {
+        $before = ['TEST_TOKEN' => getenv('TEST_TOKEN'), 'LARAVEL_PARALLEL_TESTING' => getenv('LARAVEL_PARALLEL_TESTING')];
+        putenv($token === null ? 'TEST_TOKEN' : "TEST_TOKEN={$token}");
+        putenv($token === null ? 'LARAVEL_PARALLEL_TESTING' : 'LARAVEL_PARALLEL_TESTING=1');
+
+        try {
+            return $callback();
+        } finally {
+            foreach ($before as $key => $value) {
+                putenv($value === false ? $key : "{$key}={$value}");
+            }
         }
     }
 

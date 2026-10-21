@@ -12,7 +12,7 @@ use App\Models\User;
 use App\Rules\BelongsToCompany;
 use App\Rules\TenantOwnedMorph;
 use App\Rules\TenantOwnedParentChild;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
 use Modules\Inventory\Http\Requests\StockIssueRequest;
 use Modules\Inventory\Http\Requests\StockReceiveRequest;
@@ -27,7 +27,7 @@ use Tests\TestCase;
 
 class TenantSafeWriteReferencesTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private Company $companyA;
 

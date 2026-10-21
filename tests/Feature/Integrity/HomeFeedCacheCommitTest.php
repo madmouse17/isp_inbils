@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Integrity;
 
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Modules\Service\Services\HomeFeedCache;
@@ -11,7 +11,7 @@ use Tests\TestCase;
 
 class HomeFeedCacheCommitTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private const COMPANY_ID = 987654;
 

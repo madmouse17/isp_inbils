@@ -20,11 +20,14 @@ Auth: Laravel Breeze (React/Inertia). DB: MySQL (Laragon).
 
 ## Test Database Rule (MANDATORY)
 
-- Semua test otomatis, QA, browser smoke, dan E2E WAJIB memakai database MySQL `inbils_test`.
+- Semua test otomatis, QA, browser smoke, dan E2E WAJIB memakai database MySQL `inbils_test`, kecuali satu pengecualian bernama di bawah (run paralel).
 - Jika `inbils_test` belum ada, buat database tersebut lalu gunakan kembali pada run berikutnya.
 - DILARANG memakai database utama `inbils` untuk test/QA/E2E.
 - DILARANG membuat database sementara bernama acak seperti `inbils_*`, `inbils_testing_*`, `inbils_qa_*`, atau `inbils_e2e`.
 - Konfigurasi default PHPUnit berada di `phpunit.xml` dengan `DB_DATABASE=inbils_test`; override test harus tetap menunjuk ke nama yang sama.
+- Satu-satunya pengecualian (keputusan pemilik, 2026-10-20): hanya `php artisan test --parallel` yang boleh memakai database worker deterministik `inbils_test_test_<TEST_TOKEN>` (`<TEST_TOKEN>` = 1..N, maksimum 4 proses; penamaan `{database}_test_{token}` milik Laravel dengan basis `inbils_test`). Database worker dibuat oleh runner paralel Laravel saat dipakai pertama kali, lalu dipakai ulang di setiap run dan TIDAK PERNAH di-drop per run: `--drop-databases` dan `--recreate-databases` DILARANG. Semua run test/QA/E2E lain tetap memakai `inbils_test`, dan database bernama acak tetap DILARANG.
+- Hak akses MySQL untuk pengecualian itu hanya satu: ``GRANT ALL PRIVILEGES ON `inbils\_test\_test\_%`.* TO 'inbils'@'%'`` (sudah ada di `docker/mysql/sail/10-create-test-database.sh`). Tidak ada grant, nama database, atau user lain; database utama `inbils` tetap terlarang.
+- Perintah standar run paralel (maksimum 4 proses, `uptime` load 1 menit < 6 sebelum mulai, selalu sebagai user `sail`): `flock /tmp/inbils-e2e.lock env DOCKER_CONTEXT=default ./vendor/bin/sail exec -T -u sail laravel.test flock /tmp/inbils-phpunit.lock php -d memory_limit=1G artisan test --parallel --processes=3 --compact`. `Tests\TestCase` menolak boot jika `DB_DATABASE` bukan `inbils_test` atau, hanya saat runner paralel Laravel aktif, `inbils_test_test_<TEST_TOKEN>` miliknya sendiri; tiap worker juga memakai tree storage sendiri `storage/app/{private,public}/testing_<TEST_TOKEN>`. Run serial (`php artisan test` tanpa `--parallel`) tetap memakai `inbils_test`.
 
 Dokumen acuan (baca semua sebelum mulai tugas):
 - `docs/architecture/overview.md` — layered backend, Inertia-as-Island,

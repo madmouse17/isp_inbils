@@ -6,7 +6,7 @@ use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Modules\Billing\Models\Invoice;
 use Modules\SPK\Models\WorkOrder;
@@ -17,7 +17,7 @@ use Tests\TestCase;
 
 class UserServerTableExportTest extends TestCase
 {
-    use DatabaseTransactions;
+    use RefreshDatabase;
 
     private User $admin;
 

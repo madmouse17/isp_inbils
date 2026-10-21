@@ -26,6 +26,7 @@
         "tightenco/ziggy": "^2.0"
     },
     "require-dev": {
+        "brianium/paratest": "^7.8",
         "dedoc/scramble": "^0.13",
         "fakerphp/faker": "^1.23",
         "larastan/larastan": "^3.0",

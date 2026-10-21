@@ -4,6 +4,13 @@ Semua perubahan notable di project inbils. Format [Keep a Changelog](https://kee
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/) (v0.x.x
 selama development, v1.0.0 saat release).
 
+### Changed - Parallel PHPUnit (2026-10-21)
+
+- `php artisan test --parallel` now runs the full suite: 5409 tests in about 33 min with 3 processes and 28 min with 4 (serial: 82 min). `brianium/paratest` v7.8.5 is a dev dependency; `composer audit` reports no advisory. Each worker uses its own schema `inbils_test_test_<1..4>` (Laravel's `{database}_test_{token}`, created on first use, reused, never dropped) and its own storage tree `storage/app/{private,public}/testing_<token>`; race-test child processes join the schema and tree of the test that starts them. Serial runs are unchanged and still use `inbils_test`.
+- `Tests\TestCase` accepts `inbils_test`, or `inbils_test_test_<own TEST_TOKEN>` only while Laravel's parallel runner is active. New tests: `ParallelTestDatabaseTest`, extra cases in `PhpUnitTopologyTest` and `StorageRootIsolationTest`. Ordering fixes in `UserServerTableExportTest`, `HomeFeedCacheCommitTest`, `AuditLogTenantIsolationTest`, `TenantSafeWriteReferencesTest` and `StockServiceTest`.
+- One MySQL grant: ``GRANT ALL PRIVILEGES ON `inbils\_test\_test\_%`.* TO 'inbils'@'%'`` (in `docker/mysql/sail/10-create-test-database.sh`; an existing `sail-mysql` volume needs it added once as root). `AGENTS.md` (Test Database Rule) names this as the only exception to the single `inbils_test` schema; `--drop-databases` and `--recreate-databases` stay forbidden.
+- Deploy: no migration, no production change (dev dependency only). Standard command and timings: `docs/operations/DOCKER.md`.
+
 ### Changed - Inbils logo, animated app splash and operator guide (2026-10-21)
 
 - **Logo.** The owner's "inbils" wordmark replaces the signal glyph and the text wordmark on the web sign-in, operator sign-in, setup and error pages (`Components/ui/Wordmark.tsx`, now an image; `BrandMark.tsx` removed) and on the sign-in screens of both apps (`InbilsLogo` in `inbils_core`). The transparent matte was cut from the JPEG master, which carried a painted checkerboard; the master is `customer/assets/branding/inbils_logo_master.png` in the mobile repo. The square mark is the orbit dot of the "i": it is the favicon, the apple-touch-icon, and the fallback tile for a company without a logo (web sidebar and both apps), replacing the initials. An uploaded company logo still wins.
