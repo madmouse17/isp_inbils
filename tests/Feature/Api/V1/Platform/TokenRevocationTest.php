@@ -87,7 +87,7 @@ class TokenRevocationTest extends TestCase
             'email' => $this->user->email,
             'password' => self::NEW_PASSWORD,
             'is_active' => true,
-            'roles' => ['customer'],
+            'roles' => [$this->companyRoles($this->company)['customer']->name],
         ])->assertSessionHasNoErrors()->assertRedirect(route('admin.users.index'));
 
         $this->assertRevoked();
@@ -100,7 +100,7 @@ class TokenRevocationTest extends TestCase
             'name' => $this->user->name,
             'email' => $this->user->email,
             'is_active' => false,
-            'roles' => ['customer'],
+            'roles' => [$this->companyRoles($this->company)['customer']->name],
         ])->assertSessionHasNoErrors();
 
         $this->assertFalse($this->user->fresh()->is_active);

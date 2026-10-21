@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\User;
+use App\Services\Core\CompanyService;
 use App\Services\WhatsApp\PhoneNumber;
 use Database\Seeders\DemoDataSeeder;
 use Database\Seeders\DemoUserSeeder;
@@ -95,6 +96,25 @@ class DemoDataSeederTest extends TestCase
         $this->seed(DemoDataSeeder::class);
 
         $this->assertSame($before, $this->rowCounts(), 'A second run must not add rows.');
+    }
+
+    public function test_people_created_by_the_demo_story_hold_company_roles(): void
+    {
+        $this->seed(DemoDataSeeder::class);
+
+        $expected = [
+            'agus.setiawan@demo.inbils.test' => 'technician',
+            'dewi.anggraini@demo.inbils.test' => 'staff',
+        ];
+
+        foreach ($expected as $email => $role) {
+            $user = User::query()->where('email', $email)->firstOrFail();
+
+            $this->assertSame([$role], CompanyService::runAs(
+                $this->companyId,
+                fn () => $user->fresh()->roles()->pluck('template_key')->all(),
+            ));
+        }
     }
 
     public function test_it_tops_up_a_company_seeded_before_the_network_parts_existed(): void

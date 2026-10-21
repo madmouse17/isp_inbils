@@ -4,6 +4,7 @@ namespace Tests\Traits;
 
 use App\Models\Core\Company;
 use App\Models\Core\ServiceSubscription;
+use App\Models\Permission;
 use App\Models\User;
 use Illuminate\Support\Str;
 use Modules\NetworkAsset\Jobs\ApplyNetworkAccountJob;
@@ -12,8 +13,6 @@ use Modules\NetworkAsset\Models\NetworkAccount;
 use Modules\Service\Database\Factories\ServicePackageFactory;
 use Modules\Service\Database\Factories\SpeedProfileFactory;
 use Modules\Service\Models\ServicePackage;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 
 /**
  * NAS clients, packages with a RADIUS profile name and network accounts, built for one explicit company.
@@ -72,25 +71,26 @@ trait BuildsNetworkFixtures
         return ['network_asset.nas.view', 'network_asset.nas.manage', 'network_asset.account.view', 'network_asset.account.manage', 'network_asset.account.reveal'];
     }
 
-    /** The seeded admin role does not hold the new permissions yet (RolePermissionSeeder is the lead's): grant them for the test. */
+    /**
+     * The Admin template holds every guarded permission, so a company's Admin copy already has the network ones; this
+     * only makes sure the rows exist. Kept for the callers that still ask: the call can go.
+     */
     protected function grantNetworkPermissionsToAdminRole(): void
     {
         foreach ($this->networkPermissions() as $permission) {
             Permission::findOrCreate($permission, 'web');
         }
-
-        Role::findByName('admin', 'web')->givePermissionTo($this->networkPermissions());
     }
 
-    /** A user of the company holding exactly these permissions and no role. */
+    /** A user of the company holding exactly these permissions directly and no role, apart from web access. */
     protected function userWithPermissions(Company $company, string ...$permissions): User
     {
-        foreach ($permissions as $permission) {
+        foreach ([...$permissions, 'app.web'] as $permission) {
             Permission::findOrCreate($permission, 'web');
         }
 
         $user = User::factory()->create(['company_id' => $company->id, 'is_active' => true, 'email_verified_at' => now()]);
-        $user->givePermissionTo($permissions);
+        $user->givePermissionTo([...$permissions, 'app.web']);
 
         return $user;
     }

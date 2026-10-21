@@ -23,7 +23,7 @@ class IpAssetWriteThroughTest extends TestCase
         parent::setUp();
 
         $this->withoutVite();
-        $this->bootIpamOdnWorld(withSeededRoles: true);
+        $this->bootIpamOdnWorld();
     }
 
     /** @param array<string, mixed> $extra */

@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Tenant;
 
+use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\Core\Vehicle;
+use App\Models\User;
 use App\Services\Core\CompanyMembershipService;
 use App\Services\Core\CompanyService;
 use App\Support\PublicId;
@@ -25,13 +27,25 @@ class CompanySwitchTest extends TestCase
         $this->buildGroup();
     }
 
+    /** A user homed in $home and a member of every company in $others, holding the template role $role in each of them. */
+    private function member(Company $home, string $role, Company ...$others): User
+    {
+        $user = $this->groupUser($home, $role, ...$others);
+
+        foreach ($others as $company) {
+            $this->grantRole($user, $role, $company);
+        }
+
+        return $user;
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Two-company isolation after switching
     // ---------------------------------------------------------------------------------------------
 
     public function test_switching_moves_every_page_to_the_chosen_company_and_back(): void
     {
-        $user = $this->groupUser($this->head, 'admin', $this->subA);
+        $user = $this->member($this->head, 'admin', $this->subA);
         $headCustomer = Customer::factory()->create(['company_id' => $this->head->id, 'name' => 'Head Customer']);
         $subCustomer = Customer::factory()->create(['company_id' => $this->subA->id, 'name' => 'Sub A Customer']);
 
@@ -67,7 +81,7 @@ class CompanySwitchTest extends TestCase
 
     public function test_rows_written_after_switching_belong_to_the_switched_company(): void
     {
-        $user = $this->groupUser($this->head, 'admin', $this->subA);
+        $user = $this->member($this->head, 'admin', $this->subA);
 
         $this->actingAs($user)->post(route('admin.company.switch'), ['company_id' => $this->subA->public_id]);
         $this->post(route('admin.vehicles.store'), ['plate_number' => 'B 9999 SUB'])->assertRedirect();
@@ -170,7 +184,9 @@ class CompanySwitchTest extends TestCase
 
     public function test_a_membership_revoked_mid_session_falls_back_to_the_home_company(): void
     {
-        $user = $this->groupUser($this->head, 'admin', $this->subA);
+        $user = $this->member($this->head, 'admin', $this->subA);
+        // Taking the membership away must leave Sub A an administrator of its own.
+        $this->groupUser($this->subA);
         $this->actingAs($user)->post(route('admin.company.switch'), ['company_id' => $this->subA->public_id]);
         $this->assertSame($this->subA->id, session(CompanyService::SESSION_KEY));
 
@@ -211,7 +227,7 @@ class CompanySwitchTest extends TestCase
 
     public function test_shared_props_describe_the_active_company_and_the_memberships(): void
     {
-        $user = $this->groupUser($this->head, 'admin', $this->subA);
+        $user = $this->member($this->head, 'admin', $this->subA);
 
         $this->actingAs($user)->get(route('admin.dashboard'))
             ->assertOk()

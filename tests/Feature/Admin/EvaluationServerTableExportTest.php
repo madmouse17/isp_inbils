@@ -9,8 +9,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Modules\SPK\Database\Factories\WorkOrderFactory;
 use Modules\Ticketing\Models\Ticket;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\BuildsCompanyGroup;
 use Tests\Traits\ParsesCsvDownloads;
@@ -140,9 +138,7 @@ class EvaluationServerTableExportTest extends TestCase
 
     public function test_export_forbidden_without_permission(): void
     {
-        $role = Role::firstOrCreate(['name' => 'evaluation-view-only', 'guard_name' => 'web']);
-        Permission::findOrCreate('evaluation.view', 'web');
-        $role->syncPermissions(['evaluation.view']);
+        $this->companyRole($this->head, 'evaluation-view-only', ['evaluation.view', 'app.web']);
         $user = $this->groupUser($this->head, 'evaluation-view-only');
 
         $this->actingAs($user)

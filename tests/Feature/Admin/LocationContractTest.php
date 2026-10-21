@@ -14,8 +14,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
@@ -54,7 +52,7 @@ class LocationContractTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     private function location(array $overrides = []): Location
@@ -67,20 +65,11 @@ class LocationContractTest extends TestCase
 
     private function userWithPermissions(array $permissions): User
     {
-        $role = Role::firstOrCreate(['name' => 'loc-custom-'.uniqid(), 'guard_name' => 'web']);
-        foreach ($permissions as $permission) {
-            Permission::findOrCreate($permission, 'web');
-        }
-        $role->syncPermissions($permissions);
-
-        $user = User::factory()->create([
+        return $this->grantPermissions(User::factory()->create([
             'company_id' => $this->company->id,
             'email_verified_at' => now(),
             'is_active' => true,
-        ]);
-        $user->assignRole($role);
-
-        return $user;
+        ]), [...$permissions, 'app.web']);
     }
 
     // ------------------------------------------------------------------
@@ -611,7 +600,8 @@ class LocationContractTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $userNoCompany->assignRole('admin');
+        $this->grantRole($userNoCompany, 'admin', $this->company);
+        CompanyService::useCompanyForTests($this->company->id);
 
         $this->assertTrue($policy->view($userWithCompany, $locSame));
         $this->assertFalse($policy->view($userWithCompany, $locOther));

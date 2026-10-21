@@ -41,7 +41,7 @@ class SettingsEditConflictTest extends TestCase
             'updated_at' => now()->subMinute(),
         ]);
         $this->admin = User::factory()->create(['company_id' => $this->company->id, 'email_verified_at' => now(), 'is_active' => true]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     public function test_an_employee_save_from_an_older_copy_is_refused(): void

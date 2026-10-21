@@ -209,7 +209,7 @@ function seedFlowAuditWaveOneFixtures(): void
         );
         $creator->forceFill(['company_id' => $company->id])->save();
         $creator->syncRoles([]);
-        $creator->syncPermissions(['dashboard.view', 'billing.view', 'billing.create']);
+        $creator->syncPermissions(['app.web', 'dashboard.view', 'billing.view', 'billing.create']);
         DB::table('company_user')->updateOrInsert(
             ['company_id' => $company->id, 'user_id' => $creator->id],
             ['is_default' => true, 'created_at' => $now, 'updated_at' => $now],

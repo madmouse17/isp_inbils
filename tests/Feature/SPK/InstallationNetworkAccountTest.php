@@ -69,7 +69,7 @@ class InstallationNetworkAccountTest extends TestCase
     private function technician(): User
     {
         $user = User::factory()->create(['company_id' => $this->company->id, 'is_active' => true]);
-        $user->assignRole('technician');
+        $this->grantRole($user, 'technician');
         EmployeeProfile::factory()->create(['company_id' => $this->company->id, 'user_id' => $user->id, 'status' => 'active']);
 
         return $user;

@@ -243,7 +243,7 @@ class TicketSnapshotTest extends TestCase
         $ticket = $this->ticket('closed');
         $ticket->delete();
         $foreignAdmin = User::factory()->create(['company_id' => Company::factory()->create(['is_active' => true])->id]);
-        $foreignAdmin->assignRole('admin');
+        $this->grantRole($foreignAdmin, 'admin');
 
         $this->actingAs($this->manager)->post(route('admin.tickets.restore', $ticket->public_id))->assertForbidden();
         $this->actingAs($foreignAdmin)->post(route('admin.tickets.restore', $ticket->public_id))->assertNotFound();
@@ -308,7 +308,7 @@ class TicketSnapshotTest extends TestCase
     private function staff(string $role): User
     {
         $user = User::factory()->create(['company_id' => $this->admin->company_id]);
-        $user->assignRole($role);
+        $this->grantRole($user, $role);
 
         return $user;
     }

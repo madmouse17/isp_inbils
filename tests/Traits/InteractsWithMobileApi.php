@@ -10,7 +10,6 @@ use App\Services\Core\ApiTokenService;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
-use Spatie\Permission\Models\Role;
 
 /**
  * Users for each mobile app, real bearer tokens, and requests that cannot inherit the previous request's login:
@@ -18,12 +17,10 @@ use Spatie\Permission\Models\Role;
  */
 trait InteractsWithMobileApi
 {
+    /** Roles and permissions come with the migrations and a company copies its templates on first use; kept for callers that still ask. */
     protected function seedApiRoles(): void
     {
-        if (! Role::query()->where('name', 'technician')->exists()) {
-            $this->seed(RolePermissionSeeder::class);
-            app()['cache']->forget('spatie.permission.cache');
-        }
+        $this->seed(RolePermissionSeeder::class);
     }
 
     protected function apiCompany(): Company
@@ -39,11 +36,10 @@ trait InteractsWithMobileApi
      */
     protected function customerLogin(?Company $company = null, array $attributes = []): array
     {
-        $this->seedApiRoles();
         $company ??= $this->apiCompany();
 
         $user = User::factory()->create(['company_id' => $company->id, ...$attributes]);
-        $user->assignRole('customer');
+        $this->grantRole($user, 'customer', $company);
         $customer = Customer::factory()->create(['company_id' => $company->id, 'user_id' => $user->id]);
 
         return [$user, $customer];
@@ -56,11 +52,10 @@ trait InteractsWithMobileApi
      */
     protected function technicianLogin(?Company $company = null, array $attributes = []): User
     {
-        $this->seedApiRoles();
         $company ??= $this->apiCompany();
 
         $user = User::factory()->create(['company_id' => $company->id, ...$attributes]);
-        $user->assignRole('technician');
+        $this->grantRole($user, 'technician', $company);
         EmployeeProfile::factory()->create(['company_id' => $company->id, 'user_id' => $user->id, 'status' => 'active']);
 
         return $user;

@@ -6,6 +6,7 @@ use App\Http\Middleware\Api\EnforceIdempotency;
 use App\Http\Middleware\EnsureCustomerAccess;
 use App\Models\Core\EmployeeProfile;
 use App\Models\User;
+use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -66,7 +67,7 @@ class ApiGuardsTest extends TestCase
     public function test_a_user_who_is_both_customer_and_technician_holds_one_token_per_app(): void
     {
         [$user] = $this->customerLogin();
-        $user->assignRole('technician');
+        $this->grantRole($user, 'technician');
         EmployeeProfile::factory()->create(['company_id' => $user->company_id, 'user_id' => $user->id, 'status' => 'active']);
 
         $this->api('GET', '_probe/customer', token: $this->mint($user, 'customer'))->assertOk();
@@ -125,7 +126,7 @@ class ApiGuardsTest extends TestCase
         $token = $this->mint($technician, 'technician');
         $this->api('GET', 'me', token: $token)->assertOk();
 
-        $technician->removeRole('technician');
+        $this->dropRole($technician, 'technician');
 
         $this->api('GET', 'me', token: $token)->assertForbidden()->assertJsonPath('code', 'app_not_allowed');
     }
@@ -197,7 +198,7 @@ class ApiGuardsTest extends TestCase
     private function customerWithoutRole(): User
     {
         [$user] = $this->customerLogin();
-        $user->removeRole('customer');
+        $this->dropRole($user, 'customer');
 
         return $user;
     }
@@ -215,6 +216,12 @@ class ApiGuardsTest extends TestCase
         [$user] = $this->customerLogin(attributes: ['email_verified_at' => null]);
 
         return $user;
+    }
+
+    /** Takes the company's copy of a template away from the user, in the company he acts in. */
+    private function dropRole(User $user, string $templateKey): void
+    {
+        CompanyService::runAs((int) $user->company_id, fn () => $user->removeRole($this->companyRoles((int) $user->company_id)[$templateKey]));
     }
 
     private function customerWithoutCompany(): User

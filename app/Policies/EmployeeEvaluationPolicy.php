@@ -15,11 +15,16 @@ class EmployeeEvaluationPolicy
 
     public function view(User $user, EmployeeEvaluation $eval): bool|Response
     {
-        if ($user->hasRole('technician')) {
+        if ($user->can('evaluation.view')) {
+            return true;
+        }
+
+        // Own evaluations only: someone else's answers like one that does not exist.
+        if ($user->can('evaluation.view.own')) {
             return $eval->employee_id === $user->id ?: Response::denyAsNotFound();
         }
 
-        return $user->can('evaluation.view');
+        return false;
     }
 
     public function create(User $user): bool

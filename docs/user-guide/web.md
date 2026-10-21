@@ -8,9 +8,9 @@ Panduan ini untuk pengguna web Inbils di kantor: admin, manajer, dan staf. Ketig
 - Manajer menyetujui SPK dan permintaan barang, memantau laporan, mengelola pelanggan, layanan, jaringan, dan tagihan, serta boleh membatalkan tagihan dan pembayaran.
 - Staf menjalankan pekerjaan harian: mengubah data pelanggan, membuat SPK, tiket, dan tagihan, mencatat pembayaran, serta memproses stok masuk dan keluar di gudang.
 
-Pembagian izin yang rinci ada di bagian 10.1. Operator platform dapat membuat peran lain (bagian 8.6), jadi daftar menu per orang di perusahaan Anda bisa berbeda dari uraian di atas. Operator platform adalah tim Inbils yang mengelola seluruh instalasi melalui `/platform`, bukan admin perusahaan. Pekerjaan mereka dibahas terpisah dalam **Panduan Panel Operator Inbils** (`platform.md` atau `pdf/platform.pdf`).
+Pembagian izin yang rinci ada di bagian 10.1. Peran dimiliki perusahaan Anda: admin perusahaan dapat membuat peran lain dan mengubah isi peran (bagian 8.6), jadi daftar menu per orang di perusahaan Anda bisa berbeda dari uraian di atas. Operator platform adalah tim Inbils yang mengelola seluruh instalasi melalui `/platform`, bukan admin perusahaan. Pekerjaan mereka dibahas terpisah dalam **Panduan Panel Operator Inbils** (`platform.md` atau `pdf/platform.pdf`).
 
-Teknisi dan pelanggan tidak memakai web. Akun yang hanya berperan teknisi atau pelanggan dialihkan ke halaman **Gunakan aplikasi Inbils**, yang menyebut aplikasi Android yang harus dipakai: Inbils Teknisi atau Inbils Pelanggan. Halaman itu punya tombol **Buka Play Store** (tampil bila tautan Play Store sudah diatur), **Kelola akun & 2FA**, dan **Keluar**. Pekerjaan teknisi (memulai dan menyerahkan SPK, mengerjakan tiket, mengembalikan material) dan pekerjaan pelanggan (melihat dan membayar tagihan, membuat tiket) dilakukan di aplikasi masing-masing, dengan panduan terpisah: Panduan Aplikasi Teknisi dan Panduan Aplikasi Pelanggan. Di web, mereka hanya membuka halaman masuk, lupa kata sandi, profil (termasuk 2FA), dan halaman hasil pembayaran. Di halaman profil, tautan **Kembali ke halaman aplikasi** membawa mereka kembali. Akun yang juga memegang peran lain, misalnya admin, manajer, atau staf, tidak dialihkan.
+Teknisi dan pelanggan tidak memakai web. Akun yang tidak memegang izin akses web (`app.web`) dialihkan ke halaman **Gunakan aplikasi Inbils**, yang menyebut aplikasi Android yang harus dipakai: Inbils Teknisi atau Inbils Pelanggan. Halaman itu punya tombol **Buka Play Store** (tampil bila tautan Play Store sudah diatur), **Kelola akun & 2FA**, dan **Keluar**. Pekerjaan teknisi (memulai dan menyerahkan SPK, mengerjakan tiket, mengembalikan material) dan pekerjaan pelanggan (melihat dan membayar tagihan, membuat tiket) dilakukan di aplikasi masing-masing, dengan panduan terpisah: Panduan Aplikasi Teknisi dan Panduan Aplikasi Pelanggan. Di web, mereka hanya membuka halaman masuk, lupa kata sandi, profil (termasuk 2FA), dan halaman hasil pembayaran. Di halaman profil, tautan **Kembali ke halaman aplikasi** membawa mereka kembali. Akun yang juga memegang peran lain dengan izin akses web, misalnya Admin, Manajer, atau Staf, tidak dialihkan. Akun yang tidak memegang peran apa pun di perusahaan, atau yang perannya tidak memuat akses teknisi maupun pelanggan, membuka halaman **Akun ini belum punya akses aplikasi web** dengan keterangan "Minta admin perusahaan Anda memberi peran yang memuat akses web."
 
 ### Cara membaca panduan
 
@@ -19,7 +19,7 @@ Teknisi dan pelanggan tidak memakai web. Akun yang hanya berperan teknisi atau p
 - Setiap menu dimulai dengan tujuan dan peran yang dapat memakainya, disusul langkah bernomor dan daftar kesalahan umum.
 - Bab 9 menyusun alur kerja yang melewati beberapa menu. Bab 10 memuat tabel peran dan istilah.
 
-Bila menu yang disebut panduan tidak ada di sidebar Anda, peran Anda belum memiliki izinnya. Minta operator platform menambahkannya ke peran Anda, atau berikan peran lain di menu Pengguna (bagian 8.5 dan 8.6). Bila Anda membuka halaman yang tidak diizinkan, Inbils menampilkan halaman **Akses ditolak** dengan pesan "Anda tidak punya izin untuk membuka halaman ini. Hubungi administrator jika Anda memerlukan aksesnya." Klik **Ke dasbor** untuk kembali.
+Bila menu yang disebut panduan tidak ada di sidebar Anda, peran Anda belum memiliki izinnya. Minta admin perusahaan menambahkannya ke peran Anda di menu Peran, atau memberi Anda peran lain di menu Pengguna (bagian 8.5 dan 8.6). Bila Anda membuka halaman yang tidak diizinkan, Inbils menampilkan halaman **Akses ditolak** dengan pesan "Anda tidak punya izin untuk membuka halaman ini. Hubungi administrator jika Anda memerlukan aksesnya." Klik **Ke dasbor** untuk kembali.
 
 ## 1.2 Masuk
 
@@ -39,7 +39,7 @@ Setelah Anda klik **Masuk**, ada beberapa kemungkinan:
 
 - Berhasil: Inbils membuka halaman yang Anda tuju sebelumnya, atau **Dasbor** (bab 2).
 - Akun memakai 2FA: Inbils membuka halaman **Autentikasi dua langkah** (bagian 1.4).
-- Akun hanya berperan teknisi atau pelanggan: Inbils membuka halaman **Gunakan aplikasi Inbils** (bagian 1.1).
+- Akun tanpa izin akses web: Inbils membuka halaman **Gunakan aplikasi Inbils** untuk teknisi dan pelanggan, atau **Akun ini belum punya akses aplikasi web** untuk akun tanpa akses sama sekali (bagian 1.1).
 - Instalasi baru tanpa perusahaan: Inbils membuka halaman **Pengaturan awal** (uraiannya di bawah). Wizard tidak muncul lagi setelah perusahaan ada.
 
 Untuk keluar, klik nama Anda di kanan atas, lalu **Keluar**.
@@ -925,7 +925,7 @@ Layar ini tidak punya tombol untuk menambah atau menghapus kategori, dan kode ka
 - **Tutup** tidak tampil: tiket belum **Diselesaikan**, Anda tidak memegang `ticket.close`, atau Anda petugas tiket itu. Server juga menolak penutupan oleh petugas tiket itu dengan halaman **Akses ditolak**. Minta pemegang `ticket.close` lain menutupnya.
 - "catatan penyelesaian wajib diisi." atau "catatan penyelesaian tidak boleh lebih dari 1000 karakter." di dialog **Selesaikan tiket**: isi atau ringkas catatannya.
 - **Buat SPK** tidak tampil atau ditolak: tiket harus **Ditugaskan** atau **Dikerjakan**, belum punya catatan penyelesaian, dan belum pernah melahirkan SPK. Server menolak dengan "SPK sudah dibuat dari tiket ini." bila SPK sudah ada. Anda juga butuh `ticket.spawn_spk`.
-- **Tambah komentar** atau unggah lampiran ditolak untuk manajer bawaan (halaman **Akses ditolak**): peran itu tidak memegang `ticket.comment.create` dan `ticket.attachment.upload`. Minta operator platform menambahkannya ke peran (bagian 8.6), atau minta admin memberi Anda peran yang sudah memegangnya.
+- **Tambah komentar** atau unggah lampiran ditolak untuk Manajer bawaan (halaman **Akses ditolak**): peran itu tidak memegang `ticket.comment.create` dan `ticket.attachment.upload`. Minta admin perusahaan menambahkannya ke peran di menu Peran (bagian 8.6), atau memberi Anda peran yang sudah memegangnya.
 - Komentar kosong atau lebih dari 2000 karakter menampilkan "isi pesan wajib diisi." atau "isi pesan tidak boleh lebih dari 2000 karakter." di bawah **Komentar**.
 - "judul wajib diisi." di **Judul** atau "kategori wajib diisi." di **Kategori** pada form buat: isi keduanya.
 - Pesan "Langganan bukan milik pelanggan yang dipilih." di **Langganan**, atau "Aset jaringan bukan milik pelanggan yang dipilih." dan "Aset jaringan bukan milik langganan yang dipilih." di **Aset jaringan**: pilihan tidak cocok satu sama lain. Daftar pilihan sudah dipersempit menurut pelanggan dan langganan yang Anda pilih, jadi pesan ini jarang muncul. Pilih langganan dan aset milik pelanggan yang sama.
@@ -2397,7 +2397,7 @@ Menu tampil di sidebar bagi pemegang `inventory.request.view.own` atau `inventor
 
 Teknisi membuat permintaan di aplikasi teknisi, dan permintaan itu langsung berstatus **Menunggu persetujuan** tanpa tahap draf.
 
-Pemisahan tugas berlaku untuk semua pengguna, termasuk admin. Pemohon tidak boleh menyetujui, menolak, atau menyerahkan permintaannya sendiri, dan penyetuju tidak boleh menyiapkan atau menyerahkan barang yang ia setujui. Tombol langkah yang dilarang itu tidak tampil. Peran non-admin juga tidak boleh memegang izin setujui atau tolak bersama izin siapkan, serahkan, terima, keluarkan, atau pindahkan stok. Bila Anda menyimpan peran dengan pasangan izin seperti itu (bagian 8.6), sistem menolak dengan pesan seperti `Pemisahan tugas (persetujuan permintaan barang vs pelaksanaan gudang): inventory.request.approve tidak boleh digabung dengan inventory.request.prepare.`
+Pemisahan tugas berlaku untuk semua pengguna, termasuk admin. Pemohon tidak boleh menyetujui, menolak, atau menyerahkan permintaannya sendiri, dan penyetuju tidak boleh menyiapkan atau menyerahkan barang yang ia setujui. Tombol langkah yang dilarang itu tidak tampil. Peran yang tidak memuat `roles.manage` juga tidak boleh memegang izin setujui atau tolak bersama izin siapkan, serahkan, terima, keluarkan, atau pindahkan stok. Bila Anda menyimpan peran dengan pasangan izin seperti itu (bagian 8.6), sistem menolak dengan pesan seperti `Pemisahan tugas (persetujuan permintaan barang vs pelaksanaan gudang): inventory.request.approve tidak boleh digabung dengan inventory.request.prepare.`
 
 ### Membuka dan membaca daftar
 
@@ -2624,7 +2624,7 @@ Barang yang dihapus permanen tidak bisa dipulihkan. SKU barang nonaktif atau yan
 - Isian **Satuan** tidak bisa diketik: satuan mengikuti kategori. Pilih kategori lain, atau ubah satuan kategorinya (bagian 6.3).
 - Barang tidak ada di pilihan **Barang** pada Stok: saklar **Aktif** barang mati.
 - **Hapus permanen** tidak ada di menu barang: barang sudah dipakai data lain (mutasi stok, permintaan barang, retur material, penyesuaian stok, item SPK, aset jaringan, atau item tagihan) dan angkanya tampil di dialog **Nonaktifkan**. Pakai **Nonaktifkan**. Barang yang belum pernah dipakai tetapi masih punya stok di satu lokasi menolak **Hapus permanen** dengan "Barang masih punya stok." Cek kartu **Stok per Lokasi** di rincian.
-- Staf atau manajer memilih **Hapus** dan muncul halaman **Akses ditolak** (galat 403): pada peran bawaan, izin `inventory.delete` hanya dipegang admin. Minta operator platform menambahkannya ke peran (bagian 8.6), atau minta admin memberi Anda peran yang memegangnya (bagian 8.7).
+- Staf atau manajer memilih **Hapus** dan muncul halaman **Akses ditolak** (galat 403): pada peran bawaan, izin `inventory.delete` hanya dipegang admin. Minta admin perusahaan menambahkannya ke peran di menu Peran (bagian 8.6), atau memberi Anda peran yang memegangnya (bagian 8.7).
 - Tombol **Ekspor** tidak ada: staf tidak memegang `inventory.export`.
 
 ## 6.3 Kategori
@@ -2714,7 +2714,7 @@ Stok menunjukkan jumlah setiap barang di setiap lokasi. Dari sini Anda mencatat 
 
 Peran yang dapat memakai: admin, manajer, staf. Izin: `inventory.view` membuka daftar, `inventory.export` menampilkan **Ekspor**, `inventory.stock.receive` menampilkan **Terima Barang**, `inventory.stock.adjust.request` menampilkan **Ajukan Penyesuaian**, `inventory.stock.adjust.approve` menampilkan **Setujui** dan **Tolak**. Dengan peran bawaan, admin memegang semuanya, staf memegang `inventory.view`, `inventory.stock.receive` dan `inventory.stock.adjust.request`, dan manajer memegang `inventory.view`, `inventory.export` dan `inventory.stock.adjust.approve`.
 
-Peran non-admin tidak bisa memegang izin menyetujui bersama izin mengajukan, menerima, mengeluarkan atau memindahkan stok (pemisahan tugas). Bila Anda menyimpan peran dengan pasangan itu (bagian 8.6), sistem menolak dengan pesan seperti `Pemisahan tugas (persetujuan penyesuaian stok vs operasi stok): inventory.stock.adjust.approve tidak boleh digabung dengan inventory.stock.adjust.request.` Pemohon juga tidak bisa memutuskan permintaannya sendiri, termasuk admin.
+Peran yang tidak memuat `roles.manage` tidak bisa memegang izin menyetujui bersama izin mengajukan, menerima, mengeluarkan atau memindahkan stok (pemisahan tugas). Bila Anda menyimpan peran dengan pasangan itu (bagian 8.6), sistem menolak dengan pesan seperti `Pemisahan tugas (persetujuan penyesuaian stok vs operasi stok): inventory.stock.adjust.approve tidak boleh digabung dengan inventory.stock.adjust.request.` Pemohon juga tidak bisa memutuskan permintaannya sendiri, termasuk admin.
 
 ### Membuka dan membaca daftar
 
@@ -2974,7 +2974,7 @@ Bila permintaan memakai **Rujukan (opsional)** **SPK**, berkasnya terhubung ke S
 
 ### Kesalahan umum
 
-- Tab **Antrean Pengembalian** tampil, tetapi daftar menampilkan kotak galat merah dengan tombol **Coba lagi**. Peran Anda memegang izin lapor, terima, atau selesaikan tanpa `inventory.return.view.all` atau `inventory.return.view.own`. Minta operator platform menambahkan izin lihat ke peran (bagian 8.6) (Peran).
+- Tab **Antrean Pengembalian** tampil, tetapi daftar menampilkan kotak galat merah dengan tombol **Coba lagi**. Peran Anda memegang izin lapor, terima, atau selesaikan tanpa `inventory.return.view.all` atau `inventory.return.view.own`. Minta admin perusahaan menambahkan izin lihat ke peran di menu Peran (bagian 8.6).
 - Tombol **Terima Pengembalian Fisik** dan **Tolak Fisik Barang** tidak muncul. Status berkas bukan **Menunggu penerimaan gudang**, Anda tidak memegang `inventory.return.receive`, atau Anda sendiri pemilik berkas. Minta pengguna lain menerimanya. Bila halaman sudah lama terbuka, server tetap menolak dengan pesan seperti `Maker-checker: teknisi pemilik barang tidak boleh menerima fisiknya sendiri di gudang.`
 - Tombol **Selesaikan Selisih** tidak muncul. Status berkas bukan **Selisih perlu penyelesaian**, Anda tidak memegang `inventory.return.resolve`, Anda pemilik berkas, atau Anda yang menerima fisiknya. Minta pengguna lain, misalnya manajer. Server menolak dengan `Teknisi tidak berhak menyelesaikan selisih barangnya sendiri.` atau `Penerima fisik gudang tidak boleh menyelesaikan selisih yang ia terima sendiri.`
 - Pesan `Jumlah tidak cocok pada baris <nomor>: diserahkan (...) harus sama dengan ...` muncul di kotak merah dialog bila angka satu barang tidak cocok dengan jumlah **Dikeluarkan**. Ubah angka di dialog sampai totalnya sama dengan **Dikeluarkan**.
@@ -4073,22 +4073,23 @@ Berkas bernama `vehicles-export-<tanggal>-<jam>.csv` atau `.pdf` dan berisi kolo
 
 - Pesan "nomor polisi sudah digunakan." di bawah **Nomor polisi**: nomor itu sudah dipakai kendaraan lain, termasuk kendaraan yang nonaktif atau sudah dihapus (**Dihapus**). Nomor tetap terpesan, jadi untuk kendaraan yang berhenti dipakai pilih **Nonaktifkan**, bukan hapus, atau **Pulihkan** kendaraan lama dari filter **Status** **Dihapus**.
 - Penyimpanan gagal dengan toast "Data gagal disimpan. Periksa input.": baca pesan merah di bawah isian. **Nomor polisi** menulis "nomor polisi wajib diisi." bila kosong, dan **Jenis**, **Merek**, **Model** menolak teks yang melewati batas panjangnya.
-- Tombol **Buat Kendaraan**, **Ubah** atau **Hapus** tidak tampil, atau server menolaknya: peran Anda belum memegang `vehicle.manage`. Minta operator platform menambahkannya ke peran (bagian 8.6), atau minta admin memberi Anda peran yang memegangnya (bagian 8.7).
+- Tombol **Buat Kendaraan**, **Ubah** atau **Hapus** tidak tampil, atau server menolaknya: peran Anda belum memegang `vehicle.manage`. Minta admin perusahaan menambahkannya ke peran di menu Peran (bagian 8.6), atau memberi Anda peran yang memegangnya (bagian 8.7).
 
 ## 8.5 Pengguna
 
 Menu ini mengelola akun login karyawan back-office: nama, e-mail, kata sandi awal, status aktif dan peran. Buka saat ada orang baru, saat peran berubah, saat akun perlu dinonaktifkan, atau saat seseorang kehilangan perangkat autentikasi dua langkah.
 
-Peran yang dapat memakai: admin. Izin: `users.manage` (daftar, tambah, ubah, hapus, ekspor) dan `users.two_factor.reset` (atur ulang 2FA, hanya admin). Daftar hanya memuat pengguna yang perusahaan asalnya adalah perusahaan yang sedang aktif.
+Peran yang dapat memakai: pemegang `users.manage` (daftar, tambah, ubah, hapus, ekspor, dan atur peran), yaitu Admin pada templat bawaan, dan `users.two_factor.reset` (atur ulang 2FA, hanya Admin). Daftar memuat anggota perusahaan yang sedang aktif: pengguna yang berasal dari perusahaan ini, dan pengguna dari perusahaan lain yang diberi keanggotaan di sini.
 
 ### Membuka dan membaca daftar
 
 1. Di sidebar, buka grup **Administrasi**, lalu klik **Pengguna**.
 2. Baca layar:
    - **Cari** (petunjuk "Nama atau email") mencari di nama dan e-mail. **Status** menyaring **Semua status**, **Aktif** atau **Nonaktif**.
-   - Kolom: **Nama** (tautan ke halaman detail) dan **Email** (keduanya bisa diurutkan), **Peran** (satu lencana per peran), **Status** (bisa diurutkan; lencana **Aktif** atau **Nonaktif**), **2FA** (lencana **Aktif** atau **Nonaktif**) dan **Aksi**.
-   - Kolom **Aksi** berisi tombol **Ubah** dan menu **Aksi lainnya** dengan **Lihat detail** dan **Hapus**.
-   - **Hapus** tidak muncul di baris akun Anda sendiri, di baris admin bila Anda bukan admin, dan di baris pengguna yang juga tergabung di perusahaan lain yang tidak Anda ikuti.
+   - Kolom: **Nama** (tautan ke halaman detail) dan **Email** (keduanya bisa diurutkan), **Peran** (satu lencana per peran pengguna di perusahaan ini; "Belum ada peran" bila kosong), **Status** (bisa diurutkan; lencana **Aktif** atau **Nonaktif**), **2FA** (lencana **Aktif** atau **Nonaktif**) dan **Aksi**.
+   - Kolom **Aksi** berisi tombol **Atur peran** (bila Anda boleh mengatur peran pengguna itu), tombol **Ubah**, dan menu **Aksi lainnya** dengan **Lihat detail** dan **Hapus**.
+   - Pengguna yang berasal dari perusahaan lain tampil dengan lencana **Anggota** di samping namanya dan tanpa tautan ke halaman detail. Login mereka diubah di perusahaan asal. Di sini Anda hanya mengatur peran mereka di perusahaan ini lewat **Atur peran**.
+   - **Hapus** tidak muncul di baris akun Anda sendiri, di baris pengguna yang memegang hak akses yang tidak Anda pegang, di baris anggota dari perusahaan lain, dan di baris pengguna yang juga tergabung di perusahaan lain yang tidak Anda ikuti.
    - **Ekspor** menawarkan **Ekspor CSV** dan **Ekspor PDF** dengan kolom Nama, Email, Peran dan Status (**Aktif** atau **Nonaktif**). Hasilnya mengikuti pencarian dan filter yang aktif, paling banyak 5000 baris (batas bawaan). Bila lebih, berkas CSV berakhir dengan baris "# Ekspor dipotong pada 5000 baris. Persempit filter untuk mengekspor sisa barisnya." dan PDF menandai pemotongan itu. Persempit filter bila itu terjadi.
    - Bila tidak ada baris, layar menampilkan "Belum ada pengguna", atau "Tidak ada pengguna yang cocok" dengan tombol **Reset filter** saat filter aktif.
 
@@ -4105,20 +4106,30 @@ Peran yang dapat memakai: admin. Izin: `users.manage` (daftar, tambah, ubah, hap
    - **Email**: wajib, e-mail yang valid, paling banyak 255 karakter, belum dipakai akun lain di sistem (perusahaan mana pun).
    - **Kata sandi**: wajib, paling sedikit 8 karakter (petunjuk "Minimal 8 karakter."). Ini kata sandi awal. Sistem tidak mengirim e-mail apa pun ke pengguna baru, jadi sampaikan sendiri kata sandi itu dan minta pengguna menggantinya di profilnya (bagian 1.7).
    - **Aktif**: saklar, bawaan hidup. Matikan bila akun baru belum boleh masuk. Nilainya tersimpan, jadi akun itu langsung berstatus **Nonaktif**.
-   - **Peran**: satu kotak centang per peran, berlabel nama peran (lima peran bawaan dan peran buatan sendiri). Boleh memilih lebih dari satu; baca "Aturan saat memberi peran" di bawah.
+   - **Peran**: satu kotak centang per peran perusahaan ini, berlabel nama peran. Boleh memilih lebih dari satu; baca "Aturan saat memberi peran" di bawah. Peran akun pelanggan tidak ditawarkan di sini. Kotak peran yang memuat hak akses yang tidak Anda pegang tidak bisa dicentang dan diberi keterangan "Peran ini memuat hak akses yang tidak Anda pegang". Bila perusahaan belum punya peran, layar menulis "Perusahaan ini belum punya peran yang bisa diberikan di sini." dengan tautan **Buat peran**, atau "Minta admin perusahaan membuat peran." bila Anda tidak boleh membuat peran.
 3. Klik **Buat**. Anda kembali ke daftar dan toast "Pengguna dibuat." muncul. **Batal** kembali ke daftar tanpa menyimpan.
 
-Akun baru berasal dari perusahaan yang sedang aktif dan e-mailnya langsung terverifikasi. Akun yang hanya berperan **technician** dan atau **customer** dialihkan di web ke halaman "Gunakan aplikasi Inbils"; peran lain yang ikut dicentang menghilangkan pengalihan itu. Login pelanggan dibuat otomatis saat pelanggan dibuat (bab 4), jadi jangan membuatnya di sini. Teknisi juga memerlukan profil karyawan aktif (bagian 8.3).
+Akun baru berasal dari perusahaan yang sedang aktif dan e-mailnya langsung terverifikasi. Akun yang hanya memegang peran untuk aplikasi (Teknisi atau Pelanggan) dialihkan di web ke halaman "Gunakan aplikasi Inbils"; peran back-office yang ikut dicentang menghilangkan pengalihan itu. Akun tanpa peran apa pun melihat "Akun ini belum punya akses aplikasi web" sampai diberi peran. Login pelanggan dibuat otomatis saat pelanggan dibuat (bab 4), jadi jangan membuatnya di sini. Teknisi juga memerlukan profil karyawan aktif (bagian 8.3).
 
 ### Aturan saat memberi peran
 
-Pesan penolakan muncul dalam warna merah di bawah daftar **Peran**, disertai toast "Data gagal disimpan. Periksa input."
+Pesan penolakan muncul dalam warna merah di bawah daftar **Peran**, disertai toast "Data gagal disimpan. Periksa input." Aturannya berlaku per perusahaan.
 
-- Hanya admin yang dapat mencentang peran **admin**. Bila yang menyimpan bukan admin, pesannya "Hanya administrator yang boleh memberi peran admin."
-- Hanya admin yang dapat membuka **Ubah**, menghapus atau mengatur ulang 2FA akun ber-peran admin.
-- Bila yang menyimpan bukan admin, izin gabungan dari semua peran yang dicentang tidak boleh memuat pasangan yang bertentangan menurut pemisahan tugas (daftar pasangan ada di bagian 8.6). Contoh: **manager** dan **staff** pada satu akun ditolak, karena manajer menyetujui permintaan barang sedangkan staf menyiapkan dan mengeluarkannya. Pesannya berbentuk "Pemisahan tugas (persetujuan permintaan barang vs pelaksanaan gudang): ... tidak boleh digabung dengan ...", diikuti kode izin yang bertabrakan. Admin dikecualikan sebagai jalan darurat.
-- Bila pengguna juga tergabung di perusahaan lain yang tidak Anda ikuti, halaman detail, **Ubah** dan **Hapus** ditolak (403, "Akses ditolak").
-- Sistem tidak memeriksa apakah masih ada admin lain. Admin yang melepas peran admin dari akunnya sendiri, atau menonaktifkannya, dapat meninggalkan sistem tanpa admin. Pastikan ada admin lain sebelum melakukannya.
+- Anda hanya dapat memberi peran yang hak aksesnya Anda pegang semuanya. Peran yang lebih berkuasa dari Anda tidak bisa dicentang. Bila tetap terkirim, pesannya "Anda tidak dapat memberi hak akses yang tidak Anda miliki:" diikuti nama hak aksesnya.
+- Anda hanya dapat membuka **Ubah**, menghapus, mengatur ulang 2FA, atau mengatur peran akun yang hak aksesnya Anda pegang semuanya. Admin memegang semuanya, jadi tidak dibatasi. Halaman akun yang lebih berkuasa dari Anda menjawab **Akses ditolak**.
+- Bila yang menyimpan tidak memegang `roles.manage`, izin gabungan dari semua peran yang dicentang tidak boleh memuat pasangan yang bertentangan menurut pemisahan tugas (daftar pasangan ada di bagian 8.6). Contoh: **Manajer** dan **Staf** pada satu akun ditolak, karena manajer menyetujui permintaan barang sedangkan staf menyiapkan dan mengeluarkannya. Pesannya berbentuk "Pemisahan tugas (persetujuan permintaan barang vs pelaksanaan gudang): ... tidak boleh digabung dengan ...", diikuti kode izin yang bertabrakan. Pemegang `roles.manage` dikecualikan sebagai jalan darurat.
+- Perusahaan harus tetap punya minimal satu admin aktif, yaitu pengguna aktif yang memegang `roles.manage` dan izin akses web. Melepas peran terakhir itu, menonaktifkan, atau menghapus admin terakhir ditolak dengan "Perusahaan harus tetap punya minimal satu admin aktif yang memegang roles.manage." Angkat admin lain dulu.
+- Bila pengguna juga tergabung di perusahaan lain yang tidak Anda ikuti, halaman detail, **Ubah** dan **Hapus** ditolak (403, "Akses ditolak"). Mengatur perannya di perusahaan ini tetap boleh bila ia anggota perusahaan ini.
+
+### Mengatur peran anggota
+
+Pakai **Atur peran** untuk mengganti peran seseorang di perusahaan ini tanpa membuka form **Ubah**, terutama untuk anggota dari perusahaan lain (lencana **Anggota**). Seorang pengguna dapat memegang peran berbeda di tiap perusahaan, misalnya Admin di satu perusahaan dan Teknisi di perusahaan lain.
+
+1. Di baris pengguna, klik **Atur peran**. Dialog berjudul "Atur peran" diikuti nama pengguna.
+2. Baca keterangannya: "Peran ini berlaku hanya di perusahaan ini. Pengguna tanpa peran tidak bisa membuka menu apa pun."
+3. Centang peran yang berlaku, lalu klik **Simpan peran**. **Batal** menutup dialog tanpa menyimpan. Toast "Peran pengguna diperbarui." muncul.
+
+Peran akun pelanggan tidak bisa ditambah atau dilepas di sini. Bila pengguna memegangnya, peran itu tampil sebagai lencana dengan keterangan "Peran pelanggan dikelola dari data pelanggan." dan tetap setelah disimpan. Aturan "Aturan saat memberi peran" di atas berlaku sama.
 
 ### Mengubah pengguna
 
@@ -4126,7 +4137,7 @@ Pesan penolakan muncul dalam warna merah di bawah daftar **Peran**, disertai toa
 2. Ubah isian di form **Ubah Pengguna**. Isiannya sama dengan form pembuatan, dengan perbedaan berikut:
    - **Email**: tetap harus unik. Mengubahnya di sini tidak mereset status verifikasi e-mail.
    - **Kata sandi**: kosongkan untuk mempertahankan kata sandi lama (petunjuk "Kosongkan untuk mempertahankan kata sandi saat ini."). Bila diisi, paling sedikit 8 karakter.
-   - **Peran**: hasilnya persis peran yang tercentang. Peran yang tidak dicentang dilepas.
+   - **Peran**: hasilnya persis peran yang tercentang. Peran yang tidak dicentang dilepas. Peran akun pelanggan yang dipegang tidak ikut berubah.
 3. Klik **Simpan**. Anda kembali ke daftar dan toast "Pengguna diperbarui." muncul. **Batal** kembali ke daftar tanpa menyimpan. Tombol **Kembali** di kanan atas membuka halaman detail pengguna itu.
 
 Menonaktifkan akun atau mengganti kata sandinya langsung mencabut semua token aplikasi pengguna itu, sehingga aplikasi Android meminta masuk ulang pada panggilan berikutnya. Pengguna nonaktif tidak dapat masuk lagi, dan login menolaknya dengan pesan yang sama seperti kata sandi salah ("Email atau kata sandi salah."). Sesi web yang sudah terbuka tidak ditutup otomatis dan berjalan sampai sesinya berakhir. Penugasan SPK dan tiket menolak pengguna nonaktif (bab 3).
@@ -4134,7 +4145,7 @@ Menonaktifkan akun atau mengganti kata sandinya langsung mencabut semua token ap
 ### Melihat detail pengguna
 
 1. Klik nama pengguna di daftar, atau **Lihat detail** di menu **Aksi lainnya**.
-2. Judul halaman memuat nama dan e-mail, dengan tombol **Kembali**, **Log audit** dan **Ubah**. **Log audit** hanya tampil bila Anda memegang `report.audit.view` (bawaan: admin). Tombol itu membuka log audit yang sudah disaring untuk pengguna ini. Kartu **Data pengguna** menampilkan **Status**, **Dibuat**, **Terakhir masuk** (tanggal dan jam memakai format perusahaan), **Pelanggan** (kode dan nama, bila akun tertaut ke pelanggan) dan **Peran** ("Belum ada peran" bila kosong). Kartu **Autentikasi dua langkah** menampilkan lencana **Aktif** atau **Nonaktif**.
+2. Judul halaman memuat nama dan e-mail, dengan tombol **Kembali**, **Log audit** dan **Ubah**. **Log audit** hanya tampil bila Anda memegang `report.audit.view` (bawaan: admin). Tombol itu membuka log audit yang sudah disaring untuk pengguna ini. Kartu **Data pengguna** menampilkan **Status**, **Dibuat**, **Terakhir masuk** (tanggal dan jam memakai format perusahaan), **Pelanggan** (kode dan nama, bila akun tertaut ke pelanggan) dan **Peran di perusahaan ini** ("Belum ada peran di perusahaan ini" bila kosong). Kartu **Autentikasi dua langkah** menampilkan lencana **Aktif** atau **Nonaktif**.
 
    ![Halaman detail pengguna dengan kartu Data pengguna, kartu Autentikasi dua langkah dan tab riwayat](images/web/users-show.png)
 
@@ -4146,7 +4157,7 @@ Menonaktifkan akun atau mengganti kata sandinya langsung mencabut semua token ap
 
 ### Mengatur ulang autentikasi dua langkah
 
-Pakai fitur ini bila pengguna kehilangan perangkat autentikator dan kode pemulihannya. Pengguna yang masih memegang kode pemulihan dapat memakainya sendiri (bagian 1.4). Tombol hanya tampil bila pengguna berstatus 2FA **Aktif**, Anda memegang `users.two_factor.reset` (bawaan: admin saja), ini bukan akun Anda sendiri, Anda boleh mengubah akun itu (akun admin hanya oleh admin) dan Anda tergabung di semua perusahaan pengguna itu.
+Pakai fitur ini bila pengguna kehilangan perangkat autentikator dan kode pemulihannya. Pengguna yang masih memegang kode pemulihan dapat memakainya sendiri (bagian 1.4). Tombol hanya tampil bila pengguna berstatus 2FA **Aktif**, Anda memegang `users.two_factor.reset` (bawaan: admin saja), ini bukan akun Anda sendiri, Anda memegang semua hak akses akun itu, dan Anda tergabung di semua perusahaan pengguna itu.
 
 1. Buka halaman detail pengguna (bagian "Melihat detail pengguna").
 2. Pada kartu **Autentikasi dua langkah**, klik **Atur ulang 2FA**.
@@ -4164,75 +4175,119 @@ Penghapusan ditolak bila pengguna dikreditkan sebagai pembawa pelanggan (bab 4),
 
 ### Kesalahan umum
 
-- Simpan ditolak dengan toast "Data gagal disimpan. Periksa input.": baca pesan merah di bawah isian atau di bawah **Peran**. Penyebab umum: kombinasi peran (lihat "Aturan saat memberi peran"), "email sudah digunakan." bila e-mail dipakai akun lain, dan "kata sandi minimal 8 karakter." bila **Kata sandi** kurang dari 8 karakter.
+- Simpan ditolak dengan toast "Data gagal disimpan. Periksa input.": baca pesan merah di bawah isian atau di bawah **Peran**. Penyebab umum: kombinasi peran atau peran yang tidak Anda pegang hak aksesnya (lihat "Aturan saat memberi peran"), "email sudah digunakan." bila e-mail dipakai akun lain, dan "kata sandi minimal 8 karakter." bila **Kata sandi** kurang dari 8 karakter.
 - Akun baru seharusnya nonaktif tetapi tampil **Aktif**: saklar **Aktif** di form pembuatan masih hidup saat Anda menyimpan. Matikan saklar itu, atau ubah akunnya lewat **Ubah**.
-- Teknisi atau pelanggan melihat halaman "Gunakan aplikasi Inbils": itu perilaku normal untuk akun yang hanya berperan **technician** dan atau **customer**. Beri peran back-office bila orangnya memang harus memakai web.
+- Teknisi atau pelanggan melihat halaman "Gunakan aplikasi Inbils": itu perilaku normal untuk akun yang perannya tidak memuat akses web. Beri peran back-office bila orangnya memang harus memakai web.
 - Pengguna sudah dinonaktifkan tetapi masih bisa bekerja di web: sesi yang sudah terbuka belum berakhir. Token aplikasinya sudah dicabut.
-- Tombol **Atur ulang 2FA** tidak ada: pengguna belum mengaktifkan 2FA, Anda bukan admin, akun itu milik Anda sendiri, atau akun itu berperan admin dan Anda bukan admin.
-- **Hapus** tidak ada di baris pengguna: baris itu akun Anda sendiri, akun admin dan Anda bukan admin, atau pengguna itu tergabung di perusahaan yang tidak Anda ikuti.
+- Tombol **Atur ulang 2FA** tidak ada: pengguna belum mengaktifkan 2FA, akun itu milik Anda sendiri, atau akun itu memegang hak akses yang tidak Anda pegang.
+- **Hapus** tidak ada di baris pengguna: baris itu akun Anda sendiri, akun yang memegang hak akses yang tidak Anda pegang, anggota dari perusahaan lain, atau pengguna itu tergabung di perusahaan yang tidak Anda ikuti.
 - Admin tunggal yang kehilangan perangkat 2FA tidak dapat diatur ulang dari layar ini karena tidak ada admin lain. Pengelola server mematikan 2FA-nya lewat perintah server.
 
 ## 8.6 Peran
 
-Menu ini mendaftar peran (kumpulan izin) dan menampilkan isi tiap peran, hanya untuk dibaca. Buka saat Anda perlu tahu hak akses apa yang dipegang sebuah peran sebelum memberikannya ke pengguna.
+Menu ini mengelola peran perusahaan Anda: kumpulan izin yang diberikan ke pengguna. Buka saat perusahaan butuh jabatan baru, saat tugas sebuah jabatan berubah, atau saat Anda perlu tahu hak akses apa yang dipegang sebuah peran sebelum memberikannya.
 
-Peran yang dapat memakai: admin. Izin: `roles.manage` (daftar dan halaman detail) dan `roles.export` (tombol **Ekspor**). Definisi peran bersifat global dan berlaku untuk semua perusahaan, jadi dikelola oleh operator platform Inbils, bukan oleh admin perusahaan. Membuat peran baru, mengubah nama atau izin peran, dan menghapus peran tidak bisa dilakukan dari web perusahaan, di perusahaan induk, mandiri maupun anak perusahaan. Untuk peran baru atau perubahan izin, hubungi operator platform. Memberikan peran yang sudah ada ke pengguna tetap dilakukan di menu **Pengguna** (bagian 8.5).
+Peran yang dapat memakai: pemegang `roles.manage` (daftar, detail, buat, ubah, dan hapus), yaitu Admin pada templat bawaan, dan `roles.export` (tombol **Ekspor**). Peran milik perusahaan: nama dan isinya hanya berlaku di perusahaan yang sedang aktif. Perusahaan induk dan tiap anak perusahaan mempunyai peran sendiri, dan satu pengguna dapat memegang peran berbeda di tiap perusahaan. Izin berasal dari satu katalog tetap (bagian 8.7): Anda menyusun peran dari katalog itu dan tidak dapat membuat izin baru. Operator platform tidak mengubah peran Anda dalam keadaan biasa. Mereka hanya memperbaiki peran atas permintaan, dan perbaikan itu tercatat di log audit Anda.
 
 ### Membuka dan membaca daftar
 
 1. Di sidebar, buka grup **Administrasi**, lalu klik **Peran**.
 2. Baca layar:
-   - Keterangan di atas tabel berbunyi "Definisi peran dikelola oleh operator platform. Tetapkan peran ke pengguna di menu Pengguna."
+   - Subjudul berbunyi "Kumpulan hak akses yang diberikan ke pengguna lewat peran. Peran ini hanya berlaku di perusahaan ini."
    - **Cari** (petunjuk "Nama peran") mencari di nama peran.
-   - Kolom: **Nama** (bisa diurutkan; berupa tautan ke halaman detail; lencana **Bawaan** pada lima peran bawaan), **Hak akses** (jumlah izin), **Pengguna** (jumlah pengguna ber-peran itu di perusahaan yang sedang aktif) dan **Aksi**.
-   - **Aksi** hanya berisi tombol **Lihat**. Tidak ada **Ubah**, **Hapus** atau **Buat Peran**.
-   - Tombol **Ekspor** (**Ekspor CSV** dan **Ekspor PDF**; kolom Nama, Hak akses, Pengguna, Guard) tampil di kanan atas bila Anda memegang `roles.export`.
+   - Kolom: **Nama** (bisa diurutkan; tautan ke halaman detail), **Templat** (lencana "Dari templat" diikuti nama templat untuk peran salinan, atau "Dibuat sendiri"), **Hak akses** (jumlah izin), **Pengguna** (jumlah pengguna ber-peran itu di perusahaan yang sedang aktif) dan **Aksi**.
+   - **Aksi** berisi tombol **Ubah** dan **Hapus**. Bila peran memuat izin yang tidak Anda pegang, tombol **Ubah** berganti menjadi **Lihat** dan **Hapus** tidak tampil. Peran akun pelanggan tidak punya **Hapus**.
+   - Tombol **Buat peran** dan tombol **Ekspor** (**Ekspor CSV** dan **Ekspor PDF**; kolom Nama, Hak akses, Pengguna, Guard) tampil di kanan atas, masing-masing bila Anda boleh membuat peran atau memegang `roles.export`.
+   - Bila tidak ada baris, layar menulis "Belum ada peran" dengan tombol **Buat peran**.
 
-   ![Daftar Peran dengan keterangan operator platform, kotak Cari, lima peran bawaan bertanda Bawaan, jumlah hak akses dan pengguna, serta tombol Ekspor](images/web/roles.png)
+   ![Daftar Peran dengan kotak Cari, kolom Nama, Templat, Hak akses, Pengguna dan Aksi, serta tombol Buat peran dan Ekspor](images/web/roles.png)
 
-3. Lima peran bawaan berlaku global. Angka izin berikut berasal dari seeder peran (`RolePermissionSeeder`), dengan 166 izin seluruhnya:
+3. Perusahaan baru mendapat delapan peran dari templat platform:
 
-   | Peran | Fungsi | Jumlah izin |
-   |---|---|---|
-   | `admin` | Administrator penuh dan jalan darurat. Memegang semua izin kecuali izin portal pelanggan | 164 |
-   | `manager` | Pengendali: menyetujui permintaan barang, SPK dan penyesuaian stok, membatalkan tagihan, membatalkan pembayaran, melihat laporan | 103 |
-   | `staff` | Operator: mencatat pelanggan, membuat SPK, tiket dan tagihan, menjalankan stok masuk dan keluar | 50 |
-   | `technician` | Pekerjaan lapangan, di aplikasi teknisi | 26 |
-   | `customer` | Tiket, evaluasi dan portal tagihan, di aplikasi pelanggan | 8 |
+   | Peran | Fungsi |
+   |---|---|
+   | Admin | Administrator penuh dan jalan darurat. Memegang semua izin, kecuali izin yang hanya untuk aplikasi teknisi dan pelanggan, dan selalu memegang `roles.manage` dan akses web |
+   | Manajer | Pengendali: menyetujui permintaan barang, SPK dan penyesuaian stok, membatalkan tagihan, membatalkan pembayaran, melihat laporan |
+   | NOC & Layanan Pelanggan | Mendaftarkan pelanggan, menerima keluhan dan mengelola tiket, mengumumkan gangguan, melihat dan menelusuri jaringan, sinkron ulang RADIUS, blokir internet manual. Tanpa hapus, tanpa tulis tagihan, tanpa kelola pengguna dan peran |
+   | Teknisi | Pekerjaan lapangan, di aplikasi teknisi |
+   | Gudang | Menyiapkan dan menyerahkan barang, mengelola stok masuk, keluar dan pindah |
+   | Keuangan | Membuat dan mengirim tagihan, mencatat dan membatalkan pembayaran, laporan keuangan. Tanpa pembatalan tagihan |
+   | Staf | Operator: mencatat pelanggan, membuat SPK, tiket dan tagihan, menjalankan stok masuk dan keluar |
+   | Pelanggan | Tiket, evaluasi dan portal tagihan, di aplikasi pelanggan |
 
-   Tidak ada peran bawaan yang dapat dihapus atau diganti namanya.
+   Perusahaan yang sudah ada sebelum peran per perusahaan mendapat salinan lima peran lama dengan nama berbahasa Indonesia (Admin, Manajer, Staf, Teknisi, Pelanggan), ditambah NOC & Layanan Pelanggan, Gudang dan Keuangan tanpa pemegang. Isi salinan itu sama persis dengan sebelumnya, jadi akses siapa pun tidak berubah; Staf lama masih memegang izin mendaftarkan pelanggan. Setelah disalin, semuanya milik perusahaan Anda, dan pembaruan sistem tidak mengubahnya.
 
 ### Membaca detail peran
 
-1. Di daftar, klik nama peran atau tombol **Lihat**. Judul halaman berbunyi "Peran" diikuti nama peran, dengan subjudul yang sama dengan keterangan di daftar. **Kembali** membuka daftar.
-2. Kartu **Ringkasan** memuat **Nama**, **Hak akses** (jumlah izin peran) dan **Pengguna di perusahaan ini** (jumlah pengguna ber-peran itu di perusahaan yang sedang aktif), disusul keterangan "Peran berlaku sama di semua perusahaan."
-3. Kartu **Hak akses peran** mengelompokkan izin peran per kategori, dengan nama Indonesia (daftar kodenya ada di bagian 8.7) dan lencana jumlah izin di tiap kategori. Setiap izin tampil sebagai kalimat Indonesia, misalnya `billing.payment.record` sebagai "Catat pembayaran". Arahkan kursor ke kalimat itu untuk melihat kode lengkapnya. Hanya izin yang dipegang peran yang tampil. Peran tanpa izin menampilkan "Peran ini belum memegang hak akses apa pun."
+1. Di daftar, klik nama peran, atau **Lihat** bila peran itu tidak boleh Anda ubah. Judul halaman berbunyi "Peran" diikuti nama peran, dengan subjudul "Hak akses yang dipegang peran ini. Berikan peran ke pengguna di menu Pengguna." **Kembali** membuka daftar, dan **Ubah** tampil bila Anda boleh mengubah peran itu.
+2. Kartu **Ringkasan** memuat **Nama**, **Hak akses** (jumlah izin peran) dan **Pengguna di perusahaan ini**, disusul keterangan "Peran ini hanya berlaku di perusahaan ini."
+3. Kartu **Hak akses peran** mengelompokkan izin peran per kategori, dengan nama Indonesia (daftar kodenya ada di bagian 8.7) dan lencana jumlah izin di tiap kategori. Setiap izin tampil sebagai kalimat Indonesia, misalnya `billing.payment.record` sebagai "Catat pembayaran". Arahkan kursor ke kalimat itu untuk melihat kode lengkapnya. Peran tanpa izin menampilkan "Peran ini belum memegang hak akses apa pun. Pengguna yang hanya memegang peran ini tidak bisa membuka menu apa pun."
 
    ![Detail Peran dengan kartu Ringkasan dan kartu Hak akses peran yang mengelompokkan izin per kategori](images/web/roles-show.png)
 
-Isi lima peran bawaan ditimpa kembali ke matriks standar saat pengelola server menjalankan seeder peran pada pembaruan sistem.
+Bila peran memuat izin yang tidak Anda pegang, alert menulis "Anda hanya bisa melihat peran ini, karena ia memuat hak akses yang tidak Anda pegang. Hanya pemegang semua hak akses itu yang bisa mengubahnya." Alert "Peran ini tidak bisa dihapus: setiap akun pelanggan baru mendapatkannya." muncul pada peran Pelanggan.
+
+### Membuat peran
+
+1. Klik **Buat peran**. Halaman berjudul "Buat peran" dengan subjudul "Kumpulkan hak akses menjadi satu peran, lalu berikan ke pengguna lewat menu Pengguna."
+2. Bila perlu, pilih **Mulai dari templat**. Isian ini opsional dan mengisi **Nama** (bila masih kosong) serta hak akses dari salah satu templat platform. Keduanya masih bisa Anda ubah. Di bawahnya layar menulis "{n} hak akses dari templat {nama} dimuat.", atau "{n} hak akses tidak Anda miliki dan dilewati." bila templat memuat izin yang tidak Anda pegang.
+3. Isi **Nama**: wajib, unik di perusahaan ini, paling banyak 255 karakter. Nama yang sudah dipakai ditolak dengan "nama sudah digunakan."
+4. Pilih hak akses di pemilih izin. Gunakan **Cari hak akses** untuk mencari kode atau label, klik nama kategori di kiri untuk membuka izin kategori itu, dan centang kotak kategori untuk memilih atau mengosongkan semua izin yang tampil. Izin yang tidak Anda pegang tidak bisa dicentang dan diberi keterangan "Anda tidak memegang hak akses ini".
+5. Klik **Buat peran**. Anda kembali ke daftar dan toast "Peran dibuat." muncul. **Batal** kembali ke daftar tanpa menyimpan.
+
+Dua keterangan muncul di bawah pemilih izin: "Pemegang peran ini dapat mengubah semua peran perusahaan." bila peran memuat `roles.manage`, dan "Peran akun pelanggan: berlaku di aplikasi Pelanggan." bila memuat `portal.access`.
+
+### Mengubah peran
+
+1. Di daftar, klik **Ubah** pada baris peran, atau **Ubah** di halaman detail. Judul halaman berbunyi "Ubah peran" diikuti nama peran, dengan subjudul jumlah pengguna di perusahaan ini yang memegang peran itu. Peran salinan menulis "Dibuat dari templat {nama}. Perubahan templat tidak mengubah peran ini."
+2. Ubah **Nama** dan hak akses, lalu klik **Simpan peran**. Toast "Peran diperbarui." muncul.
+
+Perubahan langsung berlaku bagi semua pemegang peran itu di perusahaan ini. Mengganti nama peran tidak merusak fitur apa pun, karena Inbils memeriksa izin, bukan nama peran. Bila orang lain sudah menyimpan perubahan pada peran yang sama, peringatan "Muat ulang halaman untuk melihat data terbaru, lalu ulangi perubahan Anda." muncul dengan tombol **Muat ulang**. Anda tidak bisa menambah izin yang tidak Anda pegang, dan tidak bisa mengubah peran yang memuat izin yang tidak Anda pegang.
+
+### Menghapus peran
+
+1. Di daftar, klik **Hapus** pada baris peran. Dialog berjudul "Hapus peran" diikuti nama peran dan tanda tanya.
+2. Bila tidak ada pengguna yang memegang peran itu, dialog menulis "Tidak ada pengguna yang memegang peran ini. Penghapusan tidak bisa dibatalkan."
+3. Bila ada, dialog menulis berapa pengguna memegangnya dan meminta Anda memilih peran tujuan di **Pindahkan {n} pengguna ke** (kotak cari "Cari peran tujuan"). Pengguna itu mendapat peran tujuan dan kehilangan peran yang dihapus. Tombol **Hapus peran** baru aktif setelah tujuan dipilih. Server menolak tujuan yang memuat izin yang tidak Anda pegang, dan tumpukan peran pengguna yang melanggar pemisahan tugas.
+4. Klik **Hapus peran**. Toast "Peran dihapus." muncul. **Batal** menutup dialog.
+
+Peran Pelanggan, yang disalin dari templat Pelanggan, tidak bisa dihapus karena setiap akun pelanggan baru mendapatkannya. Bila server menolak, alasannya tampil di dalam dialog atau di bawah pilihan tujuan, misalnya "Peran ini dipakai untuk akun pelanggan baru." atau "Perusahaan harus tetap punya minimal satu admin aktif yang memegang roles.manage."
+
+### Aturan penjaga
+
+Aturan ini berlaku saat Anda membuat, mengubah, atau menghapus peran, dan saat Anda memberi peran ke pengguna (bagian 8.5):
+
+- **Hanya yang Anda pegang.** Anda memberi hak akses ke sebuah peran hanya bila Anda memegangnya sendiri. Pesannya "Anda tidak dapat memberi hak akses yang tidak Anda miliki:" diikuti daftar hak akses. Izin penanda audiens (akses aplikasi teknisi, dapat dinilai di Evaluasi, akun pelanggan) tidak dibatasi aturan ini.
+- **Jangan mengubah yang lebih berkuasa.** Anda hanya bisa mengubah atau menghapus peran yang semua izinnya Anda pegang.
+- **Minimal satu admin.** Perusahaan harus tetap punya minimal satu pengguna aktif yang memegang `roles.manage` dan akses web. Melepas izin itu dari peran terakhir yang memuatnya, menghapus peran itu, atau memindahkan penggunanya ditolak dengan "Perusahaan harus tetap punya minimal satu admin aktif yang memegang roles.manage."
+- **Pemisahan tugas** (bagian berikut).
+- **Peran yang masih dipakai.** Hapus peran hanya setelah memilih peran tujuan bagi penggunanya.
+- **Tercatat.** Setiap pembuatan, perubahan, dan penghapusan peran masuk ke Log Audit dengan label **Peran dibuat**, **Peran diubah**, dan **Peran dihapus**, lengkap dengan izin yang ditambah atau dicabut.
 
 ### Pemisahan tugas pada peran
 
-Operator platform menolak menyimpan peran non-admin yang memuat salah satu pasangan izin ini. Admin dikecualikan.
+Inbils menolak menyimpan peran yang tidak memuat `roles.manage` dan memuat salah satu pasangan izin ini:
 
 - Pengendali permintaan barang (`inventory.request.approve`, `inventory.request.reject`) bersama pelaksana gudang (`inventory.request.prepare`, `inventory.request.issue`, `inventory.stock.receive`, `inventory.stock.issue`, `inventory.stock.transfer`).
 - Penyetuju penyesuaian stok (`inventory.stock.adjust.approve`) bersama pengaju atau pelaksana (`inventory.stock.adjust.request`, `inventory.stock.receive`, `inventory.stock.issue`, `inventory.stock.transfer`).
-- `inventory.stock.adjust` ("Sesuaikan stok langsung", penyesuaian langsung, jalan darurat) hanya boleh diberikan oleh admin.
+- `inventory.stock.adjust` ("Sesuaikan stok langsung", penyesuaian langsung, jalan darurat) hanya boleh dimuat peran yang juga memuat `roles.manage`.
 
-Aturan yang sama berlaku saat Anda memberi beberapa peran ke satu pengguna di menu **Pengguna** (bagian 8.5): izin gabungan tidak boleh memuat pasangan di atas.
+Peran yang memuat `roles.manage` dikecualikan sebagai jalan darurat. Aturan yang sama berlaku saat Anda memberi beberapa peran ke satu pengguna di menu **Pengguna** (bagian 8.5): izin gabungan tidak boleh memuat pasangan di atas.
 
 ### Kesalahan umum
 
-- Tidak ada tombol **Buat Peran**, **Ubah** atau **Hapus**: memang tidak ada. Definisi peran dikelola operator platform. Minta mereka menambah peran atau mengubah izin.
-- Peran yang dibutuhkan belum ada di daftar: minta operator platform membuatnya, lalu muat ulang halaman.
-- Izin peran bawaan kembali ke standar setelah pembaruan sistem: seeder menimpanya. Minta operator platform membuat peran tersendiri bila perlu izin tambahan yang permanen.
+- Tombol **Buat peran**, **Ubah** atau **Hapus** tidak ada: Anda tidak boleh membuat peran, atau peran itu memuat izin yang tidak Anda pegang. Minta admin perusahaan yang memegang semua izin itu.
+- Peran yang dibutuhkan belum ada di daftar: buat sendiri dengan **Buat peran**, atau mulai dari templat.
+- Alert **Peran belum dapat disimpan**: baca pesan di bawah isian dan di dalam alert. Penyebab umum: nama sudah dipakai, pasangan izin yang berbenturan, atau izin yang tidak Anda pegang.
+- Peran baru tidak mengubah menu seseorang: peran belum diberikan. Berikan lewat menu **Pengguna** (bagian 8.5).
+- Pengguna tidak melihat menu setelah izin dicabut dari perannya: itu perilaku normal. Menu mengikuti izin, bukan nama peran.
+- Perusahaan lama tidak punya templat yang baru, atau salah satu perannya terhapus: tambahkan dengan **Mulai dari templat** di **Buat peran**. Admin yang kehilangan semua peran admin dapat diperbaiki operator platform (**Panduan Panel Operator Inbils**).
 - Halaman detail menolak dengan **Akses ditolak** (403): Anda tidak memegang `roles.manage`.
 - Tombol **Ekspor** tidak ada: Anda tidak memegang `roles.export`.
 
 ## 8.7 Hak Akses
 
-Menu ini adalah katalog kode izin yang dikenal sistem, hanya untuk dibaca. Buka saat Anda perlu memastikan kode izin yang tepat atau kelompoknya, misalnya untuk meminta operator platform mengubah sebuah peran (bagian 8.6).
+Menu ini adalah katalog kode izin yang dikenal sistem, hanya untuk dibaca. Buka saat Anda perlu memastikan kode izin yang tepat atau kelompoknya, misalnya sebelum menyusun atau mengubah sebuah peran (bagian 8.6). Katalog sama untuk semua perusahaan.
 
 Peran yang dapat memakai: admin. Izin: `roles.manage`, sama dengan menu **Peran**. Layar ini tidak punya tombol tambah, ubah, hapus atau ekspor.
 
@@ -4589,8 +4644,8 @@ Bila permintaan memakai **Rujukan** SPK, berkas pengembaliannya terhubung ke SPK
 - Dialog persetujuan menampilkan "Stok tidak mencukupi untuk produk ID &lt;id&gt; di lokasi ID &lt;id&gt;. Tersedia: &lt;jumlah&gt;, Diminta: &lt;jumlah&gt;.": kurangi jumlah yang disetujui, atau tambah stok lewat **Terima Barang** di **Stok** (bagian 6.5), lalu setujui lagi. Bila tidak dapat dipenuhi, tolak permintaan dengan alasan.
 - Dialog persetujuan menampilkan "Lokasi gudang sumber wajib ditentukan untuk reservasi.": permintaan itu tersimpan tanpa **Gudang Tujuan**, dan dialog persetujuan di web tidak punya pilihan gudang. Permintaan seperti itu tidak bisa disetujui dari web (bagian 6.1). Batalkan dengan **Batalkan Permintaan**, lalu buat permintaan baru dengan **Gudang Tujuan** terisi.
 - Tombol **Setujui & Reservasi Stok**, **Mulai Penyiapan Barang**, atau **Serah Terima & Kurangi Stok** tidak tampil: cek status permintaan dan izin Anda, dan apakah Anda pemohon atau penyetuju permintaan itu. Pemohon tidak boleh menyetujui atau menyerahkan permintaannya sendiri, dan penyetuju tidak boleh menyiapkan atau menyerahkan barang yang ia setujui.
-- Peran non-admin tidak boleh memegang izin setujui bersama izin siapkan atau serahkan. Di peran bawaan, manajer menyetujui dan staf menyiapkan dan menyerahkan. Bila perusahaan Anda hanya punya satu orang gudang yang juga penyetuju, tambahkan orang kedua. Saat peran seperti itu disimpan, Inbils menolak dengan pesan yang diawali "Pemisahan tugas (persetujuan permintaan barang vs pelaksanaan gudang)".
-- Daftar **Antrean Pengembalian** menampilkan kotak galat: peran Anda memegang izin retur tetapi tanpa `inventory.return.view.all` atau `inventory.return.view.own`. Minta operator platform menambahkannya ke peran (bagian 8.6).
+- Peran yang tidak memuat `roles.manage` tidak boleh memegang izin setujui bersama izin siapkan atau serahkan. Di templat bawaan, Manajer menyetujui sedangkan Gudang dan Staf menyiapkan dan menyerahkan. Bila perusahaan Anda hanya punya satu orang gudang yang juga penyetuju, tambahkan orang kedua. Saat peran seperti itu disimpan, Inbils menolak dengan pesan yang diawali "Pemisahan tugas (persetujuan permintaan barang vs pelaksanaan gudang)".
+- Daftar **Antrean Pengembalian** menampilkan kotak galat: peran Anda memegang izin retur tetapi tanpa `inventory.return.view.all` atau `inventory.return.view.own`. Minta admin perusahaan menambahkannya ke peran di menu Peran (bagian 8.6).
 - Pesan yang diawali "Jumlah tidak cocok pada baris" muncul bila angka satu barang tidak berjumlah sama dengan jumlah yang dikeluarkan. Ubah angkanya sampai cocok.
 - Koreksi jumlah stok yang bukan akibat permintaan barang memakai **Ajukan Penyesuaian** di **Stok**, yang butuh persetujuan orang lain (bagian 6.5).
 
@@ -4598,11 +4653,11 @@ Bila permintaan memakai **Rujukan** SPK, berkas pengembaliannya terhubung ke SPK
 
 ## 10.1 Peran dan izin ringkas
 
-Inbils memakai lima peran bawaan: admin, manajer, staf, teknisi, dan pelanggan. Di layar Peran dan Pengguna, nama perannya tampil sebagai `admin`, `manager`, `staff`, `technician`, dan `customer`. Peran bersifat global, jadi isinya sama di setiap perusahaan. Satu peran adalah kumpulan izin, dan izin adalah hak untuk satu tindakan, misalnya `spk.approve`. Operator platform membuat, mengubah, dan menghapus peran. Admin perusahaan hanya melihat isi peran di menu Peran (bagian 8.6) dan daftar izin di Hak Akses (bagian 8.7), lalu memberikan peran yang sudah ada ke pengguna di menu Pengguna (bagian 8.5). Peran bawaan tidak bisa dihapus.
+Inbils menyalin delapan templat peran ke setiap perusahaan saat perusahaan dibuat: Admin, Manajer, NOC & Layanan Pelanggan, Teknisi, Gudang, Keuangan, Staf, dan Pelanggan. Setelah itu peran-peran itu milik perusahaan Anda. Admin perusahaan dapat mengganti nama, mengubah isi, menghapus, dan menambah peran di menu Peran (bagian 8.6), dan pembaruan sistem tidak mengubahnya. Perusahaan lain mempunyai peran sendiri, jadi isinya bisa berbeda. Satu peran adalah kumpulan izin, dan izin adalah hak untuk satu tindakan, misalnya `spk.approve`. Daftar izin ada di Hak Akses (bagian 8.7), dan peran diberikan ke pengguna di menu Pengguna (bagian 8.5). Istilah "bawaan" di panduan ini merujuk ke templat itu. Peran Pelanggan tidak bisa dihapus.
 
-Tabel di bagian ini menggambarkan peran bawaan saat ini. Peran khusus yang dibuat di menu Peran dapat berbeda, dan satu pengguna dapat memegang lebih dari satu peran. Bila tabel dan layar Anda tidak cocok, cek peran pengguna itu di menu Pengguna (bagian 8.5).
+Tabel di bagian ini menggambarkan templat Admin, Manajer, dan Staf. Peran yang diubah atau dibuat perusahaan Anda dapat berbeda, dan satu pengguna dapat memegang lebih dari satu peran. Bila tabel dan layar Anda tidak cocok, cek peran pengguna itu di menu Pengguna (bagian 8.5) dan isi perannya di menu Peran (bagian 8.6).
 
-Teknisi dan pelanggan memakai aplikasi Android, bukan web. Akun yang hanya berperan teknisi atau pelanggan dialihkan ke halaman **Gunakan aplikasi Inbils** (bagian 1.1). Akun yang juga memegang peran admin, manajer, atau staf tidak dialihkan.
+Teknisi dan pelanggan memakai aplikasi Android, bukan web. Akun yang tidak memegang izin akses web (`app.web`) dialihkan ke halaman **Gunakan aplikasi Inbils** (bagian 1.1). Akun yang juga memegang peran dengan akses web, misalnya Admin, Manajer, atau Staf, tidak dialihkan.
 
 ### Menu yang tampil di sidebar
 
@@ -4785,8 +4840,9 @@ Nilai "ya" berarti peran memegang semua izin di baris itu. Bila izin dipisah den
 
 ### Teknisi dan pelanggan
 
-Dua peran ini bekerja di aplikasi. Izin peran teknisi:
+Dua templat ini bekerja di aplikasi. Izin templat Teknisi:
 
+- `app.technician`, `evaluation.evaluable`
 - `customer.view`
 - `dashboard.view`
 - `evaluation.view.own`
@@ -4799,12 +4855,15 @@ Dua peran ini bekerja di aplikasi. Izin peran teknisi:
 - `spk.evidence.upload`, `spk.evidence.view`, `spk.start`, `spk.submit`, `spk.view`
 - `ticket.attachment.upload`, `ticket.comment.create`, `ticket.create`, `ticket.resolve`, `ticket.start`, `ticket.view`
 
-Izin peran pelanggan:
+Izin templat Pelanggan:
 
+- `portal.access`
 - `dashboard.view`
 - `evaluation.customer.submit`
 - `portal.invoice.pay`, `portal.invoice.view`
 - `ticket.attachment.upload`, `ticket.comment.create`, `ticket.create`, `ticket.view`
+
+`app.technician` menandai karyawan lapangan, `evaluation.evaluable` menandai karyawan yang bisa dinilai di Evaluasi, dan `portal.access` menandai akun pelanggan (bersama tautan ke data pelanggan). Ketiganya tidak membuka menu web.
 
 ### Pemisahan tugas
 
@@ -4822,10 +4881,11 @@ Beberapa keputusan tidak boleh diambil oleh orang yang sama dengan yang membuat 
 | Menutup tiket | Petugas tiket itu | 3.4 | "Tiket yang Anda selesaikan tidak bisa Anda tutup sendiri." |
 | Menerima atau menolak berkas pengembalian | Pemilik berkas | 6.8 | "Maker-checker: teknisi pemilik barang tidak boleh menerima fisiknya sendiri di gudang." atau "Maker-checker: teknisi tidak boleh menolak serah terima barangnya sendiri." |
 | Menyelesaikan selisih pengembalian | Pemilik berkas dan orang yang menerima fisik barangnya | 6.8 | "Teknisi tidak berhak menyelesaikan selisih barangnya sendiri." atau "Penerima fisik gudang tidak boleh menyelesaikan selisih yang ia terima sendiri." |
-| Mengatur ulang 2FA sebuah akun | Pemilik akun itu sendiri, dan semua pengguna selain admin untuk akun admin | 1.4 dan 8.5 | Tombolnya tidak tampil. |
-| Memberi peran admin, mengubah peran bawaan, mengubah atau menghapus pengguna admin | Semua pengguna selain admin | 8.5 dan 8.6 | Memberi peran admin ditolak dengan pesan "Hanya administrator yang boleh memberi peran admin." Dua tindakan lainnya ditolak dengan halaman **Akses ditolak**. |
+| Mengatur ulang 2FA sebuah akun | Pemilik akun itu sendiri, dan pengguna yang tidak memegang semua hak akses akun itu | 1.4 dan 8.5 | Tombolnya tidak tampil. |
+| Memberi hak akses yang tidak Anda pegang, mengubah atau menghapus peran atau pengguna yang lebih berkuasa dari Anda | Semua pengguna, termasuk admin untuk hak akses yang tidak dipegangnya | 8.5 dan 8.6 | Memberi hak akses yang tidak Anda pegang ditolak dengan pesan "Anda tidak dapat memberi hak akses yang tidak Anda miliki: &lt;hak akses&gt;." Mengubah atau menghapus yang lebih berkuasa ditolak dengan halaman **Akses ditolak**. |
+| Melepas atau menonaktifkan admin terakhir perusahaan | Semua pengguna | 8.5 dan 8.6 | "Perusahaan harus tetap punya minimal satu admin aktif yang memegang roles.manage." |
 
-Selain itu, peran non-admin tidak boleh memegang pasangan izin yang berbenturan. Izin menyetujui atau menolak permintaan barang tidak boleh bersama izin menyiapkan atau menyerahkan barang, atau menerima, mengeluarkan, dan memindahkan stok. Izin menyetujui penyesuaian stok tidak boleh bersama izin mengajukan penyesuaian, atau menerima, mengeluarkan, dan memindahkan stok. Izin darurat `inventory.stock.adjust` hanya boleh diberikan oleh admin. Pemeriksaan ini berjalan saat peran atau pengguna disimpan, termasuk saat dua peran digabung di satu akun, misalnya manajer dan staf bawaan. Bila yang menyimpan bukan admin, Inbils menolak penyimpanan yang melanggar dengan pesan seperti "Pemisahan tugas (persetujuan permintaan barang vs pelaksanaan gudang): &lt;izin&gt; tidak boleh digabung dengan &lt;izin&gt;." atau "Hanya administrator yang boleh memberikan hak akses darurat &lt;izin&gt;." Admin dikecualikan dari pemeriksaan ini.
+Selain itu, peran yang tidak memuat `roles.manage` tidak boleh memegang pasangan izin yang berbenturan. Izin menyetujui atau menolak permintaan barang tidak boleh bersama izin menyiapkan atau menyerahkan barang, atau menerima, mengeluarkan, dan memindahkan stok. Izin menyetujui penyesuaian stok tidak boleh bersama izin mengajukan penyesuaian, atau menerima, mengeluarkan, dan memindahkan stok. Izin darurat `inventory.stock.adjust` hanya boleh dimuat peran yang juga memuat `roles.manage`. Pemeriksaan ini berjalan per perusahaan saat peran atau pengguna disimpan, termasuk saat dua peran digabung di satu akun, misalnya Manajer dan Staf bawaan. Bila yang menyimpan tidak memegang `roles.manage`, Inbils menolak penyimpanan yang melanggar dengan pesan seperti "Pemisahan tugas (persetujuan permintaan barang vs pelaksanaan gudang): &lt;izin&gt; tidak boleh digabung dengan &lt;izin&gt;." atau "Hanya administrator yang boleh memberikan hak akses darurat &lt;izin&gt;." Pemegang `roles.manage` dikecualikan dari pemeriksaan ini.
 
 ## 10.2 Istilah
 
@@ -4833,6 +4893,7 @@ Selain itu, peran non-admin tidak boleh memegang pasangan izin yang berbenturan.
 | --- | --- |
 | 2FA | Autentikasi dua langkah. Kode 6 digit dari aplikasi autentikator diminta setelah kata sandi (bagian 1.4). |
 | Akses dukungan | Sesi terbatas 30 menit saat operator platform masuk sebagai seorang pengguna untuk menangani keluhan. Mulai dalam mode baca, tercatat di Log Audit perusahaan, dan ditandai banner di atas halaman. Lihat **Panduan Panel Operator Inbils**. |
+| Anggota | Pengguna yang berasal dari perusahaan lain tetapi diberi keanggotaan di perusahaan ini. Di menu **Pengguna** hanya perannya di perusahaan ini yang diatur (bagian 8.5). |
 | Aset jaringan | Perangkat jaringan yang dilacak satu per satu, dengan nomor seri, lokasi, dan status (**Tersedia**, **Terpasang**, **Perawatan**, **Rusak**, atau **Dipensiunkan**) (bagian 5.2). |
 | Blokir internet | Isolasi jaringan manual pada satu langganan, lewat tombol **Blokir internet** di langganan atau **Blokir** di **Tunggakan**. Blokir bukan status, dan pembayaran tidak mencabutnya. **Buka blokir** mencabutnya (bagian 4.1 dan 7.2). |
 | Break-glass | Penyesuaian stok langsung oleh admin tanpa persetujuan. Layar web tidak menyediakan tombolnya (bagian 6.5). |
@@ -4851,7 +4912,7 @@ Selain itu, peran non-admin tidak boleh memegang pasangan izin yang berbenturan.
 | Nonaktifkan | Menyembunyikan data master dari pilihan baru tanpa mengubah riwayatnya. Pilihan satu-satunya untuk data yang sudah dipakai; **Hapus permanen** hanya untuk data yang belum pernah dipakai (bagian 1.5). |
 | NPWP | Nomor pokok wajib pajak, diisi di kolom **NPWP** pelanggan (bagian 4.1). |
 | ODN | Register jaringan serat optik: port PON pada OLT, splitter pada ODC dan ODP, dan port drop tiap langganan. OLT, ODC, dan ODP didaftarkan sebagai aset jaringan (bagian 5.5). |
-| Operator platform | Orang di tim Inbils yang memakai panel `/platform`: membuat dan menangguhkan perusahaan, mengelola definisi peran, dan memberi akses dukungan. Bukan pengguna perusahaan. Lihat **Panduan Panel Operator Inbils**. |
+| Operator platform | Orang di tim Inbils yang memakai panel `/platform`: membuat dan menangguhkan perusahaan, memelihara templat peran, memperbaiki peran perusahaan atas permintaan, dan memberi akses dukungan. Bukan pengguna perusahaan. Lihat **Panduan Panel Operator Inbils**. |
 | OTC | One-Time Charge, biaya sekali bayar seperti biaya pemasangan. Di paket namanya **Harga pemasangan**, dan di langganan **Biaya pemasangan** (bagian 4.2). |
 | Panel perangkat | Gambar router, switch, OLT, ONU/ONT, ODC, ODP, atau rak seperti wajah aslinya, dengan port berwarna menurut statusnya. Lembar port di dalamnya mencatat label, sambungan antar perangkat, dan pelanggan di port (bagian 5.6). |
 | Periode | Rentang tanggal yang dihitung sebuah laporan (bagian 7.3). |
@@ -4867,6 +4928,7 @@ Selain itu, peran non-admin tidak boleh memegang pasangan izin yang berbenturan.
 | SLA | Service Level Agreement, batas waktu layanan. Tingkat SLA dipilih di paket (bagian 4.5). Target respons dan penyelesaian sebuah tiket diambil dari tingkat SLA paket langganannya, atau dari Kategori Tiket bila tidak ada tingkat aktif (bagian 3.4). |
 | SPK | Surat Perintah Kerja, perintah kerja lapangan untuk teknisi (bagian 3.3). |
 | Splitter | Pembagi yang mengubah satu port hulu menjadi beberapa port output, dengan rasio 1:2 sampai 1:64 (bagian 5.5). |
+| Templat peran | Peran awal yang disalin ke setiap perusahaan baru saat dibuat. Setelah disalin, peran itu milik perusahaan dan tidak berubah bila templat diubah (bagian 8.6). |
 | Tersedia | Jumlah stok yang bisa dipakai, yaitu **Jumlah** dikurangi **Dicadangkan** (bagian 6.5). |
 | Tunggakan | Menu yang mengelompokkan tagihan belum lunas per pelanggan menurut umur sejak jatuh tempo (bagian 7.2). |
 | Versi paket | Catatan harga, profil, tingkat SLA, dan kategori sebuah paket pada suatu waktu. Langganan tetap di versi yang dijualnya sampai dipindahkan lewat **Ganti paket** (bagian 4.1 dan 4.2). |

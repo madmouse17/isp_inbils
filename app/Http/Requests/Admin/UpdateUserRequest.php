@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use App\Rules\NoStackedSodConflict;
+use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -13,7 +14,12 @@ class UpdateUserRequest extends FormRequest
         return $this->user()?->can('users.manage') ?? false;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * The roles are the ones of this company. Which of them the user may give or take is decided by
+     * CompanyRoleService::syncUserRoles when the user is saved.
+     *
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
         $user = $this->route('user');
@@ -24,17 +30,7 @@ class UpdateUserRequest extends FormRequest
             'password' => ['nullable', 'string', 'min:8'],
             'is_active' => ['boolean'],
             'roles' => ['array', new NoStackedSodConflict($this->user())],
-            'roles.*' => ['string', 'exists:roles,name'],
+            'roles.*' => ['string', Rule::exists('roles', 'name')->where('company_id', CompanyService::currentId())->where('guard_name', 'web')],
         ];
-    }
-
-    public function withValidator($validator): void
-    {
-        $validator->after(function ($validator) {
-            $roles = (array) $this->input('roles', []);
-            if (in_array('admin', $roles, true) && ! $this->user()?->hasRole('admin')) {
-                $validator->errors()->add('roles', 'Hanya administrator yang boleh memberi peran admin.');
-            }
-        });
     }
 }

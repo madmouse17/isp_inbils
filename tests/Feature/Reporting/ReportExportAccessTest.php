@@ -4,6 +4,7 @@ namespace Tests\Feature\Reporting;
 
 use App\Models\Core\EmployeeProfile;
 use App\Models\Core\Location;
+use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -12,7 +13,6 @@ use Modules\Inventory\Models\Product;
 use Modules\Inventory\Models\StockMovement;
 use Modules\Inventory\Models\Unit;
 use Modules\Reporting\Registry\ReportType;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\CreatesReportingUsers;
 use Tests\Traits\WithoutAppOnlyRedirect;
@@ -140,7 +140,7 @@ class ReportExportAccessTest extends TestCase
 
         // A technician holding export reaches only their own performance, without naming it.
         $technician = $this->technicianInCompany((int) $admin->company_id);
-        $technician->assignRole($this->roleWith(['report.technician', 'report.export']));
+        $this->grantRole($technician, $this->roleWith((int) $admin->company_id, ['report.technician', 'report.export']));
 
         $this->actingAs($technician)->get(route('admin.reports.technician.export'))->assertOk();
     }
@@ -158,7 +158,7 @@ class ReportExportAccessTest extends TestCase
     private function technicianInCompany(int $companyId): User
     {
         $technician = User::factory()->create(['company_id' => $companyId, 'is_active' => true, 'email_verified_at' => now()]);
-        $technician->assignRole(Role::findByName('technician'));
+        $this->grantRole($technician, 'technician', $companyId);
         EmployeeProfile::factory()->create(['company_id' => $companyId, 'user_id' => $technician->id, 'status' => 'active']);
 
         return $technician;
@@ -188,11 +188,8 @@ class ReportExportAccessTest extends TestCase
     }
 
     /** @param  list<string>  $permissions */
-    private function roleWith(array $permissions): Role
+    private function roleWith(int $companyId, array $permissions): Role
     {
-        $role = Role::firstOrCreate(['name' => 'tech-with-export', 'guard_name' => 'web']);
-        $role->givePermissionTo($permissions);
-
-        return $role;
+        return $this->companyRole($companyId, 'tech-with-export', ['app.web', ...$permissions]);
     }
 }

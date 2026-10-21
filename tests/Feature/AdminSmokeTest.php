@@ -68,7 +68,7 @@ class AdminSmokeTest extends TestCase
         ]));
 
         $user = User::factory()->create(['company_id' => $company->id]);
-        $user->assignRole('admin');
+        $this->grantRole($user, 'admin');
 
         return $user;
     }

@@ -59,7 +59,7 @@ class CustomerSalesAttributionTest extends TestCase
             'is_active' => true,
         ]);
         $this->manager = $this->employee('manager');
-        $this->staff = $this->employee('staff');
+        $this->staff = $this->salesStaff();
         $this->adminWithoutProfile = $this->employee('admin', profile: false);
     }
 
@@ -327,7 +327,7 @@ class CustomerSalesAttributionTest extends TestCase
 
     public function test_resubmitting_the_unchanged_acquirer_is_a_noop_even_when_that_user_is_no_longer_eligible(): void
     {
-        $former = $this->employee('staff', attributes: ['is_active' => false]);
+        $former = $this->salesStaff(attributes: ['is_active' => false]);
         $customer = $this->customerAcquiredBy($former);
 
         $this->actingAs($this->manager)
@@ -472,7 +472,7 @@ class CustomerSalesAttributionTest extends TestCase
 
     public function test_profile_delete_is_refused_before_logout_when_the_user_acquired_customers(): void
     {
-        $acquirer = $this->employee('staff');
+        $acquirer = $this->salesStaff();
         $this->customerAcquiredBy($acquirer)->delete();
 
         $this->actingAs($acquirer)

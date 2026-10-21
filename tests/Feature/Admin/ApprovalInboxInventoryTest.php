@@ -21,7 +21,6 @@ use Modules\Inventory\Models\Stock;
 use Modules\SPK\Database\Factories\WorkOrderFactory;
 use Modules\SPK\Models\WorkOrder;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\WithoutAppOnlyRedirect;
 
@@ -46,7 +45,7 @@ class ApprovalInboxInventoryTest extends TestCase
     {
         [$company, $manager] = $this->approver();
         $technician = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
-        $technician->assignRole('technician');
+        $this->grantRole($technician, 'technician');
 
         $warehouse = $this->warehouse($company);
         $product = $this->product($company, $warehouse, 100);
@@ -100,7 +99,7 @@ class ApprovalInboxInventoryTest extends TestCase
 
         // Other technician creates a submitted inventory request
         $tech = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
-        $tech->assignRole('technician');
+        $this->grantRole($tech, 'technician');
         $otherReq = $this->inventoryRequest($company, $tech, $warehouse, $product, [
             'status' => 'submitted',
             'code' => 'REQ-OTHER-001',
@@ -154,7 +153,7 @@ class ApprovalInboxInventoryTest extends TestCase
         [$companyA, $managerA] = $this->approver();
         $companyB = Company::factory()->create(['is_active' => true]);
         $managerB = User::factory()->create(['company_id' => $companyB->id, 'is_active' => true]);
-        $managerB->assignRole('manager');
+        $this->grantRole($managerB, 'manager');
 
         $warehouseA = $this->warehouse($companyA);
         $productA = $this->product($companyA, $warehouseA, 50);
@@ -274,7 +273,7 @@ class ApprovalInboxInventoryTest extends TestCase
 
         // 3. Actor without ANY inventory permissions (e.g. technician)
         $unauthorized = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
-        $unauthorized->assignRole('technician');
+        $this->grantRole($unauthorized, 'technician');
 
         $this->actingAs($unauthorized)
             ->get(route('admin.approvals.index'))
@@ -891,7 +890,8 @@ class ApprovalInboxInventoryTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $manager->assignRole(Role::where('name', 'manager')->firstOrFail());
+        $this->grantRole($manager, 'manager');
+        CompanyService::useCompanyForTests($company->id);
 
         return [$company, $manager];
     }

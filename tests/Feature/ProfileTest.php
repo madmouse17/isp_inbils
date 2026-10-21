@@ -63,6 +63,8 @@ class ProfileTest extends TestCase
     public function test_user_can_delete_their_account(): void
     {
         $user = $this->createCompanyUser();
+        // The last administrator of a company cannot leave (UserRoleAssignmentTest): this company keeps another one.
+        $this->grantRole(User::factory()->create(['company_id' => $user->company_id, 'email_verified_at' => now(), 'is_active' => true]), 'admin');
         $response = $this->actingAs($user)->delete('/profile', [
             'password' => 'password',
         ]);
@@ -128,7 +130,7 @@ class ProfileTest extends TestCase
         // Any one of the five permissions of the digest is enough, and the switch shows its saved state.
         foreach (User::INVENTORY_DIGEST_PERMISSIONS as $permission) {
             $holder = User::factory()->create(['company_id' => $admin->company_id, 'email_verified_at' => now(), 'is_active' => true]);
-            $holder->givePermissionTo($permission);
+            $this->grantPermissions($holder, [$permission]);
             $this->actingAs($holder)->get('/profile')->assertOk()->assertInertia($shows(true, false));
         }
 

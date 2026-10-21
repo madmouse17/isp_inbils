@@ -15,7 +15,6 @@ use Inertia\Testing\AssertableInertia as Assert;
 use Modules\Inventory\Models\Category;
 use Modules\Inventory\Models\Product;
 use Modules\Inventory\Models\Unit;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\CreatesReportingUsers;
 use Tests\Traits\WithoutAppOnlyRedirect;
@@ -86,7 +85,7 @@ class ReportPickerOptionsTest extends TestCase
         $this->technician('Rani Nonaktif', 'rani.off@example.test', active: false);
         $this->technician('Rani Asing', 'rani.asing@example.test', companyId: $this->other->id);
         $staff = User::factory()->create(['company_id' => $this->admin->company_id, 'name' => 'Rani Staf', 'is_active' => true]);
-        $staff->assignRole(Role::findByName('staff'));
+        $this->grantRole($staff, 'staff');
         EmployeeProfile::factory()->create(['company_id' => $this->admin->company_id, 'user_id' => $staff->id, 'organization_id' => null, 'status' => 'active']);
 
         $response = $this->partial('Admin/Reports/Technician', 'technicianOptions', route('admin.reports.technician', ['technician_search' => 'Rani']))->assertOk();
@@ -282,7 +281,7 @@ class ReportPickerOptionsTest extends TestCase
     {
         $companyId ??= (int) $this->admin->company_id;
         $user = User::factory()->create(['company_id' => $companyId, 'name' => $name, 'email' => $email, 'is_active' => $active, 'email_verified_at' => now()]);
-        $user->assignRole(Role::findByName('technician'));
+        $this->grantRole($user, 'technician');
         EmployeeProfile::factory()->create(['company_id' => $companyId, 'user_id' => $user->id, 'organization_id' => null, 'status' => 'active']);
 
         return $user;

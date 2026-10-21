@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Core\Company;
 use App\Models\Core\Location;
 use App\Models\User;
+use App\Services\Core\CompanyRoleService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\LocationService;
 use App\Support\PublicId;
@@ -21,7 +22,9 @@ use Modules\Service\Models\ServicePackageCategory;
 use Modules\Service\Services\ServicePackageVersionBackfill;
 
 /**
- * The defaults a new company starts with. `$catalog` picks how much:
+ * The defaults a new company starts with. It copies the platform's role templates into a company that has no roles yet
+ * (a no-op when the Setup Wizard already did), so a subsidiary gets them through CompanyCreated. `$catalog` picks how
+ * much else:
  *
  * - `empty`: units, package categories and ticket categories, what no company works without.
  * - `starter`: `empty` plus SLA tiers, the Default Region/Area/POP, bandwidth and speed profiles, packages, inventory
@@ -47,6 +50,8 @@ class CompanySeeder extends Seeder
         if (! in_array($catalog, self::CATALOGS, true)) {
             throw new InvalidArgumentException("Unknown catalog [{$catalog}]: use ".implode(', ', self::CATALOGS).'.');
         }
+
+        app(CompanyRoleService::class)->copyTemplates($company);
 
         $previousUser = Auth::user();
         $actingUser = ($previousUser?->company_id === (int) $company->id)

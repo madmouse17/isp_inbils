@@ -76,6 +76,8 @@ class CompanyContextTest extends TestCase
     public function test_a_revoked_membership_falls_back_to_the_home_company(): void
     {
         $user = $this->groupUser($this->head, 'admin', $this->subA);
+        // The last administrator of a company is not revoked (G5): the subsidiary keeps its own.
+        $this->groupUser($this->subA);
 
         $this->actingAs($user);
         session([CompanyService::SESSION_KEY => $this->subA->id]);

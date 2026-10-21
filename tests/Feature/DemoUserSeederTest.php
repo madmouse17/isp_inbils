@@ -2,8 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\Core\Company;
 use App\Models\Core\EmployeeProfile;
+use App\Models\Role;
 use App\Models\User;
+use App\Services\Core\CompanyService;
 use Database\Seeders\DemoUserSeeder;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -14,31 +17,44 @@ class DemoUserSeederTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_it_seeds_demo_users_with_roles_company_and_required_profiles(): void
+    public function test_it_seeds_demo_users_with_company_roles_and_required_profiles(): void
     {
         $this->seed(RolePermissionSeeder::class);
         $this->seed(DemoUserSeeder::class);
 
         $expected = [
-            'admin' => 'admin@demo.inbils.test',
-            'manager' => 'manager@demo.inbils.test',
-            'staff' => 'staff@demo.inbils.test',
-            'technician' => 'technician@demo.inbils.test',
-            'customer' => 'customer@demo.inbils.test',
+            'admin' => ['admin@demo.inbils.test', 'Admin'],
+            'manager' => ['manager@demo.inbils.test', 'Manajer'],
+            'staff' => ['staff@demo.inbils.test', 'Staf'],
+            'technician' => ['technician@demo.inbils.test', 'Teknisi'],
+            'customer' => ['customer@demo.inbils.test', 'Pelanggan'],
         ];
 
-        foreach ($expected as $role => $email) {
+        $company = Company::query()->where('code', 'DEMO')->firstOrFail();
+        $roles = CompanyService::runAs((int) $company->id, fn () => Role::query()->get());
+
+        $this->assertCount(8, $roles);
+        $this->assertSame(
+            ['admin', 'customer', 'finance', 'manager', 'noc', 'staff', 'technician', 'warehouse'],
+            $roles->pluck('template_key')->sort()->values()->all(),
+        );
+
+        foreach ($expected as $key => [$email, $name]) {
             $user = User::query()->where('email', $email)->firstOrFail();
 
-            $this->assertTrue($user->hasRole($role));
-            $this->assertNotNull($user->company_id);
-            $this->assertTrue(Hash::check('password', $user->password));
+            $this->assertSame([$key], CompanyService::runAs(
+                (int) $company->id,
+                fn () => $user->fresh()->roles()->pluck('template_key')->all(),
+            ));
+            $this->assertSame($key, $roles->firstWhere('name', $name)?->template_key);
+            $this->assertSame($company->id, $user->company_id);
+            $this->assertTrue(Hash::check(DemoUserSeeder::PASSWORD, $user->getAuthPassword()));
         }
 
         foreach (['manager', 'staff', 'technician'] as $role) {
             $this->assertDatabaseHas(EmployeeProfile::class, [
-                'user_id' => User::query()->where('email', $expected[$role])->value('id'),
-                'company_id' => User::query()->where('email', $expected[$role])->value('company_id'),
+                'user_id' => User::query()->where('email', $expected[$role][0])->value('id'),
+                'company_id' => $company->id,
                 'status' => 'active',
             ]);
         }

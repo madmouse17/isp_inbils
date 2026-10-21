@@ -40,9 +40,17 @@ class HandleInertiaRequests extends Middleware
         /** @var ActiveImpersonation|null $impersonation */
         $impersonation = $request->attributes->get('impersonation');
         $company = $user ? CompanyService::current() : null;
-        $memberships = $user?->can('company.switch')
-            ? app(CompanyMembershipService::class)->companiesOf($user)
-            : collect();
+        // company.switch is read in the company the user is in now. Away from home without it they still get the way
+        // back (CompanyPolicy::switchTo allows going home), so a switch into a company where their role is smaller
+        // never strands them.
+        $memberships = match (true) {
+            $user === null => collect(),
+            $user->can('company.switch') => app(CompanyMembershipService::class)->companiesOf($user),
+            $company !== null && (int) $company->id !== (int) $user->company_id => app(CompanyMembershipService::class)->companiesOf($user)
+                ->filter(fn (array $entry): bool => $entry['is_default'] || $entry['is_current'])
+                ->values(),
+            default => collect(),
+        };
         $canSwitch = $memberships->count() > 1;
 
         return [
@@ -56,13 +64,12 @@ class HandleInertiaRequests extends Middleware
                     'company_id' => $company?->public_id,
                     'home_company_id' => $company !== null && (int) $company->id === (int) $user->company_id ? $company->public_id : $user->company?->public_id,
                     'is_active' => $user->is_active ?? true,
-                    'roles' => $user->roles->pluck('name'),
                     'permissions' => $user->getAllPermissions()->pluck('name'),
                 ] : null,
             ],
             // The banner must name the page the operator is on after every visit, partial reloads included.
             'impersonation' => $impersonation === null ? null : Inertia::always(fn () => $impersonation->toProp($request->getRequestUri())),
-            // Technician/customer-only logins use the apps; the few web pages they still reach drop the admin chrome.
+            // Logins without web access (`app.web`) use the apps; the few web pages they still reach drop the admin chrome.
             'appOnly' => $user !== null && RedirectAppOnlyRoles::isAppOnly($user),
             // A nudge for an admin who has no second factor while the company does not require it yet; once it does,
             // EnforceCompanyTwoFactor locks instead. Never shown to support staff acting as the user, who cannot enrol for them.

@@ -7,6 +7,7 @@ import {
     formatGroup,
     formatPermission,
     groupPermissions,
+    isGrantable,
     permissionGroupSection,
     setGroupPermissions,
     setPermission,
@@ -20,6 +21,9 @@ export interface PermissionGroupSelectorProps {
     error?: string;
 }
 
+/** Why a box is disabled; every such box points at its own line with `aria-describedby`. */
+const NOT_HELD = 'Anda tidak memegang hak akses ini';
+
 export function PermissionGroupSelector({
     permissions,
     value,
@@ -27,6 +31,7 @@ export function PermissionGroupSelector({
     error,
 }: PermissionGroupSelectorProps) {
     const searchId = useId();
+    const hintPrefix = useId();
     const [query, setQuery] = useState('');
     // While searching, every list below shows only the matches, so counts and select-all follow them.
     const grouped = useMemo(
@@ -37,14 +42,19 @@ export function PermissionGroupSelector({
     const [activeGroup, setActiveGroup] = useState(groups[0]?.[0] ?? '');
     const currentGroup = grouped[activeGroup] ? activeGroup : (groups[0]?.[0] ?? '');
     const currentPermissions = grouped[currentGroup] ?? [];
+    const currentLocked = currentPermissions.filter((permission) => !isGrantable(permission));
     const searching = query.trim() !== '';
     const matchCount = groups.reduce((total, [, items]) => total + items.length, 0);
+    const anyLocked = permissions.some((permission) => !isGrantable(permission));
 
     return (
         <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
                 Centang kotak kategori untuk memilih atau mengosongkan semua hak akses di kategori
                 itu.
+                {anyLocked
+                    ? ' Hak akses yang tidak bisa dicentang tidak Anda pegang, jadi tidak bisa Anda berikan ke peran.'
+                    : ''}
             </p>
             <div className="max-w-sm">
                 <Input
@@ -74,10 +84,12 @@ export function PermissionGroupSelector({
                 <div className="grid overflow-hidden rounded-lg border border-border md:grid-cols-[17rem_1fr]">
                     <div className="max-h-120 overflow-y-auto border-b border-border bg-muted/20 md:border-r md:border-b-0">
                         {groups.map(([group, items], index) => {
-                            const selectedCount = items.filter((item) =>
+                            const grantable = items.filter(isGrantable);
+                            const selectedCount = grantable.filter((item) =>
                                 value.includes(item.name),
                             ).length;
-                            const allSelected = selectedCount === items.length;
+                            const noneHeld = grantable.length === 0;
+                            const allSelected = !noneHeld && selectedCount === grantable.length;
                             const section = permissionGroupSection(group);
                             const showSection =
                                 section !== null &&
@@ -100,6 +112,7 @@ export function PermissionGroupSelector({
                                         <Checkbox
                                             aria-label={`Pilih semua hak akses ${formatGroup(group)}`}
                                             checked={allSelected}
+                                            disabled={noneHeld}
                                             indeterminate={selectedCount > 0 && !allSelected}
                                             onCheckedChange={(checked) =>
                                                 onChange(
@@ -119,8 +132,18 @@ export function PermissionGroupSelector({
                                             <span className="truncate text-sm font-medium">
                                                 {formatGroup(group)}
                                             </span>
-                                            <Badge variant={allSelected ? 'success' : 'secondary'}>
-                                                {selectedCount}/{items.length}
+                                            <Badge
+                                                variant={
+                                                    noneHeld
+                                                        ? 'muted'
+                                                        : allSelected
+                                                          ? 'success'
+                                                          : 'secondary'
+                                                }
+                                            >
+                                                {noneHeld
+                                                    ? 'Tidak dipegang'
+                                                    : `${selectedCount}/${grantable.length}`}
                                             </Badge>
                                         </button>
                                     </div>
@@ -135,23 +158,46 @@ export function PermissionGroupSelector({
                                 <h3 className="font-semibold">{formatGroup(currentGroup)}</h3>
                                 <p className="text-xs text-muted-foreground">
                                     {currentPermissions.length} hak akses
+                                    {currentLocked.length > 0
+                                        ? `, ${currentLocked.length} tidak Anda pegang`
+                                        : ''}
                                 </p>
                             </div>
                         </div>
                         <div className="grid max-h-96 gap-3 overflow-y-auto pr-2 sm:grid-cols-2 xl:grid-cols-3">
-                            {currentPermissions.map((permission) => (
-                                <Checkbox
-                                    key={permission.name}
-                                    label={formatPermission(permission.name)}
-                                    title={permission.name}
-                                    checked={value.includes(permission.name)}
-                                    onCheckedChange={(checked) =>
-                                        onChange(
-                                            setPermission(value, permission.name, checked === true),
-                                        )
-                                    }
-                                />
-                            ))}
+                            {currentPermissions.map((permission) => {
+                                const held = isGrantable(permission);
+                                const hintId = `${hintPrefix}-${permission.name}`;
+
+                                return (
+                                    <div key={permission.name}>
+                                        <Checkbox
+                                            label={formatPermission(permission.name)}
+                                            title={permission.name}
+                                            checked={value.includes(permission.name)}
+                                            disabled={!held}
+                                            aria-describedby={held ? undefined : hintId}
+                                            onCheckedChange={(checked) =>
+                                                onChange(
+                                                    setPermission(
+                                                        value,
+                                                        permission.name,
+                                                        checked === true,
+                                                    ),
+                                                )
+                                            }
+                                        />
+                                        {held ? null : (
+                                            <p
+                                                id={hintId}
+                                                className="pl-6 text-xs text-muted-foreground"
+                                            >
+                                                {NOT_HELD}
+                                            </p>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>

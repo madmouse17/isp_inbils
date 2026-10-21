@@ -93,10 +93,10 @@ Blocking gaps:
 
 1. Many write FormRequests use global unscoped `exists`, including subscription customer/package/address/location (`app/Http/Requests/Admin/StoreSubscriptionRequest.php:23-33`), ticket category/customer/subscription/asset/location (`Modules/Ticketing/app/Http/Requests/StoreTicketRequest.php:17-27`), inventory product/location (`Modules/Inventory/app/Http/Requests/StockAdjustRequest.php:15-22`), SPK customer/subscription/location (`Modules/SPK/app/Http/Requests/StoreWorkOrderRequest.php:19-24`), and billing customer/subscription (`Modules/Billing/app/Http/Requests/StoreInvoiceRequest.php:17-20`). Laravel validation queries do not inherit Eloquent tenant scopes. Cross-company foreign IDs may pass trust-boundary validation.
 2. Subscription post-validation checks package company and address ownership, but base `exists` remain unscoped and customer, address company, serving POP, and complete parent-child consistency are not all proven (`app/Http/Requests/Admin/StoreSubscriptionRequest.php:47-63`).
-3. Manager role combines stock adjustment, SPK approval, payment recording, and invoice cancellation (`database/seeders/RolePermissionSeeder.php:146-176`). Single-company baseline still needs maker/checker separation for money, stock, and work completion.
+3. The Manager role template (`PermissionCatalogue::templates()`) combines stock-adjustment approval, SPK approval, payment recording and reversal, and invoice cancellation. Roles are per company and the company administrator may edit the copies (`docs/SECURITY.md` 2.3, 2.6). The same-actor guards in `docs/SECURITY.md` 2.2 bind those duties; a single-company baseline still needs maker/checker separation for money, stock, and work completion.
 4. SPK records creator and assignment actors but no durable approver field in schema (`Modules/SPK/database/migrations/2026_07_01_120000_create_work_orders_table.php:29-32`). Audit log alone is useful but weaker than explicit approval evidence.
 
-Required destination: company-aware validation rules or scoped `Rule::exists` in every write FormRequest; matching service assertions inside transactions; `RolePermissionSeeder` least-privilege split; actor/timestamp fields where durable approval/reversal evidence is required; denied-path and cross-company write tests.
+Required destination: company-aware validation rules or scoped `Rule::exists` in every write FormRequest; matching service assertions inside transactions; least-privilege split in the role templates (`PermissionCatalogue::templates()`); actor/timestamp fields where durable approval/reversal evidence is required; denied-path and cross-company write tests.
 
 ### 4.2 Customer and service lifecycle — PARTIAL, P0/P1
 
@@ -139,7 +139,7 @@ Implemented evidence:
 Gaps:
 
 - P0 tenant-scoped product/location validation and service assertions.
-- P0 stock adjustment is directly executable by manager/admin role; baseline needs maker/checker or tightly separate inventory controller role (`database/seeders/RolePermissionSeeder.php:165-176`).
+- P0 stock adjustment: request (Gudang, Staf templates) and approval (Manajer) are split, and only the Admin template holds the direct break-glass `inventory.stock.adjust` (`PermissionCatalogue::templates()`, `docs/SECURITY.md` 2.4). The residual is that admin can still adjust directly, bound only by the same-actor guards; baseline needs maker/checker or a tightly separate inventory controller role.
 - P1 transfer, issue, adjustment, reservation conflict, and rollback browser/feature coverage remains incomplete.
 
 ### 4.5 Billing and reconciliation — PARTIAL, P0/P1
@@ -154,7 +154,7 @@ Implemented evidence:
 
 Gaps:
 
-- P0 maker/checker separation: manager can create/send/record/cancel invoice (`database/seeders/RolePermissionSeeder.php:173-176`).
+- P0 maker/checker separation: the Manajer template can create/send/record/cancel invoice (`PermissionCatalogue::templates()`; same-actor guards in `docs/SECURITY.md` 2.2).
 - P1 durable payment reversal/cancellation actor and approval path; payment schema stores receiver but no cancellation actor (`Modules/Billing/database/migrations/2026_07_01_130002_create_payments_table.php:19-24`).
 - P1 recurring generation retry/idempotency/failure alert and supervised scheduler evidence absent.
 

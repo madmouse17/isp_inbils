@@ -190,7 +190,9 @@ class PaymentGatewaySchemaTest extends TestCase
         $this->assertFalse((bool) $this->admin->fresh()->getAttribute('must_change_password'));
         $company = Company::query()->findOrFail($this->admin->company_id);
         $customerLogin = User::factory()->create(['company_id' => $company->id]);
-        $customerLogin->assignRole('customer');
+        $this->grantRole($customerLogin, 'customer');
+        // The migration is from before roles belonged to companies: it finds customers by the legacy role name.
+        $this->companyRoles($company)['customer']->forceFill(['name' => 'customer'])->save();
 
         $migration = require base_path('database/migrations/2026_10_12_600004_flag_existing_customer_users_for_password_change.php');
         $migration->up();

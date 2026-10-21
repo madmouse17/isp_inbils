@@ -7,8 +7,9 @@ use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 
 /**
- * Rejects a role permission set that breaks the SoD conflict set. Only the seeded `admin` role is exempt (break-glass),
- * so the platform panel, the one place role definitions are written, passes `exempt: true` for that role alone.
+ * Rejects a role permission set that breaks the SoD conflict set. A set that holds roles.manage is the company
+ * administrator's break-glass role: the requests that save roles (tenant, template, platform repair) pass `exempt: true`
+ * for it and for nothing else.
  */
 class NoSodConflict implements ValidationRule
 {

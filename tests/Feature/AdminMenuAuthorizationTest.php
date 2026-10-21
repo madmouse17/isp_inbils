@@ -10,12 +10,10 @@ use App\Services\Core\CompanyHierarchyService;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class AdminMenuAuthorizationTest extends TestCase
@@ -106,28 +104,31 @@ class AdminMenuAuthorizationTest extends TestCase
                 ->where('filters.per_page', '25'));
     }
 
-    public function test_the_peran_menu_is_read_only_for_a_tenant_admin(): void
+    public function test_the_peran_menu_is_writable_for_a_role_manager(): void
     {
         $this->withoutVite();
-        $this->actingAs($this->userWithRole('admin'));
+        $admin = $this->userWithRole('admin');
+        $manager = $this->companyRoles((int) $admin->company_id)['manager'];
+        $this->actingAs($admin);
 
         $this->get(route('admin.roles.index'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Roles/Index')
-                ->where('can.export', true));
+                ->where('can', ['create' => true, 'export' => true]));
 
         // The show page is a React file the tenant roles UI ticket adds, hence `false`.
-        $this->get(route('admin.roles.show', Role::findByName('manager')))
+        $this->get(route('admin.roles.show', $manager))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Roles/Show', false)
-                ->where('role.data.name', 'manager'));
+                ->where('role.data.name', $manager->name)
+                ->where('role.data.template_key', 'manager'));
 
-        foreach (['create', 'store', 'edit', 'update', 'destroy'] as $name) {
-            $this->assertFalse(Route::has("admin.roles.{$name}"), "admin.roles.{$name} must not exist");
+        foreach (['create', 'store', 'edit', 'update', 'destroy', 'export'] as $name) {
+            $this->assertTrue(Route::has("admin.roles.{$name}"), "admin.roles.{$name} must exist");
         }
-        $this->assertTrue(Route::has('admin.roles.export'));
+        $this->assertTrue(Route::has('admin.users.roles.update'));
     }
 
     public function test_users_manage_without_roles_manage_cannot_open_permissions_index(): void
@@ -504,12 +505,12 @@ class AdminMenuAuthorizationTest extends TestCase
             'is_active' => true,
         ]);
 
-        $user->assignRole(Role::where('name', $roleName)->firstOrFail());
+        $this->grantRole($user, $roleName, $company);
 
-        // Technician and customer accounts are app-only on the web. A permission-less extra role keeps
-        // their permission matrix reachable here without being redirected to /app-only.
+        // Technician and customer accounts have no web access of their own (the templates lack app.web). An extra
+        // role that holds only that marker keeps their permission matrix reachable here without the redirect to /app-only.
         if (in_array($roleName, ['technician', 'customer'], true)) {
-            $user->assignRole(Role::findOrCreate('web-access', 'web'));
+            $this->grantPermissions($user, ['app.web'], $company);
         }
 
         return $user;
@@ -526,11 +527,9 @@ class AdminMenuAuthorizationTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => $active,
         ]);
-        $role = Role::create(['name' => 'sidebar-'.Str::lower(Str::random(10)), 'guard_name' => 'web']);
-        $role->syncPermissions($permissions);
-        $user->assignRole($role);
 
-        return $user;
+        // Web access is a permission of its own: without app.web every /admin page is the "use the app" page.
+        return $this->grantPermissions($user, ['app.web', ...$permissions], $company);
     }
 
     private function makeEmployee(User $user, bool $inOrganization = false): void

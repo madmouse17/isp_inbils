@@ -36,7 +36,7 @@ class PaymentReversalTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $user->assignRole($role);
+        $this->grantRole($user, $role);
 
         return $user;
     }

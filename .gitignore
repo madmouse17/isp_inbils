@@ -55,6 +55,7 @@ docs/architecture/decisions/*
 !docs/architecture/decisions/ADR-001.md
 !docs/architecture/decisions/ADR-002.md
 !docs/architecture/decisions/ADR-003-platform-superadmin.md
+!docs/architecture/decisions/ADR-004-tenant-scoped-roles.md
 !docs/business/
 docs/business/*
 !docs/business/inventory.md

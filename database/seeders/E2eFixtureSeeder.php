@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyHierarchyService;
 use App\Services\Core\CompanyMembershipService;
+use App\Services\Core\CompanyRoleService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\LocationService;
 use App\Services\WhatsApp\PhoneNumber;
@@ -77,7 +78,9 @@ class E2eFixtureSeeder extends Seeder
 
     /**
      * The group of the Head company specs: an active subsidiary under the demo company, in its
-     * currency so the consolidated report adds up, and the demo admin as a member of both.
+     * currency so the consolidated report adds up, and the demo admin as a member of both. Roles are per company, so the
+     * grant alone leaves him with nothing in the subsidiary: he gets its copies of his template roles, as the grant
+     * command and the platform's subsidiary action give them.
      */
     private function seedSubsidiary(Company $head): void
     {
@@ -90,6 +93,7 @@ class E2eFixtureSeeder extends Seeder
 
         if ($admin) {
             app(CompanyMembershipService::class)->grant($admin, $subsidiary);
+            app(CompanyRoleService::class)->mirrorTemplateRoles($admin, $head, $subsidiary);
         }
 
         CompanyService::runAs((int) $subsidiary->id, fn () => $this->seedSubsidiaryFigures($subsidiary, $admin));
@@ -840,9 +844,15 @@ class E2eFixtureSeeder extends Seeder
     /**
      * Dedicated customers for tests/e2e/customer-sales-attribution.spec.ts.
      * `acquired_by_user_id` is not mass assignable, so it is written directly.
+     *
+     * Only holders of customer.create can be credited, and the spec credits Demo Staff. The Staf template lacks it for
+     * new companies (tenant-roles delta D9) while the Staf copy of an existing company keeps it, so the demo company,
+     * which stands for an existing one, gets it on its own copy.
      */
     private function seedSalesAttributionFixtures(Company $company): void
     {
+        app(CompanyRoleService::class)->copyTemplates($company)['staff']->givePermissionTo('customer.create');
+
         $acquirers = [
             'manager' => User::query()->where('email', 'manager@demo.inbils.test')->value('id'),
             'staff' => User::query()->where('email', 'staff@demo.inbils.test')->value('id'),

@@ -176,25 +176,25 @@
             ]
         },
         {
-            "slug": "platform-roles",
-            "url": "/platform/roles",
+            "slug": "platform-role-templates",
+            "url": "/platform/role-templates",
             "auth": "platform",
             "actions": [
                 {
-                    "waitFor": "role=heading[name=\"Peran & hak akses\"] >> visible=true >> nth=0"
+                    "waitFor": "role=heading[name=\"Templat peran\"] >> visible=true >> nth=0"
                 }
             ]
         },
         {
-            "slug": "platform-role-edit",
-            "url": "/platform/roles",
+            "slug": "platform-company-roles",
+            "url": "/platform?search=DEMO",
             "auth": "platform",
             "actions": [
                 {
-                    "click": "main table tbody tr a >> visible=true >> nth=0"
+                    "click": "role=link[name=\"Inbils Demo Company\"] >> visible=true >> nth=0"
                 },
                 {
-                    "waitFor": "text=Peran bawaan >> visible=true >> nth=0"
+                    "click": "role=heading[name=/^Peran$/] >> visible=true >> nth=0"
                 }
             ]
         },

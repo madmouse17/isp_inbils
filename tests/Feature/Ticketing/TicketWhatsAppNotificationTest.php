@@ -85,7 +85,7 @@ class TicketWhatsAppNotificationTest extends TestCase
     private function handler(string $name = 'Budi Santoso'): User
     {
         $handler = User::factory()->create(['company_id' => $this->company->id, 'is_active' => true, 'name' => $name]);
-        $handler->assignRole('technician');
+        $this->grantRole($handler, 'technician');
 
         return $handler;
     }

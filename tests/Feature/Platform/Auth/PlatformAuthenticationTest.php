@@ -459,8 +459,9 @@ class PlatformAuthenticationTest extends TestCase
         $routes = collect(Route::getRoutes()->getRoutes())->filter(fn ($route): bool => str_starts_with((string) $route->getName(), 'platform.'));
 
         $this->assertNotEmpty($routes);
-        // The one DELETE of the panel is the role editor's (design §4.6); any other would be a new way to remove something.
-        $this->assertSame(['platform.roles.destroy'], $routes->filter(fn ($route): bool => in_array('DELETE', $route->methods(), true))->map->getName()->values()->all());
+        // The DELETEs of the panel are the role editors' (ADR-004): a template and a role of one company. Any other would be a new way to remove something.
+        $deletes = $routes->filter(fn ($route): bool => in_array('DELETE', $route->methods(), true))->map->getName()->sort()->values()->all();
+        $this->assertSame(['platform.companies.roles.destroy', 'platform.role-templates.destroy'], $deletes);
         $this->assertSame([], $routes->filter(fn ($route): bool => str_contains((string) $route->getName(), 'disable'))->map->getName()->all());
 
         ['admin' => $admin] = $this->enrolledPlatformAdmin();

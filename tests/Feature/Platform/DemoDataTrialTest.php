@@ -6,6 +6,7 @@ use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\Core\NumberSequence;
 use App\Models\User;
+use App\Services\Core\CompanyService;
 use App\Services\WhatsApp\PhoneNumber;
 use App\Support\Platform\TenantTableRegistry;
 use Database\Seeders\DemoDataSeeder;
@@ -17,7 +18,6 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use RuntimeException;
-use Spatie\Permission\Models\Role;
 use Throwable;
 
 /**
@@ -88,7 +88,7 @@ class DemoDataTrialTest extends PurgeTestCase
     public function test_a_failure_rolls_everything_back_and_still_restores_the_process(): void
     {
         [$company, $admin] = $this->newTenant('ALP');
-        Role::query()->where('name', 'technician')->delete();
+        $this->companyRoles($company)['technician']->delete();
         app()['cache']->forget('spatie.permission.cache');
         config(['queue.default' => 'database', 'mail.default' => 'log']);
         $before = $this->snapshot($company);
@@ -128,7 +128,7 @@ class DemoDataTrialTest extends PurgeTestCase
         [$alpha] = $this->newTenant('ALP');
         [, $betaAdmin] = $this->newTenant('BET');
         $manager = User::factory()->create(['company_id' => $alpha->id]);
-        $manager->assignRole('manager');
+        $this->grantRole($manager, 'manager');
         $before = $this->snapshot($alpha);
 
         foreach ([$betaAdmin, $manager] as $wrong) {
@@ -148,7 +148,8 @@ class DemoDataTrialTest extends PurgeTestCase
         $customers = DB::table('customers')->where('company_id', $id)->count();
 
         $this->assertCount(10 + $customers, $users, 'four sample logins, six more staff and one portal login per customer');
-        $this->assertSame(['admin'], $admin->refresh()->getRoleNames()->all(), 'the real admin keeps the admin role and gets no other');
+        // The roles are the company's: nobody is signed in here, so the company is named.
+        $this->assertSame(['Admin'], CompanyService::runAs($id, fn (): array => $admin->refresh()->getRoleNames()->all()), 'the real admin keeps the admin role and gets no other');
         $this->assertSame(
             ['customer', 'manager', 'staff', 'technician'],
             $users->map(fn (User $user): string => Str::before($user->email, '@'))->intersect(['manager', 'staff', 'technician', 'customer'])->sort()->values()->all(),

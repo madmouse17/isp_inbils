@@ -36,7 +36,7 @@ class EmployeeTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     public function test_create_without_a_number_gets_the_configured_format(): void

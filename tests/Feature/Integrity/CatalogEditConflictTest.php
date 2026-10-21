@@ -38,7 +38,7 @@ class CatalogEditConflictTest extends TestCase
 
         $this->company = Company::factory()->create(['is_active' => true]);
         $this->admin = User::factory()->create(['company_id' => $this->company->id, 'email_verified_at' => now(), 'is_active' => true]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     public function test_product_and_package_saves_from_an_older_copy_are_refused(): void

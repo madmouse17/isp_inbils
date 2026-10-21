@@ -395,7 +395,7 @@ class RadiusPerCompanyTest extends TestCase
     public function test_the_pages_of_a_company_without_radius_say_so_and_the_others_do_not(): void
     {
         $adminC = User::factory()->create(['company_id' => $this->c->id, 'email_verified_at' => now(), 'is_active' => true]);
-        $adminC->assignRole('admin');
+        $this->grantRole($adminC, 'admin');
         $nasA = $this->nasClient($this->a);
         $nasC = $this->nasClient($this->c);
         $subscriptionA = $this->subscriptionIn($this->a, 'active', null, $this->packageWithRadiusProfile($this->a));

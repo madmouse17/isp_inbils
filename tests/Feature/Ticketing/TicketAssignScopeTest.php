@@ -9,7 +9,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Services\TicketService;
-use Spatie\Permission\Models\Role;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
@@ -35,7 +34,7 @@ class TicketAssignScopeTest extends TestCase
         $this->actingAs($admin);
         $ticket = $this->makeOpenTicket($admin);
         $handler = User::factory()->create(['company_id' => $admin->company_id, 'is_active' => true]);
-        $handler->assignRole('technician');
+        $this->grantRole($handler, 'technician');
 
         try {
             TicketService::assign($ticket, $handler->id, $admin->id);
@@ -51,7 +50,7 @@ class TicketAssignScopeTest extends TestCase
         $this->actingAs($admin);
         $ticket = $this->makeOpenTicket($admin);
         $handler = User::factory()->create(['company_id' => $admin->company_id, 'is_active' => true]);
-        $handler->assignRole('technician');
+        $this->grantRole($handler, 'technician');
 
         TicketService::assign(
             $ticket,
@@ -70,7 +69,7 @@ class TicketAssignScopeTest extends TestCase
         $this->actingAs($admin);
         $ticket = $this->makeOpenTicket($admin);
         $handler = User::factory()->create(['company_id' => $admin->company_id, 'is_active' => true]);
-        $handler->assignRole('technician');
+        $this->grantRole($handler, 'technician');
 
         // Post exactly what the Show page sends, so a resource that drops updated_at fails here.
         $shown = $this->get(route('admin.tickets.show', $ticket))
@@ -91,7 +90,7 @@ class TicketAssignScopeTest extends TestCase
         $this->actingAs($admin);
         $ticket = $this->makeOpenTicket($admin);
         $handler = User::factory()->create(['company_id' => $admin->company_id, 'is_active' => true]);
-        $handler->assignRole('technician');
+        $this->grantRole($handler, 'technician');
 
         $this->expectException(HttpException::class);
         $this->expectExceptionCode(409);
@@ -117,22 +116,22 @@ class TicketAssignScopeTest extends TestCase
         $this->assertSame('open', $ticket->fresh()->status);
     }
 
-    public function test_assign_rejects_handler_without_eligible_role(): void
+    public function test_assign_rejects_handler_without_the_ticket_work_permissions(): void
     {
         $admin = $this->createCompanyUser();
         $this->actingAs($admin);
         $ticket = $this->makeOpenTicket($admin);
 
-        Role::firstOrCreate(['name' => 'customer', 'guard_name' => 'web']);
-        $noRole = User::factory()->create(['company_id' => $admin->company_id, 'is_active' => true]);
-        $noRole->assignRole('customer');
+        $noWork = User::factory()->create(['company_id' => $admin->company_id, 'is_active' => true]);
+        $this->grantRole($noWork, 'customer');
 
         $this->post(route('admin.tickets.assign', $ticket), [
-            'handler_id' => $noRole->public_id,
+            'handler_id' => $noWork->public_id,
             'expected_assigned_to' => null,
             'expected_updated_at' => $ticket->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
         ])
             ->assertSessionHasErrors(['handler_id']);
+        $this->assertSame('open', $ticket->fresh()->status);
     }
 
     public function test_assign_accepts_same_company_handler_with_lifecycle_capability(): void
@@ -142,7 +141,7 @@ class TicketAssignScopeTest extends TestCase
         $ticket = $this->makeOpenTicket($admin);
 
         $handler = User::factory()->create(['company_id' => $admin->company_id, 'is_active' => true]);
-        $handler->assignRole('technician');
+        $this->grantRole($handler, 'technician');
 
         $this->post(route('admin.tickets.assign', $ticket), [
             'handler_id' => $handler->public_id,
@@ -176,9 +175,9 @@ class TicketAssignScopeTest extends TestCase
         $this->actingAs($admin);
         $ticket = $this->makeOpenTicket($admin);
         $handler = User::factory()->create(['company_id' => $admin->company_id, 'is_active' => true]);
-        $handler->assignRole('technician');
+        $this->grantRole($handler, 'technician');
         $otherHandler = User::factory()->create(['company_id' => $admin->company_id, 'is_active' => true]);
-        $otherHandler->assignRole('technician');
+        $this->grantRole($otherHandler, 'technician');
         TicketService::assign($ticket, $handler->id, $admin->id, null, $ticket->fresh()->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'));
 
         $this->actingAs($otherHandler)
@@ -200,9 +199,8 @@ class TicketAssignScopeTest extends TestCase
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
-        $handlerRole = Role::firstOrCreate(['name' => 'ticket-lifecycle-worker', 'guard_name' => 'web']);
-        $handlerRole->givePermissionTo(['ticket.start', 'ticket.resolve', 'ticket.close']);
-        $handler->assignRole($handlerRole);
+        $handlerRole = $this->companyRole($admin->company_id, 'ticket-lifecycle-worker', ['ticket.start', 'ticket.resolve', 'ticket.close']);
+        $this->grantRole($handler, $handlerRole);
 
         TicketService::assign($ticket, $handler->id, $admin->id, null, $ticket->fresh()->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'));
 
@@ -222,9 +220,8 @@ class TicketAssignScopeTest extends TestCase
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
-        $otherCloserRole = Role::firstOrCreate(['name' => 'ticket-viewer-only', 'guard_name' => 'web']);
-        $otherCloserRole->givePermissionTo(['ticket.view']);
-        $otherCloser->assignRole($otherCloserRole);
+        $otherCloserRole = $this->companyRole($admin->company_id, 'ticket-viewer-only', ['ticket.view']);
+        $this->grantRole($otherCloser, $otherCloserRole);
 
         $this->actingAs($otherCloser)
             ->post(route('admin.tickets.close', $ticket))

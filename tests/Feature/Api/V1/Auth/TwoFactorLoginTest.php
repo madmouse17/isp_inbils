@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\V1\Auth;
 
 use App\Models\User;
+use App\Services\Core\CompanyService;
 use App\Services\Core\TwoFactorService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -197,7 +198,7 @@ class TwoFactorLoginTest extends TestCase
     public function test_access_to_the_app_is_checked_again_when_the_code_is_accepted(): void
     {
         $challenge = $this->challenge();
-        $this->user->removeRole('customer');
+        $this->dropRole($this->user, 'customer');
 
         $this->submit($challenge, $this->totp($this->secret))->assertForbidden()->assertJsonPath('code', 'app_not_allowed');
 
@@ -206,7 +207,7 @@ class TwoFactorLoginTest extends TestCase
 
     public function test_the_password_step_does_not_reveal_whether_the_app_is_allowed(): void
     {
-        $this->user->removeRole('customer');
+        $this->dropRole($this->user, 'customer');
 
         $this->password()->assertStatus(202);
     }
@@ -244,5 +245,11 @@ class TwoFactorLoginTest extends TestCase
     private function submit(string $challenge, string $code): TestResponse
     {
         return $this->api('POST', 'auth/two-factor', ['challenge_id' => $challenge, 'code' => $code]);
+    }
+
+    /** Takes the company's copy of a template away from the user, in the company he acts in. */
+    private function dropRole(User $user, string $templateKey): void
+    {
+        CompanyService::runAs((int) $user->company_id, fn () => $user->removeRole($this->companyRoles((int) $user->company_id)[$templateKey]));
     }
 }

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Platform;
 
 use App\Models\Core\Company;
+use App\Models\Role;
 use App\Models\User;
 use App\Support\PublicId;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -166,5 +167,45 @@ class TenantSubsidiaryTest extends TestCase
         $this->assertSame($tenant['root']->id, $row->properties['parent_company_id']);
         $this->assertSame('ALS', $row->properties['code']);
         $this->assertSame([$tenant['staff']->id], $row->properties['member_ids']);
+        $this->assertSame([], $row->properties['members_without_roles']);
+    }
+
+    public function test_the_subsidiary_gets_the_templates_and_members_get_the_copy_of_each_template_role_they_hold_at_home(): void
+    {
+        $tenant = $this->buildTenant('ALP', 'Alpha Net');
+
+        $this->asOperator(false)->post(route('platform.companies.subsidiaries.store', $tenant['root']), $this->payload([
+            'member_ids' => [$tenant['staff']->public_id, $tenant['branch']->public_id],
+        ]))->assertRedirect();
+
+        $sub = Company::query()->where('code', 'ALS')->firstOrFail();
+        $copies = Role::withoutCompany()->where('company_id', $sub->id)->pluck('id', 'template_key');
+        $this->assertSame(['admin', 'customer', 'finance', 'manager', 'noc', 'staff', 'technician', 'warehouse'], $copies->keys()->sort()->values()->all());
+
+        $holds = fn (User $user, string $key): bool => DB::table('model_has_roles')->where(['model_id' => $user->id, 'role_id' => $copies[$key], 'model_type' => User::class])->exists();
+        $this->assertTrue($holds($tenant['staff'], 'staff'), 'a Staf at home is a Staf in the subsidiary');
+        $this->assertTrue($holds($tenant['branch'], 'manager'), 'and a manager homed in another company of the tenant keeps his template');
+        $this->assertFalse($holds($tenant['staff'], 'admin'));
+        $this->assertSame(0, DB::table('model_has_roles')->where('model_id', $tenant['admin']->id)->whereIn('role_id', $copies->values())->count(), 'not enrolled: no role');
+
+        $homeRoles = DB::table('model_has_roles')->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->where('model_has_roles.model_id', $tenant['staff']->id)->pluck('roles.company_id')->all();
+        $this->assertEqualsCanonicalizing([$tenant['root']->id, $sub->id], $homeRoles, 'the home roles stay and one copy is added');
+    }
+
+    public function test_a_member_with_only_custom_roles_gets_none_and_the_audit_row_names_him(): void
+    {
+        $tenant = $this->buildTenant('ALP', 'Alpha Net');
+        $custom = User::factory()->create(['company_id' => $tenant['root']->id, 'email_verified_at' => now(), 'is_active' => true]);
+        $this->grantRole($custom, $this->companyRole($tenant['root'], 'Penyelia', ['customer.view']), $tenant['root']);
+
+        $this->asOperator(false)->post(route('platform.companies.subsidiaries.store', $tenant['root']), $this->payload([
+            'member_ids' => [$custom->public_id, $tenant['staff']->public_id],
+        ]))->assertRedirect()->assertSessionHas('success', 'Anak perusahaan dibuat. Anggota ini belum punya peran di anak perusahaan baru dan perlu diberi peran di Pengguna: '.$custom->name.'.');
+
+        $sub = Company::query()->where('code', 'ALS')->firstOrFail();
+        $this->assertSame(0, DB::table('model_has_roles')->join('roles', 'roles.id', '=', 'model_has_roles.role_id')->where('model_has_roles.model_id', $custom->id)->where('roles.company_id', $sub->id)->count());
+        $row = Activity::query()->where('log_name', 'platform')->where('description', 'tenant.subsidiary_created')->sole();
+        $this->assertSame([$custom->id], $row->properties['members_without_roles']);
     }
 }

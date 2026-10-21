@@ -10,7 +10,9 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Who may act in which company, and the switch between them. The default membership is the home
- * company (users.company_id); any other membership is an explicit grant. Roles stay global.
+ * company (users.company_id); any other membership is an explicit grant. Roles belong to the company they are held
+ * in (ADR-004): a grant gives none by itself (CompanyRoleService::mirrorTemplateRoles gives the template-matched
+ * ones), and a revoke takes away those of that company only.
  */
 class CompanyMembershipService
 {
@@ -64,10 +66,16 @@ class CompanyMembershipService
             AuditService::log('company', 'membership_granted', ['user_id' => $user->id, 'is_default' => $default], $company);
         }
 
+        // The instance may carry the memberships it was loaded with (User::companyIds()).
+        $user->unsetRelation('companies');
         CompanyService::forgetResolution();
     }
 
-    /** Revokes membership. The home company is not a grant and cannot be revoked. */
+    /**
+     * Revokes membership and the roles the user held in that company; his roles in other companies stay. The home
+     * company is not a grant and cannot be revoked. An administrator is not revoked while he is the company's last one
+     * (G5): the company row is locked, so two revocations cannot both pass.
+     */
     public function revoke(User $user, Company $company): void
     {
         abort_if(
@@ -76,12 +84,29 @@ class CompanyMembershipService
             'The home company membership cannot be revoked.'
         );
 
-        $deleted = DB::table('company_user')->where('company_id', $company->id)->where('user_id', $user->id)->delete();
+        $roles = app(CompanyRoleService::class);
+
+        $deleted = $roles->transaction((int) $company->id, function () use ($user, $company, $roles): int {
+            $administrator = $roles->isAdministrator($user, (int) $company->id);
+            $deleted = DB::table('company_user')->where('company_id', $company->id)->where('user_id', $user->id)->delete();
+
+            if ($deleted > 0) {
+                // The transaction acts as this company, so only its roles are detached.
+                $user->syncRoles([]);
+
+                if ($administrator) {
+                    $roles->assertAdministratorRemains((int) $company->id);
+                }
+            }
+
+            return $deleted;
+        });
 
         if ($deleted > 0) {
             AuditService::log('company', 'membership_revoked', ['user_id' => $user->id], $company);
         }
 
+        $user->unsetRelation('companies');
         CompanyService::forgetResolution();
     }
 
@@ -140,14 +165,18 @@ class CompanyMembershipService
     /**
      * Whether the actor belongs to every company the target belongs to, active or not: the actor then
      * answers for everything a change to the target's login (email, password, roles, status) reaches.
+     *
+     * A read for the authorization of what is shown: it uses the memberships the two users carry (User::companyIds()),
+     * which a page of users loads for all its rows at once. Whoever writes on the strength of the memberships uses
+     * companyIdsOf(), which asks the table.
      */
     public function administers(User $actor, User $target): bool
     {
-        return $this->companyIdsOf($target)->diff($this->companyIdsOf($actor))->isEmpty();
+        return $target->companyIds()->diff($actor->companyIds())->isEmpty();
     }
 
     /**
-     * The home company plus every granted membership.
+     * The home company plus every granted membership, as the table has them now.
      *
      * @return Collection<int, int>
      */

@@ -15,7 +15,6 @@ use Modules\NetworkAsset\Database\Factories\NetworkAssetFactory;
 use Modules\SPK\Models\WorkOrder;
 use Modules\SPK\Models\WorkOrderItem;
 use Modules\SPK\Services\SpkService;
-use Spatie\Permission\Models\Role;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 use Tests\Traits\WithoutAppOnlyRedirect;
@@ -203,8 +202,8 @@ class WorkOrderItemAssignmentValidationTest extends TestCase
         $admin = $this->user('admin');
         $company = $admin->company;
         $workOrder = $this->workOrder($company, $admin, 'generated');
-        $roleOnly = $this->user('admin', $company);
-        $roleOnly->syncRoles([Role::firstOrCreate(['name' => 'role-only-technician', 'guard_name' => 'web'])]);
+        $roleOnly = $this->user(null, $company);
+        $this->grantRole($roleOnly, $this->companyRole($company, 'role-only-technician', []), $company);
         EmployeeProfile::factory()->create([
             'company_id' => $company->id,
             'user_id' => $roleOnly->id,
@@ -280,10 +279,9 @@ class WorkOrderItemAssignmentValidationTest extends TestCase
         $admin = $this->user('admin');
         $company = $admin->company;
         $workOrder = $this->workOrder($company, $admin, 'generated');
-        $operatorRole = Role::firstOrCreate(['name' => 'field-operator', 'guard_name' => 'web']);
-        $operatorRole->givePermissionTo(['spk.start', 'spk.submit']);
-        $operator = $this->user('admin', $company);
-        $operator->syncRoles([$operatorRole]);
+        $operatorRole = $this->companyRole($company, 'field-operator', ['spk.start', 'spk.submit']);
+        $operator = $this->user(null, $company);
+        $this->grantRole($operator, $operatorRole, $company);
         EmployeeProfile::factory()->create([
             'company_id' => $company->id,
             'user_id' => $operator->id,
@@ -350,14 +348,18 @@ class WorkOrderItemAssignmentValidationTest extends TestCase
         $this->assertSame('assigned', $workOrder->fresh()->status);
     }
 
-    private function user(string $roleName, ?Company $company = null): User
+    private function user(?string $roleName, ?Company $company = null): User
     {
+        $company ??= Company::factory()->create(['is_active' => true]);
         $user = User::factory()->create([
-            'company_id' => ($company ?? Company::factory()->create(['is_active' => true]))->id,
+            'company_id' => $company->id,
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $user->assignRole(Role::where('name', $roleName)->firstOrFail());
+
+        if ($roleName !== null) {
+            $this->grantRole($user, $roleName, $company);
+        }
 
         return $user;
     }

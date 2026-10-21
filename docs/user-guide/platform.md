@@ -2,7 +2,7 @@
 
 ## 1.1 Siapa memakai panduan ini
 
-Panduan ini untuk operator Inbils, yang juga disebut superadmin. Operator menjalankan satu instalasi Inbils untuk banyak perusahaan ISP. Operator memakai panel `/platform` untuk membuat perusahaan, memeriksa kondisi tenant, membantu pengguna, mengelola definisi peran, meminta ekspor data, dan membaca audit lintas perusahaan.
+Panduan ini untuk operator Inbils, yang juga disebut superadmin. Operator menjalankan satu instalasi Inbils untuk banyak perusahaan ISP. Operator memakai panel `/platform` untuk membuat perusahaan, memeriksa kondisi tenant, membantu pengguna, memelihara templat peran dan memperbaiki peran perusahaan, meminta ekspor data, dan membaca audit lintas perusahaan.
 
 Peran yang dapat memakai: semua operator platform dengan akun aktif. Panel operator tidak membagi operator ke dalam peran atau izin yang berbeda. Aksesnya berlaku penuh setelah operator lolos autentikasi dua langkah (2FA) pada sesi itu.
 
@@ -16,7 +16,7 @@ Admin perusahaan berbeda dari operator:
 | Ruang lingkup | semua tenant pada satu instalasi | perusahaan yang boleh dimasuki akun itu |
 | 2FA | wajib | diatur pengguna, atau diwajibkan kebijakan perusahaan |
 | Batas sesi tanpa aktivitas | 30 menit | 120 menit secara standar |
-| Definisi peran | dapat dibuat, diubah, dan dihapus | hanya dibaca dan diberikan ke pengguna |
+| Peran | memelihara templat untuk perusahaan baru dan memperbaiki peran perusahaan sebagai tindakan dukungan tercatat | membuat, mengubah, dan menghapus peran perusahaannya sendiri di menu **Peran** |
 | Data operasional tenant | dibuka melalui **Akses dukungan** sebagai pengguna tenant | dibuka langsung sesuai izin pengguna |
 | Lupa kata sandi | tidak ada pemulihan mandiri | tautan atur ulang melalui email |
 
@@ -46,7 +46,7 @@ Panel biasanya dibuka di `/platform` pada host aplikasi. Bila tim server mengatu
 Panel operator memakai kerangka yang sama pada setiap halaman:
 
 - Pita berwarna di atas menulis **Panel operator** dan "Akses lintas perusahaan tercatat di audit."
-- Sidebar bernama **Inbils Platform** memuat **Dasbor**, **Perusahaan baru**, **Peran & hak akses**, **Ekspor**, dan **Audit platform**.
+- Sidebar bernama **Inbils Platform** memuat **Dasbor**, **Perusahaan baru**, **Templat peran**, **Ekspor**, dan **Audit platform**.
 - Di layar sempit, klik tombol **Menu navigasi** untuk membuka sidebar.
 - Bilah atas menampilkan judul halaman dan menu operator. Menu itu memuat nama, email, **Autentikasi dua langkah**, **Mode gelap** atau **Mode terang**, dan **Keluar**.
 - Tautan **Lewati ke konten utama** muncul saat menerima fokus keyboard.
@@ -276,7 +276,7 @@ Bila **Isi data contoh** dicentang:
 1. Periksa kembali nama dan kode. Perubahan kode tidak tersedia setelah pembuatan.
 2. Klik **Buat perusahaan**.
 3. Bila berhasil, Inbils membuka halaman tenant dan menulis "Perusahaan dibuat. Undangan dikirim ke admin pertama."
-4. Perusahaan langsung aktif. Inbils memberi admin pertama peran `admin`, keanggotaan bawaan, penomoran, dan pengaturan dasar.
+4. Perusahaan langsung aktif. Inbils menyalin templat peran ke perusahaan itu, memberi admin pertama peran **Admin**, lalu menyiapkan keanggotaan bawaan, penomoran, dan pengaturan dasar. Setelah disalin, peran itu milik perusahaan: perubahan templat berikutnya tidak mengubahnya (bab 8).
 5. Email undangan memakai subjek **Undangan admin {nama perusahaan} di Inbils** dan tombol **Atur kata sandi**. Tautan berlaku 60 menit.
 6. Minta admin menetapkan kata sandi, lalu masuk melalui halaman web tenant.
 
@@ -325,7 +325,7 @@ Klik nama tenant pada Dasbor. Bagian atas halaman memuat:
 
 ## 5.2 Admin perusahaan dan integrasi
 
-Kartu **Admin perusahaan** menampilkan paling banyak 25 pengguna berperan `admin`, diurutkan menurut nama. Kolomnya:
+Kartu **Admin perusahaan** menampilkan paling banyak 25 pengguna yang memegang hak `roles.manage` lewat perannya di perusahaan asal, diurutkan menurut nama. Nama perannya boleh apa saja. Kolomnya:
 
 - **Admin**: nama dan email;
 - **Perusahaan**: kode perusahaan asal;
@@ -355,7 +355,7 @@ Kartu **Anak perusahaan** menampilkan Nama dan Kode, Status, Mata uang, Zona wak
 4. Di bagian **Akses admin**, centang admin yang boleh berpindah ke anak perusahaan baru. Daftar ini memakai admin yang tampil pada kartu **Admin perusahaan**.
 5. Klik **Tambah anak perusahaan**.
 
-Anak perusahaan mengikuti mata uang dan zona waktu induk. Inbils mengisi Katalog awal, bukan data contoh. Pengguna yang dicentang mendapat keanggotaan tanpa mengubah perusahaan asalnya.
+Anak perusahaan mengikuti mata uang dan zona waktu induk. Inbils mengisi Katalog awal, bukan data contoh, dan menyalin templat peran ke anak perusahaan itu. Pengguna yang dicentang mendapat keanggotaan tanpa mengubah perusahaan asalnya, dan mendapat peran di anak perusahaan yang berasal dari templat yang sama dengan perannya di perusahaan asal, selama isi peran itu tidak melebihi hak akses yang ia pegang di perusahaan asal. Anggota yang hanya memegang peran buatan perusahaan tidak mendapat peran. Toast "Anak perusahaan dibuat." lalu menambahkan "Anggota ini belum punya peran di anak perusahaan baru dan perlu diberi peran di Pengguna:" disusul namanya, dan untuk peran yang lebih luas "Peran ini lebih luas daripada yang dipegang anggotanya di perusahaan asal, jadi tidak disalin dan perlu diberikan sendiri di Pengguna:" disusul anggota dan perannya. Minta admin perusahaan memberi peran di menu **Pengguna**.
 
 Seeder membuat akun internal `system-seed-...@inbils.internal` bila anak perusahaan belum mempunyai pengguna asal saat katalog diisi. Akun itu memakai kata sandi acak dan dapat terlihat di tabel **Pengguna**. Akun tersebut bukan operator platform.
 
@@ -377,7 +377,7 @@ Kolom:
 | --- | --- |
 | **Pengguna** | Nama dan email. |
 | **Perusahaan** | Perusahaan asal pengguna. |
-| **Peran** | Peran global yang dipegang akun itu. |
+| **Peran** | Peran yang dipegang akun itu di perusahaan asalnya. Bila akun juga anggota perusahaan lain, perannya di sana tidak tampil di kolom ini. |
 | **Status** | Aktif atau Nonaktif, ditambah kunci masuk bila ada. |
 | **2FA** | Aktif atau Nonaktif. |
 | **Masuk terakhir** | Waktu login terakhir atau status undangan. |
@@ -627,80 +627,124 @@ Lihat **Panduan Web Inbils bagian 7.12** untuk tampilan tenant.
 - "Kode perusahaan yang diketik tidak sesuai.": pakai kode induk yang tampil pada halaman tenant.
 - Banner habis dan halaman kembali ke panel: batas 30 menit tercapai. Mulai sesi baru dengan alasan baru bila masih perlu.
 
-# 8. Peran dan hak akses
+# 8. Templat peran dan perbaikan peran perusahaan
 
-## 8.1 Membaca daftar peran
+## 8.1 Cara kerja peran per perusahaan
+
+Peran dimiliki perusahaan. Setiap perusahaan mempunyai peran, nama, dan susunan hak akses sendiri, dan satu pengguna dapat memegang peran berbeda di tiap perusahaan tempat ia menjadi anggota. Hak akses berasal dari satu katalog di kode. Perusahaan menyusun peran dari katalog itu dan tidak dapat membuat hak akses baru.
+
+Operator mengerjakan dua hal:
+
+- **Templat peran**: daftar peran awal yang disalin ke setiap perusahaan **baru** saat perusahaan dibuat (termasuk anak perusahaan). Templat bawaan adalah Admin, Manajer, NOC & Layanan Pelanggan, Teknisi, Gudang, Keuangan, Staf, dan Pelanggan. Mengubah templat tidak mengubah perusahaan yang sudah ada, dan deploy tidak menyinkronkan peran perusahaan.
+- **Perbaikan peran perusahaan**: mengubah peran satu perusahaan di halaman tenant, misalnya bila admin perusahaan menghapus perannya sendiri atau tidak ada lagi admin. Tindakan ini tercatat di audit platform dan di audit perusahaan (support).
+
+Admin perusahaan mengelola peran perusahaannya sendiri di menu **Peran** pada **Panduan Web Inbils bagian 8.6**. Operator tidak perlu ikut campur dalam keadaan biasa.
+
+## 8.2 Membaca daftar templat
 
 Peran yang dapat memakai: semua operator platform.
 
-Klik **Peran & hak akses**. Definisi peran saat ini bersifat global dan berlaku kepada pengguna di semua perusahaan.
+Klik **Templat peran** di sidebar. Halaman berjudul **Templat peran** dengan keterangan "Titik awal peran untuk perusahaan baru. Setiap perusahaan memiliki salinannya sendiri."
 
-![Daftar Peran dan hak akses operator dengan jumlah izin dan pengguna semua perusahaan](images/web/platform-roles.png)
+![Daftar Templat peran dengan jumlah hak akses dan tombol Ubah dan Hapus](images/web/platform-role-templates.png)
 
-Kartu **Peran global** memuat:
+Kartu **Templat** menulis "Perubahan templat hanya berlaku untuk perusahaan baru; peran perusahaan yang sudah ada tidak berubah. Templat Admin dan Pelanggan tidak dapat dihapus." dan memuat:
 
-- **Cari**, dengan petunjuk **Nama peran**;
-- kolom **Nama**, **Hak akses**, **Pengguna semua perusahaan**, dan **Aksi**;
-- lencana **Bawaan** pada `admin`, `manager`, `staff`, `technician`, dan `customer`;
-- tombol **Ubah** pada semua peran;
-- tombol **Hapus** hanya pada peran selain lima peran bawaan;
-- tombol **Buat peran**.
+- kolom **Nama** (tautan ke form ubah, dengan baris "Kunci" di bawahnya), **Hak akses** (jumlah izin), dan **Aksi**;
+- tombol **Ubah** pada semua templat;
+- tombol **Hapus** pada semua templat kecuali Admin dan Pelanggan;
+- tombol **Buat templat**.
 
-Jumlah pengguna menghitung pemegang peran pada seluruh perusahaan, bukan tenant yang sedang dipilih. Panel platform tidak mempunyai pemilih perusahaan pada halaman ini.
+Kunci templat tetap sama walau namanya diubah. Peran perusahaan yang berasal dari templat menyimpan kunci itu, sehingga perusahaan tetap dikenali sebagai salinan Admin walau perannya diganti nama menjadi "Pemilik".
 
-## 8.2 Membuat peran
+## 8.3 Membuat templat
 
-1. Klik **Buat peran**.
-2. Isi **Nama**. Nama wajib, unik pada guard web, dan paling banyak 255 karakter.
-3. Gunakan **Cari hak akses** untuk mencari kode atau label izin.
-4. Klik nama kategori di kiri untuk membuka hak akses kategori itu.
-5. Centang kotak kategori untuk memilih atau mengosongkan semua izin yang sedang tampil pada kategori itu. Lencana menunjukkan jumlah terpilih dibanding jumlah izin.
-6. Klik **Buat peran**.
-7. Dialog **Konfirmasi perubahan peran** terbuka. Isi **Kata sandi operator**, lalu klik **Buat peran**.
+1. Klik **Buat templat**.
+2. Isi **Nama**. Nama wajib, unik di antara templat, dan paling banyak 255 karakter. Nama harus memuat huruf atau angka. Inbils membuat kunci dari nama itu, dan kunci tidak dapat diubah kemudian.
+3. Pilih hak akses dengan **Cari hak akses**, daftar kategori di kiri, dan kotak kategori untuk memilih atau mengosongkan semua izin yang tampil pada kategori itu.
+4. Klik **Buat templat**.
+5. Dialog **Konfirmasi perubahan templat** terbuka. Isi **Kata sandi operator**, lalu klik **Buat templat**.
 
-Toast menulis "Peran dibuat." Audit platform menyimpan nama dan daftar hak akses sesudah pembuatan.
+Toast menulis "Templat dibuat." Audit platform menyimpan kunci, nama, dan daftar hak akses. Peran dari templat baru muncul di perusahaan yang dibuat sesudahnya. Untuk perusahaan yang sudah ada, tambahkan dari templat (bagian 8.6).
 
-## 8.3 Mengubah peran dan peran bawaan
+## 8.4 Mengubah templat
 
-Klik nama peran atau **Ubah**. Halaman menampilkan jumlah pengguna di semua perusahaan yang memegang peran itu.
+Klik nama templat atau **Ubah**. Halaman berjudul "Ubah templat" diikuti nama templat, dengan subjudul "Kunci {kunci}. Perusahaan yang sudah ada tidak ikut berubah." Alert **Berlaku untuk perusahaan baru** mengulang aturan itu.
 
-![Form Ubah peran bawaan dengan peringatan seeder dan pemilih hak akses](images/web/platform-role-edit.png)
+Ubah nama atau hak akses, klik **Simpan templat**, lalu konfirmasi dengan kata sandi operator. Toast menulis "Templat diperbarui. Peran perusahaan yang sudah ada tidak berubah."
 
-Pada peran biasa, operator dapat mengubah nama dan izin. Pada peran bawaan:
+Templat Admin harus tetap memuat `roles.manage` dan `app.web`. Tanpa keduanya perusahaan baru tidak punya admin, dan form menolak dengan "Templat Admin harus tetap memuat roles.manage dan app.web, kalau tidak perusahaan baru tidak punya admin."
 
-- isian **Nama** hanya dapat dibaca;
-- alert **Peran bawaan** menulis bahwa `RolePermissionSeeder` menyinkronkan ulang izin pada setiap deploy;
-- operator dapat mengubah izin, tetapi deploy berikutnya dapat mengembalikannya ke bawaan.
+### Pemisahan tugas
 
-Gunakan peran baru untuk perubahan izin yang harus bertahan lintas deploy. Simpan melalui **Simpan peran**, lalu konfirmasi dengan kata sandi operator. Toast menulis "Peran diperbarui."
-
-Perubahan izin langsung memengaruhi setiap pengguna yang memegang peran itu di semua perusahaan.
-
-## 8.4 Pemisahan tugas
-
-Peran selain `admin` tidak boleh menggabungkan hak persetujuan dengan hak pelaksanaan yang saling mengawasi. Form menolak kombinasi seperti:
+Templat yang tidak memuat `roles.manage` tidak boleh menggabungkan hak persetujuan dengan hak pelaksanaan yang saling mengawasi. Form menolak kombinasi seperti:
 
 - menyetujui atau menolak permintaan barang bersama menyiapkan, menyerahkan, menerima, mengeluarkan, atau memindahkan stok;
 - menyetujui penyesuaian stok bersama mengajukan penyesuaian, menerima, mengeluarkan, atau memindahkan stok.
 
-Pesan diawali "Pemisahan tugas (...)" dan menyebut izin yang berbenturan. Izin darurat `inventory.stock.adjust` hanya boleh diberikan ke peran administrator; peran lain ditolak dengan "Hanya administrator yang boleh memberikan hak akses darurat inventory.stock.adjust." Peran bawaan `admin` dikecualikan sebagai akses break-glass. Daftar lengkap ada di **Panduan Web Inbils bagian 10.1**.
+Pesan diawali "Pemisahan tugas (...)" dan menyebut izin yang berbenturan. Izin darurat `inventory.stock.adjust` hanya boleh dimuat templat yang juga memuat `roles.manage`; templat lain ditolak dengan "Hanya administrator yang boleh memberikan hak akses darurat inventory.stock.adjust." Daftar lengkap ada di **Panduan Web Inbils bagian 10.1**. Aturan yang sama berlaku saat operator memperbaiki peran perusahaan.
 
-## 8.5 Menghapus peran
+## 8.5 Menghapus templat
 
-1. Pada peran selain bawaan, klik **Hapus**.
-2. Dialog **Hapus peran {nama}?** menampilkan jumlah pengguna yang memegangnya dan menjelaskan bahwa mereka kehilangan hak akses dari peran itu.
-3. Isi **Kata sandi operator**.
-4. Klik **Hapus peran**.
+1. Pada templat selain Admin dan Pelanggan, klik **Hapus**.
+2. Dialog **Hapus templat {nama}?** menulis "Perusahaan baru tidak lagi mendapat peran ini. Peran yang sudah disalin ke perusahaan tidak berubah." Isi **Kata sandi operator**.
+3. Klik **Hapus templat**.
 
-Toast menulis "Peran dihapus." Inbils mencabut hubungan peran dari seluruh pengguna. Peran bawaan tidak mempunyai tombol **Hapus** dan server menolaknya dengan "Peran bawaan tidak dapat dihapus."
+Toast menulis "Templat dihapus." Templat Admin dan Pelanggan tidak mempunyai tombol **Hapus**. Admin dipakai sebagai peran admin pertama, dan Pelanggan dipakai untuk akun pelanggan baru. Server menolaknya dengan "Templat ini dipakai saat perusahaan dibuat."
+
+## 8.6 Memperbaiki peran sebuah perusahaan
+
+Peran yang dapat memakai: semua operator platform.
+
+Buka halaman tenant, lalu gulir ke kartu **Peran**, setelah kartu **Pengguna**. Keterangannya: "Setiap perusahaan mengelola perannya sendiri. Perbaikan oleh operator tercatat di audit perusahaan (support)."
+
+![Kartu Peran pada halaman tenant dengan satu tabel per perusahaan](images/web/platform-company-roles.png)
+
+Kartu memuat satu bagian per perusahaan dalam tenant, perusahaan induk lebih dulu. Tiap bagian menulis nama perusahaan dan "Kode {kode}", lalu tabel dengan kolom **Nama**, **Templat**, **Hak akses**, **Pengguna**, dan **Aksi**. Kolom **Templat** menulis "Dari templat {nama templat}" untuk peran salinan, atau "Dibuat perusahaan" untuk peran buatan sendiri. Tabel kosong menulis "Belum ada peran".
+
+**Tambah peran dari templat**
+
+1. Pada bagian perusahaan yang dituju, pilih templat di **Templat untuk {kode}**.
+2. Klik **Tambah dari templat**. Halaman **Tambah peran** terbuka dengan nama dan hak akses terisi dari templat.
+3. Ubah isian bila perlu, lalu klik **Tambah peran**.
+4. Dialog **Konfirmasi perbaikan peran** terbuka. Isi **Kata sandi operator**, lalu klik **Tambah peran**.
+
+Toast menulis "Peran dibuat." Cara ini juga dipakai untuk perusahaan lama yang kehilangan peran Admin-nya.
+
+**Perbaiki peran**
+
+1. Klik **Perbaiki** pada baris peran. Halaman berjudul "Perbaiki peran" diikuti nama peran, dengan nama dan kode perusahaan serta jumlah pengguna yang memegangnya.
+2. Alert **Perbaikan oleh operator** menulis "Perbaikan oleh operator tercatat di audit perusahaan (support)." Ubah **Nama** (harus unik di perusahaan itu) dan hak akses.
+3. Klik **Simpan peran**, lalu isi **Kata sandi operator** pada dialog **Konfirmasi perbaikan peran**.
+
+Toast menulis "Peran diperbarui." Perubahan langsung berlaku bagi pengguna perusahaan itu, dan hanya di perusahaan itu.
+
+**Hapus peran**
+
+1. Di halaman **Perbaiki peran**, gulir ke kartu **Hapus peran**.
+2. Bila ada pengguna yang memegang peran, pilih peran pengganti di **Pindahkan {n} pengguna ke**. Pengguna yang belum memegang peran itu mendapatkannya.
+3. Klik **Hapus peran**, lalu konfirmasi di dialog **Hapus peran {nama}?** dengan kata sandi operator.
+
+Toast menulis "Peran dihapus." Peran Pelanggan (dari templat `customer`) tidak dapat dihapus.
+
+Penjaga yang berlaku sama seperti di web perusahaan:
+
+- Perusahaan harus tetap punya minimal satu admin aktif yang memegang `roles.manage` dan `app.web`. Bila tidak, server menolak dengan "Perusahaan harus tetap punya minimal satu admin aktif yang memegang roles.manage." Perusahaan yang sudah tanpa admin tetap dapat diperbaiki.
+- Pemisahan tugas (bagian 8.4) berlaku pada hak akses peran dan pada peran yang tertumpuk di satu pengguna saat pengguna dipindahkan. Operator tidak mendapat pengecualian untuk tumpukan peran.
+- Dua operator atau admin yang mengubah peran yang sama: yang menyimpan belakangan melihat peringatan dan tombol **Muat ulang**, "Muat ulang halaman untuk melihat data terbaru, lalu ulangi perubahan Anda."
+- Halaman tenant hanya membuka peran perusahaan induk dan anak perusahaannya. Peran tenant lain ditolak seperti data yang tidak ada (404).
+
+Operator tidak memegang peran perusahaan. Perbaikan hanya mengubah peran, bukan pengguna lain di luar perpindahan saat peran dihapus.
 
 ### Kesalahan umum
 
-- "Nama peran bawaan tidak dapat diubah.": kembalikan nama bawaan.
-- "Peran bawaan tidak dapat dihapus.": buat peran baru bila perlu susunan izin lain.
-- Alert **Peran belum dapat disimpan**: periksa nama unik dan kombinasi izin yang ditandai.
-- Izin peran bawaan kembali setelah deploy: seeder memang menyinkronkannya ulang.
-- Pengguna kehilangan akses setelah peran dihapus: berikan peran lain melalui menu **Pengguna** pada web tenant.
+- "Nama templat sudah dipakai.": pakai nama lain, atau nama itu menghasilkan kunci yang sama dengan templat yang ada.
+- "Nama templat harus memuat huruf atau angka.": nama hanya berisi simbol.
+- "Nama peran sudah dipakai di perusahaan ini.": pilih nama lain; nama unik per perusahaan.
+- "Pilih peran tujuan untuk memindahkan pengguna.": peran masih dipegang pengguna, pilih **Pindahkan ... pengguna ke**. "Pilih peran lain sebagai tujuan." muncul bila tujuan sama dengan peran yang dihapus.
+- "Peran akun pelanggan tidak bisa menjadi tujuan.": pilih peran back-office sebagai pengganti.
+- Alert **Templat belum dapat disimpan** atau **Peran belum dapat disimpan**: periksa nama dan kombinasi hak akses yang ditandai.
+- Pengguna kehilangan akses setelah peran dihapus: berikan peran lain di menu **Pengguna** pada web perusahaan, atau pilih peran pengganti saat menghapus.
 
 # 9. Ekspor data perusahaan
 
@@ -744,7 +788,7 @@ ZIP berisi:
 - folder `data/` dengan satu CSV per tabel tenant;
 - `companies.csv` untuk induk dan anak perusahaan;
 - `media.csv` dan berkas media di `files/{disk}/companies/{id}/...`;
-- `user_roles.csv`, karena definisi peran global tidak ikut ekspor;
+- `roles.csv`, yaitu peran perusahaan tenant, dan `user_roles.csv` (kolom `user_public_id`, `company_code`, `role_name`, `template_key`), yaitu siapa memegang peran mana, termasuk anggota yang berasal dari perusahaan lain. Isi hak akses tiap peran tidak ikut ekspor;
 - `manifest.json` dengan waktu pembuatan, perusahaan, jumlah baris, format CSV, jumlah media per disk, dan kolom yang dihilangkan.
 
 CSV memakai UTF-8 BOM, koma sebagai delimiter, tanda kutip ganda, dan string kosong untuk nilai null.
@@ -839,7 +883,7 @@ Label utama:
 | --- | --- |
 | Akun operator | **Operator dibuat**, **Operator masuk**, **Operator keluar**, **Sesi operator berakhir**, **Operator gagal masuk**, **Masuk operator diblokir** |
 | 2FA operator | **Pendaftaran 2FA dimulai**, **2FA diaktifkan**, **Kode 2FA benar**, **Kode 2FA salah**, **Kode pemulihan dipakai**, **Kode pemulihan dibuat ulang** |
-| Peran | **Peran dibuat**, **Peran diubah**, **Peran dihapus** |
+| Peran | **Peran dibuat**, **Peran diubah**, **Peran dihapus** (perbaikan peran perusahaan), **Templat peran dibuat**, **Templat peran diubah**, **Templat peran dihapus** |
 | Tenant | **Perusahaan dibuat**, **Anak perusahaan dibuat**, **Perusahaan ditangguhkan**, **Perusahaan diaktifkan**, **Pengajuan hapus dicatat** |
 | Data contoh | **Data contoh terisi**, **Data contoh gagal** |
 | Ekspor | **Ekspor diminta**, **Ekspor selesai**, **Ekspor gagal**, **Ekspor kedaluwarsa**, **Ekspor diunduh** |
@@ -943,7 +987,7 @@ Host terpisah harus memakai rencana sesi dan cookie yang tetap dapat dibaca apli
 
 1. Operator membuka **Perusahaan baru** dan memilih **Katalog awal** atau **Kosong** (bagian 4.1 sampai 4.2).
 2. Operator mengisi admin pertama, lalu klik **Buat perusahaan**.
-3. Inbils membuat perusahaan, akun admin, peran, penomoran, pengaturan dasar, dan katalog.
+3. Inbils membuat perusahaan, menyalin templat peran, membuat akun admin, penomoran, pengaturan dasar, dan katalog.
 4. Mailer platform mengirim undangan. Bila **Isi data contoh** dicentang, worker `platform` mengisi data demo.
 5. Operator membuka halaman tenant dan memantau **Masuk terakhir**, **Audit terbaru**, serta **Job gagal**.
 6. Admin membuka tombol **Atur kata sandi** dari email dalam 60 menit.
@@ -993,7 +1037,7 @@ Host terpisah harus memakai rencana sesi dan cookie yang tetap dapat dibaca apli
 | Buka kunci masuk | Tidak | Tidak | Tidak |
 | Atur ulang 2FA pengguna | Tidak | Tidak | Ya |
 | Kirim ulang undangan | Tidak | Tidak | Tidak |
-| Buat, ubah, atau hapus peran | Tidak | Tidak | Ya |
+| Buat, ubah, atau hapus templat peran; perbaiki peran perusahaan | Tidak | Tidak | Ya |
 | Buat kode pemulihan operator baru | Tidak | Tidak | Ya |
 | Tambah anak perusahaan | Tidak | Tidak | Tidak |
 | Buat perusahaan | Tidak | Tidak | Tidak |
@@ -1023,7 +1067,7 @@ Host terpisah harus memakai rencana sesi dan cookie yang tetap dapat dibaca apli
 | --- | --- |
 | 2FA | Autentikasi dua langkah: kata sandi ditambah kode autentikator atau kode pemulihan. |
 | Akses dukungan | Sesi saat operator masuk sebagai pengguna tenant untuk memeriksa layar dan izin pengguna itu. |
-| Admin perusahaan | Pengguna tenant berperan `admin`. Bukan operator platform. |
+| Admin perusahaan | Pengguna tenant yang memegang hak `roles.manage` di perusahaan asalnya, biasanya lewat peran Admin. Bukan operator platform. |
 | Anak perusahaan | Perusahaan satu tingkat di bawah perusahaan induk. Data tetap terpisah. |
 | Audit platform | Log internal operator dan akses dukungan pada seluruh instalasi. |
 | Head | Perusahaan induk paling atas pada satu tenant. |
@@ -1035,7 +1079,7 @@ Host terpisah harus memakai rencana sesi dan cookie yang tetap dapat dibaca apli
 | Mode ubah | Mode akses dukungan yang mengizinkan perubahan sesuai izin target. |
 | Operator platform | Akun terpisah di `platform_admins` yang mengelola seluruh instalasi. |
 | Pengajuan hapus | Penanda bahwa tenant siap dipurge setelah syarat terpenuhi. Tidak menghapus data dari web. |
-| Peran global | Definisi peran yang saat ini berlaku bagi pengguna di semua perusahaan. |
+| Templat peran | Peran awal yang disalin ke perusahaan baru saat dibuat. Mengubahnya tidak mengubah perusahaan yang sudah ada. |
 | Platform queue | Antrean khusus untuk data contoh dan ekspor tenant. |
 | Purge | Penghapusan permanen tenant melalui konsol server. |
 | Step-up | Konfirmasi ulang kata sandi operator untuk tindakan sensitif. |

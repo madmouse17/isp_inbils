@@ -271,7 +271,7 @@ class PrivateMediaAccessTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $user->assignRole('admin');
+        $this->grantRole($user, 'admin');
 
         return $user;
     }
@@ -284,7 +284,7 @@ class PrivateMediaAccessTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $user->assignRole('customer');
+        $this->grantRole($user, 'customer');
 
         return [$user, Customer::factory()->create([
             'company_id' => $this->admin->company_id,

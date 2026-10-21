@@ -1,10 +1,11 @@
 /**
  * What the role editor and the permission list call a permission group and a permission. The names
  * (`billing.view`) are codes the server checks; these are the words a person reads next to them.
- * `permissionGroups.selfcheck.mjs` fails when a seeded group or permission has no entry here.
+ * `permissionGroups.selfcheck.mjs` fails when a group or permission of `PermissionCatalogue` has no entry here.
  */
 export const PERMISSION_GROUP_LABELS: Readonly<Record<string, string>> = {
     announcement: 'Pengumuman dan promo',
+    app: 'Akses aplikasi',
     billing: 'Tagihan',
     company: 'Perusahaan',
     customer: 'Pelanggan',
@@ -31,6 +32,9 @@ export const PERMISSION_GROUP_LABELS: Readonly<Record<string, string>> = {
 
 export const PERMISSION_LABELS: Readonly<Record<string, string>> = {
     'announcement.manage': 'Kelola pengumuman dan banner promo',
+
+    'app.web': 'Masuk aplikasi web (back-office)',
+    'app.technician': 'Teknisi lapangan (aplikasi Teknisi)',
 
     'billing.view': 'Lihat tagihan',
     'billing.create': 'Buat tagihan',
@@ -86,6 +90,7 @@ export const PERMISSION_LABELS: Readonly<Record<string, string>> = {
     'evaluation.export': 'Ekspor evaluasi',
     'evaluation.manage': 'Kelola evaluasi',
     'evaluation.customer.submit': 'Kirim penilaian pelanggan',
+    'evaluation.evaluable': 'Dapat dinilai di Evaluasi',
 
     'inventory.view': 'Lihat barang',
     'inventory.create': 'Buat barang',
@@ -150,6 +155,7 @@ export const PERMISSION_LABELS: Readonly<Record<string, string>> = {
     'organization.manage': 'Kelola organisasi',
     'organization.export': 'Ekspor organisasi',
 
+    'portal.access': 'Akun pelanggan (portal dan aplikasi Pelanggan)',
     'portal.invoice.view': 'Lihat tagihan di portal',
     'portal.invoice.pay': 'Bayar tagihan di portal',
 
@@ -165,6 +171,7 @@ export const PERMISSION_LABELS: Readonly<Record<string, string>> = {
     'report.sla.view': 'Lihat laporan SLA',
     'report.stock_card.view': 'Lihat kartu stok',
     'report.technician': 'Lihat kinerja teknisi',
+    'report.technician.team': 'Laporan kinerja teknisi: unit organisasi sendiri',
 
     'roles.manage': 'Kelola peran dan hak akses',
     'roles.export': 'Ekspor peran',

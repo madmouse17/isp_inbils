@@ -79,10 +79,10 @@ class SalesKpiFormulaV1Test extends TestCase
         $this->companyB = Company::factory()->create(['is_active' => true, 'timezone' => 'UTC']);
 
         $this->admin = $this->employee('admin', null, ['name' => 'Admin Actor'], false);
-        $this->ayu = $this->employee('staff', null, ['name' => 'Ayu Active']);
+        $this->ayu = $this->salesStaff(null, ['name' => 'Ayu Active']);
         $this->budi = $this->employee('manager', null, ['name' => 'Budi Both']);
-        $this->citra = $this->employee('staff', null, ['name' => 'Citra Former', 'is_active' => false]);
-        $this->dewi = $this->employee('staff', null, ['name' => 'Dewi Idle']);
+        $this->citra = $this->salesStaff(null, ['name' => 'Citra Former', 'is_active' => false]);
+        $this->dewi = $this->salesStaff(null, ['name' => 'Dewi Idle']);
         $this->eko = $this->employee('technician', null, ['name' => 'Eko Technician']);
         $this->bayu = $this->employee('manager', $this->companyB, ['name' => 'Bayu Other Company']);
     }
@@ -316,7 +316,7 @@ class SalesKpiFormulaV1Test extends TestCase
     {
         // Fiona is not eligible (inactive) and her only customer is soft-deleted, yet its paid invoice is cash that must
         // not vanish from the report.
-        $fiona = $this->employee('staff', null, ['name' => 'Fiona Gone', 'is_active' => false]);
+        $fiona = $this->salesStaff(null, ['name' => 'Fiona Gone', 'is_active' => false]);
         $customer = $this->customer($fiona, '2026-05-02 09:00:00');
         $invoice = $this->invoice($customer, 'paid', 300000, 300000, '2026-05-03');
         $this->payment($invoice, 300000, '2026-05-04 10:00:00');

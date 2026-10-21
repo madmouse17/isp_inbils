@@ -325,6 +325,7 @@ class ReportCapabilityTest extends TestCase
         $request = ReportFilterRequest::createFromBase(Request::create($uri, 'GET'));
         $request->setRouteResolver(fn () => $route);
         $request->setUserResolver(fn () => $user);
+        $this->actingAs($user); // the permission check resolves its company from the signed-in user
 
         return $request;
     }

@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Core\Company;
+use App\Models\User;
+use App\Services\Core\CompanyService;
 use Database\Seeders\CustomerDemoSeeder;
 use Database\Seeders\DemoUserSeeder;
 use Database\Seeders\RolePermissionSeeder;
@@ -44,6 +46,12 @@ class CustomerDemoSeederTest extends TestCase
             ->where('s.company_id', $this->companyId)
             ->whereColumn('a.customer_id', '<>', 's.customer_id')
             ->count(), 'A subscription is installed at an address of another customer.');
+
+        $customer = User::query()->where('email', 'customer@demo.inbils.test')->firstOrFail();
+        $this->assertSame(['customer'], CompanyService::runAs(
+            $this->companyId,
+            fn () => $customer->fresh()->roles()->pluck('template_key')->all(),
+        ));
     }
 
     public function test_it_leaves_a_company_that_has_customers_alone(): void

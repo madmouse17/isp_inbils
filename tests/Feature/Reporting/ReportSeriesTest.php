@@ -505,7 +505,7 @@ class ReportSeriesTest extends TestCase
     private function technician(int $companyId): User
     {
         $technician = User::factory()->create(['company_id' => $companyId, 'is_active' => true]);
-        $technician->assignRole('technician');
+        $this->grantRole($technician, 'technician');
         EmployeeProfile::factory()->create(['company_id' => $companyId, 'user_id' => $technician->id, 'status' => 'active']);
 
         return $technician;

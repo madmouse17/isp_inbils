@@ -11,7 +11,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
 
@@ -31,7 +30,6 @@ class RotateLegacyCustomerPasswordsTest extends TestCase
         $admin = $this->createCompanyUser();
         $this->companyA = Company::query()->findOrFail($admin->company_id);
         $this->companyB = Company::factory()->create(['is_active' => true]);
-        Role::findOrCreate('customer', 'web');
     }
 
     /** A customer login created before random passwords: the phone number is the password and the account is flagged. */
@@ -44,7 +42,7 @@ class RotateLegacyCustomerPasswordsTest extends TestCase
             'must_change_password' => true,
             'remember_token' => 'stale-remember-token',
         ], $attributes));
-        $user->assignRole('customer');
+        $this->grantRole($user, 'customer');
         Customer::factory()->create(['company_id' => $company->id, 'user_id' => $user->id, 'phone' => '0800005195']);
 
         return $user;
@@ -73,7 +71,7 @@ class RotateLegacyCustomerPasswordsTest extends TestCase
         Notification::fake();
         $unflagged = $this->legacyCustomer($this->companyA, ['must_change_password' => false, 'password' => Hash::make('chosen-by-customer')]);
         $staff = User::factory()->create(['company_id' => $this->companyA->id, 'must_change_password' => true, 'password' => Hash::make('staff-password')]);
-        $staff->assignRole('staff');
+        $this->grantRole($staff, 'staff');
 
         $this->artisan('customers:rotate-legacy-passwords')->assertExitCode(0);
 

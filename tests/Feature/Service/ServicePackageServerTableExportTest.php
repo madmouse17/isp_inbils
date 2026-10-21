@@ -9,8 +9,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Modules\Service\Models\ServicePackage;
 use Modules\Service\Models\SLATier;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class ServicePackageServerTableExportTest extends TestCase
@@ -36,7 +34,7 @@ class ServicePackageServerTableExportTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     private function makePackage(int $companyId, string $code, string $name): ServicePackage
@@ -201,10 +199,8 @@ class ServicePackageServerTableExportTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $role = Role::firstOrCreate(['name' => 'service-no-export', 'guard_name' => 'web']);
-        Permission::findOrCreate('service.view', 'web');
-        $role->syncPermissions(['service.view']);
-        $user->assignRole($role);
+        $role = $this->companyRole($user->company_id, 'service-no-export', ['app.web', 'service.view']);
+        $this->grantRole($user, $role);
 
         $this->actingAs($user)
             ->get(route('admin.service-packages.export', ['format' => 'csv']))

@@ -5,7 +5,6 @@ namespace Tests\Traits;
 use App\Models\Core\Company;
 use App\Models\User;
 use App\Services\Core\CompanyMembershipService;
-use Database\Seeders\RolePermissionSeeder;
 
 /**
  * A company group for tenancy tests: one Head, two active subsidiaries (A and B) that all use IDR,
@@ -24,9 +23,6 @@ trait BuildsCompanyGroup
 
     protected function buildGroup(): void
     {
-        $this->seed(RolePermissionSeeder::class);
-        app()['cache']->forget('spatie.permission.cache');
-
         $this->head = Company::factory()->create(['name' => 'Group Head', 'code' => 'HDQ', 'currency' => 'IDR', 'timezone' => 'Asia/Jakarta']);
         $this->subA = $this->subsidiary('Sub A', 'SBA');
         $this->subB = $this->subsidiary('Sub B', 'SBB');
@@ -42,7 +38,8 @@ trait BuildsCompanyGroup
     }
 
     /**
-     * A verified, active user homed in $home, also a member of every company in $others.
+     * A verified, active user homed in $home, also a member of every company in $others, holding the company's copy of
+     * the template `$role` in each of them (roles are per company).
      */
     protected function groupUser(Company $home, string $role = 'admin', Company ...$others): User
     {
@@ -51,12 +48,13 @@ trait BuildsCompanyGroup
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $user->assignRole($role);
 
         $memberships = app(CompanyMembershipService::class);
         $memberships->grant($user, $home, true);
+        $this->grantRole($user, $role, $home);
         foreach ($others as $company) {
             $memberships->grant($user, $company);
+            $this->grantRole($user, $role, $company);
         }
 
         return $user;

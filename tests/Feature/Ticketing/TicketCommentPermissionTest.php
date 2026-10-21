@@ -8,8 +8,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Services\TicketService;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
 
@@ -37,10 +35,7 @@ class TicketCommentPermissionTest extends TestCase
             'is_active' => true,
         ]);
 
-        $role = Role::firstOrCreate(['name' => 'ticket-view-only', 'guard_name' => 'web']);
-        Permission::findOrCreate('ticket.view', 'web');
-        $role->syncPermissions(['ticket.view']);
-        $commenter->assignRole($role);
+        $this->grantPermissions($commenter, ['app.web', 'ticket.view']);
 
         $this->actingAs($commenter)
             ->post(route('admin.tickets.comments.store', $ticket), [

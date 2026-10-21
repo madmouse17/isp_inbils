@@ -31,7 +31,7 @@ class StockCardReportRouteTest extends TestCase
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
         $this->actingAs($this->admin);
         $this->location = Location::factory()->create(['company_id' => $company->id]);
     }

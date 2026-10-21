@@ -10,7 +10,6 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class HasPublicIdTest extends TestCase
@@ -96,7 +95,7 @@ class HasPublicIdTest extends TestCase
     {
         Storage::fake('public');
 
-        $role = Role::create(['name' => 'public-id-probe', 'guard_name' => 'web']);
+        $role = $this->companyRole(Company::factory()->create(), 'public-id-probe', []);
         $activity = activity()->log('public id probe');
         $token = User::factory()->create()->createToken('public-id-probe')->accessToken;
         $media = Company::factory()->create()->addMediaFromString('x')->usingFileName('logo.png')->toMediaCollection('logo');

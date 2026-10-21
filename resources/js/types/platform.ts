@@ -209,6 +209,22 @@ export type PlatformUserFilters = {
     per_page: number;
 };
 
+/** One company's roles on the tenant page: the tenant root first, then each subsidiary. */
+export type PlatformCompanyRoleRow = {
+    id: string;
+    name: string;
+    template_key: string | null;
+    permissions_count: number;
+    users_count: number;
+};
+
+export type PlatformCompanyRoles = {
+    company: PlatformTenantOption;
+    roles: PlatformCompanyRoleRow[];
+};
+
+export type PlatformRoleTemplateOption = { key: string; name: string };
+
 export type PlatformCompanyShowProps = {
     tenant: PlatformTenantProfile;
     metrics: PlatformTenantMetrics;
@@ -216,6 +232,8 @@ export type PlatformCompanyShowProps = {
     subsidiaries: PlatformSubsidiary[];
     users: Paginated<PlatformCompanyUser>;
     userFilters: PlatformUserFilters;
+    companyRoles: PlatformCompanyRoles[];
+    roleTemplates: PlatformRoleTemplateOption[];
     recentAudit: PlatformAuditRow[];
     failedJobs: PlatformFailedJob[];
     failedWhatsApp: PlatformFailedWhatsApp[];
@@ -224,19 +242,35 @@ export type PlatformCompanyShowProps = {
     lifecycle: PlatformLifecycle;
 };
 
-export type PlatformRole = {
+/** A row of `Platform/RoleTemplates/Index`. The admin and customer templates are not deletable. */
+export type PlatformRoleTemplateRow = {
     id: string;
+    key: string;
     name: string;
-    permissions: string[];
-    users_count?: number;
+    permissions_count: number;
+    deletable: boolean;
 };
 
-export type PlatformRoleFilters = {
-    search?: string;
-    sort?: string;
-    direction?: string;
-    per_page?: number | string;
+export type PlatformRoleTemplate = {
+    id: string;
+    key: string;
+    name: string;
+    permissions: string[];
+    deletable: boolean;
 };
+
+/** A role of one company, as the repair form edits it. `version` goes back as `expected_updated_at`. */
+export type PlatformCompanyRole = {
+    id: string;
+    name: string;
+    template_key: string | null;
+    permissions: string[];
+    users_count: number;
+    version: string;
+};
+
+/** The template a new company role starts from (`?template=<key>`). */
+export type PlatformRoleTemplateSeed = { key: string; name: string; permissions: string[] };
 
 export type PlatformTwoFactorStatus = {
     enabled: boolean;

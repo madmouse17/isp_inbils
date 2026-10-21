@@ -8,16 +8,20 @@ use App\Models\Core\Customer;
 use App\Models\Core\EmployeeProfile;
 use App\Services\Core\ApiTokenService;
 use App\Services\Core\AuditService;
+use App\Services\Core\CompanyService;
 use App\Support\AuditProperties;
 use App\Traits\HasPublicId;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Activitylog\Contracts\Activity as ActivityContract;
 use Spatie\Activitylog\LogOptions;
@@ -75,6 +79,12 @@ class User extends Authenticatable
         });
 
         static::deleted(fn (User $user) => app(ApiTokenService::class)->revokeAll($user, 'deleted'));
+
+        // The link to the customer record goes with the row (customers.user_id is nullOnDelete), before the `deleted` audit row
+        // is written: read the kind of account while the link still exists, or the row would show the contact person's name.
+        static::deleting(function (User $user): void {
+            $user->isCustomerAccount = $user->isCustomerAccount || $user->isLinkedToCustomer();
+        });
     }
 
     /**
@@ -141,8 +151,59 @@ class User extends Authenticatable
         return $this->belongsToMany(Company::class)->withPivot('is_default')->withTimestamps();
     }
 
-    /** Set by CustomerService for the account it creates, before the customer role exists. */
+    /**
+     * The ids of the companies the user may act in: his home company and every granted membership. Read from the
+     * `companies` relation, so a page of users loads the memberships of all its rows with one query. The authorization
+     * of a page needs this for every row; CompanyMembershipService::companyIdsOf() asks the table instead, for the writes
+     * that must see the memberships as they are now.
+     *
+     * @return Collection<int, int>
+     */
+    public function companyIds(): Collection
+    {
+        return $this->companies->pluck('id')->push($this->company_id)->filter()->map(fn (mixed $id): int => (int) $id)->unique()->values();
+    }
+
+    /**
+     * The user's roles in EVERY company, not only the one in effect. A role belongs to one company (ADR-004) and `roles`
+     * follows the company the request acts in, so judging a user by what he holds elsewhere used to switch company and
+     * reload `roles` for each of them. This relation holds them all at once, and a page of users loads it for all its
+     * rows with one query (`rolesInEveryCompany.permissions`). Read it with permissionNamesIn().
+     *
+     * @return BelongsToMany<Role, $this>
+     */
+    public function rolesInEveryCompany(): BelongsToMany
+    {
+        return $this->roles()->withoutGlobalScope('company');
+    }
+
+    /**
+     * The permissions the user holds in a company, by name: his direct permissions (they apply in every company) and
+     * those of his roles of that company. The answer getAllPermissions() gives while acting as that company, read from
+     * `rolesInEveryCompany` and `permissions`, so asking for another company costs no reload.
+     *
+     * @return list<string>
+     */
+    public function permissionNamesIn(int $companyId): array
+    {
+        return $this->permissions->pluck('name')
+            ->merge($this->rolesInEveryCompany
+                ->where('company_id', $companyId)
+                ->flatMap(fn (Role $role) => $role->permissions->pluck('name')))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /** Set by CustomerService for the account it creates, before the link to its customer record exists, and on deleting, while it still does. */
     public bool $isCustomerAccount = false;
+
+    /**
+     * The company the `roles` relation was loaded for. Roles are per company, and one instance outlives a company switch,
+     * a runAs() or a queue job that restores it before the job enters its company: a relation loaded for another
+     * company would answer for the wrong roles (ADR-004).
+     */
+    private ?int $rolesLoadedFor = null;
 
     public function employeeProfile(): HasOne
     {
@@ -152,6 +213,57 @@ class User extends Authenticatable
     public function customer(): HasOne
     {
         return $this->hasOne(Customer::class);
+    }
+
+    /**
+     * Users who hold one of the permissions in the company: through one of its roles, or directly (direct permissions
+     * belong to the user, in every company). It names the company, so it works where nobody is signed in (a webhook,
+     * a job, the scheduler); the `roles` relation follows the ambient company and would match nobody there.
+     *
+     * @param  Builder<User>  $query
+     * @param  string|list<string>  $permissions
+     * @return Builder<User>
+     */
+    public function scopeWithPermissionIn(Builder $query, string|array $permissions, int $companyId): Builder
+    {
+        $names = Arr::wrap($permissions);
+
+        return $query->where(fn (Builder $holders) => $holders
+            ->whereHas('permissions', fn (Builder $permission) => $permission->whereIn('permissions.name', $names))
+            ->orWhereHas('roles', fn (Builder $role) => $role
+                ->withoutGlobalScope('company')
+                ->where('roles.company_id', $companyId)
+                ->whereHas('permissions', fn (Builder $permission) => $permission->whereIn('permissions.name', $names))));
+    }
+
+    /** A `roles` relation loaded for another company is dropped, so every role and permission check reloads it. */
+    public function relationLoaded($key): bool
+    {
+        if ($key === 'roles' && parent::relationLoaded('roles') && $this->rolesLoadedFor !== CompanyService::currentId()) {
+            // Not unsetRelation(): `rolesInEveryCompany` does not follow the company in effect, so it stays loaded.
+            parent::unsetRelation('roles');
+        }
+
+        return parent::relationLoaded($key);
+    }
+
+    /** The package unsets `roles` after every assign and remove; `rolesInEveryCompany` holds the same assignments, so it goes with it. */
+    public function unsetRelation($relation): static
+    {
+        if ($relation === 'roles') {
+            parent::unsetRelation('rolesInEveryCompany');
+        }
+
+        return parent::unsetRelation($relation);
+    }
+
+    public function setRelation($relation, $value): static
+    {
+        if ($relation === 'roles') {
+            $this->rolesLoadedFor = CompanyService::currentId();
+        }
+
+        return parent::setRelation($relation, $value);
     }
 
     /** Two-factor authentication is on once the first code was confirmed; a bare secret is a pending enrolment. */
@@ -184,11 +296,19 @@ class User extends Authenticatable
 
     /**
      * The diff of a user hides the address; a customer's name is the contact person, so it is hidden too. Staff names
-     * stay readable: the causer column answers who changed what. The role is granted after the first save, so
-     * CustomerService flags the account for its `created` row.
+     * stay readable: the causer column answers who changed what. A customer account is told by its link to a customer
+     * record, which exists in every company context; CustomerService flags the account for its `created` row, because
+     * the link is made after the first save, and the `deleting` hook for its `deleted` row, because the link is gone by then.
      */
     public function tapActivity(ActivityContract $activity, string $eventName): void
     {
-        AuditProperties::maskValues($activity, $this->isCustomerAccount || $this->hasRole('customer') ? ['email', 'name'] : ['email']);
+        $customerAccount = $this->isCustomerAccount || $this->isLinkedToCustomer();
+
+        AuditProperties::maskValues($activity, $customerAccount ? ['email', 'name'] : ['email']);
+    }
+
+    private function isLinkedToCustomer(): bool
+    {
+        return Customer::withoutCompany()->withTrashed()->where('user_id', $this->id)->exists();
     }
 }

@@ -21,7 +21,6 @@ use Modules\SPK\Database\Factories\WorkOrderFactory;
 use Modules\SPK\Models\WorkOrder;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
-use Spatie\Permission\Models\Role;
 
 /**
  * Company-scoped fixtures for the persona dashboard tests. Every record takes an explicit
@@ -59,12 +58,12 @@ trait BuildsDashboardFixtures
             'email_verified_at' => now(),
             'is_active' => $active,
         ]);
-        $user->assignRole(Role::where('name', $role)->firstOrFail());
+        $this->grantRole($user, $role, $company);
 
-        // Technician and customer accounts are app-only on the web. A permission-less extra role keeps
-        // their permission sets reachable here without them being redirected to /app-only.
+        // Technician and customer accounts are app-only on the web (their templates lack app.web). A role that holds only
+        // web access keeps their permission sets reachable here without them being redirected to /app-only.
         if (in_array($role, ['technician', 'customer'], true)) {
-            $user->assignRole(Role::findOrCreate('web-access', 'web'));
+            $this->grantPermissions($user, ['app.web'], $company);
         }
 
         return $user;
@@ -78,9 +77,8 @@ trait BuildsDashboardFixtures
             'email_verified_at' => now(),
             'is_active' => $active,
         ]);
-        $user->givePermissionTo($permissions);
 
-        return $user;
+        return $this->grantPermissions($user, ['app.web', ...$permissions], $company);
     }
 
     protected function activeEmployeeProfile(User $user, string $status = 'active'): EmployeeProfile

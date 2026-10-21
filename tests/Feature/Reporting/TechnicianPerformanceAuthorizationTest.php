@@ -17,7 +17,6 @@ use Modules\Reporting\Queries\TechnicianPerformanceQuery;
 use Modules\SPK\Database\Factories\WorkOrderFactory;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\WithoutAppOnlyRedirect;
 
@@ -376,7 +375,7 @@ class TechnicianPerformanceAuthorizationTest extends TestCase
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
-        $user->assignRole(Role::findByName($role));
+        $this->grantRole($user, $role, $company);
 
         if ($role === 'technician') {
             EmployeeProfile::factory()->create([
@@ -397,7 +396,7 @@ class TechnicianPerformanceAuthorizationTest extends TestCase
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
-        $technician->assignRole(Role::findByName('technician'));
+        $this->grantRole($technician, 'technician', $company);
         EmployeeProfile::factory()->create([
             'company_id' => $company->id,
             'user_id' => $technician->id,

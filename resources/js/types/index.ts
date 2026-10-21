@@ -48,7 +48,6 @@ export interface User {
     company_id?: string | null;
     home_company_id?: string | null;
     is_active?: boolean;
-    roles?: string[];
     permissions?: string[];
 }
 
@@ -111,7 +110,7 @@ export type PageProps<T extends Record<string, unknown> = Record<string, unknown
     companyHierarchy?: CompanyHierarchy | null;
     /** The companies the user may switch into; empty unless `canSwitch`. */
     companies?: CompanyMembership[];
-    /** True only for a user with `company.switch` who belongs to two or more companies. */
+    /** True when the user may switch (`company.switch`, read in the company they are in now) and belongs to two or more companies, or is away from home and may go back. */
     canSwitch?: boolean;
     flash: Flash;
     workQueues?: {
@@ -123,7 +122,7 @@ export type PageProps<T extends Record<string, unknown> = Record<string, unknown
     canMyWork?: boolean;
     /** Shared by the Reporting module: true when the user may open Technician Performance. */
     canTechnicianReport?: boolean;
-    /** True when the user holds only technician and/or customer roles: they work in the Android app. */
+    /** True when the user lacks `app.web` in the current company: they work in the Android app, or have no web access yet. */
     appOnly?: boolean;
     /** True for an admin without two-factor authentication while the company does not require it yet: the layout asks, and the admin may postpone. */
     twoFactorPrompt?: boolean;

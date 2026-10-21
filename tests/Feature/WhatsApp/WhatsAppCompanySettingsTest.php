@@ -11,7 +11,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\InteractsWithWhatsApp;
 
@@ -33,7 +32,7 @@ class WhatsAppCompanySettingsTest extends TestCase
 
         $this->company = Company::factory()->create(['is_active' => true, 'settings' => ['tax_ppn_rate' => 11]]);
         $this->admin = User::factory()->create(['company_id' => $this->company->id, 'email_verified_at' => now(), 'is_active' => true]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin', $this->company);
     }
 
     /** @param array<string, mixed> $settings */
@@ -98,7 +97,7 @@ class WhatsAppCompanySettingsTest extends TestCase
     {
         $rival = Company::factory()->create(['is_active' => true]);
         $rivalAdmin = User::factory()->create(['company_id' => $rival->id, 'email_verified_at' => now(), 'is_active' => true]);
-        $rivalAdmin->assignRole('admin');
+        $this->grantRole($rivalAdmin, 'admin', $rival);
         $this->whatsAppIntegration($this->company); // only this company has an account
 
         $this->actingAs($this->admin)->get(route('admin.company.settings.edit'))->assertInertia(fn (Assert $page) => $page
@@ -193,10 +192,9 @@ class WhatsAppCompanySettingsTest extends TestCase
 
     public function test_only_company_managers_may_see_or_change_the_settings(): void
     {
-        $role = Role::create(['name' => 'viewer', 'guard_name' => 'web']);
-        $role->givePermissionTo('customer.view');
+        $role = $this->companyRole($this->company, 'viewer', ['app.web', 'customer.view']);
         $viewer = User::factory()->create(['company_id' => $this->company->id, 'email_verified_at' => now(), 'is_active' => true]);
-        $viewer->assignRole($role);
+        $this->grantRole($viewer, $role, $this->company);
 
         $this->actingAs($viewer)->get(route('admin.company.settings.edit'))->assertForbidden();
         $this->actingAs($viewer)->put(route('admin.company.settings.update'), ['settings' => ['whatsapp_enabled' => true]])->assertForbidden();

@@ -9,9 +9,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
 
@@ -32,11 +29,6 @@ class PortalCredentialsTest extends TestCase
 
         $this->withoutVite();
         $admin = $this->createCompanyUser();
-        Role::findOrCreate('customer', 'web')->givePermissionTo(
-            Permission::findOrCreate('portal.invoice.view', 'web'),
-            Permission::findOrCreate('portal.invoice.pay', 'web'),
-        );
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $this->customerUser = User::factory()->create([
             'company_id' => $admin->company_id,
@@ -46,7 +38,7 @@ class PortalCredentialsTest extends TestCase
             'must_change_password' => true,
             'remember_token' => 'stale-remember-token',
         ]);
-        $this->customerUser->assignRole('customer');
+        $this->grantRole($this->customerUser, 'customer');
         Customer::factory()->create(['company_id' => $admin->company_id, 'user_id' => $this->customerUser->id, 'phone' => '0800005195']);
     }
 

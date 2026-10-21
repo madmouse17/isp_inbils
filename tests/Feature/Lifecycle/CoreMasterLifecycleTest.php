@@ -28,7 +28,6 @@ use Modules\Inventory\Models\Stock;
 use Modules\Service\Models\ServicePackage;
 use PDOException;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
@@ -530,17 +529,12 @@ class CoreMasterLifecycleTest extends TestCase
         $this->assertSame(['POST'], $change->methods());
     }
 
-    /** @param  list<string>  $permissions  none: the role of that name is used as it is */
+    /** @param  list<string>  $permissions  none: the template or role of that name is used as it is; `app.web` opens the admin pages for a role of exactly these */
     private function user(string $role, array $permissions = []): User
     {
         $user = User::factory()->create(['company_id' => $this->company->id, 'email_verified_at' => now(), 'is_active' => true]);
-        $record = Role::firstOrCreate(['name' => $role, 'guard_name' => 'web']);
 
-        if ($permissions !== []) {
-            $record->syncPermissions($permissions);
-        }
-
-        return $user->assignRole($record);
+        return $this->grantRole($user, $permissions === [] ? $role : $this->companyRole($this->company, $role, [...$permissions, 'app.web']));
     }
 
     /** @param  array<string, mixed>  $attributes */

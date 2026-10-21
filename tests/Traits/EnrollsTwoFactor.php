@@ -2,14 +2,11 @@
 
 namespace Tests\Traits;
 
+use App\Models\Permission;
 use App\Models\PlatformAdmin;
 use App\Models\User;
 use App\Services\Core\TwoFactorService;
-use Database\Seeders\RolePermissionSeeder;
 use PragmaRX\Google2FA\Google2FA;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 
 /**
  * Turns two-factor authentication on for a user or a platform admin through the service, the way the Profile page
@@ -41,19 +38,11 @@ trait EnrollsTwoFactor
     }
 
     /**
-     * The seeder grants `users.two_factor.reset` to admin; this keeps the tests independent of whether
-     * the seeded database already has it. Idempotent.
+     * The Admin template holds `users.two_factor.reset`, so a company's Admin copy already has it; this only makes sure
+     * the row exists. Kept for the callers that still ask: the call can go.
      */
     protected function grantTwoFactorResetToAdmin(): void
     {
         Permission::findOrCreate('users.two_factor.reset', 'web');
-        Role::findOrCreate('admin', 'web')->givePermissionTo('users.two_factor.reset');
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
-    }
-
-    protected function seedRolesAndTwoFactorReset(): void
-    {
-        $this->seed(RolePermissionSeeder::class);
-        $this->grantTwoFactorResetToAdmin();
     }
 }

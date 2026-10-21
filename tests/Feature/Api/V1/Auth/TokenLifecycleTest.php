@@ -5,6 +5,7 @@ namespace Tests\Feature\Api\V1\Auth;
 use App\Models\Core\EmployeeProfile;
 use App\Models\User;
 use App\Services\Core\ApiTokenService;
+use App\Services\Core\CompanyService;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -144,7 +145,7 @@ class TokenLifecycleTest extends TestCase
     {
         $technician = $this->technicianLogin();
         $token = $this->issueToken($technician, 'technician');
-        $technician->removeRole('technician');
+        $this->dropRole($technician, 'technician');
 
         $this->api('POST', 'auth/token/refresh', token: $token)->assertForbidden()->assertJsonPath('code', 'app_not_allowed');
         $this->assertSame(1, $technician->tokens()->count());
@@ -181,7 +182,7 @@ class TokenLifecycleTest extends TestCase
     {
         $technician = $this->technicianLogin();
         $token = $this->issueToken($technician, 'technician');
-        $technician->removeRole('technician');
+        $this->dropRole($technician, 'technician');
 
         $this->api('POST', 'auth/logout', token: $token)->assertNoContent();
 
@@ -225,7 +226,7 @@ class TokenLifecycleTest extends TestCase
     public function test_a_user_with_both_apps_sees_both_tokens(): void
     {
         [$user] = $this->customerLogin();
-        $user->assignRole('technician');
+        $this->grantRole($user, 'technician');
         EmployeeProfile::factory()->create(['company_id' => $user->company_id, 'user_id' => $user->id, 'status' => 'active']);
         $this->issueToken($user, 'technician', 'Work phone');
         $own = $this->issueToken($user, 'customer', 'Home phone');
@@ -290,5 +291,11 @@ class TokenLifecycleTest extends TestCase
             ->assertNoContent()
             ->assertHeader('Idempotent-Replayed', 'true');
         $this->api('DELETE', "devices/{$lostId}", token: $phone)->assertNotFound();
+    }
+
+    /** Takes the company's copy of a template away from the user, in the company he acts in. */
+    private function dropRole(User $user, string $templateKey): void
+    {
+        CompanyService::runAs((int) $user->company_id, fn () => $user->removeRole($this->companyRoles((int) $user->company_id)[$templateKey]));
     }
 }

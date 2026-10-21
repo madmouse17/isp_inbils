@@ -21,13 +21,16 @@ ItemSerial deprecated/merged ke NetworkAsset.
 
 ## User Role
 
-| Role | Hak |
+Role milik company: setiap company menyusun role dari katalog permission dan boleh mengganti nama atau mengubah isinya (menu Administrasi → Peran). Tabel ini memuat templat bawaan untuk company baru; hak sebenarnya adalah permission yang dipegang role di company itu.
+
+| Templat (nama role) | Hak |
 |------|-----|
-| admin | full CRUD asset + installation + move + retire + location topology CRUD |
-| manager | view + install/move/retire asset + location CRUD (no delete) |
-| noc | view asset + location + installation history + trace (no edit) |
-| staff | view only |
-| technician | view asset + location (untuk SPK) + update status maintenance (limited) |
+| Admin | full CRUD asset + installation + move + retire + location topology CRUD |
+| Manajer | view + install/move/retire asset + location CRUD (no delete) |
+| NOC & Layanan Pelanggan | view asset + NAS + akun + location + IPAM + ODN + installation history + trace (no edit asset); resync RADIUS (`network_asset.account.manage`); pasang/lepas drop (`odn.assign`) |
+| Staf | view only |
+| Teknisi | view asset + location (untuk SPK) + update status maintenance (limited) |
+| Gudang, Keuangan, Pelanggan | tidak ada akses jaringan (Gudang hanya `location.view`) |
 
 ## Entity
 
@@ -467,8 +470,8 @@ Jalur fiber/IP untuk otomasi RADIUS dibaca dari sini lewat satu service, bukan d
   /admin/ipam/prefixes/{prefix}`, `POST /admin/ipam/prefixes/{prefix}/reservations`, `POST
   /admin/ipam/subscriptions/{subscription}/addresses` (`ip_prefix_id`, `address?`), `DELETE /admin/ipam/addresses/{address}`,
   `GET/POST /admin/ipam/vlans`, `PUT/DELETE /admin/ipam/vlans/{vlan}`. Lintas company = 404, tanpa izin = 403.
-- **Permission**: `ipam.view`, `ipam.manage`, `ipam.assign`. Admin dan manager ketiganya; staff dan teknisi
-  `ipam.view`; customer tidak ada. Staff tidak bisa memberi alamat static (NOC/manager saja).
+- **Permission**: `ipam.view`, `ipam.manage`, `ipam.assign`. Pada templat bawaan, Admin dan Manajer ketiganya; Staf, NOC
+  dan Teknisi `ipam.view`; Pelanggan tidak ada. Staf tidak bisa memberi alamat static (manajer, atau role company yang diberi `ipam.assign`).
 
 ### ODN (`Modules/NetworkAsset`)
 
@@ -498,8 +501,8 @@ Lokasi tetap pohon `region > area > pop > rack > site`; ODC dan ODP adalah **ass
 - **Halaman**: `/admin/odn` (ODP: kapasitas, terpakai, bebas, persen; port PON dengan jumlah subscriber lewat semua
   level splitter; subscription aktif tanpa drop; filter `pop_id`, `min_percent`, `search`), `/admin/odn/assets/{asset}`
   (OLT, ODC, ODP; tipe lain 404). Subscription dan SPK instalasi menampilkan ODP dan port drop.
-- **Permission**: `odn.view`, `odn.manage` (port PON, splitter), `odn.assign` (drop). Admin dan manager ketiganya;
-  staff `odn.view` + `odn.assign` (mereka melakukan onboarding); teknisi `odn.view`; customer tidak ada.
+- **Permission**: `odn.view`, `odn.manage` (port PON, splitter), `odn.assign` (drop). Pada templat bawaan, Admin dan Manajer ketiganya;
+  Staf dan NOC `odn.view` + `odn.assign` (mereka melakukan onboarding); Teknisi `odn.view`; Pelanggan tidak ada.
 - **Di luar lingkup**: loss budget optik, peta/rute fiber, splice, port rusak, impor CSV data ODN.
 
 ## Panel perangkat (port, rak, jalur fiber)
@@ -614,7 +617,7 @@ Tidak ada izin baru. `NetworkAssetPolicy::updatePanel` (ability baru) memakai `n
 | Memasang pelanggan di port ODP dan melepas port drop dari sheet | `odn.assign` (route ODN yang sudah ada) |
 | Blokir internet dan buka blokir dari sheet | `customer.subscription.block` (route langganan yang sudah ada) |
 
-Peran bawaan (`RolePermissionSeeder`): admin dan manager mengubah panel; staff dan technician hanya membaca. Staff juga bisa memasang dan melepas drop (`odn.assign`), dan teknisi melihat port, drop, dan tanda online karena butuh di lapangan.
+Templat bawaan untuk company baru: Admin dan Manajer mengubah panel; Staf dan Teknisi hanya membaca. Staf juga bisa memasang dan melepas drop (`odn.assign`), dan Teknisi melihat port, drop, dan tanda online karena butuh di lapangan. Company boleh mengubah isi rolenya sendiri, jadi hak sebenarnya mengikuti permission di tabel di atas.
 
 Semua route ada di grup `auth, verified, redirect.app.only, require.has.company` dengan prefiks `admin` (`whereUlid` mencakup `port`). Tiga route port memakai `scopeBindings()`, jadi port milik aset lain di URL menjawab 404, dan aset atau port company lain juga 404.
 

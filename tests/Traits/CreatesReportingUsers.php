@@ -4,36 +4,30 @@ namespace Tests\Traits;
 
 use App\Models\Core\Company;
 use App\Models\User;
-use Spatie\Permission\Models\Role;
 
 /**
  * Users for report capability tests. Every call creates its own company so tenant data never overlaps.
- * Requires Database\Seeders\RolePermissionSeeder to have run.
  */
 trait CreatesReportingUsers
 {
+    /** A user holding the company's copy of a template: `admin`, `manager`, `staff`, `technician`, `customer`... */
     protected function userWithRole(string $roleName): User
     {
-        $user = $this->userInNewCompany();
-        $user->assignRole(Role::where('name', $roleName)->firstOrFail());
-
-        return $user;
+        return $this->grantRole($this->userInNewCompany(), $roleName);
     }
 
     /**
-     * A user whose only role is a custom Spatie role holding exactly the given permissions.
+     * A user whose only role is a custom role of his company holding the given permissions and web access (a custom
+     * role is never an app-only login).
      *
      * @param  list<string>  $permissions
      */
     protected function userWithPermissions(array $permissions, string $roleName = 'custom-report-reader'): User
     {
-        $role = Role::firstOrCreate(['name' => $roleName.'-'.md5(implode('|', $permissions)), 'guard_name' => 'web']);
-        $role->syncPermissions($permissions);
-
         $user = $this->userInNewCompany();
-        $user->assignRole($role);
+        $role = $this->companyRole((int) $user->company_id, $roleName.'-'.md5(implode('|', $permissions)), ['app.web', ...$permissions]);
 
-        return $user;
+        return $this->grantRole($user, $role);
     }
 
     private function userInNewCompany(): User

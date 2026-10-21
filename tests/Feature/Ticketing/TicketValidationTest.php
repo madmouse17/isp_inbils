@@ -44,7 +44,7 @@ class TicketValidationTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $otherCompanyHandler->assignRole('technician');
+        $this->grantRole($otherCompanyHandler, 'technician');
 
         $this->actingAs($admin)
             ->postJson(route('admin.tickets.assign', $ticket), [
@@ -144,6 +144,7 @@ class TicketValidationTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
+        $this->grantPermissions($commenter, ['app.web']);
 
         $this->actingAs($commenter)
             ->post(route('admin.tickets.comments.store', $ticket), [

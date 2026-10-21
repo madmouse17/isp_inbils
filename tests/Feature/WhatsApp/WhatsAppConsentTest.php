@@ -13,7 +13,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Testing\Fluent\AssertableJson;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\AllowsManualCodes;
 use Tests\Traits\InteractsWithWhatsApp;
@@ -47,7 +46,7 @@ class WhatsAppConsentTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $user->assignRole($role);
+        $this->grantRole($user, $role, $company ?? $this->company);
 
         return $user;
     }
@@ -196,9 +195,8 @@ class WhatsAppConsentTest extends TestCase
     {
         $customer = $this->consentedCustomer($this->company);
         $viewer = User::factory()->create(['company_id' => $this->company->id, 'email_verified_at' => now(), 'is_active' => true]);
-        $role = Role::create(['name' => 'customer-viewer', 'guard_name' => 'web']);
-        $role->givePermissionTo('customer.view');
-        $viewer->assignRole($role);
+        $role = $this->companyRole($this->company, 'customer-viewer', ['app.web', 'customer.view']);
+        $this->grantRole($viewer, $role, $this->company);
 
         $this->actingAs($viewer)->put(route('admin.customers.update', $customer), $this->updatePayload($customer, ['whatsapp_opt_in' => false]))->assertForbidden();
         $this->actingAs($viewer)->post(route('admin.customers.store'), $this->onboardingPayload(['whatsapp_opt_in' => true]))->assertForbidden();

@@ -7,6 +7,7 @@ use App\Models\Core\EmployeeProfile;
 use App\Models\Core\OrganizationUnit;
 use App\Models\User;
 use App\Services\Core\CompanyMembershipService;
+use App\Services\Core\CompanyRoleService;
 use App\Services\Core\CompanyService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -50,7 +51,9 @@ class DemoTeamSeeder extends Seeder
             return;
         }
 
-        CompanyService::runAs((int) $company->id, function () use ($company): void {
+        $roles = app(CompanyRoleService::class)->copyTemplates($company);
+
+        CompanyService::runAs((int) $company->id, function () use ($company, $roles): void {
             $units = OrganizationUnit::query()->pluck('id', 'code');
 
             if ($units->isEmpty()) {
@@ -78,7 +81,8 @@ class DemoTeamSeeder extends Seeder
                     ],
                 );
 
-                $user->syncRoles([$role]);
+                $user->unsetRelation('roles');
+                $user->syncRoles([$roles[$role]]);
                 app(CompanyMembershipService::class)->grant($user, $company, true);
                 $this->profile($user, $units->get($unit), $number, $phone, $hired, $skills);
             }

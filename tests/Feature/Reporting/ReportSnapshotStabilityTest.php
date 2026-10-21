@@ -429,7 +429,7 @@ class ReportSnapshotStabilityTest extends TestCase
     private function member(string $role, string $name): User
     {
         $user = User::factory()->create(['company_id' => $this->companyId, 'name' => $name, 'is_active' => true, 'email_verified_at' => now()]);
-        $user->assignRole($role);
+        $this->grantRole($user, $role);
 
         return $user;
     }

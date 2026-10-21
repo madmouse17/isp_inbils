@@ -28,7 +28,7 @@ class CompanyProfileTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $admin->assignRole('admin');
+        $this->grantRole($admin, 'admin');
         CompanyService::resetCache();
 
         $response = $this->actingAs($admin)->post(route('admin.company.profile.update'), [
@@ -66,7 +66,7 @@ class CompanyProfileTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $admin->assignRole('admin');
+        $this->grantRole($admin, 'admin');
         CompanyService::resetCache();
 
         $response = $this->actingAs($admin)->post(route('admin.company.profile.update'), [
@@ -90,7 +90,7 @@ class CompanyProfileTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $admin->assignRole('admin');
+        $this->grantRole($admin, 'admin');
         CompanyService::resetCache();
 
         $response = $this->actingAs($admin)->post(route('admin.company.profile.update'), [
@@ -114,7 +114,7 @@ class CompanyProfileTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $admin->assignRole('admin');
+        $this->grantRole($admin, 'admin');
         CompanyService::resetCache();
 
         $this->actingAs($admin)->post(route('admin.company.profile.update'), [
@@ -222,7 +222,7 @@ class CompanyProfileTest extends TestCase
 
         $company = Company::factory()->create(['is_active' => true]);
         $admin = User::factory()->create(['company_id' => $company->id, 'email_verified_at' => now(), 'is_active' => true]);
-        $admin->assignRole('admin');
+        $this->grantRole($admin, 'admin');
         CompanyService::resetCache();
 
         return [$admin, $company];

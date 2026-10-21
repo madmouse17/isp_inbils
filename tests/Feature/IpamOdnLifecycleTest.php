@@ -23,8 +23,6 @@ use Modules\Service\Models\ServicePackage;
 use Modules\SPK\Database\Factories\WorkOrderFactory;
 use Modules\SPK\Models\WorkOrder;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\AllowsManualCodes;
 use Tests\Traits\BuildsIpamOdnFixtures;
@@ -54,7 +52,7 @@ class IpamOdnLifecycleTest extends TestCase
         parent::setUp();
 
         $this->withoutVite();
-        $this->bootIpamOdnWorld(withSeededRoles: true);
+        $this->bootIpamOdnWorld();
         $this->setManualCodes($this->company->id, true, 'customer');
         $this->seedRegion();
         $this->package = ServicePackageFactory::new()->create(['company_id' => $this->company->id, 'price_mrc' => 250000, 'price_otc' => 150000, 'contract_min_months' => 12]);
@@ -177,9 +175,7 @@ class IpamOdnLifecycleTest extends TestCase
 
     public function test_a_user_without_the_drop_permission_cannot_pick_a_port(): void
     {
-        $role = Role::firstOrCreate(['name' => 'onboarder', 'guard_name' => 'web']);
-        $role->syncPermissions(Permission::query()->whereIn('name', ['customer.create', 'customer.address.manage', 'customer.subscription.manage', 'spk.create', 'customer.view'])->get());
-        $this->actingAs($this->makeUser($this->company, 'onboarder'));
+        $this->actingAs($this->makeUserWithPermissions($this->company, ['customer.create', 'customer.address.manage', 'customer.subscription.manage', 'spk.create', 'customer.view']));
 
         $this->onboard(['odn_port_id' => $this->outputs[0]->public_id])->assertRedirect();
 
@@ -214,9 +210,7 @@ class IpamOdnLifecycleTest extends TestCase
 
     public function test_a_user_without_the_drop_permission_gets_no_drop_options(): void
     {
-        $role = Role::firstOrCreate(['name' => 'onboarder', 'guard_name' => 'web']);
-        $role->syncPermissions(Permission::query()->whereIn('name', ['customer.create', 'customer.address.manage', 'customer.subscription.manage', 'spk.create', 'customer.view'])->get());
-        $this->actingAs($this->makeUser($this->company, 'onboarder'));
+        $this->actingAs($this->makeUserWithPermissions($this->company, ['customer.create', 'customer.address.manage', 'customer.subscription.manage', 'spk.create', 'customer.view']));
 
         $this->get(route('admin.customers.create', ['serving_pop_id' => $this->net['pop']->public_id]), $this->partialReload('Admin/Customers/Create', 'dropPortOptions'))
             ->assertOk()
@@ -378,9 +372,7 @@ class IpamOdnLifecycleTest extends TestCase
         IpPrefixService::create(['cidr' => '10.124.0.0/24', 'usage' => 'customer_static']);
         $subscription = $this->makeSubscription($this->company, 'active', $this->net['pop']);
 
-        $role = Role::firstOrCreate(['name' => 'subscription-viewer', 'guard_name' => 'web']);
-        $role->syncPermissions(Permission::query()->whereIn('name', ['customer.subscription.view', 'ipam.view', 'odn.view'])->get());
-        $this->actingAs($this->makeUser($this->company, 'subscription-viewer'));
+        $this->actingAs($this->makeUserWithPermissions($this->company, ['customer.subscription.view', 'ipam.view', 'odn.view']));
         $this->get(route('admin.subscriptions.show', $subscription))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
@@ -400,9 +392,7 @@ class IpamOdnLifecycleTest extends TestCase
         $subscription = $this->makeSubscription($this->company, 'active');
         IpAssignmentService::assignToSubscription($subscription, $pool);
         OdnService::assignDrop($this->outputs[0], $subscription);
-        $role = Role::firstOrCreate(['name' => 'viewer', 'guard_name' => 'web']);
-        $role->syncPermissions(Permission::query()->whereIn('name', ['customer.subscription.view'])->get());
-        $this->actingAs($this->makeUser($this->company, 'viewer'));
+        $this->actingAs($this->makeUserWithPermissions($this->company, ['customer.subscription.view']));
 
         $this->get(route('admin.subscriptions.show', $subscription))
             ->assertOk()
@@ -434,9 +424,7 @@ class IpamOdnLifecycleTest extends TestCase
         $subscription = $this->makeSubscription($this->company, 'pending', $this->net['pop']);
         OdnService::assignDrop($this->outputs[1], $subscription);
         $installation = $this->workOrderFor($subscription, 'installation');
-        $role = Role::firstOrCreate(['name' => 'spk-viewer', 'guard_name' => 'web']);
-        $role->syncPermissions(Permission::query()->whereIn('name', ['spk.view'])->get());
-        $this->actingAs($this->makeUser($this->company, 'spk-viewer'));
+        $this->actingAs($this->makeUserWithPermissions($this->company, ['spk.view']));
 
         $this->get(route('admin.spk.show', $installation))->assertOk()->assertInertia(fn (Assert $page) => $page->where('dropPort', null));
     }

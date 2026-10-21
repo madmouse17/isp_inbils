@@ -9,7 +9,6 @@ use Inertia\Testing\AssertableInertia as Assert;
 use Modules\Billing\Database\Factories\InvoiceFactory;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\PaymentAttempt;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 use Tests\Traits\InteractsWithMobileApi;
@@ -106,7 +105,7 @@ class PortalPaymentReturnTest extends TestCase
 
     public function test_a_customer_without_the_view_permission_sees_nothing(): void
     {
-        Role::findByName('customer', 'web')->revokePermissionTo('portal.invoice.view');
+        $this->companyRoles((int) $this->customer->company_id)['customer']->revokePermissionTo('portal.invoice.view');
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $this->actingAs($this->customerUser)->get(route('portal.payments.return'))->assertForbidden();
@@ -115,7 +114,7 @@ class PortalPaymentReturnTest extends TestCase
     public function test_staff_without_the_customer_role_is_forbidden(): void
     {
         $admin = User::factory()->create(['company_id' => $this->customer->company_id]);
-        $admin->assignRole('admin');
+        $this->grantRole($admin, 'admin');
         $admin->givePermissionTo('portal.invoice.view');
 
         $this->actingAs($admin)->get(route('portal.payments.return'))->assertForbidden();
@@ -124,7 +123,7 @@ class PortalPaymentReturnTest extends TestCase
     public function test_a_customer_login_without_a_customer_record_is_forbidden(): void
     {
         $orphan = User::factory()->create(['company_id' => $this->customer->company_id]);
-        $orphan->assignRole('customer');
+        $this->grantRole($orphan, 'customer');
 
         $this->actingAs($orphan)->get(route('portal.payments.return'))->assertForbidden();
     }

@@ -138,7 +138,7 @@ class TicketController extends Controller
                 });
             });
 
-        if (($user = request()->user()) !== null && $user->hasRole('customer')) {
+        if (($user = request()->user()) !== null && $user->can('portal.access')) {
             // fail closed: a portal user without a linked customer sees nothing
             $query->where('customer_id', $user->customer?->id ?? 0);
         }
@@ -160,7 +160,7 @@ class TicketController extends Controller
     {
         Gate::authorize('create', Ticket::class);
 
-        $ownCustomerId = $request->user()->hasRole('customer') ? ($request->user()->customer?->id ?? 0) : null;
+        $ownCustomerId = $request->user()->can('portal.access') ? ($request->user()->customer?->id ?? 0) : null;
         // The page sends the customer and subscription it has picked, so what follows is offered only for them.
         $customerId = PublicId::resolveOne(Customer::class, $request->input('customer_id')) ?? 0;
         $subscriptionId = PublicId::resolveOne(ServiceSubscription::class, $request->input('subscription_id')) ?? 0;
@@ -222,7 +222,7 @@ class TicketController extends Controller
         $this->ensureSameCompany($ticket);
         Gate::authorize('view', $ticket);
 
-        $hideInternal = (bool) request()->user()?->hasRole('customer');
+        $hideInternal = (bool) request()->user()?->can('portal.access');
 
         $relations = [
             'category', 'customer.user:id,public_id', 'subscription', 'networkAsset', 'location', 'assignee', 'media',

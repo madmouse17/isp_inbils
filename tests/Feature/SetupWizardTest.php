@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Core\Company;
 use App\Models\User;
-use Database\Seeders\RolePermissionSeeder;
+use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -33,7 +33,6 @@ class SetupWizardTest extends TestCase
 
     public function test_post_setup_valid_creates_company_assigns_admin_and_redirects(): void
     {
-        $this->seed(RolePermissionSeeder::class);
         $user = User::factory()->create(['company_id' => null]);
 
         $response = $this->actingAs($user)->post('/setup', $this->validPayload());
@@ -42,7 +41,7 @@ class SetupWizardTest extends TestCase
         $company = Company::query()->firstOrFail();
         $this->assertSame('INBILS', $company->code);
         $this->assertSame($company->id, $user->refresh()->company_id);
-        $this->assertTrue($user->hasRole('admin'));
+        $this->assertTrue(CompanyService::runAs($company->id, fn (): bool => $user->can('roles.manage') && $user->can('app.web')), 'the creator holds the Admin copy of the new company');
     }
 
     public function test_post_setup_invalid_returns_422_with_errors(): void

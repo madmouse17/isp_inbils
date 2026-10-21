@@ -12,7 +12,6 @@ use App\Support\AuditProperties;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
@@ -176,12 +175,13 @@ class AuditPiiMaskingTest extends TestCase
         $this->assertSame(['Rina S.', AuditProperties::MASKED], [$updated->properties['attributes']['name'], $updated->properties['attributes']['email']]);
         $this->assertSame(['Rina Teknisi', AuditProperties::MASKED], [$updated->properties['old']['name'], $updated->properties['old']['email']]);
 
-        // The portal account of a customer: the role comes after the first save, so the created row relies on the flag.
+        // The portal account of a customer is told by its link to a customer record, which comes after the first save: the
+        // created row relies on the flag.
         $portal = User::factory()->make(['company_id' => $company->id, 'name' => 'Siti Aminah', 'email' => 'siti@example.test']);
         $portal->isCustomerAccount = true;
         $portal->save();
-        Role::findOrCreate('customer', 'web');
-        $portal->assignRole('customer');
+        $this->grantRole($portal, 'customer');
+        Customer::factory()->create(['company_id' => $company->id, 'user_id' => $portal->id]);
 
         $portalCreated = $this->logOf($portal, 'created');
         $this->assertSame([AuditProperties::MASKED, AuditProperties::MASKED], [$portalCreated->properties['attributes']['name'], $portalCreated->properties['attributes']['email']]);

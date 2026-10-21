@@ -39,9 +39,16 @@ class DemoTeamSeederTest extends TestCase
     /** @return array<string, int> role => active users with an active profile */
     private function activeEmployeesPerRole(Company $company): array
     {
-        return CompanyService::runAs((int) $company->id, fn (): array => collect(['admin', 'manager', 'staff', 'technician'])
-            ->mapWithKeys(fn (string $role): array => [$role => User::query()
-                ->role($role)
+        $names = [
+            'admin' => 'Admin',
+            'manager' => 'Manajer',
+            'staff' => 'Staf',
+            'technician' => 'Teknisi',
+        ];
+
+        return CompanyService::runAs((int) $company->id, fn (): array => collect($names)
+            ->mapWithKeys(fn (string $name, string $key): array => [$key => User::query()
+                ->role($name)
                 ->where('company_id', $company->id)
                 ->where('is_active', true)
                 ->whereHas('employeeProfile', fn ($q) => $q->where('status', 'active'))
@@ -82,6 +89,10 @@ class DemoTeamSeederTest extends TestCase
         $this->assertSame('INB-0301', $profile->employee_number);
         $this->assertSame('INB-HQ', OrganizationUnit::withoutGlobalScopes()->findOrFail($profile->organization_id)->code);
         $this->assertTrue(app(CompanyMembershipService::class)->companiesOf($user)->contains(fn ($c) => $c['id'] === $company->public_id));
+        $this->assertSame(['admin'], CompanyService::runAs(
+            (int) $company->id,
+            fn () => $user->fresh()->roles()->pluck('template_key')->all(),
+        ));
 
         $numbers = EmployeeProfile::withoutGlobalScopes()->pluck('employee_number');
         $this->assertSame($numbers->count(), $numbers->unique()->count());

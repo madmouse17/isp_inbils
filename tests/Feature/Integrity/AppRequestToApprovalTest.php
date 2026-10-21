@@ -62,8 +62,8 @@ class AppRequestToApprovalTest extends TestCase
         $company = $this->apiCompany();
         $this->technician = $this->technicianLogin($company);
         $this->token = $this->issueToken($this->technician, 'technician');
-        $this->manager = User::factory()->create(['company_id' => $company->id])->assignRole('manager');
-        $this->warehouseStaff = User::factory()->create(['company_id' => $company->id])->assignRole('staff');
+        $this->manager = $this->grantRole(User::factory()->create(['company_id' => $company->id]), 'manager');
+        $this->warehouseStaff = $this->grantRole(User::factory()->create(['company_id' => $company->id]), 'staff');
         $dispatcher = User::factory()->create(['company_id' => $company->id]);
 
         CompanyService::useCompanyForTests((int) $company->id);

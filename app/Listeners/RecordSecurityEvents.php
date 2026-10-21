@@ -11,6 +11,7 @@ use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\PasswordResetLinkSent;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
@@ -100,7 +101,9 @@ class RecordSecurityEvents
     /**
      * Only a user's roles are a security matter (a permission can hold roles too), and only a saved user has an id to
      * name: assigning before the first save attaches later, and no caller does it. An empty list writes nothing, so a
-     * caller that passes only what changed records only what changed.
+     * caller that passes only what changed records only what changed. A role belongs to one company and so does the
+     * row, but the user may be homed in another: the audit takes the company of its subject, so the role is the subject
+     * (one row per company the roles belong to) and `user_id` names the user.
      */
     private function recordRoles(Model $model, mixed $rolesOrIds, string $action): void
     {
@@ -119,10 +122,9 @@ class RecordSecurityEvents
 
         /** @var class-string<Model> $roleClass */
         $roleClass = app(PermissionRegistrar::class)->getRoleClass();
-        $names = $roleClass::query()->whereKey($ids)->orderBy('name')->pluck('name')->all();
 
-        if ($names !== []) {
-            AuditService::log('security', $action, ['user_id' => $model->id, 'roles' => $names], $model);
-        }
+        $roleClass::query()->withoutGlobalScope('company')->whereKey($ids)->orderBy('name')->get()
+            ->groupBy('company_id')
+            ->each(fn (Collection $roles) => AuditService::log('security', $action, ['user_id' => $model->id, 'roles' => $roles->pluck('name')->all()], $roles->first()));
     }
 }

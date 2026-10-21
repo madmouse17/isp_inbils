@@ -12,8 +12,6 @@ use Modules\NetworkAsset\Database\Factories\NetworkAssetFactory;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\NetworkAsset\Services\NetworkAssetService;
 use Modules\SPK\Database\Factories\WorkOrderFactory;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
@@ -45,20 +43,13 @@ class NetworkAssetLifecycleRouteTest extends TestCase
             'network_asset.remove',
         ];
 
-        foreach ($permissions as $permission) {
-            Permission::firstOrCreate(['name' => $permission], ['guard_name' => 'web']);
-        }
-
-        $admin = Role::firstOrCreate(['name' => 'admin'], ['guard_name' => 'web']);
-        $admin->givePermissionTo($permissions);
-
         $this->company = Company::factory()->create(['is_active' => true]);
         $this->admin = User::factory()->create([
             'company_id' => $this->company->id,
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantPermissions($this->admin, [...$permissions, 'app.web']);
         $this->actingAs($this->admin);
 
         $this->location = Location::factory()->create(['company_id' => $this->company->id]);

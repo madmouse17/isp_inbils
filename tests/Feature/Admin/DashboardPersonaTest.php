@@ -345,7 +345,7 @@ class DashboardPersonaTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->where('admin.userCount', 3)
                 ->where('admin.activeUserCount', 2)
-                ->where('admin.roleCount', 5)
+                ->where('admin.roleCount', 8) // the company's own copies of the eight templates; the other company's do not count
                 ->where('admin.permissionCount', Permission::query()->count())
             );
     }

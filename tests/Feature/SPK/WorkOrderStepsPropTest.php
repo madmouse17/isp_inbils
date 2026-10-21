@@ -34,7 +34,7 @@ class WorkOrderStepsPropTest extends TestCase
 
         $this->company = Company::factory()->create(['is_active' => true]);
         $this->admin = User::factory()->create(['company_id' => $this->company->id, 'email_verified_at' => now(), 'is_active' => true]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     public function test_the_page_gets_the_steps_and_the_one_the_visit_is_at(): void

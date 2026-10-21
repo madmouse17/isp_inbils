@@ -26,9 +26,6 @@ class EmployeeEvaluation extends Model
     use LogsActivity;
     use SoftDeletes;
 
-    /** Roles of the people who can be evaluated: the Evaluasi picker offers them and the store accepts them. */
-    public const EVALUABLE_ROLES = ['technician', 'staff', 'noc'];
-
     protected static string $factory = EmployeeEvaluationFactory::class;
 
     protected $fillable = [

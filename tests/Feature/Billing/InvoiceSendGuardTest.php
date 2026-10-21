@@ -37,6 +37,7 @@ class InvoiceSendGuardTest extends TestCase
     {
         $user = User::factory()->create(['company_id' => $this->admin->company_id, 'email_verified_at' => now(), 'is_active' => true]);
         $user->givePermissionTo($permissions);
+        $this->grantPermissions($user, ['app.web']);
 
         return $user;
     }

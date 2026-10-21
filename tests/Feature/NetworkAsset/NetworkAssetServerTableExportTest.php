@@ -8,8 +8,6 @@ use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Modules\NetworkAsset\Models\NetworkAsset;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class NetworkAssetServerTableExportTest extends TestCase
@@ -35,7 +33,7 @@ class NetworkAssetServerTableExportTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     private function makeAsset(int $companyId, string $code, string $name, string $status = 'available'): NetworkAsset
@@ -100,10 +98,7 @@ class NetworkAssetServerTableExportTest extends TestCase
             'is_active' => true,
         ]);
 
-        $role = Role::firstOrCreate(['name' => 'network-asset-view-only', 'guard_name' => 'web']);
-        Permission::findOrCreate('network_asset.view', 'web');
-        $role->syncPermissions(['network_asset.view']);
-        $user->assignRole($role);
+        $this->grantPermissions($user, ['network_asset.view', 'app.web']);
 
         $this->actingAs($user)
             ->get(route('admin.network-assets.export', ['format' => 'csv']))

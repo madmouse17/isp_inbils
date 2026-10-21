@@ -8,12 +8,22 @@ import {
     formatPermission,
     groupPermissions,
 } from '@/Components/composite/permissionGroups';
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/Components/ui';
+import {
+    Alert,
+    AlertDescription,
+    Badge,
+    Button,
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+} from '@/Components/ui';
 import { formatNumber } from '@/lib/format';
 
 interface RoleData {
     id: string;
     name: string;
+    template_key: string | null;
     permissions: string[];
     users_count?: number;
 }
@@ -21,10 +31,19 @@ interface RoleData {
 interface ShowProps {
     role: { data: RoleData };
     permissions: { data: PermissionOption[] };
+    can: { update: boolean; delete: boolean };
 }
 
-export default function Show({ role, permissions }: ShowProps) {
-    const { name, permissions: held, users_count: usersCount = 0 } = role.data;
+/** `CompanyRoleService::CUSTOMER_TEMPLATE`: the role every new customer account gets. */
+const CUSTOMER_TEMPLATE = 'customer';
+
+export default function Show({ role, permissions, can }: ShowProps) {
+    const {
+        name,
+        template_key: templateKey,
+        permissions: held,
+        users_count: usersCount = 0,
+    } = role.data;
 
     const groups = useMemo(
         () =>
@@ -39,18 +58,41 @@ export default function Show({ role, permissions }: ShowProps) {
             <div className="space-y-6">
                 <PageHeader
                     title={`Peran ${name}`}
-                    subtitle="Definisi peran dikelola oleh operator platform. Tetapkan peran ke pengguna di menu Pengguna."
+                    subtitle="Hak akses yang dipegang peran ini. Berikan peran ke pengguna di menu Pengguna."
                     actions={
-                        <Button
-                            asChild
-                            variant="outline"
-                            size="sm"
-                            leftIcon={<ArrowLeft className="size-4" />}
-                        >
-                            <Link href={route('admin.roles.index')}>Kembali</Link>
-                        </Button>
+                        <>
+                            <Button
+                                asChild
+                                variant="outline"
+                                size="sm"
+                                leftIcon={<ArrowLeft className="size-4" />}
+                            >
+                                <Link href={route('admin.roles.index')}>Kembali</Link>
+                            </Button>
+                            {can.update ? (
+                                <Button asChild variant="primary" size="sm">
+                                    <Link href={route('admin.roles.edit', role.data.id)}>Ubah</Link>
+                                </Button>
+                            ) : null}
+                        </>
                     }
                 />
+
+                {can.update ? null : (
+                    <Alert variant="info" role="status">
+                        <AlertDescription>
+                            Anda hanya bisa melihat peran ini, karena ia memuat hak akses yang tidak
+                            Anda pegang. Hanya pemegang semua hak akses itu yang bisa mengubahnya.
+                        </AlertDescription>
+                    </Alert>
+                )}
+                {can.update && !can.delete && templateKey === CUSTOMER_TEMPLATE ? (
+                    <Alert variant="info" role="status">
+                        <AlertDescription>
+                            Peran ini tidak bisa dihapus: setiap akun pelanggan baru mendapatkannya.
+                        </AlertDescription>
+                    </Alert>
+                ) : null}
 
                 <Card>
                     <CardHeader>
@@ -78,7 +120,7 @@ export default function Show({ role, permissions }: ShowProps) {
                             </div>
                         </dl>
                         <p className="mt-4 text-sm text-muted-foreground">
-                            Peran berlaku sama di semua perusahaan.
+                            Peran ini hanya berlaku di perusahaan ini.
                         </p>
                     </CardContent>
                 </Card>

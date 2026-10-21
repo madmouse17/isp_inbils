@@ -30,7 +30,7 @@ class AdminRouteTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     public function test_admin_dashboard_returns_200(): void

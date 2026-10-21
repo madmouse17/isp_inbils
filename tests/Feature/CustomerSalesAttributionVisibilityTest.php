@@ -36,7 +36,7 @@ class CustomerSalesAttributionVisibilityTest extends TestCase
         $this->seedRolesAndCompany();
         $this->otherCompany = Company::factory()->create(['is_active' => true]);
         $this->manager = $this->employee('manager', attributes: ['name' => 'Manny Manager']);
-        $this->staff = $this->employee('staff', attributes: ['name' => 'Stacy Staff']);
+        $this->staff = $this->salesStaff(attributes: ['name' => 'Stacy Staff']);
         $this->adminWithoutProfile = $this->employee('admin', profile: false);
         $this->technician = $this->employee('technician');
     }
@@ -129,7 +129,7 @@ class CustomerSalesAttributionVisibilityTest extends TestCase
 
     public function test_an_inactive_historical_acquirer_shows_by_name_but_is_never_offered_as_a_choice(): void
     {
-        $former = $this->employee('staff', attributes: ['name' => 'Former Seller', 'is_active' => false]);
+        $former = $this->salesStaff(attributes: ['name' => 'Former Seller', 'is_active' => false]);
         $customer = $this->customerAcquiredBy($former);
 
         $edit = $this->props($this->manager, 'admin.customers.edit', ['customer' => $customer]);
@@ -255,7 +255,7 @@ class CustomerSalesAttributionVisibilityTest extends TestCase
 
     public function test_index_and_export_query_counts_do_not_grow_with_the_number_of_acquired_customers(): void
     {
-        $sellers = collect(range(1, 6))->map(fn (): User => $this->employee('staff'));
+        $sellers = collect(range(1, 6))->map(fn (): User => $this->salesStaff());
         $this->customerAcquiredBy($sellers[0]);
         $this->customerAcquiredBy($sellers[1]);
 

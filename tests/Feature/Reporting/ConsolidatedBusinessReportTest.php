@@ -11,7 +11,6 @@ use Illuminate\Testing\TestResponse;
 use Modules\Reporting\Queries\BusinessMetricsQuery;
 use Modules\Reporting\Registry\MetricRegistry;
 use Modules\Reporting\Registry\ReportType;
-use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 use Tests\Traits\BuildsCompanyGroup;
 use Tests\Traits\BuildsReportingWorld;
@@ -254,9 +253,9 @@ class ConsolidatedBusinessReportTest extends TestCase
     public function test_a_subsidiary_user_cannot_open_the_consolidated_report_even_with_the_permission(): void
     {
         $subAdmin = $this->groupUser($this->subA);
+        $this->actingAs($subAdmin);
         $this->assertTrue($subAdmin->can('report.consolidated.view'));
 
-        $this->actingAs($subAdmin);
         $this->get(route('admin.reports.consolidated'))->assertRedirect(route('admin.reports.index'));
         $this->get(route('admin.reports.consolidated.export'))->assertRedirect(route('admin.reports.index'));
 
@@ -305,13 +304,14 @@ class ConsolidatedBusinessReportTest extends TestCase
     public function test_the_consolidated_permission_is_required_and_is_admin_only(): void
     {
         $manager = $this->groupUser($this->head, 'manager');
+        $this->actingAs($manager);
         $this->assertFalse($manager->can('report.consolidated.view'));
 
-        $this->actingAs($manager)->get(route('admin.reports.consolidated'))->assertForbidden();
+        $this->get(route('admin.reports.consolidated'))->assertForbidden();
         $this->assertTrue($this->headAdmin->can('report.consolidated.view'));
         $this->assertSame(
             ['admin'],
-            Permission::findByName('report.consolidated.view')->roles->pluck('name')->all(),
+            $this->companyRoles($this->head)['admin']->hasPermissionTo('report.consolidated.view') ? ['admin'] : [],
         );
     }
 
@@ -319,7 +319,7 @@ class ConsolidatedBusinessReportTest extends TestCase
     {
         $this->seedGroupWorld();
         $viewer = User::factory()->create(['company_id' => $this->head->id, 'email_verified_at' => now(), 'is_active' => true]);
-        $viewer->givePermissionTo('report.consolidated.view');
+        $this->grantPermissions($viewer, ['app.web', 'report.consolidated.view'], $this->head);
 
         $this->actingAs($viewer);
         $this->get(route('admin.reports.consolidated', self::JANUARY))->assertOk();

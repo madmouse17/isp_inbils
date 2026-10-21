@@ -7,8 +7,6 @@ use App\Models\Core\Customer;
 use App\Models\Core\CustomerContact;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
@@ -230,17 +228,9 @@ class CustomerContactAuthorizeTest extends TestCase
         $company = Company::factory()->create();
         $user = User::factory()->create(['company_id' => $company->id]);
 
-        foreach ($permissions as $permission) {
-            Permission::findOrCreate($permission, 'web');
-        }
-
-        $role = Role::create([
-            'name' => 'customer-contact-auth-'.uniqid(),
-            'guard_name' => 'web',
-        ]);
-        $role->syncPermissions($permissions);
-        $user->assignRole($role);
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $permissions[] = 'app.web';
+        $role = $this->companyRole($company, 'customer-contact-auth-'.uniqid(), $permissions);
+        $this->grantRole($user, $role, $company);
 
         $customer = Customer::factory()->create(['company_id' => $company->id]);
 

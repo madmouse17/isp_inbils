@@ -12,7 +12,6 @@ use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Modules\Service\Models\ServicePackage;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class SubscriptionServerTableExportTest extends TestCase
@@ -40,7 +39,7 @@ class SubscriptionServerTableExportTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     private function makeSubscription(string $code, string $status = 'pending'): ServiceSubscription
@@ -78,9 +77,7 @@ class SubscriptionServerTableExportTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $role = Role::firstOrCreate(['name' => 'subscription-view-only', 'guard_name' => 'web']);
-        $role->syncPermissions(['customer.subscription.view']);
-        $user->assignRole($role);
+        $this->grantPermissions($user, ['customer.subscription.view', 'app.web']);
 
         $this->actingAs($user)
             ->get(route('admin.customers.subscriptions.export', [$this->customer, 'format' => 'csv']))

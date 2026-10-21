@@ -14,7 +14,6 @@ use Modules\Billing\Database\Factories\InvoiceFactory;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\PaymentAttempt;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 use Tests\Traits\InteractsWithMidtrans;
@@ -65,7 +64,7 @@ class PayTest extends TestCase
 
     private function revokeCustomerPermission(string $permission): void
     {
-        Role::findByName('customer', 'web')->revokePermissionTo($permission);
+        $this->companyRoles((int) $this->customerUser->company_id)['customer']->revokePermissionTo($permission);
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 

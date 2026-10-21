@@ -41,7 +41,7 @@ class CompanyMapDefaultTest extends TestCase
 
         $this->company = Company::factory()->create(['is_active' => true]);
         $this->admin = User::factory()->create(['company_id' => $this->company->id, 'email_verified_at' => now(), 'is_active' => true]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     private function seedRegion(string $provinceCode, string $province, string $cityCode, string $city, float $lat, float $long): void

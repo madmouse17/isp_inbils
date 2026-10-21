@@ -38,7 +38,7 @@ class ProductCodeSequenceTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
         $unit = Unit::factory()->create(['company_id' => $this->company->id]);
         $this->category = Category::factory()->create(['company_id' => $this->company->id, 'unit_id' => $unit->id]);
     }

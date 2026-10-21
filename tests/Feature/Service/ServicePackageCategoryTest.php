@@ -42,7 +42,7 @@ class ServicePackageCategoryTest extends TestCase
     private function user(string $role, ?Company $company = null): User
     {
         $user = User::factory()->create(['company_id' => ($company ?? $this->company)->id, 'email_verified_at' => now(), 'is_active' => true]);
-        $user->assignRole($role);
+        $this->grantRole($user, $role);
 
         return $user;
     }

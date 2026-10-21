@@ -116,7 +116,7 @@ class TicketCloseTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $foreignManager->assignRole('manager');
+        $this->grantRole($foreignManager, 'manager');
 
         $this->actingAs($foreignManager)
             ->post(route('admin.tickets.close', $ticket))
@@ -170,7 +170,7 @@ class TicketCloseTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $user->assignRole($role);
+        $this->grantRole($user, $role);
 
         return $user;
     }

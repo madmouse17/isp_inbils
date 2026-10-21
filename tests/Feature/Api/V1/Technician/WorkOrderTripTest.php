@@ -396,7 +396,7 @@ class WorkOrderTripTest extends TestCase
         Storage::fake('local');
         Notification::fake();
         $admin = User::factory()->create(['company_id' => $this->technician->company_id, 'email_verified_at' => now(), 'is_active' => true]);
-        $admin->assignRole('admin');
+        $this->grantRole($admin, 'admin');
         $workOrder = $this->visit();
         $this->attachEvidence($workOrder);
         $url = fn (string $action): string => "technician/work-orders/{$workOrder->public_id}/{$action}";

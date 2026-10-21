@@ -3,23 +3,11 @@ import { Link, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite';
-import {
-    Button,
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-    Checkbox,
-    Input,
-    Switch,
-} from '@/Components/ui';
+import { Button, Card, CardContent, CardHeader, CardTitle, Input, Switch } from '@/Components/ui';
+import { RoleChecklist, type RoleOption } from './components/RoleChecklist';
 
-interface RoleOption {
-    id: string;
-    name: string;
-}
 interface CreateProps {
-    roles: { data: RoleOption[] };
+    roles: RoleOption[];
 }
 
 export default function Create({ roles }: CreateProps) {
@@ -35,12 +23,6 @@ export default function Create({ roles }: CreateProps) {
         event.preventDefault();
         post(route('admin.users.store'));
     };
-
-    const toggleRole = (role: string, checked: boolean) =>
-        setData(
-            'roles',
-            checked ? [...data.roles, role] : data.roles.filter((item) => item !== role),
-        );
 
     return (
         <AdminLayout title="Buat Pengguna">
@@ -96,26 +78,14 @@ export default function Create({ roles }: CreateProps) {
                                 checked={data.is_active}
                                 onCheckedChange={(checked) => setData('is_active', checked)}
                             />
-                            <fieldset className="space-y-2 md:col-span-2">
-                                <legend className="text-sm font-medium text-foreground">
-                                    Peran
-                                </legend>
-                                <div className="grid gap-2 md:grid-cols-2">
-                                    {roles.data.map((role) => (
-                                        <Checkbox
-                                            key={role.id}
-                                            label={role.name}
-                                            checked={data.roles.includes(role.name)}
-                                            onChange={(e) =>
-                                                toggleRole(role.name, e.target.checked)
-                                            }
-                                        />
-                                    ))}
-                                </div>
-                                {errors.roles ? (
-                                    <p className="text-sm text-destructive-text">{errors.roles}</p>
-                                ) : null}
-                            </fieldset>
+                            <div className="md:col-span-2">
+                                <RoleChecklist
+                                    options={roles}
+                                    value={data.roles}
+                                    onChange={(selected) => setData('roles', selected)}
+                                    error={errors.roles}
+                                />
+                            </div>
                         </CardContent>
                     </Card>
                     <div className="flex justify-end gap-2">

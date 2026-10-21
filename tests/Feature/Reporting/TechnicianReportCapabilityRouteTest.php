@@ -2,10 +2,10 @@
 
 namespace Tests\Feature\Reporting;
 
+use App\Models\Core\Company;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class TechnicianReportCapabilityRouteTest extends TestCase
@@ -26,12 +26,14 @@ class TechnicianReportCapabilityRouteTest extends TestCase
 
         $this->assertNotNull($permission);
 
-        foreach (['admin', 'manager', 'technician'] as $role) {
-            $this->assertTrue(Role::findByName($role)->hasPermissionTo('report.technician'));
+        $roles = $this->companyRoles(Company::factory()->create());
+
+        foreach (['admin', 'manager', 'technician'] as $key) {
+            $this->assertTrue($roles[$key]->hasPermissionTo('report.technician'), $key);
         }
 
-        foreach (['staff', 'customer'] as $role) {
-            $this->assertFalse(Role::findByName($role)->hasPermissionTo('report.technician'));
+        foreach (['staff', 'customer'] as $key) {
+            $this->assertFalse($roles[$key]->hasPermissionTo('report.technician'), $key);
         }
 
         $technicianRoute = app('router')->getRoutes()->getByName('admin.reports.technician');
@@ -45,5 +47,19 @@ class TechnicianReportCapabilityRouteTest extends TestCase
         $this->assertNotNull($businessRoute);
         $this->assertContains('can:report.business.view', $businessRoute->gatherMiddleware());
         $this->assertNotContains('can:report.view', $businessRoute->gatherMiddleware());
+    }
+
+    public function test_the_scope_markers_sit_on_the_company_copies_of_the_roles_that_had_the_scope(): void
+    {
+        $roles = collect($this->companyRoles(Company::factory()->create()));
+        $holders = fn (string $permission): array => $roles
+            ->filter(fn ($role): bool => $role->hasPermissionTo($permission))
+            ->keys()
+            ->sort()
+            ->values()
+            ->all();
+
+        $this->assertSame(['admin', 'manager'], $holders('report.technician.team'));
+        $this->assertSame(['technician'], $holders('app.technician'));
     }
 }

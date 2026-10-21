@@ -98,7 +98,7 @@ class StoreTicketRequest extends FormRequest
 
     private function isCustomerUser(): bool
     {
-        return $this->user()?->hasRole('customer') ?? false;
+        return $this->user()?->can('portal.access') ?? false;
     }
 
     private function ownCustomerId(): ?int

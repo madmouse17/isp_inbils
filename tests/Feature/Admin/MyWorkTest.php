@@ -24,7 +24,6 @@ use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Services\TicketService;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\WithoutAppOnlyRedirect;
 
@@ -59,7 +58,7 @@ class MyWorkTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $user->assignRole(Role::where('name', 'customer')->firstOrFail());
+        $this->grantRole($user, 'customer');
 
         $this->actingAs($user)
             ->get(route('admin.my-work.index'))
@@ -472,7 +471,7 @@ class MyWorkTest extends TestCase
             'is_active' => true,
         ]);
         $dispatcher->givePermissionTo('ticket.assign');
-        $dispatcher->assignRole(Role::where('name', 'admin')->firstOrFail());
+        $this->grantRole($dispatcher, 'admin');
 
         $technician = User::factory()->create([
             'company_id' => $company->id,
@@ -480,7 +479,7 @@ class MyWorkTest extends TestCase
             'is_active' => true,
         ]);
         $technician->givePermissionTo('ticket.start');
-        $technician->assignRole(Role::where('name', 'technician')->firstOrFail());
+        $this->grantRole($technician, 'technician');
         EmployeeProfile::factory()->create(['company_id' => $company->id, 'user_id' => $technician->id, 'status' => 'active']);
 
         $ticket = $this->makeOpenTicket($company, $dispatcher);
@@ -506,7 +505,7 @@ class MyWorkTest extends TestCase
             'is_active' => true,
         ]);
         $dispatcher->givePermissionTo('spk.assign');
-        $dispatcher->assignRole(Role::where('name', 'admin')->firstOrFail());
+        $this->grantRole($dispatcher, 'admin');
 
         $technician = User::factory()->create([
             'company_id' => $company->id,
@@ -514,7 +513,7 @@ class MyWorkTest extends TestCase
             'is_active' => true,
         ]);
         $technician->givePermissionTo('spk.start');
-        $technician->assignRole(Role::where('name', 'technician')->firstOrFail());
+        $this->grantRole($technician, 'technician');
         EmployeeProfile::factory()->create(['company_id' => $company->id, 'user_id' => $technician->id, 'status' => 'active']);
 
         $workOrder = $this->makeUnassignedSpk($company, $dispatcher);
@@ -603,7 +602,7 @@ class MyWorkTest extends TestCase
             'is_active' => true,
         ]);
         $dispatcher->givePermissionTo(['ticket.assign', 'ticket.reassign']);
-        $dispatcher->assignRole(Role::where('name', 'admin')->firstOrFail());
+        $this->grantRole($dispatcher, 'admin');
 
         $technician = User::factory()->create([
             'company_id' => $company->id,
@@ -611,7 +610,7 @@ class MyWorkTest extends TestCase
             'is_active' => true,
         ]);
         $technician->givePermissionTo('ticket.start');
-        $technician->assignRole(Role::where('name', 'technician')->firstOrFail());
+        $this->grantRole($technician, 'technician');
         EmployeeProfile::factory()->create(['company_id' => $company->id, 'user_id' => $technician->id, 'status' => 'active']);
 
         $ticket = $this->makeOpenTicket($company, $dispatcher);

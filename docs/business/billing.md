@@ -555,7 +555,7 @@ dibayar atau dibatalkan saat halaman masih terbuka.
 Halaman invoice menampilkan panel **Pembayaran online** dengan status, jumlah, transaction id, jenis pembayaran, alasan exception, dan data pengembalian. `cancelled_locally` tampil **Ditutup**. `refunded` tampil **Dikembalikan** dengan waktu, pelaku, referensi, dan catatan. Attempt `exception` yang belum dibukukan menampilkan **Tandai dikembalikan** bagi pemegang `billing.payment.reverse`; panel tidak pernah menandai attempt lunas secara manual.
 
 ### Deploy dan rollback
-- `php artisan migrate`; `php artisan db:seed --class=RolePermissionSeeder --force`;
+- `php artisan migrate` (tanpa `db:seed`: permission masuk lewat migration `PermissionCatalogue::release()`, `docs/SECURITY.md` 2.5);
   **`php artisan customers:rotate-legacy-passwords --dry-run`, lalu tanpa
   `--dry-run`** (sekali: mematikan password nomor telepon akun lama dan
   mengantrekan link atur kata sandi; butuh mail dan queue worker berjalan; aman

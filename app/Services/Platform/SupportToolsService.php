@@ -9,7 +9,9 @@ use App\Models\PlatformAdmin;
 use App\Models\User;
 use App\Notifications\Platform\TenantAdminInvitation;
 use App\Queries\Platform\PlatformTenantListQuery;
+use App\Services\Core\CompanyService;
 use App\Services\Core\TwoFactorService;
+use App\Support\PermissionCatalogue;
 use App\Support\SecurityTrail;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -72,10 +74,55 @@ class SupportToolsService
         $this->record($actor, $user, 'user.invitation_resent');
     }
 
-    /** The one predicate behind resendInvitation() and the "Kirim ulang undangan" button. */
-    public function canResendInvitation(User $user): bool
+    /**
+     * The one predicate behind resendInvitation() and the "Kirim ulang undangan" button: an active person who never
+     * signed in and administers his home company (holds roles.manage there). Pass the result of administratorIds()
+     * for a list of users, so the check costs no query per row.
+     *
+     * @param  array<int, true>|null  $administrators
+     */
+    public function canResendInvitation(User $user, ?array $administrators = null): bool
     {
-        return $user->is_active && $user->last_login_at === null && $user->hasRole('admin');
+        if (! $user->is_active || $user->last_login_at !== null) {
+            return false;
+        }
+
+        return $administrators !== null
+            ? isset($administrators[$user->id])
+            : CompanyService::runAs((int) $user->company_id, fn (): bool => $user->can(PermissionCatalogue::ADMINISTRATION));
+    }
+
+    /**
+     * The users of this list who hold roles.manage in their HOME company, through one of its roles or directly, in two
+     * reads. The platform has no tenant context, so the company of the roles is matched explicitly.
+     *
+     * @param  Collection<int, User>  $users
+     * @return array<int, true> keyed by user id
+     */
+    public function administratorIds(Collection $users): array
+    {
+        if ($users->isEmpty()) {
+            return [];
+        }
+
+        $ids = $users->pluck('id')->all();
+        $viaRole = DB::table('model_has_roles')
+            ->join('users', 'users.id', '=', 'model_has_roles.model_id')
+            ->join('roles', fn ($join) => $join->on('roles.id', '=', 'model_has_roles.role_id')->on('roles.company_id', '=', 'users.company_id'))
+            ->join('role_has_permissions', 'role_has_permissions.role_id', '=', 'roles.id')
+            ->join('permissions', 'permissions.id', '=', 'role_has_permissions.permission_id')
+            ->where('model_has_roles.model_type', User::class)
+            ->whereIn('model_has_roles.model_id', $ids)
+            ->where('permissions.name', PermissionCatalogue::ADMINISTRATION)
+            ->pluck('model_has_roles.model_id');
+        $direct = DB::table('model_has_permissions')
+            ->join('permissions', 'permissions.id', '=', 'model_has_permissions.permission_id')
+            ->where('model_has_permissions.model_type', User::class)
+            ->whereIn('model_has_permissions.model_id', $ids)
+            ->where('permissions.name', PermissionCatalogue::ADMINISTRATION)
+            ->pluck('model_has_permissions.model_id');
+
+        return array_fill_keys($viaRole->merge($direct)->map(fn (mixed $id): int => (int) $id)->all(), true);
     }
 
     /**

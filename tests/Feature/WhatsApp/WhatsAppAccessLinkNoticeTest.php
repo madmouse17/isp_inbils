@@ -46,7 +46,7 @@ class WhatsAppAccessLinkNoticeTest extends TestCase
         $this->enableWhatsApp();
         $this->fakeWhatsApp();
         $this->admin = User::factory()->create(['company_id' => $this->company->id, 'email_verified_at' => now(), 'is_active' => true]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
         $this->setManualCodes($this->company->id, true, 'customer');
         $this->travelTo('2026-10-14 03:00:00');
     }

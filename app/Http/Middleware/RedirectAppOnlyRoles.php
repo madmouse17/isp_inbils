@@ -3,24 +3,22 @@
 namespace App\Http\Middleware;
 
 use App\Models\User;
+use App\Services\Core\CompanyService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Technicians and customers use the Android apps. A login whose roles are only those two is sent to the
- * "use the app" page from every admin route, a redirect rather than a 403 so a bookmarked link stays friendly.
- * Anyone who also holds another role (admin, manager, staff, ...) is unaffected.
+ * The web back-office needs the `app.web` permission. A login that lacks it in the company it acts in (the technician
+ * and customer roles, or any role the company built without web access) is sent to the "use the app" page from every
+ * admin route, a redirect rather than a 403 so a bookmarked link stays friendly. A login with no company to act in
+ * is not decided here: `require.has.company` sends it to the setup wizard.
  */
 class RedirectAppOnlyRoles
 {
-    public const APP_ROLES = ['technician', 'customer'];
-
     public static function isAppOnly(User $user): bool
     {
-        $roles = $user->getRoleNames();
-
-        return $roles->isNotEmpty() && $roles->diff(self::APP_ROLES)->isEmpty();
+        return CompanyService::currentId() !== null && ! $user->can('app.web');
     }
 
     public function handle(Request $request, Closure $next): Response

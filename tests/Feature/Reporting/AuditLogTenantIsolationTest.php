@@ -52,7 +52,7 @@ class AuditLogTenantIsolationTest extends TestCase
             'name' => 'Admin Alpha',
             'email' => 'admin.alpha@example.test',
         ]);
-        $this->adminA->assignRole('admin');
+        $this->grantRole($this->adminA, 'admin', $this->companyA);
 
         $this->adminB = User::factory()->create([
             'company_id' => $this->companyB->id,
@@ -61,7 +61,7 @@ class AuditLogTenantIsolationTest extends TestCase
             'name' => 'Admin Beta',
             'email' => 'admin.beta@example.test',
         ]);
-        $this->adminB->assignRole('admin');
+        $this->grantRole($this->adminB, 'admin', $this->companyB);
 
         $this->staffA = User::factory()->create([
             'company_id' => $this->companyA->id,
@@ -70,7 +70,7 @@ class AuditLogTenantIsolationTest extends TestCase
             'name' => 'Staff Alpha',
             'email' => 'staff.alpha@example.test',
         ]);
-        $this->staffA->assignRole('staff');
+        $this->grantRole($this->staffA, 'staff', $this->companyA);
 
         CompanyService::resetCache();
         CompanyService::useCompanyForTests((int) $this->companyA->id);
@@ -242,7 +242,6 @@ class AuditLogTenantIsolationTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $noCompanyUser->assignRole('admin');
 
         $this->actingAs($noCompanyUser);
         $response = $this->get(route('admin.reports.audit-log'));

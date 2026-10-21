@@ -136,6 +136,8 @@ class CompanyHierarchyTest extends TestCase
     public function test_revoking_removes_the_row_and_is_audited_but_the_home_company_stays(): void
     {
         $user = $this->groupUser($this->head, 'admin', $this->subA);
+        // The last administrator of a company is not revoked (G5): the subsidiary keeps its own.
+        $this->groupUser($this->subA);
         $service = app(CompanyMembershipService::class);
 
         $service->revoke($user, $this->subA);

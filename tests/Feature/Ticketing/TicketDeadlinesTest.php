@@ -21,7 +21,6 @@ use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Services\TicketService;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
 
@@ -236,7 +235,7 @@ class TicketDeadlinesTest extends TestCase
             'status' => 'open', 'priority' => 'medium', 'customer_id' => $customer->id, 'created_by' => $admin->id, 'sla_deadline' => now()->addDay(),
         ]);
         $reader = User::factory()->create(['company_id' => $admin->company_id, 'email_verified_at' => now(), 'is_active' => true]);
-        $reader->assignRole(tap(Role::firstOrCreate(['name' => 'ticket-reader-only', 'guard_name' => 'web']))->syncPermissions(['ticket.view']));
+        $this->grantPermissions($reader, ['app.web', 'ticket.view']);
 
         $dispatcher = $this->get(route('admin.tickets.show', $ticket))->assertOk()->viewData('page')['props']['ticket']['data']['customer'];
         $this->assertSame('081234567890', $dispatcher['phone']);

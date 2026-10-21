@@ -8,8 +8,6 @@ use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class NumberSequenceServerTableExportTest extends TestCase
@@ -35,7 +33,7 @@ class NumberSequenceServerTableExportTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     private function makeSequence(int $companyId, string $entity, string $prefix): NumberSequence
@@ -95,10 +93,7 @@ class NumberSequenceServerTableExportTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $role = Role::firstOrCreate(['name' => 'ns-no-export', 'guard_name' => 'web']);
-        Permission::findOrCreate('number_sequences.view', 'web');
-        $role->syncPermissions(['number_sequences.view']);
-        $user->assignRole($role);
+        $this->grantPermissions($user, ['number_sequences.view', 'app.web']);
 
         $this->actingAs($user)
             ->get(route('admin.number-sequences.export', ['format' => 'csv']))

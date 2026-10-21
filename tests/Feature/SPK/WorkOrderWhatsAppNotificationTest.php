@@ -71,7 +71,7 @@ class WorkOrderWhatsAppNotificationTest extends TestCase
     private function technician(string $name = 'Andi Wijaya', string $phone = '0813-5555-0001'): User
     {
         $user = User::factory()->create(['company_id' => $this->company->id, 'is_active' => true, 'name' => $name]);
-        $user->assignRole('technician');
+        $this->grantRole($user, 'technician');
         EmployeeProfile::factory()->create(['company_id' => $this->company->id, 'user_id' => $user->id, 'status' => 'active', 'phone' => $phone]);
 
         return $user;

@@ -8,60 +8,94 @@
 
 ## 2. RBAC Matrix & Capability Bundles
 
-### 2.1 Seeded Personas
-- **admin**: Full system administrator (break-glass role, holds all capabilities).
-- **manager**: Operational controller (approver, reviewer, auditor, reversal authority).
-- **staff**: Operational operator (intake, creation, execution, dispatch, collection).
-- **technician**: Field technician (execution of assigned work, evidence submission).
-- **customer**: External portal user (ticketing and evaluation submission only).
+### 2.1 Roles belong to a company
+- A role is a row of `roles` with `company_id` (NOT NULL, foreign key) and an optional `template_key`. `App\Models\Role` uses `BelongsToCompany`, so every role query is scoped by `CompanyService::currentId()` and matches nothing without a company (fail closed). `spatie/laravel-permission` stays on `teams=false`. A user holds roles per company: Admin in company A, Teknisi in company B. Roles in one company never reach another.
+- Permissions are one catalogue in code (`App\Support\PermissionCatalogue`). A company composes roles from it and never creates a permission.
+- Business rules check permissions, never role names. `hasRole`, `->role()` and a role-name `whereHas` are forbidden in `app/` and `Modules/` (`RoleNameChecksArchitectureTest`). A user's audience comes from markers, so renaming or deleting a role breaks no feature:
 
-Seeded roles are global (not per tenant). `RolePermissionSeeder` uses `syncPermissions` on the five seeded roles, so re-running it narrows existing databases to this matrix; custom roles are never touched.
+| Marker | Meaning |
+|---|---|
+| `app.web` | Back-office access: every `/admin` route. A login without it is sent to `/app-only`. |
+| `app.technician` | Field technician: subject of the technician report; names the technician app on `/app-only`. |
+| `portal.access` | Customer account: the customer app and web portal, together with the `customers.user_id` link. |
+| `evaluation.evaluable` | Employee who can be evaluated (picker and store). |
+| `report.technician.team` | Scope of the technician report: the manager's own organisation unit and below. |
+| `roles.manage` | Company administrator. The company always keeps at least one active holder that also holds `app.web` (2.6, G5). |
+
+- **Templates.** The platform keeps starter roles in `role_templates` (`PermissionCatalogue::templates()` holds the defaults). Creating a company (Setup Wizard, platform provisioning, subsidiary) copies them once, through `CompanyRoleService::copyTemplates`. After the copy the company owns its roles: a deploy never resyncs them, and editing a template changes only companies created afterwards.
+
+| Template (`template_key`) | Role name | Purpose |
+|---|---|---|
+| `admin` | Admin | Every catalogue permission except the markers of other audiences (`app.technician`, `evaluation.evaluable`, `portal.*`). Always holds `roles.manage` and `app.web`. |
+| `manager` | Manajer | Operational controller: approver, reviewer, auditor, reversal authority. |
+| `noc` | NOC & Layanan Pelanggan | Customer registration, complaint intake and tickets, outage announcements, network view and trace, RADIUS resync, manual isolir. No delete, no billing write, no user or role administration. |
+| `technician` | Teknisi | Execution of assigned work, evidence submission. |
+| `warehouse` | Gudang | Stock and inventory request execution. |
+| `finance` | Keuangan | Invoices, payments, refund marking, billing reports. No invoice cancellation. |
+| `staff` | Staf | Operational operator: intake, creation, execution, dispatch, collection. |
+| `customer` | Pelanggan | External portal user: ticketing and evaluation submission only. |
+
+- **Cutover.** The release migration copied every old global role into every company and remapped each user's assignments to the copies, in his home company and in every company he is a member of. A self-check inside the migration and `RoleCutoverMigrationTest` prove that each user's effective permissions in each company did not change. The five old roles took the names Admin, Manajer, Staf, Teknisi and Pelanggan; the three templates NOC & Layanan Pelanggan, Gudang and Keuangan were added to existing companies with no users.
 
 ### 2.2 SoD Conflict Invariants
 
-Permission level — no non-admin role may hold both sides. Declared once in `App\Support\SodConflicts`, asserted against the seeded roles by `RolePersonaSodTest`, and enforced when a non-admin saves a role (`NoSodConflict` on `StoreRoleRequest` / `UpdateRoleRequest`) or assigns roles to a user (`NoStackedSodConflict` on `StoreUserRequest` / `UpdateUserRequest` merges the permissions of the submitted roles, so `manager` + `staff` on one user is refused). Admin is exempt:
+Permission level: no role may hold both sides, unless it holds `roles.manage` (the break-glass administrator set). Declared once in `App\Support\SodConflicts`, asserted against the default templates by `RolePersonaSodTest`, and enforced per company when a role is saved (`NoSodConflict` on the tenant `StoreRoleRequest` / `UpdateRoleRequest`, on the platform template requests, and on the platform company-role repair requests) or when roles are assigned to a user (`NoStackedSodConflict` merges the permissions of the user's roles in that company, so Manajer + Staf on one user is refused). The exemption is for an actor who holds `roles.manage`; a platform operator is never exempt when roles are assigned or users are moved:
 
 | Control side | Execution side |
 |---|---|
 | `inventory.request.approve` / `reject` | `inventory.request.prepare` / `issue`, `inventory.stock.receive` / `issue` / `transfer` |
 | `inventory.stock.adjust.approve` | `inventory.stock.adjust.request`, `inventory.stock.receive` / `issue` / `transfer` |
 
-`inventory.stock.adjust` (direct adjustment) is break-glass and admin-only: a non-admin cannot save a role that holds it.
+`inventory.stock.adjust` (direct adjustment) is break-glass: only a role that also holds `roles.manage` can hold it.
 
 Same-actor guards — enforced in the service layer (inside the locked transaction), and in the Policy where the UI needs the same answer, for every actor including admin:
 1. **Work Orders (SPK)**: approver / rejector MUST NOT be the creator or assigned technician.
 2. **Inventory Requests**: approver / rejector MUST NOT be the requester; approver MUST NOT be the preparer or issuer.
 3. **Stock Adjustments**: the approver / rejector MUST NOT be the requester (`adjust.request` and `adjust.approve` are held by different personas; a user who holds both still cannot decide their own request).
 4. **Billing & Invoices**: invoice canceller MUST NOT be the invoice creator. Payment reverser MUST NOT be the payment recorder.
-5. **Role & User Management**: non-administrators cannot assign the `admin` role, edit seeded roles (`RolePolicy`), or edit / delete an admin user (`UserPolicy`). A user who requested or reviewed a stock adjustment cannot be deleted (`UserDeletionGuard`; the foreign keys `requested_by` / `approved_by` are `RESTRICT`), so the evidence keeps its actor.
+5. **Role & User Management** (per company, `CompanyRoleService`, guards in 2.6): nobody grants a guarded permission he does not hold himself; nobody edits or deletes a role, or changes the roles of a user, whose guarded permissions he does not hold (`RolePolicy`, `UserPolicy`). Editing or deleting a user's login fields still needs membership of every company of the target. A user who requested or reviewed a stock adjustment cannot be deleted (`UserDeletionGuard`; the foreign keys `requested_by` / `approved_by` are `RESTRICT`), so the evidence keeps its actor.
 
-Accepted residuals (not permission-level splits): the manager keeps `spk.create` / `assign` and `billing.create` / `send` / `payment.record` next to approval, cancel and reverse, so those duties rely on the same-actor guards above. An administrator can still stack roles on one user (break-glass); direct permissions given to a single user are not checked.
+Accepted residuals (not permission-level splits): the manager keeps `spk.create` / `assign` and `billing.create` / `send` / `payment.record` next to approval, cancel and reverse, so those duties rely on the same-actor guards above. A holder of `roles.manage` can still stack roles on one user (break-glass). Direct permissions given to a single user (`model_has_permissions`) are not company-scoped and are not checked by the SoD rules: a direct permission applies in every company of the user. No application code writes them.
 
-### 2.3 Permission Grants by Role
-| Domain / Capability | admin | manager | staff | technician | customer |
-|---|:---:|:---:|:---:|:---:|:---:|
-| `customer.manage` | Yes | Yes | - | - | - |
-| `customer.create` / `update` | Yes | Yes | Yes | - | - |
-| `customer.sales.assign` | Yes | Yes | Yes | - | - |
-| `customer.sales.correct` | Yes | Yes | - | - | - |
-| `inventory.stock.receive` / `transfer` | Yes | - | Yes | - | - |
-| `inventory.stock.issue` | Yes | - | Yes | Yes | - |
-| `inventory.stock.adjust.request` | Yes | - | Yes | - | - |
-| `inventory.stock.adjust.approve` | Yes | Yes | - | - | - |
-| `inventory.stock.adjust` (direct / break-glass) | Yes | - | - | - | - |
-| `inventory.request.approve` / `reject` | Yes | Yes | - | - | - |
-| `inventory.request.prepare` / `issue` | Yes | - | Yes | - | - |
-| `spk.approve` / `reject` | Yes | Yes | - | - | - |
-| `spk.start` / `submit` | Yes | - | Yes | Yes | - |
-| `billing.cancel` / `payment.reverse` | Yes | Yes | - | - | - |
-| `billing.create` / `send` / `payment.record` | Yes | Yes | Yes | - | - |
-| `report.sales.view` | Yes | Yes | - | - | - |
-| `report.export` | Yes | Yes | - | - | - |
-| `report.technician` | Yes | Yes | - | Yes | - |
-| `ticket.attachment.upload` | Yes | - | Yes | Yes | Yes |
-| `ticket.category.manage` | Yes | Yes | - | - | - |
-| `announcement.manage` | Yes | Yes | - | - | - |
-| `users.two_factor.reset` | Yes | - | - | - | - |
+### 2.3 Default permission grants by template
+Defaults for a company created now. An existing company holds the copies made at the cutover and may have edited them; its real set is in Administrasi → Peran. The marker rows are the audience markers of 2.1.
+
+| Domain / Capability | Admin | Manajer | NOC | Teknisi | Gudang | Keuangan | Staf | Pelanggan |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| `app.web` | Yes | Yes | Yes | - | Yes | Yes | Yes | - |
+| `app.technician` | - | - | - | Yes | - | - | - | - |
+| `portal.access` | - | - | - | - | - | - | - | Yes |
+| `evaluation.evaluable` | - | - | Yes | Yes | - | - | Yes | - |
+| `report.technician.team` | Yes | Yes | - | - | - | - | - | - |
+| `roles.manage` / `users.manage` | Yes | - | - | - | - | - | - | - |
+| `customer.manage` | Yes | Yes | - | - | - | - | - | - |
+| `customer.create` | Yes | Yes | Yes | - | - | - | Cutover only (a) | - |
+| `customer.update` | Yes | Yes | Yes | - | - | - | Yes | - |
+| `customer.sales.assign` | Yes | Yes | Yes | - | - | - | Yes | - |
+| `customer.sales.correct` | Yes | Yes | - | - | - | - | - | - |
+| `customer.subscription.block` (manual isolir) | Yes | Yes | Yes | - | - | - | - | - |
+| `inventory.stock.receive` / `transfer` | Yes | - | - | - | Yes | - | Yes | - |
+| `inventory.stock.issue` | Yes | - | - | Yes | Yes | - | Yes | - |
+| `inventory.stock.adjust.request` | Yes | - | - | - | Yes | - | Yes | - |
+| `inventory.stock.adjust.approve` | Yes | Yes | - | - | - | - | - | - |
+| `inventory.stock.adjust` (direct / break-glass) | Yes | - | - | - | - | - | - | - |
+| `inventory.request.approve` / `reject` | Yes | Yes | - | - | - | - | - | - |
+| `inventory.request.prepare` / `issue` | Yes | - | - | - | Yes | - | Yes | - |
+| `spk.approve` / `reject` | Yes | Yes | - | - | - | - | - | - |
+| `spk.start` / `submit` | Yes | - | - | Yes | - | - | Yes | - |
+| `billing.cancel` | Yes | Yes | - | - | - | - | - | - |
+| `billing.payment.reverse` | Yes | Yes | - | - | - | Yes | - | - |
+| `billing.create` / `send` / `payment.record` | Yes | Yes | - | - | - | Yes | Yes | - |
+| `report.sales.view` | Yes | Yes | - | - | - | - | - | - |
+| `report.export` | Yes | Yes | - | - | - | - | - | - |
+| `report.technician` | Yes | Yes | - | Yes | - | - | - | - |
+| `ticket.assign` | Yes | Yes | Yes | - | - | - | - | - |
+| `ticket.attachment.upload` | Yes | - | Yes | Yes | - | - | Yes | Yes |
+| `ticket.category.manage` | Yes | Yes | - | - | - | - | - | - |
+| `announcement.manage` | Yes | Yes | Yes | - | - | - | - | - |
+| `users.two_factor.reset` | Yes | - | - | - | - | - | - | - |
+
+(a) The Staf template for new companies does not hold `customer.create`. Existing Staf copies keep it, because the cutover keeps every user's access.
 
 ### 2.4 Stock adjustment workflow and break-glass
 1. An operator (`inventory.stock.adjust.request`) posts `POST /admin/stocks/adjust`; a `pending` `stock_adjustment_requests` row records the requester, the quantity before and after, and the reason. Stock does not move.
@@ -70,8 +104,48 @@ Accepted residuals (not permission-level splits): the manager keeps `spk.create`
 
 Audit events (log `inventory`): `stock_adjustment_requested`, `stock_adjustment` (approval or break-glass), `stock_adjustment_rejected`.
 
-### 2.5 Deploying a persona change
-Run `php artisan db:seed --class=RolePermissionSeeder --force`. It overwrites manual edits made to the five seeded roles (sync, not add) and leaves custom roles untouched; custom roles that need a new permission (for example `report.export`) are granted manually.
+### 2.5 Deploying a permission change
+A deploy never touches a company's roles. A release that adds a permission does it in a migration with `PermissionCatalogue::release($permission, $templateKeys)`: it creates the permission, adds it to the named templates, and grants it to every company role whose `template_key` is in that list. It never removes anything and never resyncs. Custom roles do not receive it; the company administrator adds it in Peran. A company that deleted its Admin copy is repaired by the platform (5.5).
+
+`RolePermissionSeeder` only seeds the catalogue and the default templates on a fresh install or in tests. Releases never run `db:seed`.
+
+### 2.6 Company role administration: guards and audit
+`CompanyRoleService` holds every role write, in one transaction that first locks the company row and then acts as that company. Holders of `roles.manage` use Administrasi → Peran and Pengguna; the platform uses the same service for repairs (5.5).
+
+| Guard | Rule |
+|---|---|
+| G1 hold it yourself | A permission added to a role, and the guarded permissions of a role added to a user, must be held by the actor. Markers (`app.technician`, `evaluation.evaluable`, `portal.access`, `portal.invoice.view`, `portal.invoice.pay`) are not guarded. Error: "Anda tidak dapat memberi hak akses yang tidak Anda miliki: {label, ...}." |
+| G2 edit scope | An actor edits or deletes only roles, and changes only the roles of users, whose guarded permissions he holds himself. A role richer than the actor answers 403. |
+| G3 SoD on role save | `SodConflicts::violations()` must be empty, unless the set holds `roles.manage`. |
+| G4 stacked SoD | The merged permissions of a user's roles in the company have no violations. Checked on user role changes and for every user moved when a role is deleted. A platform operator is not exempt. |
+| G5 last administrator | After any change, at least one active member (home or `company_user`) holds `roles.manage` and `app.web` in the company, through a role or a direct permission. Checked on role update, delete and move, user role changes, user deactivation, user deletion, membership revoke and platform repairs. Error on `roles`: "Perusahaan harus tetap punya minimal satu admin aktif yang memegang roles.manage." A company that already has none can still be repaired. |
+| G6 portal role | The role copied from the `customer` template cannot be deleted ("Peran ini dipakai untuk akun pelanggan baru."). Pengguna never adds or removes a role holding `portal.access`; `CustomerService` owns them. |
+| G7 moving users | Deleting a role that has users needs `move_to`: another role of the same company that the actor covers. Users who lack the target role get it, then the role is deleted. |
+| G8 stale edit | An edit made on an outdated copy of the role is refused with 409 (optimistic lock on `updated_at`). |
+
+Audit (log `security`, company taken from the role): `role.created` {`name`, `permissions`}, `role.updated` {`name_before`, `name_after`, `permissions_added`, `permissions_removed`} (only when something changed), `role.deleted` {`name`, `permissions`, `moved_users`, `moved_to`}. Assigning roles to a user keeps `role.attached` and `role.detached`, with names resolved in the right company. A role of another company, in the URL or in `move_to` / `roles`, answers 404 or a validation error, never data.
+
+Hardening from the release security review (tests in `tests/Feature/Roles/Security/`):
+
+- **Cross-company user administration.** Changing, deleting or resetting the 2FA of a user needs, besides membership of every company of the target, coverage of his guarded permissions in each of those companies (`UserPolicy::coversInOtherCompanies`). An admin of company A cannot take over a login that is richer in company B. The Users list judges every row from data it loads once per page, so the check adds no query per row.
+- **Deactivation and deletion keep an administrator everywhere.** Deactivating or deleting a login locks all its companies in id order first, then refuses if it is the last administrator of any of them (`UserDeletionGuard::delete`, also used by self-deletion in Profil).
+- **Subsidiary role mirroring is bounded.** A member gets a subsidiary role only when its permissions are within what he holds in the source company; the operator flash and the CLI name the roles left out ("perlu diberikan sendiri di Pengguna") and the audit row records what was granted. A deleted template key is never reused while a company copy carries it.
+- **Portal and web never share a role.** No role (tenant, template or platform repair) may hold `portal.access` together with `app.web`.
+- **Audit placement.** `role.attached` / `role.detached` take the role as subject, so each row lands in the role's company; during support access the operator stays the causer. The impersonation own-account block covers `admin.users.roles.update`.
+- **Permission cache.** Role writes drop the cache after commit, and queue workers clear the in-memory permission map before every job.
+
+### 2.7 Behaviour changes of the tenant-roles release
+Intended, and also listed in the CHANGELOG.
+
+- **D1**: access is additive. A technician who also holds a role granting `evaluation.view` now sees all evaluations, not only his own.
+- **D2**: a user whose roles in the company lack `app.web`, including a user with no role, sees "Akun ini belum punya akses aplikasi web" instead of a dashboard 403.
+- **D3**: holders of `users.manage` or `roles.manage` who are not administrators change only the users and roles whose guarded permissions they hold (G1, G2). Their reach is narrower than before.
+- **D4**: assigning a ticket to a user without ticket work permissions is refused at validation (422), no longer as a 404 from the service.
+- **D5**: the platform admins card and invitations go to `roles.manage` holders, so a custom role holding `roles.manage` counts.
+- **D6**: billing schedule alerts go to the company's `roles.manage` holders through `StaffRecipients`, members included. Head administrators who are members of a subsidiary now also receive its alerts.
+- **D7**: when a member is granted a subsidiary, he gets the subsidiary's roles that match the templates of his roles in the source company. A member who holds only custom roles gets none; the command or the platform flash names them, and an administrator assigns roles in Pengguna.
+- **D8**: going back to the home company is always allowed.
+- **D9**: the Staf template for new companies lacks `customer.create` (2.3).
 
 ## 3. Two-factor authentication (TOTP)
 
@@ -91,11 +165,11 @@ Opt-in for every user, customer portal accounts included. A company can require 
 
 ### 3.3 Lost device
 - The user spends a recovery code at the challenge and then regenerates codes from the Profile.
-- An administrator resets the user: `POST /admin/users/{user}/two-factor/reset`, permission `users.two_factor.reset` (admin only, section 2.3; named `user.two_factor.reset` before 2026-10-12, renamed by migration). Never one's own account; `UserPolicy::resetTwoFactor` applies the same rule as editing the user (only an admin may reset an admin; the actor must belong to every company the target belongs to). The user then logs in with the password alone and can enrol again.
+- An administrator resets the user: `POST /admin/users/{user}/two-factor/reset`, permission `users.two_factor.reset` (admin only, section 2.3; named `user.two_factor.reset` before 2026-10-12, renamed by migration). Never one's own account; `UserPolicy::resetTwoFactor` applies the same rule as editing the user: the actor must belong to every company the target belongs to and cover the target's guarded permissions in each of them (2.6). The user then logs in with the password alone and can enrol again.
 - A locked-out sole administrator has nobody to reset them: run `php artisan tinker --execute="app(App\Services\Core\TwoFactorService::class)->disable(App\Models\User::where('email', '<email>')->firstOrFail());"`.
 
 ### 3.4 Deploying and rolling back
-Run `php artisan migrate` and `php artisan db:seed --class=RolePermissionSeeder --force` (adds `users.two_factor.reset`, see 2.5). Rolling back the migration discards every secret and recovery code; users simply log in with the password again. Rotating `APP_KEY` makes enrolled secrets undecryptable: reset two-factor for those users (3.3) first.
+Run `php artisan migrate`. Rolling back the migration discards every secret and recovery code; users simply sign in with the password again. The permission `users.two_factor.reset` is part of the catalogue and of the Admin template (2.3, 2.5). Rotating `APP_KEY` makes enrolled secrets undecryptable: reset two-factor for those users (3.3) first.
 
 ### 3.5 Accepted residuals
 - The challenge throttle is 5 per minute per user and IP plus 10 per 15 minutes per user. Someone who holds the password and rotates addresses is held to 10 guesses per 15 minutes (about 960 a day, against 3 valid codes in a million) and can keep the real user out of the challenge for up to 15 minutes; an admin reset clears two-factor, so that user can still be restored.
@@ -148,9 +222,9 @@ Every one of these deletes all of the user's tokens, so the next call is 401:
 The hooks sit on the `User` model, so every writer is covered. Also: logout deletes the current token; `DELETE /api/v1/devices/{id}` deletes one of the user's own other tokens (a lost phone); an inactive user is refused on every request with 401 `account_inactive` and the token is deleted.
 
 ### 4.3 Who may use which app
-- **Customer app**: the web portal rule, role `customer` plus a `customers.user_id` link (`EnsureCustomerAccess::customerFor`). Inactive or terminated customers keep access to their old invoices, as on the web.
-- **Technician app**: the web "My work" rule, `MyWorkQuery::isEligible` (`spk.start|spk.submit` or `ticket.start|resolve|close`, plus an active employee profile in the company).
-- Both apps also need an active user, a verified e-mail and a company. This is checked at login and on every request; a failure is 403 `app_not_allowed`. The company is always the user's home company (`users.company_id`).
+- **Customer app**: the web portal rule, the `portal.access` permission in the user's company plus a `customers.user_id` link (`EnsureCustomerAccess::customerFor`). Inactive or terminated customers keep access to their old invoices, as on the web.
+- **Technician app**: the web "My work" rule, `MyWorkQuery::isEligible` (`spk.start|spk.submit` or `ticket.start|resolve|close`, plus an active employee profile in the company). It does not require `app.technician`: an administrator or staff member with an employee profile keeps the app.
+- Both apps also need an active user, a verified e-mail and a company. This is checked at login and on every request; a failure is 403 `app_not_allowed`. The company is always the user's home company (`users.company_id`). Nobody is signed in at login, so the permission rules run inside that company (`CompanyService::runAs`): roles are per company, and only the ones held there count.
 - A user with `must_change_password` set is refused with 403 `password_reset_required` and resets the password on the web through the e-mailed link (`POST auth/forgot-password`, always 202, same body for every address).
 - Second factor: a user with confirmed two-factor gets a server-side challenge (cache, 300 s, at most 5 attempts) from `POST auth/login` and no token until `POST auth/two-factor` verifies a TOTP or recovery code. Limits and limiter keys are shared with the web challenge (3.1). Managing two-factor stays on the web.
 - Throttles: 120 requests per minute per token; 20 sign-ins per minute per IP plus the web's 5 per e-mail and IP; 6 password-reset requests per minute per IP; 6 payment starts and 30 uploads per minute per user.
@@ -266,14 +340,34 @@ URL, log, activity properties atau Inertia history.
   tidak membawa e-mail, id internal, token atau kata sandi; `confirm_url` hanya
   menerima `return_to` ke halaman `/admin` atau `/app-only` tenant.
 
-### 5.5 Platform-owned roles
+### 5.5 Role templates and company role repair
 
-Spatie permission tetap `teams=false`; semua role menggunakan guard `web`.
-Tenant dapat melihat role dan assign role ke user, tetapi tidak dapat membuat,
-mengubah atau menghapus definisi role. CRUD definisi role hanya di platform,
-dengan step-up kata sandi dan audit. Nama seeded role `admin`, `manager`, `staff`,
-`technician`, `customer` immutable dan tidak boleh dihapus. Seeder deployment
-masih menyinkronkan permission kelima role tersebut.
+Role templates (`role_templates`, `role_template_has_permissions`) dimiliki platform
+dan tidak punya `company_id`. Operator mengelolanya di `/platform/role-templates`
+(buat, ubah, hapus). Templat hanya disalin ke company baru; mengubahnya tidak
+pernah mengubah role company yang sudah ada. Templat `admin` dan `customer` tidak
+bisa dihapus, dan templat `admin` wajib tetap memuat `roles.manage` dan `app.web`.
+SoD (`NoSodConflict`) berlaku pada setiap simpan.
+
+Operator memperbaiki role satu company di `/platform/companies/{company}/roles`
+(tambah dari templat, ubah, hapus dengan memindahkan pengguna). Perbaikan memakai
+`CompanyRoleService` dengan guard yang sama dengan tenant (G3 sampai G8; G1
+tidak berlaku karena platform admin tidak punya permission tenant, tetapi G4
+tidak ada pengecualian). Role dicari lewat `TenantRoles::role`, dibatasi pada
+tenant root dan subsidiary-nya, sehingga role tenant lain menjawab 404.
+
+Semua tulis di route platform memakai middleware step-up kata sandi. Audit:
+log `platform` (`role_template.created`, `role_template.updated`,
+`role_template.deleted`, serta `role.created`, `role.updated`, `role.deleted`
+untuk perbaikan company) dan log `support` yang terlihat oleh tenant untuk
+perbaikan company, tanpa e-mail atau id internal operator. Platform admin tetap
+tidak pernah memegang role tenant.
+
+Ketika subsidiary dibuat atau member diberi akses, member mendapat salinan role
+templat yang ia pegang di company asal (`mirrorTemplateRoles`), hanya bila isi
+role subsidiary itu tidak melebihi yang ia pegang di company asal. Member yang
+hanya memegang role buatan sendiri tidak mendapat role; role yang lebih luas
+tidak disalin. Keduanya dilaporkan di flash/CLI, dan yang diberikan tercatat di audit.
 
 ### 5.6 Tenant export
 
@@ -281,8 +375,9 @@ masih menyinkronkan permission kelima role tersebut.
   `platform`, memasuki setiap company lewat `CompanyService::runAs` dan tetap
   memberi filter `company_id` eksplisit pada query table mentah.
 - ZIP berisi CSV tenant dan media folder. Password/hash, TOTP, recovery code,
-  token, RADIUS/NAS/PPPoE secret dan payment token tidak diekspor; manifest
-  mencatat kolom yang dihilangkan.
+  mencatat kolom yang dihilangkan. `roles.csv` memuat role company tenant, dan
+  `user_roles.csv` (`user_public_id`, `company_code`, `role_name`, `template_key`)
+  memuat siapa memegang role mana, termasuk member yang home-nya di tempat lain.
 - Arsip disimpan di private disk `platform/exports/`. Download perlu session
   platform aktif + 2FA + signed URL maksimal 24 jam. Response `private,no-store`.
   Cleanup menghapus file tetapi mempertahankan record status `expired` sebagai
@@ -303,6 +398,9 @@ masih menyinkronkan permission kelima role tersebut.
   tanpa company id tampil sebagai unattributed.
 - Meter storage memakai metadata media `company_id`; file legacy tanpa metadata
   dapat membuat angka list lebih rendah. Ekspor/purge tetap memakai folder nyata.
+- Ekspor tenant memuat tabel `roles` tetapi bukan `role_has_permissions`, sehingga
+  restore dari ekspor tidak mengembalikan isi hak akses sebuah role. Ekspor
+  hanya untuk portabilitas data, bukan backup (lihat `docs/operations/BACKUP_RESTORE.md`).
 
 ### 5.8 Support unlock of a sign-in lock (wave 2)
 - `SupportToolsService::unlockLogin` clears every counter that can hold a user out: the per-account and per-address sign-in keys (`LoginRequest::throttleKeyFor`) and the 2FA account and address keys (`TwoFactorChallengeRequest::accountKeyFor` and `addressKeyFor`). The addresses come from the `login.failed` rows of the security trail that name the account, within `SecurityTrail::WINDOW_SECONDS`.
@@ -357,7 +455,7 @@ Authorization (`BelongsToCompany`, policies, `can:` middleware) is the control. 
 - A `lockout` row is written once per route, client address and typed-address hash per 15 minutes: a blocked client that keeps sending cannot fill the table.
 - Failed sign-ins are also budgeted per client address: 20 a minute on the web, app and platform logins, whatever address is typed, so rotating typed addresses cannot grow the table without bound. Only failures count: many staff behind one office address sign in freely. A refusal by this budget writes no row; only an account lockout (5 a minute per typed address and client) writes `lockout`.
 - `password.reset_requested` is written only for an account that exists (the broker fires its event only then), so the table gives no way to tell a known address from an unknown one.
-- `role.attached` and `role.detached` hold the role names; a call that changes nothing writes nothing.
+- `role.created`, `role.updated` and `role.deleted` (2.6) carry the permission diff, never a secret. `role.attached` and `role.detached` hold the role names of the company they were written in; a call that changes nothing writes nothing.
 - Every row written inside a request has the request id and the client address (`ip_address`); the user agent is stored only for the log names `security`, `platform` and `support`. A request that runs under a support session also records `properties.impersonated_user_id`, the public id of the user the operator entered. The address is the proxy's unless `TRUSTED_PROXIES` is set (section 6.3).
 
 ### 7.2 Personal data in audit rows

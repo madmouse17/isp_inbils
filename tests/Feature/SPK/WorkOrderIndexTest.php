@@ -30,7 +30,7 @@ class WorkOrderIndexTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     public function test_index_exposes_work_order_code_for_the_spk_table(): void
@@ -143,7 +143,7 @@ class WorkOrderIndexTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $user->givePermissionTo('spk.export');
+        $this->grantPermissions($user, ['app.web', 'spk.export']);
 
         $this->actingAs($user)
             ->get(route('admin.spk.export', ['format' => 'csv']))

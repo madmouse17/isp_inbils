@@ -56,8 +56,9 @@ final class ApiTokenService
 
     /**
      * Whether $user may use $app: the web rules of each surface, plus a verified e-mail and a company. A customer
-     * is the web portal's rule (customer role and a linked Customer); a technician is the My work rule. Returns the
-     * Customer for the customer app.
+     * is the web portal's rule (`portal.access` and a linked Customer); a technician is the My work rule. Returns the
+     * Customer for the customer app. Nobody is signed in at login (nor in the push job), so the rules run inside the
+     * company the user acts in: roles are per company, and only the ones held there count.
      *
      * @throws ApiException password_reset_required for a legacy login still flagged, app_not_allowed otherwise
      */
@@ -67,13 +68,17 @@ final class ApiTokenService
             throw new ApiException(403, 'password_reset_required', 'The password must be reset before this account can sign in.');
         }
 
-        $customer = $app === self::CUSTOMER ? EnsureCustomerAccess::customerFor($user) : null;
+        $companyId = CompanyService::idFor($user);
 
-        $mayUse = $user->email_verified_at !== null
-            && CompanyService::idFor($user) !== null
-            && ($app === self::CUSTOMER ? $customer !== null : MyWorkQuery::isEligible($user));
+        if ($user->email_verified_at === null || $companyId === null) {
+            throw $this->notAllowed();
+        }
 
-        return $mayUse ? $customer : throw $this->notAllowed();
+        return CompanyService::runAs($companyId, function () use ($user, $app): ?Customer {
+            $customer = $app === self::CUSTOMER ? EnsureCustomerAccess::customerFor($user) : null;
+
+            return ($app === self::CUSTOMER ? $customer !== null : MyWorkQuery::isEligible($user)) ? $customer : throw $this->notAllowed();
+        });
     }
 
     /**

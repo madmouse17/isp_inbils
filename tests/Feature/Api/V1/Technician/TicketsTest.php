@@ -57,7 +57,7 @@ class TicketsTest extends TestCase
         $this->token = $this->issueToken($this->technician, 'technician');
         $this->otherToken = $this->issueToken($this->otherTechnician, 'technician');
         $this->admin = User::factory()->create(['company_id' => $company->id, 'email_verified_at' => now(), 'is_active' => true]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
         $this->customer = Customer::factory()->create(['company_id' => $company->id, 'name' => 'Rina', 'phone' => '0812']);
         $this->category = TicketCategory::query()->create([
             'company_id' => $company->id,
@@ -230,7 +230,7 @@ class TicketsTest extends TestCase
     {
         $ticket = $this->assignedTicket('on_progress');
         $customerUser = User::factory()->create(['company_id' => $this->technician->company_id, 'email_verified_at' => now(), 'is_active' => true]);
-        $customerUser->assignRole('customer');
+        $this->grantRole($customerUser, 'customer');
         $this->customer->update(['user_id' => $customerUser->id]);
         $customerToken = $this->issueToken($customerUser, 'customer');
 

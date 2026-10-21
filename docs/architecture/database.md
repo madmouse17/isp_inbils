@@ -12,7 +12,9 @@
   effective company, FAIL-CLOSED: no company context = no rows, and a
   create without company_id aborts 403; system code names its company with
   `CompanyService::runAs()`). Exceptions: `companies`, `users` (company_id
-  nullable pre-wizard), `roles`, `permissions`, `activity_log` (global spatie).
+  nullable pre-wizard), `permissions`, `role_templates`, `activity_log`
+  (global). `roles` is NOT an exception: it carries `company_id` (see
+  `roles` below).
 - Business code (code/number/sku) = unique per company:
   `(company_id, code)`, NOT global unique.
 - Soft delete (`deleted_at`) for master + transaction entities with
@@ -34,7 +36,7 @@
   The integer `id` stays the primary key and every foreign key; only
   `public_id` leaves the server. Models use the trait `HasPublicId` (route key
   = `public_id`, filled on create; a route value that is not a ULID is a 404
-  before any query). Package models (`roles`, `media`, `activity_log`,
+  before any query). Package models (`media`, `activity_log`,
   `personal_access_tokens`) get the same id from the creating hooks in
   `AppServiceProvider`. Raw writes (seeders, bulk inserts) take
   `App\Support\PublicId::new()`. New tables put `$table->ulid('public_id')
@@ -166,9 +168,25 @@ stays live because it drives report access. Pickers query the parent model direc
   per user with a company_id (reversible). The home company is a member even
   without a row; any other company needs a row and `companies.is_active`.
   Effective company = session `active_company_id` validated against this
-  table on every read, else the home company (`CompanyService`). Roles stay
-  global (spatie teams=false).
-- `roles` / `permissions` / pivots — spatie standard. Global.
+  table on every read, else the home company (`CompanyService`). Roles are
+  per company: a user holds roles in each company he belongs to.
+- `roles` — spatie table plus `company_id` FK → `companies.id` NOT NULL
+  (CASCADE) and `template_key` varchar(32) NULL (the template the role was
+  copied from; provenance only, survives renames). Unique `(company_id, name,
+  guard_name)` and `(company_id, template_key)`. Model `App\Models\Role` uses
+  `BelongsToCompany` (spatie stays `teams=false`); platform code opts out
+  with `Role::withoutCompany()`. Written through `CompanyRoleService`.
+  `model_has_roles` and `role_has_permissions` stay spatie standard; a
+  user's roles in company C are the pivot rows whose role has `company_id = C`.
+- `permissions` — spatie standard. Global: one catalogue in code
+  (`App\Support\PermissionCatalogue`), never created by tenants.
+- `role_templates` (id, public_id, `key` unique and immutable, `name`
+  unique, timestamps) and `role_template_has_permissions` (role_template_id,
+  permission_id, CASCADE). Platform-owned, no `company_id`. Copied into a
+  company when it is created; never resynced. A release that adds a permission
+  adds it to the templates and to the company copies by `template_key` with
+  `PermissionCatalogue::release()` in a migration. Created by migrations
+  `2026_10_29_100000` to `2026_10_29_100500` (the last makes `roles.company_id` NOT NULL).
 - `activity_log` — spatie standard. Global. Polymorphic.
 - `locations` — company_id, parent_id (self-ref), code, name, type
   (region/area/pop/rack/site), path, is_active.
@@ -333,7 +351,8 @@ tickets 1──N ticket_attachments
 
 - Migration order: Core → Service → NetworkAsset → Inventory → SPK →
   Billing → Ticketing → Reporting.
-- Seed: roles + permissions + system settings ONLY. NO company data.
+- Seed: permission catalogue + role templates + system settings ONLY. NO
+  company data and NO roles; a company gets its roles from the templates when it is created.
 - Company created via Setup Wizard (`php artisan inbils:setup`).
 - Per-company master data seeded by `CompanySeeder::runFor($company)`
   triggered by `CompanyCreated` event (units, ticket_categories,

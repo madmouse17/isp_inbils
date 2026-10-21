@@ -248,7 +248,7 @@ class LoginTest extends TestCase
     public function test_a_user_who_is_both_customer_and_technician_signs_in_to_each_app_with_its_own_token(): void
     {
         [$user, $record] = $this->customerLogin();
-        $user->assignRole('technician');
+        $this->grantRole($user, 'technician');
         EmployeeProfile::factory()->create(['company_id' => $user->company_id, 'user_id' => $user->id, 'status' => 'active']);
 
         $customer = $this->login($user, 'customer', 'Pixel 8')->assertOk();
@@ -318,7 +318,7 @@ class LoginTest extends TestCase
     {
         $this->seedApiRoles();
         $user = User::factory()->create(['company_id' => $this->apiCompany()->id]);
-        $user->assignRole('admin');
+        $this->grantRole($user, 'admin');
 
         return $user;
     }

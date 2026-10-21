@@ -4,16 +4,16 @@ namespace Tests\Feature\Admin;
 
 use App\Models\Core\Company;
 use App\Models\User;
-use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class RoleServerTableExportTest extends TestCase
 {
     use RefreshDatabase;
+
+    private Company $company;
 
     private User $admin;
 
@@ -21,31 +21,26 @@ class RoleServerTableExportTest extends TestCase
     {
         parent::setUp();
 
-        $this->seed(RolePermissionSeeder::class);
-        app()['cache']->forget('spatie.permission.cache');
-
-        $company = Company::factory()->create(['is_active' => true]);
-
-        $this->admin = User::factory()->create([
-            'company_id' => $company->id,
+        $this->company = Company::factory()->create(['is_active' => true]);
+        $this->admin = $this->grantRole(User::factory()->create([
+            'company_id' => $this->company->id,
             'email_verified_at' => now(),
             'is_active' => true,
-        ]);
-        $this->admin->assignRole('admin');
+        ]), 'admin', $this->company);
     }
 
     public function test_index_paginates_and_searches_roles(): void
     {
-        Role::findOrCreate('alpha-role', 'web');
-        Role::findOrCreate('beta-role', 'web');
-        Role::findOrCreate('gamma-other', 'web');
+        $this->companyRole($this->company, 'alpha-role', []);
+        $this->companyRole($this->company, 'beta-role', []);
+        $this->companyRole($this->company, 'gamma-other', []);
 
         $this->actingAs($this->admin)
             ->get(route('admin.roles.index', ['search' => 'role', 'per_page' => 10]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Roles/Index')
-                ->has('roles.data')
+                ->has('roles.data', 2)
                 ->where('can.export', true)
                 ->where('filters.search', 'role')
             );
@@ -62,8 +57,8 @@ class RoleServerTableExportTest extends TestCase
 
     public function test_export_csv_streams_filtered_roles(): void
     {
-        Role::findOrCreate('export-role-unique', 'web');
-        Role::findOrCreate('skip-role-unique', 'web');
+        $this->companyRole($this->company, 'export-role-unique', []);
+        $this->companyRole($this->company, 'skip-role-unique', []);
 
         $response = $this->actingAs($this->admin)
             ->get(route('admin.roles.export', [
@@ -78,9 +73,23 @@ class RoleServerTableExportTest extends TestCase
         $this->assertStringNotContainsString('skip-role-unique', $content);
     }
 
+    public function test_the_export_holds_the_roles_of_the_company_only(): void
+    {
+        $this->companyRole($this->company, 'own-role-unique', []);
+        $this->companyRole(Company::factory()->create(['is_active' => true]), 'foreign-role-unique', []);
+
+        $content = $this->actingAs($this->admin)
+            ->get(route('admin.roles.export', ['format' => 'csv']))
+            ->assertOk()
+            ->streamedContent();
+
+        $this->assertStringContainsString('own-role-unique', $content);
+        $this->assertStringNotContainsString('foreign-role-unique', $content);
+    }
+
     public function test_export_pdf_returns_pdf(): void
     {
-        Role::findOrCreate('pdf-role-unique', 'web');
+        $this->companyRole($this->company, 'pdf-role-unique', []);
 
         $response = $this->actingAs($this->admin)
             ->get(route('admin.roles.export', ['format' => 'pdf']));
@@ -91,15 +100,12 @@ class RoleServerTableExportTest extends TestCase
 
     public function test_export_forbidden_without_permission(): void
     {
-        $user = User::factory()->create([
-            'company_id' => $this->admin->company_id,
+        Permission::findOrCreate('roles.view', 'web');
+        $user = $this->grantPermissions(User::factory()->create([
+            'company_id' => $this->company->id,
             'email_verified_at' => now(),
             'is_active' => true,
-        ]);
-        $role = Role::firstOrCreate(['name' => 'roles-no-export', 'guard_name' => 'web']);
-        Permission::findOrCreate('roles.view', 'web');
-        $role->syncPermissions(['roles.view']);
-        $user->assignRole($role);
+        ]), ['app.web', 'roles.view'], $this->company);
 
         $this->actingAs($user)
             ->get(route('admin.roles.export', ['format' => 'csv']))

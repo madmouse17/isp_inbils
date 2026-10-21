@@ -28,9 +28,14 @@ class CompanyPolicy
         return $user->can('company.manage');
     }
 
-    /** Switching needs the permission and a membership of an active company; roles stay global. */
+    /**
+     * Switching needs the permission, held in the company the user is in now, and a membership of an active company.
+     * Going home is always allowed: roles are per company, so someone who lacks the permission in the company they
+     * switched into would otherwise be stuck there.
+     */
     public function switchTo(User $user, Company $company): bool
     {
-        return $user->can('company.switch') && CompanyService::canActIn($user, (int) $company->id);
+        return CompanyService::canActIn($user, (int) $company->id)
+            && ((int) $company->id === (int) $user->company_id || $user->can('company.switch'));
     }
 }

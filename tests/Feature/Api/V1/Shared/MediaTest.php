@@ -72,7 +72,7 @@ class MediaTest extends TestCase
     {
         Storage::fake('local');
         $technician = $this->technicianLogin();
-        $technician->assignRole('customer');
+        $this->grantRole($technician, 'customer');
         Customer::factory()->create(['company_id' => $technician->company_id, 'user_id' => $technician->id]);
         $other = $this->technicianLogin($technician->company);
         $mine = $this->store($this->workOrderFor($technician), 'evidence', 'mine.png', base64_decode(self::PNG));

@@ -136,20 +136,27 @@ class TenantDetailTest extends TestCase
             ->where('tenant.deletion_requested_at', '2026-10-19T00:00:00+00:00'));
     }
 
-    public function test_admins_are_the_users_with_the_admin_role_in_the_tenant_and_nobody_elses(): void
+    public function test_admins_are_the_users_who_hold_roles_manage_in_their_home_company_in_the_tenant_and_nobody_elses(): void
     {
         $this->tenantUser($this->alpha['child'], 'admin')->forceFill(['name' => 'Admin Cabang', 'is_active' => false])->save();
         $this->alpha['admin']->forceFill(['two_factor_confirmed_at' => now()])->save();
         $this->tenantUser($this->beta['root'], 'staff');
+        // A custom role counts, whatever it is called; roles.manage held only in ANOTHER company of the tenant does not.
+        $owner = $this->tenantUser($this->alpha['root'], 'staff');
+        $owner->forceFill(['name' => 'Pemilik Alpha'])->save();
+        $this->grantRole($owner, $this->companyRole($this->alpha['root'], 'Pemilik', ['roles.manage', 'app.web']), $this->alpha['root']);
+        $abroad = $this->tenantUser($this->alpha['root'], 'staff');
+        $abroad->forceFill(['name' => 'Admin di Cabang'])->save();
+        $this->grantRole($abroad, 'admin', $this->alpha['child']);
 
         $this->show($this->alpha['root'])->assertInertia(fn (Assert $page) => $page
-            ->has('admins', 2)
+            ->has('admins', 3)
             ->where('admins.0', [
                 'id' => $this->alpha['admin']->public_id,
                 'name' => 'Admin ALP',
                 'email' => 'admin.alp@example.test',
                 'company' => ['id' => $this->alpha['root']->public_id, 'name' => 'Alpha Net', 'code' => 'ALP'],
-                'roles' => ['admin'],
+                'roles' => ['Admin'],
                 'is_active' => true,
                 'last_login_at' => '2026-10-19T08:00:00+00:00',
                 'two_factor_enabled' => true,
@@ -161,7 +168,10 @@ class TenantDetailTest extends TestCase
             ->where('admins.1.name', 'Admin Cabang')
             ->where('admins.1.is_active', false)
             ->where('admins.1.can_impersonate', false)
-            ->where('admins.1.company.code', 'ALP-C'));
+            ->where('admins.1.company.code', 'ALP-C')
+            ->where('admins.2.name', 'Pemilik Alpha')
+            ->where('admins.2.roles', ['Pemilik', 'Staf'])
+            ->where('admins', fn ($admins): bool => ! collect($admins)->pluck('name')->contains('Admin di Cabang')));
     }
 
     public function test_subsidiaries_are_listed_with_their_users_and_status(): void
@@ -207,7 +217,7 @@ class TenantDetailTest extends TestCase
                 'name' => 'Admin ALP',
                 'email' => 'admin.alp@example.test',
                 'company' => ['id' => $this->alpha['root']->public_id, 'name' => 'Alpha Net', 'code' => 'ALP'],
-                'roles' => ['admin'],
+                'roles' => ['Admin'],
                 'is_active' => true,
                 'last_login_at' => '2026-10-19T08:00:00+00:00',
                 'two_factor_enabled' => false,

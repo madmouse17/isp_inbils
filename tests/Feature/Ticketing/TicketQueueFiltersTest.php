@@ -14,7 +14,6 @@ use Illuminate\Support\Str;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Models\TicketComment;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
 use Tests\Traits\ParsesCsvDownloads;
@@ -123,10 +122,8 @@ class TicketQueueFiltersTest extends TestCase
 
     public function test_handler_without_assign_keeps_own_scope_under_new_filters(): void
     {
-        $handlerRole = Role::firstOrCreate(['name' => 'ticket-queue-handler', 'guard_name' => 'web']);
-        $handlerRole->syncPermissions(['ticket.view', 'ticket.start', 'ticket.resolve', 'ticket.export']);
         $handler = $this->staff(null);
-        $handler->assignRole($handlerRole);
+        $this->grantPermissions($handler, ['app.web', 'ticket.view', 'ticket.start', 'ticket.resolve', 'ticket.export']);
         $other = $this->staff();
         $soon = ['response_deadline' => now()->addMinutes(10)];
 
@@ -197,7 +194,7 @@ class TicketQueueFiltersTest extends TestCase
     {
         $user = User::factory()->create(['company_id' => $this->admin->company_id, 'email_verified_at' => now(), 'is_active' => true]);
         if ($role !== null) {
-            $user->assignRole($role);
+            $this->grantRole($user, $role);
         }
 
         return $user;
@@ -207,7 +204,7 @@ class TicketQueueFiltersTest extends TestCase
     private function portalCustomer(): array
     {
         $user = User::factory()->create(['company_id' => $this->admin->company_id, 'email_verified_at' => now(), 'is_active' => true]);
-        $user->assignRole('customer');
+        $this->grantRole($user, 'customer');
 
         return [$user, Customer::factory()->create(['company_id' => $this->admin->company_id, 'user_id' => $user->id])];
     }

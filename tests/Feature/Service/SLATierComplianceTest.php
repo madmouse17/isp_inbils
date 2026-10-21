@@ -34,7 +34,7 @@ class SLATierComplianceTest extends TestCase
 
         $company = Company::factory()->create(['is_active' => true]);
         $this->admin = User::factory()->create(['company_id' => $company->id, 'email_verified_at' => now(), 'is_active' => true]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     public function test_index_computes_response_and_resolution_rates_per_tier_over_thirty_days_and_per_company(): void

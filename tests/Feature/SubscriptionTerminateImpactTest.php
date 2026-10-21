@@ -9,7 +9,6 @@ use Modules\Ipam\Services\IpAssignmentService;
 use Modules\Ipam\Services\IpPrefixService;
 use Modules\NetworkAsset\Models\OdnPort;
 use Modules\NetworkAsset\Services\OdnService;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\BuildsIpamOdnFixtures;
 use Tests\Traits\BuildsNetworkFixtures;
@@ -41,7 +40,7 @@ class SubscriptionTerminateImpactTest extends TestCase
         parent::setUp();
 
         $this->withoutVite();
-        $this->bootIpamOdnWorld(withSeededRoles: true);
+        $this->bootIpamOdnWorld();
         $this->fakeRadius();
         $this->net = $this->topology($this->company);
         [, $this->outputs] = $this->splitter($this->net['odp'], 8);
@@ -67,8 +66,7 @@ class SubscriptionTerminateImpactTest extends TestCase
 
     private function userMayOnly(string ...$permissions): void
     {
-        Role::firstOrCreate(['name' => 'impact-reader', 'guard_name' => 'web'])->syncPermissions($permissions);
-        $this->actingAs($this->makeUser($this->company, 'impact-reader'));
+        $this->actingAs($this->makeUserWithPermissions($this->company, $permissions));
     }
 
     public function test_impact_lists_only_what_applies(): void

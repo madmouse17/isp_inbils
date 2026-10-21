@@ -8,8 +8,6 @@ use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class DocumentServerTableExportTest extends TestCase
@@ -35,7 +33,7 @@ class DocumentServerTableExportTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     public function test_index_is_company_scoped_and_searches(): void
@@ -121,10 +119,7 @@ class DocumentServerTableExportTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $role = Role::firstOrCreate(['name' => 'doc-no-export', 'guard_name' => 'web']);
-        Permission::findOrCreate('organization.view', 'web');
-        $role->syncPermissions(['organization.view']);
-        $user->assignRole($role);
+        $this->grantPermissions($user, ['organization.view', 'app.web']);
 
         $this->actingAs($user)
             ->get(route('admin.documents.export', ['format' => 'csv']))

@@ -10,9 +10,9 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Customer surfaces (the web portal and the customer app) are for customer logins only: the customer role and a
- * Customer record linked to the user in the effective company. Everything else is 403, never an empty page. The
- * resolved customer rides on the request so controllers cannot reach another one.
+ * Customer surfaces (the web portal and the customer app) are for customer logins only: the `portal.access` permission
+ * in the effective company and a Customer record linked to the user there. Everything else is 403, never an empty page.
+ * The resolved customer rides on the request so controllers cannot reach another one.
  */
 class EnsureCustomerAccess
 {
@@ -20,24 +20,27 @@ class EnsureCustomerAccess
 
     /**
      * The Customer behind a customer login, or null for anyone else. The company is explicit, not the
-     * authenticated one: the API checks it for a user who is not signed in yet (at login).
+     * authenticated one: the API checks it for a user who is not signed in yet (at login), so the permission
+     * is read inside that company.
      */
     public static function customerFor(User $user): ?Customer
     {
         $companyId = CompanyService::idFor($user);
 
-        if ($companyId === null || ! $user->hasRole('customer')) {
+        if ($companyId === null) {
             return null;
         }
 
-        return Customer::forCompany($companyId)->where('user_id', $user->id)->first();
+        return CompanyService::runAs($companyId, fn (): ?Customer => $user->can('portal.access')
+            ? Customer::forCompany($companyId)->where('user_id', $user->id)->first()
+            : null);
     }
 
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
 
-        abort_unless($user?->hasRole('customer'), 403);
+        abort_unless($user?->can('portal.access'), 403);
 
         $customer = self::customerFor($user);
 

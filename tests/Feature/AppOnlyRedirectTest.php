@@ -31,7 +31,7 @@ class AppOnlyRedirectTest extends TestCase
     private function technician(): User
     {
         $user = User::factory()->create(['company_id' => $this->admin->company_id, 'email_verified_at' => now(), 'is_active' => true]);
-        $user->assignRole('technician');
+        $this->grantRole($user, 'technician');
         EmployeeProfile::factory()->create(['company_id' => $user->company_id, 'user_id' => $user->id, 'status' => 'active']);
 
         return $user;
@@ -71,7 +71,7 @@ class AppOnlyRedirectTest extends TestCase
     public function test_a_technician_who_also_holds_staff_is_not_redirected(): void
     {
         $technician = $this->technician();
-        $technician->assignRole('staff');
+        $this->grantRole($technician, 'staff');
 
         $this->actingAs($technician)->get('/admin/dashboard')->assertOk();
         $this->actingAs($technician)->get(route('app-only'))->assertRedirect(route('admin.dashboard'));
@@ -92,7 +92,7 @@ class AppOnlyRedirectTest extends TestCase
     public function test_the_shared_app_only_flag_matches_the_redirect_rule(): void
     {
         $dual = $this->technician();
-        $dual->assignRole('staff');
+        $this->grantRole($dual, 'staff');
 
         foreach ([[$this->technician(), true], [$this->customer(), true], [$dual, false], [$this->admin, false]] as [$user, $expected]) {
             $this->actingAs($user)->get(route('profile.edit'))
@@ -116,6 +116,45 @@ class AppOnlyRedirectTest extends TestCase
                 ->where('role', 'customer')
                 ->where('appName', 'Inbils Pelanggan')
                 ->where('playStoreUrl', null));
+    }
+
+    public function test_a_login_with_no_role_is_told_to_ask_for_web_access(): void
+    {
+        $user = User::factory()->create(['company_id' => $this->admin->company_id, 'email_verified_at' => now(), 'is_active' => true]);
+
+        $this->actingAs($user)->get('/admin/dashboard')->assertRedirect(route('app-only'));
+        $this->get(route('app-only'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('AppOnly')
+                ->where('role', null)
+                ->where('appName', null)
+                ->where('playStoreUrl', null));
+        $this->get(route('profile.edit'))->assertInertia(fn (Assert $page) => $page->where('appOnly', true));
+    }
+
+    public function test_a_role_without_app_web_is_sent_to_the_app_page_until_app_web_is_granted(): void
+    {
+        $user = $this->grantPermissions(
+            User::factory()->create(['company_id' => $this->admin->company_id, 'email_verified_at' => now(), 'is_active' => true]),
+            ['dashboard.view', 'customer.view'],
+        );
+
+        $this->actingAs($user)->get('/admin/dashboard')->assertRedirect(route('app-only'));
+        $this->get(route('app-only'))->assertInertia(fn (Assert $page) => $page->where('role', null));
+
+        $this->grantPermissions($user, ['app.web']);
+
+        $this->get('/admin/dashboard')->assertOk();
+    }
+
+    public function test_a_login_marked_for_both_apps_is_shown_the_technician_app(): void
+    {
+        $both = $this->technician();
+        $this->grantRole($both, 'customer');
+
+        $this->actingAs($both)->get(route('app-only'))
+            ->assertInertia(fn (Assert $page) => $page->where('role', 'technician')->where('appName', 'Inbils Teknisi'));
     }
 
     public function test_the_app_page_links_the_store_listing_of_the_role(): void

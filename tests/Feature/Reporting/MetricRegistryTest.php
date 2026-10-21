@@ -77,7 +77,7 @@ class MetricRegistryTest extends TestCase
             'company_id' => $admin->company_id,
             'is_active' => true,
         ]);
-        $technician->assignRole('technician');
+        $this->grantRole($technician, 'technician');
         EmployeeProfile::factory()->create([
             'company_id' => $admin->company_id,
             'user_id' => $technician->id,

@@ -140,7 +140,7 @@ class EnforceImpersonation
 
     private function targetsOwnUser(Request $request, ActiveImpersonation $active): bool
     {
-        if (! $request->routeIs('admin.users.update', 'admin.users.destroy', 'admin.users.two-factor.reset')) {
+        if (! $request->routeIs('admin.users.update', 'admin.users.destroy', 'admin.users.two-factor.reset', 'admin.users.roles.update')) {
             return false;
         }
 

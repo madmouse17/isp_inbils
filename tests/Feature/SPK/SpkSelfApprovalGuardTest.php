@@ -32,6 +32,7 @@ class SpkSelfApprovalGuardTest extends TestCase
     {
         [$company, $user, $location, $customer] = $this->scope();
         $user->givePermissionTo(self::PERMISSION);
+        $this->grantPermissions($user, ['app.web'], $company);
 
         $workOrder = WorkOrderFactory::new()->create([
             'company_id' => $company->id,
@@ -52,6 +53,7 @@ class SpkSelfApprovalGuardTest extends TestCase
     {
         [$company, $user, $location, $customer] = $this->scope();
         $user->givePermissionTo(self::PERMISSION);
+        $this->grantPermissions($user, ['app.web'], $company);
 
         $creator = User::factory()->create(['company_id' => $company->id]);
         $workOrder = WorkOrderFactory::new()->create([
@@ -73,6 +75,7 @@ class SpkSelfApprovalGuardTest extends TestCase
     {
         [$company, $manager, $location, $customer] = $this->scope();
         $manager->givePermissionTo(self::PERMISSION);
+        $this->grantPermissions($manager, ['app.web'], $company);
 
         $creator = User::factory()->create(['company_id' => $company->id]);
         $workOrder = WorkOrderFactory::new()->create([
@@ -113,6 +116,7 @@ class SpkSelfApprovalGuardTest extends TestCase
         $companyB = Company::factory()->create();
         $userA = User::factory()->create(['company_id' => $companyA->id]);
         $userA->givePermissionTo(self::PERMISSION);
+        $this->grantPermissions($userA, ['app.web'], $companyA);
 
         $location = Location::create([
             'company_id' => $companyB->id,
@@ -143,6 +147,7 @@ class SpkSelfApprovalGuardTest extends TestCase
     {
         [$company, $user, $location, $customer] = $this->scope();
         $user->givePermissionTo('spk.reject');
+        $this->grantPermissions($user, ['app.web'], $company);
 
         $workOrder = WorkOrderFactory::new()->create([
             'company_id' => $company->id,
@@ -163,6 +168,7 @@ class SpkSelfApprovalGuardTest extends TestCase
     {
         [$company, $user, $location, $customer] = $this->scope();
         $user->givePermissionTo('spk.reject');
+        $this->grantPermissions($user, ['app.web'], $company);
 
         $creator = User::factory()->create(['company_id' => $company->id]);
         $workOrder = WorkOrderFactory::new()->create([
@@ -184,6 +190,7 @@ class SpkSelfApprovalGuardTest extends TestCase
     {
         [$company, $user, $location, $customer] = $this->scope();
         $user->givePermissionTo('spk.reject');
+        $this->grantPermissions($user, ['app.web'], $company);
 
         $creator = User::factory()->create(['company_id' => $company->id]);
         $workOrder = WorkOrderFactory::new()->create([

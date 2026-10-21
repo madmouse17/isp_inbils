@@ -2,20 +2,24 @@
 
 namespace App\Rules;
 
+use App\Models\Role;
 use App\Models\User;
+use App\Support\PermissionCatalogue;
 use App\Support\SodConflicts;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Spatie\Permission\Models\Role;
 
-/** Rejects a role set whose merged permissions break the SoD conflict set (manager + staff stacking) unless the actor is an administrator. */
+/**
+ * Rejects a role set whose merged permissions break the SoD conflict set (manager + staff stacking) unless the actor
+ * holds roles.manage, the company administrator. The names are looked up as roles of the current company.
+ */
 class NoStackedSodConflict implements ValidationRule
 {
     public function __construct(private readonly ?User $actor) {}
 
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
-        if ($this->actor?->hasRole('admin')) {
+        if ($this->actor?->can(PermissionCatalogue::ADMINISTRATION)) {
             return;
         }
 

@@ -32,7 +32,7 @@ class CategoryUnitInheritanceTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     public function test_product_store_inherits_unit_from_category(): void

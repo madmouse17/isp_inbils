@@ -10,8 +10,9 @@ use Modules\Reporting\Queries\TechnicianPerformanceQuery;
 /**
  * Who may open the Technician Performance report, and for which technician. The report screen, its
  * export and its drill-down lists all resolve their target here, so none can see more than the
- * screen does: admin (`report.manage`) any technician of the company, a manager the technicians of
- * their own organization unit subtree, a technician only themself.
+ * screen does: `report.manage` any technician of the company, `report.technician.team` the technicians of the actor's
+ * own organization unit subtree, `app.technician` the actor themself only. Role names play no part: a company may
+ * rename its roles.
  */
 final class TechnicianReportAccess
 {
@@ -41,7 +42,7 @@ final class TechnicianReportAccess
             return $companyId;
         }
 
-        if ($actor->hasRole('manager') && $actor->can('report.technician')) {
+        if ($actor->can('report.technician.team') && $actor->can('report.technician')) {
             $profile = EmployeeProfile::query()
                 ->where('employee_profiles.company_id', $companyId)
                 ->where('employee_profiles.user_id', $actor->id)
@@ -56,7 +57,7 @@ final class TechnicianReportAccess
             return self::isValidOrganizationPath($profile?->organization?->path) ? $companyId : null;
         }
 
-        return $actor->hasRole('technician') && $actor->can('report.technician') ? $companyId : null;
+        return $actor->can('app.technician') && $actor->can('report.technician') ? $companyId : null;
     }
 
     /**
@@ -67,7 +68,7 @@ final class TechnicianReportAccess
     public static function target(User $actor, ?string $requestedId): ?User
     {
         if ($requestedId === null) {
-            $technician = $actor->hasRole('technician') ? $actor : null;
+            $technician = $actor->can('app.technician') ? $actor : null;
         } else {
             $technician = User::query()->wherePublicId($requestedId)->first();
             abort_if($technician === null, 403);

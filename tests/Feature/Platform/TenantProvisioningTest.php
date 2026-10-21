@@ -5,8 +5,10 @@ namespace Tests\Feature\Platform;
 use App\Events\CompanyCreated;
 use App\Jobs\Platform\SeedTenantDemoDataJob;
 use App\Models\Core\Company;
+use App\Models\Role;
 use App\Models\User;
 use App\Notifications\Platform\TenantAdminInvitation;
+use App\Services\Core\CompanyService;
 use DateTimeZone;
 use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -117,8 +119,9 @@ class TenantProvisioningTest extends TestCase
         $this->assertSame($company->id, $admin->company_id);
         $this->assertTrue($admin->is_active);
         $this->assertNotNull($admin->email_verified_at);
-        $this->assertTrue($admin->hasRole('admin'));
-        $this->assertSame(['admin'], $admin->getRoleNames()->all());
+        $this->assertSame(['admin'], DB::table('model_has_roles')->join('roles', 'roles.id', '=', 'model_has_roles.role_id')->where('model_has_roles.model_id', $admin->id)->where('roles.company_id', $company->id)->pluck('roles.template_key')->all());
+        $this->assertTrue(CompanyService::runAs($company->id, fn (): bool => $admin->can('roles.manage') && $admin->can('app.web')), 'he administers the company he was provisioned for');
+        $this->assertSame(8, Role::forCompany($company->id)->whereNotNull('template_key')->count(), 'the company got a copy of every template');
         $this->assertTrue(Hash::isHashed($admin->getRawOriginal('password')), 'a random password, hashed: nobody knows it');
         $this->assertSame(1, DB::table('company_user')->where(['user_id' => $admin->id, 'company_id' => $company->id, 'is_default' => 1])->count());
 

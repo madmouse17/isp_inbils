@@ -196,7 +196,7 @@ class TicketPolicy
 
     private function isCustomerUser(User $user): bool
     {
-        return $user->hasRole('customer');
+        return $user->can('portal.access');
     }
 
     private function ownsTicket(User $user, Ticket $ticket): bool

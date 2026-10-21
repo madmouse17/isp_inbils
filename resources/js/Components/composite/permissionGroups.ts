@@ -7,6 +7,25 @@ import { navGroups } from '@/lib/navigation';
 export interface PermissionOption {
     name: string;
     group: string;
+    /** `false` when the user may not give this permission to a role (he does not hold it); absent means he may. */
+    grantable?: boolean;
+}
+
+export function isGrantable(permission: PermissionOption): boolean {
+    return permission.grantable !== false;
+}
+
+/** Splits permission names into those the user may give and those he may not (or that nobody knows). */
+export function splitGrantable(
+    names: readonly string[],
+    permissions: PermissionOption[],
+): { granted: string[]; skipped: string[] } {
+    const grantable = new Set(permissions.filter(isGrantable).map(({ name }) => name));
+
+    return {
+        granted: names.filter((name) => grantable.has(name)),
+        skipped: names.filter((name) => !grantable.has(name)),
+    };
 }
 
 const OTHER_SECTION = 'Lainnya';
@@ -95,6 +114,7 @@ export function groupPermissions(permissions: PermissionOption[]) {
     );
 }
 
+/** Selects or clears the grantable permissions of a list; one the user may not give is never touched. */
 export function setGroupPermissions(
     selected: string[],
     permissions: PermissionOption[],
@@ -102,7 +122,7 @@ export function setGroupPermissions(
 ): string[] {
     const next = new Set(selected);
 
-    for (const permission of permissions) {
+    for (const permission of permissions.filter(isGrantable)) {
         if (checked) {
             next.add(permission.name);
         } else {

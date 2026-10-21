@@ -7,7 +7,6 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 use Tests\Traits\BuildsCompanyGroup;
@@ -132,21 +131,27 @@ class UserTwoFactorResetTest extends TestCase
         $this->assertTrue($shared->fresh()->hasTwoFactorEnabled());
     }
 
-    public function test_a_non_admin_holding_the_permission_may_reset_others_but_never_an_admin(): void
+    public function test_a_non_admin_holding_the_permission_may_reset_only_users_he_covers(): void
     {
-        Role::findByName('manager')->givePermissionTo('users.two_factor.reset');
+        $this->companyRoles($this->head)['manager']->givePermissionTo('users.two_factor.reset');
         app(PermissionRegistrar::class)->forgetCachedPermissions();
         $manager = $this->groupUser($this->head, 'manager');
+        $peer = $this->groupUser($this->head, 'manager');
         $staff = $this->groupUser($this->head, 'staff');
         $admin = $this->groupUser($this->head);
+        $this->enrollTwoFactor($peer);
         $this->enrollTwoFactor($staff);
         $this->enrollTwoFactor($admin);
 
-        $this->actingAs($manager)->post(route('admin.users.two-factor.reset', $admin))->assertForbidden();
-        $this->assertTrue($admin->fresh()->hasTwoFactorEnabled());
+        // His reach ends where his own permissions end (D3): an administrator, and Staf with execution permissions a manager
+        // lacks, are not his to reset.
+        foreach ([$admin, $staff] as $richer) {
+            $this->actingAs($manager)->post(route('admin.users.two-factor.reset', $richer))->assertForbidden();
+            $this->assertTrue($richer->fresh()->hasTwoFactorEnabled());
+        }
 
-        $this->post(route('admin.users.two-factor.reset', $staff))->assertRedirect();
-        $this->assertFalse($staff->fresh()->hasTwoFactorEnabled());
+        $this->post(route('admin.users.two-factor.reset', $peer))->assertRedirect();
+        $this->assertFalse($peer->fresh()->hasTwoFactorEnabled());
     }
 
     public function test_a_user_homed_in_another_company_is_not_found(): void

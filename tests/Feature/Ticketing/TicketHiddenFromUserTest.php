@@ -42,7 +42,7 @@ class TicketHiddenFromUserTest extends TestCase
 
         $this->admin = $this->createCompanyUser();
         $this->technician = User::factory()->create(['company_id' => $this->admin->company_id, 'is_active' => true, 'email_verified_at' => now()]);
-        $this->technician->assignRole('technician');
+        $this->grantRole($this->technician, 'technician');
         $this->ticket = $this->makeOpenTicket();
     }
 

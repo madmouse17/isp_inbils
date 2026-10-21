@@ -91,7 +91,7 @@ class DocumentTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $otherAdmin->assignRole('admin');
+        $this->grantRole($otherAdmin, 'admin');
         $this->actingAs($otherAdmin);
         CompanyService::resetCache();
         $media = DocumentService::upload($otherCustomer, $file);
@@ -155,7 +155,7 @@ class DocumentTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $otherAdmin->assignRole('admin');
+        $this->grantRole($otherAdmin, 'admin');
         $this->actingAs($otherAdmin);
         CompanyService::resetCache();
         $media = DocumentService::upload($otherCustomer, UploadedFile::fake()->create('owner.pdf', 120, 'application/pdf'));
@@ -209,6 +209,7 @@ class DocumentTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
+        $this->grantPermissions($noPermUser, ['app.web']);
 
         $response = $this->actingAs($noPermUser)->post(route('admin.documents.media.store'), [
             'model_type' => Customer::class,
@@ -303,6 +304,7 @@ class DocumentTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
+        $this->grantPermissions($noPermUser, ['app.web']);
 
         $response = $this->actingAs($noPermUser)->delete(route('admin.documents.destroy', $dt->public_id));
         $response->assertForbidden();

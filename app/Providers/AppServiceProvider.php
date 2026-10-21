@@ -12,6 +12,7 @@ use App\Models\Core\NumberSequence;
 use App\Models\Core\OrganizationUnit;
 use App\Models\Core\ServiceSubscription;
 use App\Models\Core\Vehicle;
+use App\Models\Role;
 use App\Models\User;
 use App\Notifications\Channels\CompanyMailChannel;
 use App\Policies\CompanyPolicy;
@@ -30,6 +31,7 @@ use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Services\Platform\ActiveImpersonation;
 use App\Services\WhatsApp\WhatsAppCloudClient;
+use App\Support\CompanyPermissionRegistrar;
 use App\Support\NumberSequences\NumberSequenceDefinition;
 use App\Support\NumberSequences\NumberSequenceRegistry;
 use App\Support\PublicId;
@@ -43,10 +45,12 @@ use Dedoc\Scramble\Support\RouteInfo;
 use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Cache\RateLimiting\Unlimited;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\Channels\MailChannel;
+use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -103,7 +107,7 @@ use Modules\Ticketing\Policies\TicketPolicy;
 use Psr\Http\Message\RequestInterface;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
-use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -122,6 +126,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Every notification's mail goes through the company's own SMTP account when it has one (CompanyMailChannel).
         $this->app->bind(MailChannel::class, CompanyMailChannel::class);
+
+        // Roles belong to companies, the package's permission cache holds all of them in one entry (ADR-004).
+        $this->app->extend(PermissionRegistrar::class, fn (PermissionRegistrar $registrar, Application $app): PermissionRegistrar => new CompanyPermissionRegistrar($app->make('cache')));
     }
 
     /**
@@ -176,6 +183,10 @@ class AppServiceProvider extends ServiceProvider
         $this->configureApiDocumentation();
         $this->registerRequestCorrelation();
 
+        // A queue worker lives for hours, and the package keeps its permission map in memory for the life of the process:
+        // a role changed on the web would still pass in a job. Every job reads the shared cache instead (ADR-004).
+        Event::listen(JobProcessing::class, static fn () => app(PermissionRegistrar::class)->clearPermissionsCollection());
+
         Activity::saving(function (Activity $activity) {
             $subject = $activity->relationLoaded('subject')
                 ? $activity->getRelation('subject')
@@ -208,7 +219,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         // Package models cannot use HasPublicId; their rows take the same id when they are created.
-        foreach ([Role::class, Media::class, Activity::class, PersonalAccessToken::class] as $packageModel) {
+        foreach ([Media::class, Activity::class, PersonalAccessToken::class] as $packageModel) {
             $packageModel::creating(static function (Model $row): void {
                 $row->setAttribute('public_id', $row->getAttribute('public_id') ?? PublicId::new());
             });

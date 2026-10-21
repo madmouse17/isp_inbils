@@ -250,6 +250,7 @@ class TenantSafeWriteReferenceTest extends TestCase
     {
         $user = $this->createCompanyUser();
         $user->givePermissionTo(Permission::findOrCreate('subscription.create', 'web'));
+        $this->grantPermissions($user, ['app.web']);
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
         $this->actingAs($user->fresh());
 
@@ -277,6 +278,7 @@ class TenantSafeWriteReferenceTest extends TestCase
     {
         $user = $this->createCompanyUser();
         $user->givePermissionTo(Permission::findOrCreate('ticket.create', 'web'));
+        $this->grantPermissions($user, ['app.web']);
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
         $this->actingAs($user->fresh());
 

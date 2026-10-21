@@ -8,8 +8,6 @@ use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class VehicleServerTableExportTest extends TestCase
@@ -35,7 +33,7 @@ class VehicleServerTableExportTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     private function makeVehicle(int $companyId, string $plate, string $brand = 'Toyota'): Vehicle
@@ -94,10 +92,7 @@ class VehicleServerTableExportTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $role = Role::firstOrCreate(['name' => 'vehicles-no-export', 'guard_name' => 'web']);
-        Permission::findOrCreate('vehicles.view', 'web');
-        $role->syncPermissions(['vehicles.view']);
-        $user->assignRole($role);
+        $this->grantPermissions($user, ['vehicles.view', 'app.web']);
 
         $this->actingAs($user)
             ->get(route('admin.vehicles.export', ['format' => 'csv']))

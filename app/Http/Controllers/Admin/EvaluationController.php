@@ -108,10 +108,13 @@ class EvaluationController extends Controller
             ->when($request->input('reference_type'), fn ($q, $value) => $q->where('reference_type', $value))
             ->when($request->input('search'), fn ($q, $value) => $q->whereHas('employee', fn ($employee) => $employee->where('name', 'like', "%{$value}%")));
 
-        if ($request->user()?->hasRole('technician')) {
-            $query->where('employee_id', $request->user()->id);
+        $user = $request->user();
+
+        // Without evaluation.view (only evaluation.view.own) a person reads their own evaluations alone.
+        if ($user !== null && ! $user->can('evaluation.view')) {
+            $query->where('employee_id', $user->id);
         } else {
-            // A technician reads only the evaluations that stand: the ones management deleted stay out of sight.
+            // Management reads the evaluations that stand, or the deleted ones it asks for.
             $query->lifecycleStatus($request->input('status'));
         }
 
@@ -158,7 +161,7 @@ class EvaluationController extends Controller
     /**
      * The form as a closed ticket opens it: the ticket and its handler, ready to be rated. Anything else (no ticket asked
      * for, one that is unknown, of another company, unfinished or unassigned) is the plain form, never an error. A handler
-     * the form cannot rate (gone, inactive, no evaluable role) leaves the employee to be picked.
+     * the form cannot rate (gone, inactive, not evaluable) leaves the employee to be picked.
      *
      * @return array{employee: array{value: string, label: string, description: string}|null, reference_type: 'Ticket', reference: array{value: string, label: string, description: string}}|null
      */
@@ -280,20 +283,21 @@ class EvaluationController extends Controller
                     ->select('user_id'),
             )
             ->where('users.is_active', true)
-            ->whereHas('roles', fn (Builder $query) => $query->whereIn('name', EmployeeEvaluation::EVALUABLE_ROLES));
+            ->withPermissionIn('evaluation.evaluable', $companyId);
     }
 
     /**
-     * The employees the list's filter may name. A technician reads only their own evaluations (see `filteredQuery`),
-     * so the filter holds only themselves: never the names and emails of their colleagues.
+     * The employees the list's filter may name. Someone without `evaluation.view` reads only their own evaluations (see
+     * `filteredQuery`), so the filter holds only themselves: never the names and emails of their colleagues.
      *
      * @return Builder<User>
      */
     private function filterableEmployees(Request $request): Builder
     {
         $employees = $this->employeeQuery();
+        $user = $request->user();
 
-        return $request->user()?->hasRole('technician') ? $employees->whereKey($request->user()->id) : $employees;
+        return $user !== null && ! $user->can('evaluation.view') ? $employees->whereKey($user->id) : $employees;
     }
 
     /** @param  Builder<User>  $employees */

@@ -4,7 +4,7 @@ namespace Modules\Ticketing\Http\Requests;
 
 use App\Http\Requests\Concerns\ResolvesPublicIds;
 use App\Models\User;
-use App\Rules\HasAnyActiveRole;
+use App\Rules\HoldsPermission;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -39,7 +39,7 @@ class AssignTicketRequest extends FormRequest
             'handler_id' => [
                 'required',
                 Rule::exists('users', 'id')->where('company_id', $companyId),
-                new HasAnyActiveRole(['admin', 'manager', 'noc', 'staff', 'technician']),
+                new HoldsPermission(['ticket.start', 'ticket.resolve', 'ticket.close']),
             ],
             'expected_assigned_to' => ['present', 'nullable', 'integer'],
             'expected_updated_at' => ['required', 'string', 'date_format:Y-m-d\\TH:i:s.v\\Z'],

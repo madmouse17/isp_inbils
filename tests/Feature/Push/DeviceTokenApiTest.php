@@ -91,7 +91,7 @@ class DeviceTokenApiTest extends TestCase
     public function test_a_customer_registers_for_the_customer_app_and_a_user_of_both_apps_keeps_one_token_per_install(): void
     {
         [$user] = $this->customerLogin();
-        $user->assignRole('technician');
+        $this->grantRole($user, 'technician');
         EmployeeProfile::factory()->create(['company_id' => $user->company_id, 'user_id' => $user->id, 'status' => 'active']);
 
         $this->api('POST', 'me/device-token', $this->body(['app' => 'customer', 'token' => 'customer-install-token']), $this->issueToken($user, 'customer'))->assertCreated();

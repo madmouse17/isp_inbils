@@ -3,9 +3,8 @@
 namespace App\Http\Requests\Admin;
 
 use App\Http\Requests\Concerns\ResolvesPublicIds;
-use App\Models\Core\EmployeeEvaluation;
 use App\Models\User;
-use App\Rules\HasAnyActiveRole;
+use App\Rules\HoldsPermission;
 use App\Rules\PolymorphicBelongsToCompany;
 use App\Services\Core\CompanyService;
 use Illuminate\Database\Eloquent\Model;
@@ -46,7 +45,7 @@ class StoreEvaluationRequest extends FormRequest
                 Rule::exists('users', 'id')->where(fn (Builder $query) => $query
                     ->where('is_active', true)
                     ->whereIn('id', DB::table('company_user')->where('company_id', $companyId)->select('user_id'))),
-                new HasAnyActiveRole(EmployeeEvaluation::EVALUABLE_ROLES),
+                new HoldsPermission(['evaluation.evaluable']),
             ],
             'reference_type' => ['required', Rule::in(array_keys(self::referenceMap()))],
             'reference_id' => ['required', 'integer', new PolymorphicBelongsToCompany(self::referenceMap(), 'reference_type')],

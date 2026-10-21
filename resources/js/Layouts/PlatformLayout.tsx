@@ -47,7 +47,7 @@ export default function PlatformLayout({ title, children }: PlatformLayoutProps)
     const path = url.split('?')[0].replace(/\/$/, '') || '/';
     const dashboard = route('platform.dashboard', undefined, false);
     const companyCreate = route('platform.companies.create', undefined, false);
-    const roles = route('platform.roles.index', undefined, false);
+    const roleTemplates = route('platform.role-templates.index', undefined, false);
     const exportsIndex = route('platform.exports.index', undefined, false);
     const audit = route('platform.audit.index', undefined, false);
     const companyPrefix = `${companyCreate.slice(0, -'/create'.length)}/`;
@@ -67,10 +67,10 @@ export default function PlatformLayout({ title, children }: PlatformLayoutProps)
             active: path === companyCreate,
         },
         {
-            label: 'Peran & hak akses',
-            href: roles,
+            label: 'Templat peran',
+            href: roleTemplates,
             icon: KeyRound,
-            active: path === roles || path.startsWith(`${roles}/`),
+            active: path === roleTemplates || path.startsWith(`${roleTemplates}/`),
         },
         {
             label: 'Ekspor',

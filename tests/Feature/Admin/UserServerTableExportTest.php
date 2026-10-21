@@ -12,7 +12,6 @@ use Modules\Billing\Models\Invoice;
 use Modules\SPK\Models\WorkOrder;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class UserServerTableExportTest extends TestCase
@@ -40,7 +39,7 @@ class UserServerTableExportTest extends TestCase
             'name' => 'Admin Owner',
             'email' => 'admin-owner@example.test',
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin', $company);
     }
 
     public function test_index_is_company_scoped_and_filterable(): void
@@ -224,6 +223,7 @@ class UserServerTableExportTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
+        $this->grantPermissions($user, ['app.web']);
 
         $this->actingAs($user)
             ->get(route('admin.users.show', $user))
@@ -290,9 +290,7 @@ class UserServerTableExportTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $role = Role::firstOrCreate(['name' => 'user-view-only', 'guard_name' => 'web']);
-        $role->syncPermissions([]);
-        $user->assignRole($role);
+        $this->grantPermissions($user, ['app.web'], $this->admin->company_id);
 
         $this->actingAs($user)
             ->get(route('admin.users.export', ['format' => 'csv']))

@@ -25,8 +25,6 @@ use Modules\SPK\Notifications\TechnicianEnRouteNotification;
 use Modules\SPK\Notifications\VisitCompletedNotification;
 use Modules\SPK\Services\SpkService;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
@@ -283,9 +281,7 @@ class WorkOrderSnapshotTest extends TestCase
         $foreign->delete();
 
         $planner = User::factory()->create(['company_id' => $this->admin->company_id, 'email_verified_at' => now(), 'is_active' => true]);
-        $role = Role::firstOrCreate(['name' => 'spk-planner', 'guard_name' => 'web']);
-        $role->syncPermissions([Permission::findOrCreate('spk.view', 'web'), Permission::findOrCreate('spk.update', 'web')]);
-        $planner->assignRole($role);
+        $this->grantPermissions($planner, ['app.web', 'spk.view', 'spk.update']);
 
         $this->actingAs($planner)->post(route('admin.spk.restore', $workOrder->public_id))->assertForbidden();
         $this->assertSoftDeleted($workOrder);

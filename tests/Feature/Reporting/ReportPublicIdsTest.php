@@ -19,7 +19,6 @@ use Modules\Inventory\Models\Unit;
 use Modules\Service\Models\ServicePackageCategory;
 use Modules\Ticketing\Models\TicketCategory;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\BuildsReportingWorld;
 use Tests\Traits\CreatesReportingUsers;
@@ -175,7 +174,7 @@ class ReportPublicIdsTest extends TestCase
     public function test_the_technician_filter_refuses_an_integer_and_forbids_an_unknown_or_foreign_technician(): void
     {
         $foreign = User::factory()->create(['company_id' => $this->userWithRole('admin')->company_id, 'is_active' => true]);
-        $foreign->assignRole(Role::findByName('technician'));
+        $this->grantRole($foreign, 'technician');
 
         $this->getJson(route('admin.reports.technician', ['technician_id' => (string) $this->technician->id]))->assertUnprocessable();
         $this->getJson(route('admin.reports.technician', ['technician_id' => PublicId::new()]))->assertForbidden();
@@ -245,7 +244,7 @@ class ReportPublicIdsTest extends TestCase
         $company = $this->companyId;
 
         $this->technician = User::factory()->create(['company_id' => $company, 'is_active' => true, 'email_verified_at' => now(), 'name' => 'Teknisi Satu']);
-        $this->technician->assignRole(Role::findByName('technician'));
+        $this->grantRole($this->technician, 'technician');
         EmployeeProfile::factory()->create(['company_id' => $company, 'user_id' => $this->technician->id, 'status' => 'active']);
         // An acquirer of the sales report is an active employee with customer.create; a member is what the audit log's user filter takes.
         EmployeeProfile::factory()->create(['company_id' => $company, 'user_id' => $this->admin->id, 'status' => 'active']);

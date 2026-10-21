@@ -10,9 +10,9 @@ use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use App\Notifications\CustomerAccountCreated;
+use App\Services\Core\CompanyService;
 use App\Services\Core\CustomerService;
 use App\Support\OptimisticLock;
-use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +23,6 @@ use Inertia\Testing\AssertableInertia as Assert;
 use Modules\Service\Database\Factories\ServicePackageFactory;
 use Modules\Service\Models\ServicePackage;
 use Modules\SPK\Models\WorkOrder;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\AllowsManualCodes;
 
@@ -44,8 +43,6 @@ class CustomerAccountCreationTest extends TestCase
     {
         parent::setUp();
 
-        $this->seed(RolePermissionSeeder::class);
-        app()['cache']->forget('spatie.permission.cache');
         $this->seedRegion();
 
         $this->company = Company::factory()->create(['is_active' => true]);
@@ -55,7 +52,7 @@ class CustomerAccountCreationTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $this->admin->assignRole(Role::where('name', 'admin')->firstOrFail());
+        $this->grantRole($this->admin, 'admin', $this->company);
         $this->package = ServicePackageFactory::new()->create([
             'company_id' => $this->company->id,
             'price_mrc' => 250000,
@@ -85,7 +82,8 @@ class CustomerAccountCreationTest extends TestCase
         $this->assertSame($user->id, $customer->user_id);
         $this->assertSame($this->company->id, $user->company_id);
         $this->assertFalse(Hash::check('0800000001', $user->password));
-        $this->assertTrue($user->hasRole('customer'));
+        $this->assertSame(['customer'], CompanyService::runAs($this->company->id, fn (): array => $user->roles->pluck('template_key')->all()), 'the account holds its company\'s copy of the Pelanggan template');
+        $this->assertTrue(CompanyService::runAs($this->company->id, fn (): bool => $user->can('portal.access')));
     }
 
     public function test_customer_phone_number_does_not_log_in(): void
@@ -212,9 +210,7 @@ class CustomerAccountCreationTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $role = Role::create(['name' => 'customer-viewer', 'guard_name' => 'web']);
-        $role->givePermissionTo('customer.view');
-        $viewer->assignRole($role);
+        $this->grantRole($viewer, $this->companyRole($this->company, 'customer-viewer', ['app.web', 'customer.view']));
         Notification::fake();
 
         $this->actingAs($viewer)->post(route('admin.customers.access-link', $customer))->assertForbidden();
@@ -302,9 +298,7 @@ class CustomerAccountCreationTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $role = Role::create(['name' => 'customer-creator', 'guard_name' => 'web']);
-        $role->givePermissionTo('customer.create');
-        $creator->assignRole($role);
+        $this->grantRole($creator, $this->companyRole($this->company, 'customer-creator', ['app.web', 'customer.create']));
 
         $this->actingAs($creator)
             ->post(route('admin.customers.store'), $this->payload())

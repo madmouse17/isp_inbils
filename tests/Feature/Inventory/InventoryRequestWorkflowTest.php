@@ -88,25 +88,25 @@ class InventoryRequestWorkflowTest extends TestCase
             'company_id' => $this->companyA->id,
             'email' => 'tech@comp-a.local',
         ]);
-        $this->technician->assignRole('technician');
+        $this->grantRole($this->technician, 'technician');
 
         $this->staffWarehouse = User::factory()->create([
             'company_id' => $this->companyA->id,
             'email' => 'warehouse@comp-a.local',
         ]);
-        $this->staffWarehouse->assignRole('staff');
+        $this->grantRole($this->staffWarehouse, 'staff');
 
         $this->managerApprover = User::factory()->create([
             'company_id' => $this->companyA->id,
             'email' => 'manager@comp-a.local',
         ]);
-        $this->managerApprover->assignRole('manager');
+        $this->grantRole($this->managerApprover, 'manager');
 
         $this->adminUser = User::factory()->create([
             'company_id' => $this->companyA->id,
             'email' => 'admin@comp-a.local',
         ]);
-        $this->adminUser->assignRole('admin');
+        $this->grantRole($this->adminUser, 'admin');
     }
 
     public function test_create_page_offers_products_through_the_picker_with_their_sku(): void
@@ -382,7 +382,7 @@ class InventoryRequestWorkflowTest extends TestCase
             'company_id' => $this->companyB->id,
             'email' => 'tech-b@comp-b.local',
         ]);
-        $technicianB->assignRole('technician');
+        $this->grantRole($technicianB, 'technician');
 
         $reqA = InventoryRequest::create([
             'company_id' => $this->companyA->id,
@@ -410,7 +410,7 @@ class InventoryRequestWorkflowTest extends TestCase
     public function test_a_peer_technician_gets_404_on_a_request_that_is_not_theirs_and_staff_who_sees_it_gets_403(): void
     {
         $peer = User::factory()->create(['company_id' => $this->companyA->id]);
-        $peer->assignRole('technician');
+        $this->grantRole($peer, 'technician');
         $req = $this->submittedRequest('REQ-PEER-001');
 
         // The technician role sees only its own requests: another one is as good as unknown, for the page and for the action.
@@ -866,7 +866,7 @@ class InventoryRequestWorkflowTest extends TestCase
         ]);
 
         $technician2 = User::factory()->create(['company_id' => $this->companyA->id]);
-        $technician2->assignRole('technician');
+        $this->grantRole($technician2, 'technician');
 
         $readyReq = InventoryRequest::create([
             'company_id' => $this->companyA->id,

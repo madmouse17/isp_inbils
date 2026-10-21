@@ -8,8 +8,6 @@ use App\Services\Core\NumberSequenceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use RuntimeException;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class NetworkAssetCodeGapTest extends TestCase
@@ -22,15 +20,13 @@ class NetworkAssetCodeGapTest extends TestCase
 
         $this->withoutVite();
         app()['cache']->forget('spatie.permission.cache');
-        Permission::firstOrCreate(['name' => 'network_asset.create'], ['guard_name' => 'web']);
-        Role::firstOrCreate(['name' => 'admin'], ['guard_name' => 'web'])->givePermissionTo('network_asset.create');
 
         $admin = User::factory()->create([
             'company_id' => Company::factory()->create(['is_active' => true])->id,
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $admin->assignRole('admin');
+        $this->grantPermissions($admin, ['network_asset.create', 'app.web']);
         $this->actingAs($admin);
     }
 

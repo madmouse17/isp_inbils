@@ -21,7 +21,6 @@ use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
@@ -399,13 +398,12 @@ class ServiceMasterLifecycleTest extends TestCase
     private function user(string $role, array $permissions = []): User
     {
         $user = User::factory()->create(['company_id' => $this->company->id, 'email_verified_at' => now(), 'is_active' => true]);
-        $record = Role::firstOrCreate(['name' => $role, 'guard_name' => 'web']);
 
-        if ($permissions !== []) {
-            $record->syncPermissions($permissions);
-        }
-
-        return $user->assignRole($record);
+        return $this->grantRole(
+            $user,
+            $permissions === [] ? $role : $this->companyRole($this->company, $role, ['app.web', ...$permissions]),
+            $this->company,
+        );
     }
 
     /** @param  array<string, mixed>  $attributes */

@@ -32,6 +32,20 @@ Only persistent actions (save/delete) use `router.visit`.
 - Global UI: Toast via `useToast`. Dark mode via `localStorage`.
 - NO Redux/Zustand/Jotai. NO React Query/SWR. NO axios/fetch.
 
+## Roles and permissions
+
+- Roles belong to a company (`roles.company_id`, model `App\Models\Role` with
+  `BelongsToCompany`); permissions are one catalogue in code
+  (`App\Support\PermissionCatalogue`). Spatie runs with `teams=false`.
+- Business rules check permissions, never role names. Audience markers:
+  `app.web`, `app.technician`, `portal.access`, `evaluation.evaluable`.
+- Code without a signed-in user of the company (login API, jobs, commands)
+  checks permissions inside `CompanyService::runAs()` or with
+  `User::withPermissionIn()`; staff notices use `StaffRecipients::holding()`.
+- Tenant roles are managed by `roles.manage` holders through
+  `CompanyRoleService`; the platform keeps templates and repairs company roles.
+  Decision: `docs/architecture/decisions/ADR-004-tenant-scoped-roles.md`.
+
 ## Request Flow
 
 ```
@@ -73,7 +87,8 @@ Browser → HTTP GET /admin/network-assets
 
 ## Caching & Queue
 
-- Cache: permission cache (spatie), setting cache (array driver), route
+- Cache: permission cache (spatie; one global key holding every company's
+  roles, flushed on every role write), setting cache (array driver), route
   cache (prod). Do NOT cache fast-changing business data (stock, asset
   status).
 - Queue: `database` driver (dev), Redis (prod). Jobs:

@@ -26,10 +26,12 @@ use Modules\SPK\Services\SpkService;
 use Spatie\Permission\Models\Permission;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 class MaterialReturnWorkflowTest extends TestCase
 {
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     protected function setUp(): void
     {

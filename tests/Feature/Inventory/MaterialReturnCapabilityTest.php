@@ -21,10 +21,12 @@ use Modules\Inventory\Models\Unit;
 use Modules\Inventory\Services\InventoryRequestService;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 class MaterialReturnCapabilityTest extends TestCase
 {
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     private Company $company;
 

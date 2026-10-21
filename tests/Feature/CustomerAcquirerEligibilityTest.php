@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Core\Company;
 use App\Queries\Admin\CustomerAcquirerQuery;
 use App\Rules\IsEligibleCustomerAcquirer;
+use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
 use Tests\TestCase;
@@ -45,7 +46,7 @@ class CustomerAcquirerEligibilityTest extends TestCase
 
         $this->assertEqualsCanonicalizing(
             [$viaRole->id, $viaDirectPermission->id],
-            CustomerAcquirerQuery::eligible($this->company->id)->pluck('id')->all(),
+            CompanyService::runAs($this->company->id, fn (): array => CustomerAcquirerQuery::eligible($this->company->id)->pluck('id')->all()),
         );
     }
 
@@ -53,28 +54,30 @@ class CustomerAcquirerEligibilityTest extends TestCase
     {
         $foreign = $this->employee('manager', $this->otherCompany);
 
-        $this->assertFalse(CustomerAcquirerQuery::isEligible($this->company->id, $foreign->id));
-        $this->assertTrue(CustomerAcquirerQuery::isEligible($this->otherCompany->id, $foreign->id));
-        $this->assertFalse(CustomerAcquirerQuery::isEligible($this->company->id, 987654));
+        $isEligible = fn (Company $company, int $userId): bool => CompanyService::runAs($company->id, fn (): bool => CustomerAcquirerQuery::isEligible($company->id, $userId));
+
+        $this->assertFalse($isEligible($this->company, $foreign->id));
+        $this->assertTrue($isEligible($this->otherCompany, $foreign->id));
+        $this->assertFalse($isEligible($this->company, 987654));
     }
 
     public function test_options_are_sorted_by_name_and_expose_only_display_fields(): void
     {
         $zed = $this->employee('manager', attributes: ['name' => 'Zed Seller'], profile: ['employee_number' => 'EMP-Z']);
-        $amy = $this->employee('staff', attributes: ['name' => 'Amy Seller'], profile: ['employee_number' => 'EMP-A']);
+        $amy = $this->employee('noc', attributes: ['name' => 'Amy Seller'], profile: ['employee_number' => 'EMP-A']);
         $this->employee('technician');
         $this->employee('manager', $this->otherCompany, ['name' => 'Foreign Seller']);
 
         $this->assertSame([
             ['id' => $amy->public_id, 'name' => 'Amy Seller', 'is_active' => true, 'employee_number' => 'EMP-A'],
             ['id' => $zed->public_id, 'name' => 'Zed Seller', 'is_active' => true, 'employee_number' => 'EMP-Z'],
-        ], CustomerAcquirerQuery::options($this->company->id));
+        ], CompanyService::runAs($this->company->id, fn (): array => CustomerAcquirerQuery::options($this->company->id)));
     }
 
     public function test_filter_options_add_historical_acquirers_without_leaking_foreign_users(): void
     {
         $eligible = $this->employee('manager', attributes: ['name' => 'Eligible Seller'], profile: ['employee_number' => 'EMP-E']);
-        $former = $this->employee('staff', attributes: ['name' => 'Former Seller', 'is_active' => false]);
+        $former = $this->employee('noc', attributes: ['name' => 'Former Seller', 'is_active' => false]);
         $foreignSeller = $this->employee('manager', $this->otherCompany, ['name' => 'Foreign Seller']);
 
         $this->customerAcquiredBy($eligible);
@@ -82,7 +85,7 @@ class CustomerAcquirerEligibilityTest extends TestCase
         $this->customerAcquiredBy($former);
         $this->customerAcquiredBy($foreignSeller, company: $this->otherCompany);
 
-        $options = CustomerAcquirerQuery::filterOptions($this->company->id);
+        $options = CompanyService::runAs($this->company->id, fn (): array => CustomerAcquirerQuery::filterOptions($this->company->id));
 
         $this->assertSame(
             [
@@ -99,6 +102,8 @@ class CustomerAcquirerEligibilityTest extends TestCase
         $adminWithoutProfile = $this->employee('admin', profile: false);
         $technician = $this->employee('technician');
 
+        CompanyService::useCompanyForTests($this->company->id);
+
         $this->assertSame($manager->id, CustomerAcquirerQuery::defaultId($manager));
         $this->assertNull(CustomerAcquirerQuery::defaultId($adminWithoutProfile));
         $this->assertNull(CustomerAcquirerQuery::defaultId($technician));
@@ -107,7 +112,7 @@ class CustomerAcquirerEligibilityTest extends TestCase
     public function test_validation_rule_accepts_only_eligible_users_of_the_current_company(): void
     {
         $actor = $this->employee('manager');
-        $eligible = $this->employee('staff');
+        $eligible = $this->employee('noc');
         $adminWithoutProfile = $this->employee('admin', profile: false);
         $technician = $this->employee('technician');
         $inactive = $this->employee('manager', attributes: ['is_active' => false]);

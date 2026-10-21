@@ -19,7 +19,6 @@ use Modules\NetworkAsset\Support\PanelLayout;
 use Modules\NetworkAsset\Support\PortTemplateCatalogue;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\BuildsIpamOdnFixtures;
 use Tests\Traits\BuildsOdnTopology;
@@ -467,7 +466,7 @@ class AssetPanelWriteRulesTest extends TestCase
         $olt = $this->asset('olt', 'OLT-GUARD');
         $odp = $this->asset('odp', 'ODP-GUARD');
         $router = $this->asset('router', 'RTR-GUARD');
-        Role::create(['name' => 'panel-only', 'guard_name' => 'web'])->givePermissionTo(['network_asset.view', 'network_asset.update']);
+        $this->companyRole($this->company, 'panel-only', ['network_asset.view', 'network_asset.update', 'app.web']);
         $this->actingAs($this->makeUser($this->company, 'panel-only'));
 
         $this->apply($olt, ['template_key' => 'zte-c320-gtgh'])->assertForbidden();

@@ -339,7 +339,7 @@ class TicketCustomerScopeTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $user->assignRole('customer');
+        $this->grantRole($user, 'customer');
         $customer = Customer::factory()->create([
             'company_id' => $this->admin->company_id,
             'user_id' => $user->id,

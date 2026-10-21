@@ -71,7 +71,8 @@ Dokumen acuan (baca semua sebelum mulai tugas):
 ## Company Rules (MANDATORY — SaaS multi-tenant)
 
 Source of truth: ringkasan di bawah + `docs/architecture/database.md` +
-`docs/architecture/decisions/ADR-003-platform-superadmin.md`. Ringkasan:
+`docs/architecture/decisions/ADR-003-platform-superadmin.md` +
+`docs/architecture/decisions/ADR-004-tenant-scoped-roles.md`. Ringkasan:
 
 - Company identity dinamis via DB (`companies` table). TIDAK hardcode
   nama/logo/currency/timezone di kode atau `.env`.
@@ -91,8 +92,8 @@ Source of truth: ringkasan di bawah + `docs/architecture/database.md` +
   (auto-scope query ke `CompanyService::currentId()` + auto-set company_id
   on create). Scope FAIL-CLOSED: tanpa company context query tenant kosong
   dan create -> 403. Code tanpa user (artisan, queue job, seeder) WAJIB
-  `CompanyService::runAs($companyId, fn)`. Exception: User, Role,
-  Permission, ActivityLog, Company, PlatformAdmin, TenantExport.
+  `CompanyService::runAs($companyId, fn)`. Exception: User, Permission,
+  ActivityLog, Company, PlatformAdmin, TenantExport.
 - Setiap migration tabel master/transaksi WAJIB tambah `company_id`
   bigint unsigned FK -> `companies.id` NOT NULL + unique index per-company
   (mis. `(company_id, sku)` bukan `sku` global).
@@ -109,14 +110,26 @@ Source of truth: ringkasan di bawah + `docs/architecture/database.md` +
   (`report.consolidated.view`, Head + subsidiary aktif, semua currency harus
   sama); menulis di subsidiary = switch (`company.switch`) ke company yang
   di-membership-kan. Platform admin memakai route platform, bukan switch.
-- Role/permission tetap global (`spatie teams=false`). Definisi role
-  (buat/ubah/hapus + permission) HANYA dari platform panel. User tenant boleh
-  melihat role dan assign role yang ada lewat Pengguna, tetapi `RolePolicy`
-  menolak seluruh write definisi role.
-- Administrasi user tenant (lihat/ubah/hapus, termasuk email, kata sandi,
-  role, status) tetap menuntut aktor member SETIAP company milik target
-  (`CompanyMembershipService::administers`). Platform support memakai tool
-  platform atau impersonation ter-audit, bukan bypass policy.
+- Role milik company: `roles.company_id` (NOT NULL) + `roles.template_key`; model `App\Models\Role` memakai
+  `BelongsToCompany` (spatie tetap `teams=false`). Permission = satu katalog di kode (`App\Support\PermissionCatalogue`);
+  company menyusun role dari katalog, tidak pernah membuat permission. Company baru menyalin templat platform
+  (`role_templates`) saat dibuat; deploy TIDAK PERNAH menyinkronkan role company. Permission baru masuk lewat migration
+  rilis `PermissionCatalogue::release()` (templat + salinannya saja).
+- Pemegang `roles.manage` mengelola role company-nya di Administrasi → Peran. Guard: tidak memberi permission yang tidak
+  dipegang sendiri; tidak mengubah role/user yang lebih berkuasa; SoD berlaku per company; minimal satu user aktif
+  pemegang `roles.manage` + `app.web`; role yang masih dipakai dipindah dulu sebelum dihapus; semua tercatat (log
+  `security`). Platform memelihara templat dan memperbaiki role company sebagai aksi support teraudit.
+- Kode bisnis memeriksa permission, TIDAK PERNAH nama role (`hasRole`, `->role()`, `whereHas('roles', ... name ...)`
+  dilarang di `app/` dan `Modules/`). Audiens: `app.web` (back-office), `app.technician` (teknisi lapangan),
+  `portal.access` + link `customers.user_id` (akun pelanggan), `evaluation.evaluable` (karyawan yang dinilai).
+  Administrator company = pemegang `roles.manage`.
+- Cek permission tanpa user dari company itu (login API, job, command, webhook) WAJIB di dalam
+  `CompanyService::runAs($companyId, fn)` atau memakai `User::withPermissionIn($permissions, $companyId)`; penerima
+  notifikasi staf selalu lewat `StaffRecipients::holding()`. Tanpa company tidak ada role yang cocok (fail closed).
+- Administrasi user tenant (lihat/ubah/hapus, termasuk email, kata sandi, status) tetap menuntut aktor member SETIAP
+  company milik target (`CompanyMembershipService::administers`). Assign role ke member cukup membership company aktif
+  (`UserPolicy::assignRoles`, hanya role company aktif). Platform support memakai tool platform atau impersonation
+  ter-audit, bukan bypass policy.
 - Impersonation web menyimpan platform admin sebagai aktor nyata, maksimal
   30 menit, default read-only, dan setiap write mode ubah tercatat di audit
   platform + tenant. DILARANG mengubah akun/2FA/kata sandi/email user yang
@@ -128,8 +141,8 @@ Source of truth: ringkasan di bawah + `docs/architecture/database.md` +
 - Dua-layer config: `companies.settings` json (company-specific) + `settings`
   table (system-global defaults). Resolution: `CompanyService::setting(key)`
   -> `SettingService::get('default_'.key)` -> hardcoded default.
-- **Initialization rule (MANDATORY):** install hanya seed system roles,
-  permission template dan system setting defaults. Data company dibuat lewat
+- **Initialization rule (MANDATORY):** install hanya seed katalog permission, templat role dan system setting
+  defaults. Data company dibuat lewat
   Setup Wizard/platform provisioning. Demo tenant data hanya lewat job
   platform yang explicit company-scoped; tidak pernah saat production install.
 - System-global infra config (APP_NAME, mail, queue, `PLATFORM_DOMAIN`) tetap
@@ -378,10 +391,10 @@ tests/
 
 - TIDAK ada seeded admin user (Breeze seeder admin@inbils.test dihapus/
   disabled).
-- Fresh install: `php artisan migrate:fresh --seed` (roles + permissions
+- Fresh install: `php artisan migrate:fresh --seed` (katalog permission + templat role
   only) → `php artisan inbils:setup` (create bootstrap user, interactive
-  prompt name/email/password) → login → Setup Wizard → company created +
-  admin role assigned.
+  prompt name/email/password) → login → Setup Wizard → company dibuat + role dari templat + admin
+  role assigned.
 - Sample manager/staff/technician user: tambah via admin User CRUD
   post-wizard (atau seeder dev optional di Phase 1 finalisasi).
 

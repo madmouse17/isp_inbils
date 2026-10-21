@@ -8,7 +8,6 @@ use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class CustomerServerTableExportTest extends TestCase
@@ -34,7 +33,7 @@ class CustomerServerTableExportTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     public function test_index_is_company_scoped_and_filterable(): void
@@ -145,9 +144,7 @@ class CustomerServerTableExportTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $role = Role::firstOrCreate(['name' => 'no-export', 'guard_name' => 'web']);
-        $role->syncPermissions(['customer.view']);
-        $user->assignRole($role);
+        $this->grantPermissions($user, ['customer.view', 'app.web']);
 
         $this->actingAs($user)
             ->get(route('admin.customers.export', ['format' => 'csv']))

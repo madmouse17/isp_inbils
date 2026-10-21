@@ -3,6 +3,8 @@
 namespace Modules\Billing\Notifications;
 
 use App\Models\User;
+use App\Support\Notifications\StaffRecipients;
+use App\Support\PermissionCatalogue;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Collection;
@@ -21,13 +23,15 @@ class BillingScheduleFailedNotification extends Notification implements ShouldQu
     ) {}
 
     /**
-     * The active admins of one company: what went wrong for a tenant is told to that tenant's admins and nobody else.
+     * The active administrators of one company (who hold `roles.manage` there, members of other companies included):
+     * what went wrong for a tenant is told to that tenant's administrators and nobody else. The scheduler has nobody
+     * signed in, so the company is named.
      *
      * @return Collection<int, User>
      */
     public static function recipients(int $companyId): Collection
     {
-        return User::query()->where('company_id', $companyId)->where('is_active', true)->role('admin')->get();
+        return StaffRecipients::holding($companyId, PermissionCatalogue::ADMINISTRATION);
     }
 
     /**

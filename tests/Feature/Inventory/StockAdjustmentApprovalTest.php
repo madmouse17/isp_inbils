@@ -16,7 +16,6 @@ use Modules\Inventory\Models\StockMovement;
 use Modules\Inventory\Models\Unit;
 use Modules\Inventory\Services\StockService;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Role;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 use Tests\Traits\WithoutAppOnlyRedirect;
@@ -258,7 +257,7 @@ class StockAdjustmentApprovalTest extends TestCase
 
         $otherCompany = Company::factory()->create();
         $foreignManager = User::factory()->create(['company_id' => $otherCompany->id]);
-        $foreignManager->assignRole('manager');
+        $this->grantRole($foreignManager, 'manager');
 
         $this->actingAs($foreignManager)->post(route('admin.stocks.adjustments.approve', $adjustment))->assertNotFound();
         $this->actingAs($foreignManager)
@@ -376,7 +375,7 @@ class StockAdjustmentApprovalTest extends TestCase
     private function userWithRole(string $role): User
     {
         $user = User::factory()->create(['company_id' => $this->company->id]);
-        $user->assignRole(Role::findByName($role));
+        $this->grantRole($user, $role);
 
         return $user;
     }

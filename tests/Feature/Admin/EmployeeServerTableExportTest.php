@@ -10,8 +10,6 @@ use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class EmployeeServerTableExportTest extends TestCase
@@ -38,7 +36,7 @@ class EmployeeServerTableExportTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     private function makeEmployee(int $companyId, string $number, string $name, string $status = 'active'): EmployeeProfile
@@ -147,10 +145,7 @@ class EmployeeServerTableExportTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $role = Role::firstOrCreate(['name' => 'employees-no-export', 'guard_name' => 'web']);
-        Permission::findOrCreate('employees.view', 'web');
-        $role->syncPermissions(['employees.view']);
-        $user->assignRole($role);
+        $this->grantPermissions($user, ['employees.view', 'app.web']);
 
         $this->actingAs($user)
             ->get(route('admin.employees.export', ['format' => 'csv']))

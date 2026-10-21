@@ -6,6 +6,7 @@ use App\Models\Core\Company;
 use App\Models\Core\EmployeeProfile;
 use App\Models\User;
 use App\Services\Core\CompanyMembershipService;
+use App\Services\Core\CompanyRoleService;
 use App\Services\Core\CompanyService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -41,8 +42,11 @@ class DemoUserSeeder extends Seeder
             ],
         );
 
+        // Personas receive the DEMO company's template copies, never global role rows.
+        $roles = app(CompanyRoleService::class)->copyTemplates($company);
+
         // A seeder has no user: it names the company it seeds, so scoped writes act in it.
-        CompanyService::runAs((int) $company->id, function () use ($company): void {
+        CompanyService::runAs((int) $company->id, function () use ($company, $roles): void {
             foreach (self::USERS as $role => $demoUser) {
                 $user = User::query()->updateOrCreate(
                     ['email' => $demoUser['email']],
@@ -55,7 +59,8 @@ class DemoUserSeeder extends Seeder
                     ],
                 );
 
-                $user->syncRoles([$role]);
+                $user->unsetRelation('roles');
+                $user->syncRoles([$roles[$role]]);
                 app(CompanyMembershipService::class)->grant($user, $company, true);
 
                 if ($demoUser['employee']) {

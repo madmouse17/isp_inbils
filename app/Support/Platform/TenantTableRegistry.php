@@ -18,7 +18,8 @@ use RuntimeException;
  *   deleted first, found through their parents.
  *
  * Every table and column name that reaches SQL was read from the schema and matches /^[a-z0-9_]+$/; anything else
- * stops the build. Tables that belong to no tenant (roles, settings, jobs, regions, ...) never appear.
+ * stops the build. Tables that belong to no tenant (role templates, permissions, settings, jobs, regions, ...) never
+ * appear; `roles` carries a `company_id` since the roles became per company, so it is a tenant table.
  */
 final class TenantTableRegistry
 {

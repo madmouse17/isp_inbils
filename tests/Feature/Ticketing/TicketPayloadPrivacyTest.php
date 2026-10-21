@@ -15,7 +15,6 @@ use Modules\Ticketing\Http\Resources\TicketCommentResource;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Models\TicketComment;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
 
@@ -52,7 +51,7 @@ class TicketPayloadPrivacyTest extends TestCase
 
         // Sees every ticket (no start, resolve or close permission narrows the list) but may not open customers.
         $this->reader = $this->staff(null);
-        $this->reader->assignRole(tap(Role::firstOrCreate(['name' => 'ticket-reader-only', 'guard_name' => 'web']))->syncPermissions(['ticket.view']));
+        $this->grantPermissions($this->reader, ['app.web', 'ticket.view']);
 
         $this->portal = $this->staff('customer');
         $customer = Customer::factory()->create([
@@ -176,7 +175,7 @@ class TicketPayloadPrivacyTest extends TestCase
             'company_id' => $this->admin->company_id, 'name' => $name, 'email' => $email, 'email_verified_at' => now(), 'is_active' => true,
         ], static fn (mixed $value): bool => $value !== null));
         if ($role !== null) {
-            $user->assignRole($role);
+            $this->grantRole($user, $role);
         }
 
         return $user;

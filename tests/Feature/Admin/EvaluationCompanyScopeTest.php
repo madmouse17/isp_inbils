@@ -33,12 +33,18 @@ class EvaluationCompanyScopeTest extends TestCase
         $this->buildGroup();
         // Homed in the head company and a member of subsidiary A, so the switch into A is valid.
         $this->admin = $this->groupUser($this->head, 'admin', $this->subA);
+        // Roles are per company: the admin holds Admin in subsidiary A too, which the evaluator needs once switched into it.
+        $this->grantRole($this->admin, 'admin', $this->subA);
     }
 
     private function employee(string $name, Company $home, string $role = 'technician', Company ...$others): User
     {
         $user = $this->groupUser($home, $role, ...$others);
         $user->forceFill(['name' => $name])->save();
+
+        foreach ($others as $company) {
+            $this->grantRole($user, $role, $company);
+        }
 
         return $user;
     }
@@ -205,7 +211,7 @@ class EvaluationCompanyScopeTest extends TestCase
         $cases = [
             ['karyawan yang dipilih tidak valid.', $this->employee('Teknisi Asing', $this->outsider)],
             ['karyawan yang dipilih tidak valid.', $inactive],
-            ['karyawan yang dipilih harus berupa pengguna aktif dengan peran yang sesuai.', $this->employee('Manajer Sendiri', $this->head, 'manager')],
+            ['karyawan yang dipilih harus berupa pengguna aktif dengan hak akses yang sesuai.', $this->employee('Manajer Sendiri', $this->head, 'manager')],
         ];
 
         foreach ($cases as [$message, $user]) {

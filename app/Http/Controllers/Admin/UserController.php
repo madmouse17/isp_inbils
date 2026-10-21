@@ -6,11 +6,12 @@ use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreUserRequest;
 use App\Http\Requests\Admin\UpdateUserRequest;
-use App\Http\Resources\RoleResource;
 use App\Http\Resources\UserResource;
+use App\Models\Role;
 use App\Models\User;
 use App\Queries\Admin\UserHistoryQuery;
 use App\Services\Core\CompanyMembershipService;
+use App\Services\Core\CompanyRoleService;
 use App\Services\Core\CompanyService;
 use App\Support\ExportQuery;
 use App\Support\RecordNotFound;
@@ -22,7 +23,6 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
-use Spatie\Permission\Models\Role;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class UserController extends Controller
@@ -31,17 +31,26 @@ class UserController extends Controller
 
     private const SORTABLE = ['name', 'email', 'is_active', 'created_at'];
 
+    /**
+     * The members of the company: the users homed here and those granted membership. A member homed elsewhere is
+     * listed for his roles here (UserRoleController); his login fields are edited in his home company.
+     */
     public function index(Request $request): InertiaResponse
     {
         Gate::authorize('viewAny', User::class);
 
         $users = $this->filteredQuery($request)
+            // The row's abilities compare what the user holds with what the actor holds, in every company the user belongs to:
+            // the roles here (`roles`), his own permissions, the roles in every company and the memberships, each loaded once
+            // for the page, not per row.
+            ->with(['roles.permissions:id,name', 'permissions:id,name', 'rolesInEveryCompany.permissions:id,name', 'companies:companies.id'])
             ->paginate($this->perPage($request))
             ->withQueryString();
 
         return Inertia::render('Admin/Users/Index', [
             'users' => UserResource::collection($users),
             'filters' => $request->only(['search', 'is_active', 'sort', 'direction', 'per_page']),
+            'roleOptions' => $this->roleOptions($request->user()),
             'can' => [
                 'create' => $request->user()?->can('users.manage') ?? false,
                 'export' => $request->user()?->can('users.manage') ?? false,
@@ -54,25 +63,30 @@ class UserController extends Controller
         Gate::authorize('create', User::class);
 
         return Inertia::render('Admin/Users/Create', [
-            'roles' => RoleResource::collection(Role::query()->orderBy('name')->get()),
+            'roles' => $this->roleOptions($request->user()),
         ]);
     }
 
-    public function store(StoreUserRequest $request): RedirectResponse
+    public function store(StoreUserRequest $request, CompanyRoleService $roles): RedirectResponse
     {
         Gate::authorize('store', User::class);
 
         $data = $request->validated();
-        $roles = $data['roles'] ?? [];
+        $names = $data['roles'] ?? [];
         unset($data['roles']);
 
-        $user = new User($data);
-        $user->forceFill([
-            'company_id' => CompanyService::currentId(),
-            'email_verified_at' => now(),
-        ])->save();
-        app(CompanyMembershipService::class)->grant($user, CompanyService::current() ?? abort(403), true);
-        $user->syncRoles($roles);
+        $company = CompanyService::current() ?? abort(403);
+
+        // One transaction, the company row locked first: a role the actor may not give (G1) takes the new user with it.
+        $roles->transaction((int) $company->id, function () use ($data, $names, $company, $request, $roles): void {
+            $user = new User($data);
+            $user->forceFill([
+                'company_id' => $company->id,
+                'email_verified_at' => now(),
+            ])->save();
+            app(CompanyMembershipService::class)->grant($user, $company, true);
+            $roles->syncUserRoles($request->user(), $user, $names);
+        });
 
         return redirect()->route('admin.users.index')->with('success', 'Pengguna dibuat.');
     }
@@ -95,36 +109,41 @@ class UserController extends Controller
         ]);
     }
 
-    public function edit(User $user): InertiaResponse
+    public function edit(Request $request, User $user): InertiaResponse
     {
         $this->ensureSameCompany($user);
         Gate::authorize('edit', $user);
 
         return Inertia::render('Admin/Users/Edit', [
             'user' => new UserResource($user->load('roles')),
-            'roles' => RoleResource::collection(Role::query()->orderBy('name')->get()),
+            'roles' => $this->roleOptions($request->user()),
         ]);
     }
 
-    public function update(UpdateUserRequest $request, User $user): RedirectResponse
+    public function update(UpdateUserRequest $request, User $user, CompanyRoleService $roles): RedirectResponse
     {
         $this->ensureSameCompany($user);
         Gate::authorize('update', $user);
 
         $data = $request->validated();
-        $roles = $data['roles'] ?? [];
+        $names = $data['roles'] ?? [];
         unset($data['roles']);
 
         if (blank($data['password'] ?? null)) {
             unset($data['password']);
         }
 
-        $current = $user->getRoleNames()->all();
+        $deactivating = $user->fill($data)->isDirty('is_active') && ! $user->is_active;
+        $save = fn () => $roles->guardingAdministrator((int) CompanyService::currentId(), function () use ($user, $names, $request, $roles): void {
+            $user->save();
+            // Only the roles that change are written (not syncRoles, which detaches all and re-attaches): the security
+            // trail then records exactly what changed.
+            $roles->syncUserRoles($request->user(), $user, $names);
+        });
 
-        $user->update($data);
-        // Not syncRoles: it detaches and re-attaches every role, which the security trail would record as changes.
-        $user->removeRole(array_diff($current, $roles));
-        $user->assignRole(array_diff($roles, $current));
+        // G5: the company keeps an administrator, so deactivating the last one (or taking his roles) is refused. A login
+        // that is deactivated is out of every company he belongs to, so each of them keeps one as well.
+        $deactivating ? $roles->guardingAdministratorsOf($user, 'roles', $save) : $save();
 
         return redirect()->route('admin.users.index')->with('success', 'Pengguna diperbarui.');
     }
@@ -134,9 +153,8 @@ class UserController extends Controller
         $this->ensureSameCompany($user);
         Gate::authorize('delete', $user);
 
-        UserDeletionGuard::ensureDeletable($user);
-
-        $user->delete();
+        // One transaction: it locks the companies of the user first and checks that each keeps an administrator (G5).
+        UserDeletionGuard::delete($user);
 
         return back()->with('success', 'Pengguna dihapus.');
     }
@@ -176,12 +194,39 @@ class UserController extends Controller
     }
 
     /**
+     * What the forms offer: the company's roles that Pengguna may give, so not the roles of customer accounts (they
+     * hold portal.access and belong to CustomerService), and which of them the actor may give himself (G1).
+     *
+     * @return list<array{name: string, grantable: bool}>
+     */
+    private function roleOptions(User $actor): array
+    {
+        $roles = app(CompanyRoleService::class);
+
+        return Role::query()->with('permissions:id,name')->orderBy('name')->get()
+            ->reject(fn (Role $role): bool => $roles->isPortal($role))
+            ->map(fn (Role $role): array => [
+                'name' => $role->name,
+                'grantable' => $roles->covers($actor, $role->permissions->pluck('name')->all()),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
      * @return Builder<User>
      */
     private function filteredQuery(Request $request): Builder
     {
+        $companyId = CompanyService::currentId() ?? abort(403);
+
         $query = User::query()
-            ->where('company_id', CompanyService::currentId())
+            ->where(fn (Builder $members) => $members
+                ->where('users.company_id', $companyId)
+                ->orWhereExists(fn ($membership) => $membership
+                    ->from('company_user')
+                    ->whereColumn('company_user.user_id', 'users.id')
+                    ->where('company_user.company_id', $companyId)))
             ->with('roles')
             ->when($request->input('search'), function (Builder $query, string $value): void {
                 $term = trim($value);

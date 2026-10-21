@@ -30,7 +30,7 @@ class PurgeTenantCommandTest extends PurgeTestCase
         'promo_banner_service_package_category' => ['promo_banners', 'promo_banner_id'],
     ];
 
-    private const GLOBAL_TABLES = ['roles', 'permissions', 'role_has_permissions', 'settings', 'indonesia_provinces', 'indonesia_cities', 'indonesia_districts', 'indonesia_villages', 'platform_admins', 'failed_jobs', 'jobs', 'migrations'];
+    private const GLOBAL_TABLES = ['permissions', 'role_templates', 'role_template_has_permissions', 'settings', 'indonesia_provinces', 'indonesia_cities', 'indonesia_districts', 'indonesia_villages', 'platform_admins', 'failed_jobs', 'jobs', 'migrations'];
 
     public function test_a_purge_deletes_the_tenant_its_subsidiary_and_files_and_leaves_the_other_tenant_untouched(): void
     {
@@ -52,6 +52,8 @@ class PurgeTenantCommandTest extends PurgeTestCase
         $alphaBefore = $this->everythingOf($ids);
         $betaBefore = $this->everythingOf([$beta->id]);
         $globalBefore = $this->globalRows();
+        $alphaRoleIds = DB::table('roles')->whereIn('company_id', $ids)->pluck('id')->all();
+        $this->assertNotEmpty($alphaRoleIds, 'provisioning copied the role templates into the tenant');
         $betaFiles = Storage::disk('local')->allFiles("companies/{$beta->id}");
         $betaArchive = (string) TenantExport::query()->where('company_id', $beta->id)->value('file_path');
         $this->assertCount(2, Storage::disk('local')->allFiles('platform/exports'), 'one archive per Head on disk');
@@ -76,6 +78,9 @@ class PurgeTenantCommandTest extends PurgeTestCase
         $this->assertSame([$beta->id], DB::table('company_user')->where('user_id', $betaAdmin->id)->pluck('company_id')->all(), 'a user of another tenant who was a member here keeps their own company and loses only this membership');
         $this->assertSame(0, User::query()->whereIn('id', $alphaBefore['users'])->count());
         $this->assertSame(0, DB::table('model_has_roles')->where('model_type', User::class)->whereIn('model_id', $alphaBefore['users'])->count());
+        $this->assertSame(0, DB::table('roles')->whereIn('company_id', $ids)->count(), 'roles carry a company id: they are tenant rows and go with it');
+        $this->assertSame(0, DB::table('role_has_permissions')->whereIn('role_id', $alphaRoleIds)->count(), 'and so do what they grant');
+        $this->assertSame(0, DB::table('model_has_roles')->whereIn('role_id', $alphaRoleIds)->count(), 'and who holds them, members homed elsewhere included');
         $this->assertSame(0, DB::table('notifications')->where('notifiable_type', User::class)->whereIn('notifiable_id', $alphaBefore['users'])->count());
         $this->assertSame(0, DB::table('notifications')->where('notifiable_type', Customer::class)->whereIn('notifiable_id', $alphaBefore['customers'])->count());
         $this->assertSame(0, DB::table('sessions')->whereIn('user_id', $alphaBefore['users'])->count());
@@ -92,7 +97,7 @@ class PurgeTenantCommandTest extends PurgeTestCase
         $this->assertSame($betaFiles, Storage::disk('local')->allFiles("companies/{$beta->id}"), 'the other tenant keeps its files');
 
         $this->assertEquals($betaBefore, $this->everythingOf([$beta->id]), 'the other tenant is untouched, row for row');
-        $this->assertSame($globalBefore, $this->globalRows(), 'roles, settings, regions and operators are not tenant data');
+        $this->assertSame($globalBefore, $this->globalRows(), 'permissions, role templates, settings, regions and operators are not tenant data');
         $this->assertPlatformAuditSurvives($alpha, $child, $beta);
     }
 
@@ -263,7 +268,7 @@ class PurgeTenantCommandTest extends PurgeTestCase
     private function addTenantExtras(Company $company): array
     {
         $user = User::factory()->create(['company_id' => $company->id]);
-        $user->assignRole('manager');
+        $this->grantRole($user, 'manager', $company);
         app(CompanyMembershipService::class)->grant($user, $company, true);
         $user->createToken('mobile');
         DB::table('sessions')->insert(['id' => Str::random(40), 'user_id' => $user->id, 'payload' => 'x', 'last_activity' => now()->timestamp]);

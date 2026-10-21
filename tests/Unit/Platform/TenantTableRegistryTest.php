@@ -33,7 +33,7 @@ class TenantTableRegistryTest extends TestCase
     {
         $tables = $this->registry()->tables();
 
-        foreach (['users', 'company_user', 'activity_log', 'tenant_exports', 'customers', 'odn_ports', 'odn_splitters', 'tickets', 'work_orders'] as $table) {
+        foreach (['users', 'company_user', 'activity_log', 'tenant_exports', 'customers', 'odn_ports', 'odn_splitters', 'tickets', 'work_orders', 'roles'] as $table) {
             $this->assertContains($table, $tables);
         }
     }
@@ -86,7 +86,7 @@ class TenantTableRegistryTest extends TestCase
         $pivots = collect($this->registry()->pivots())->keyBy('table');
 
         $this->assertEqualsCanonicalizing(
-            ['announcement_location', 'announcement_service_package_category', 'device_tokens', 'location_promo_banner', 'promo_banner_service_package_category'],
+            ['announcement_location', 'announcement_service_package_category', 'device_tokens', 'location_promo_banner', 'model_has_roles', 'promo_banner_service_package_category', 'role_has_permissions'],
             $pivots->keys()->all(),
         );
         $this->assertSame(['table' => 'users', 'column' => 'id'], $pivots['device_tokens']['parents']['user_id']);
@@ -98,13 +98,18 @@ class TenantTableRegistryTest extends TestCase
             ['promo_banner_id' => ['table' => 'promo_banners', 'column' => 'id'], 'service_package_category_id' => ['table' => 'service_package_categories', 'column' => 'id']],
             $pivots['promo_banner_service_package_category']['parents'],
         );
+        // Roles are tenant rows (they carry a company_id), so the links of a role belong to the tenant through the role: a
+        // member homed in another tenant holds a role of this one, and the link goes with the role.
+        foreach (['model_has_roles', 'role_has_permissions'] as $table) {
+            $this->assertSame(['role_id' => ['table' => 'roles', 'column' => 'id']], $pivots[$table]['parents'], $table);
+        }
     }
 
     public function test_global_and_infrastructure_tables_are_never_reached(): void
     {
         $reached = [...$this->registry()->tables(), ...array_column($this->registry()->pivots(), 'table')];
 
-        foreach (['companies', 'roles', 'permissions', 'role_has_permissions', 'model_has_roles', 'settings', 'jobs', 'job_batches', 'failed_jobs', 'cache', 'migrations', 'sessions', 'notifications', 'media', 'personal_access_tokens', 'indonesia_provinces', 'indonesia_villages', 'platform_admins'] as $table) {
+        foreach (['companies', 'permissions', 'model_has_permissions', 'role_templates', 'role_template_has_permissions', 'settings', 'jobs', 'job_batches', 'failed_jobs', 'cache', 'migrations', 'sessions', 'notifications', 'media', 'personal_access_tokens', 'indonesia_provinces', 'indonesia_villages', 'platform_admins'] as $table) {
             $this->assertNotContains($table, $reached);
         }
     }

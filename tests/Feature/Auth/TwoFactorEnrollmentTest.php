@@ -212,7 +212,7 @@ class TwoFactorEnrollmentTest extends TestCase
             if ($secret !== null) {
                 $page->assertDontSee($secret, false);
             }
-            $this->assertSame(['id', 'name', 'email', 'company_id', 'home_company_id', 'is_active', 'roles', 'permissions'], array_keys($page->inertiaProps('auth.user')));
+            $this->assertSame(['id', 'name', 'email', 'company_id', 'home_company_id', 'is_active', 'permissions'], array_keys($page->inertiaProps('auth.user')));
         }
     }
 

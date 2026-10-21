@@ -10,7 +10,6 @@ use Modules\Inventory\Models\Category;
 use Modules\Inventory\Models\Product;
 use Modules\Inventory\Models\Stock;
 use Modules\Inventory\Models\Unit;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 use Tests\Traits\InteractsWithMobileApi;
@@ -84,7 +83,7 @@ class ProductPickerTest extends TestCase
     {
         $technician = $this->technicianLogin();
         $token = $this->issueToken($technician, 'technician');
-        Role::findByName('technician', 'web')->revokePermissionTo('inventory.view');
+        $this->companyRoles((int) $technician->company_id)['technician']->revokePermissionTo('inventory.view');
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $this->api('GET', 'technician/products', token: $token)->assertForbidden()->assertJsonPath('code', 'forbidden');
@@ -164,7 +163,7 @@ class ProductPickerTest extends TestCase
     {
         $technician = $this->technicianLogin();
         $token = $this->issueToken($technician, 'technician');
-        Role::findByName('technician', 'web')->revokePermissionTo('inventory.request.create');
+        $this->companyRoles((int) $technician->company_id)['technician']->revokePermissionTo('inventory.request.create');
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $this->api('GET', 'technician/warehouses', token: $token)->assertForbidden()->assertJsonPath('code', 'forbidden');

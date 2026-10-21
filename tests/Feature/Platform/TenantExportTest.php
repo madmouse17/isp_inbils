@@ -36,7 +36,6 @@ use RuntimeException;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Spatie\MediaLibrary\Support\PathGenerator\PathGeneratorFactory;
-use Spatie\Permission\Models\Role;
 use Tests\Traits\BuildsNetworkFixtures;
 use Tests\Traits\BuildsSubscriptionBilling;
 use ZipArchive;
@@ -540,6 +539,13 @@ class TenantExportTest extends PurgeTestCase
         $expectedCounts = array_filter(array_map('count', $truth)) + ['companies' => count($ids)];
         $this->assertSame(count($this->csv($entries['data/media.csv'])), $export->row_counts['media'], 'the media rows of the tenant are counted like its tables');
         $this->assertSame(count($this->csv($entries['data/user_roles.csv'])), $export->row_counts['user_roles']);
+
+        // The links of a role stay out: user_roles.csv names the people and the roles, the raw ids would mean nothing to the tenant.
+        foreach (['model_has_roles', 'role_has_permissions'] as $link) {
+            $this->assertArrayNotHasKey("data/{$link}.csv", $entries, $link);
+            $this->assertArrayNotHasKey($link, $export->row_counts, $link);
+        }
+
         ksort($counted);
         ksort($expectedCounts);
         $this->assertSame($expectedCounts, array_filter($counted), 'the record carries the count of every table that has rows');
@@ -578,7 +584,10 @@ class TenantExportTest extends PurgeTestCase
         }
 
         foreach ($registry->pivots() as $pivot) {
-            $expected[] = "data/{$pivot['table']}.csv";
+            // The links of a role are read through roles.csv and user_roles.csv, never written raw.
+            if (! in_array($pivot['table'], ['model_has_roles', 'role_has_permissions'], true)) {
+                $expected[] = "data/{$pivot['table']}.csv";
+            }
         }
 
         $this->assertEqualsCanonicalizing($expected, array_keys($entries));
@@ -858,18 +867,23 @@ class TenantExportTest extends PurgeTestCase
         $this->assertSame([(string) $alpha['root']->id, (string) $alpha['child']->id], array_column($media, 'model_id'));
         $this->assertSame([$first->public_id, $second->public_id], array_column($media, 'public_id'));
 
-        // user_roles.csv: the roles of the tenant's users by name, nobody else's.
-        $this->assertSame(['user_id', 'role_id', 'role_name'], $this->header($entries['data/user_roles.csv']));
-        $expected = [];
-
-        foreach ([[$alpha['admin'], 'admin'], [$alpha['staff'], 'staff'], [$alpha['branch'], 'manager']] as [$user, $role]) {
-            $expected[] = ['user_id' => (string) $user->id, 'role_id' => (string) Role::findByName($role)->id, 'role_name' => $role];
-        }
+        // user_roles.csv: who holds which role of the tenant's companies (public id, company code, role name, template key), nobody else's.
+        $this->assertSame(['user_public_id', 'company_code', 'role_name', 'template_key'], $this->header($entries['data/user_roles.csv']));
+        $expected = [
+            ['user_public_id' => $alpha['admin']->public_id, 'company_code' => 'ALP', 'role_name' => $this->companyRoles($alpha['root'])['admin']->name, 'template_key' => 'admin'],
+            ['user_public_id' => $alpha['staff']->public_id, 'company_code' => 'ALP', 'role_name' => $this->companyRoles($alpha['root'])['staff']->name, 'template_key' => 'staff'],
+            ['user_public_id' => $alpha['branch']->public_id, 'company_code' => 'ALP-C', 'role_name' => $this->companyRoles($alpha['child'])['manager']->name, 'template_key' => 'manager'],
+        ];
+        usort($expected, fn (array $a, array $b): int => strcmp($a['user_public_id'], $b['user_public_id']));
 
         $this->assertSame($expected, $this->csv($entries['data/user_roles.csv']));
         $this->assertSame(2, $export->row_counts['media']);
         $this->assertSame(3, $export->row_counts['user_roles']);
-        $this->assertSame([], array_intersect(array_column($this->csv($entries['data/user_roles.csv']), 'user_id'), [(string) $beta['admin']->id, (string) $beta['staff']->id, (string) $beta['branch']->id]));
+        $this->assertSame([], array_intersect(array_column($this->csv($entries['data/user_roles.csv']), 'user_public_id'), [$beta['admin']->public_id, $beta['staff']->public_id, $beta['branch']->public_id]));
+        $this->assertSame([], array_diff(array_column($this->csv($entries['data/user_roles.csv']), 'company_code'), ['ALP', 'ALP-C']));
+
+        // roles.csv comes with the tenant tables: only the roles of the tenant's companies.
+        $this->assertEqualsCanonicalizing([$alpha['root']->id, $alpha['child']->id], array_unique(array_map('intval', array_column($this->csv($entries['data/roles.csv']), 'company_id'))));
     }
 
     public function test_generated_conversions_of_a_media_row_are_archived(): void

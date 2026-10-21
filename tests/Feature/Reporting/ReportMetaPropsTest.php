@@ -33,7 +33,7 @@ class ReportMetaPropsTest extends TestCase
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
         $this->actingAs($this->admin);
     }
 

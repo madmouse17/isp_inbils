@@ -14,7 +14,7 @@ class StoreTicketCommentRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         // is_internal is staff-only; customers always comment publicly.
-        if ($this->user()?->hasRole('customer')) {
+        if ($this->user()?->can('portal.access')) {
             $this->merge(['is_internal' => false]);
         }
     }

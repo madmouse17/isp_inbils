@@ -18,7 +18,6 @@ use Modules\Billing\Database\Factories\InvoiceFactory;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Notifications\BillingScheduleFailedNotification;
 use Modules\Billing\Notifications\InvoiceDueReminderNotification;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\FakesFirebaseMessaging;
 use Tests\Traits\InteractsWithWhatsApp;
@@ -277,12 +276,11 @@ class InvoiceWhatsAppReminderCommandTest extends TestCase
 
     public function test_a_failing_company_does_not_stop_the_others_and_only_its_own_admins_are_told(): void
     {
-        Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
         $admin = User::factory()->create(['company_id' => $this->company->id, 'is_active' => true]);
-        $admin->assignRole('admin');
+        $this->grantRole($admin, 'admin');
         $broken = Company::factory()->create(['timezone' => 'Mars/Phobos', 'settings' => ['whatsapp_enabled' => true]]);
         $brokenAdmin = User::factory()->create(['company_id' => $broken->id, 'is_active' => true]);
-        $brokenAdmin->assignRole('admin');
+        $this->grantRole($brokenAdmin, 'admin');
         $late = Company::factory()->create(['name' => 'CV Terakhir', 'settings' => ['whatsapp_enabled' => true]]);
         $lateCustomer = $this->consentedCustomer($late, '0813-9999-0001');
         $this->invoiceDue('2026-10-15');
@@ -301,9 +299,8 @@ class InvoiceWhatsAppReminderCommandTest extends TestCase
     /** A customer who signs in to the customer app: the bell row and the push of a reminder go to this login. */
     private function appCustomer(): Customer
     {
-        Role::firstOrCreate(['name' => 'customer', 'guard_name' => 'web']);
         $user = User::factory()->create(['company_id' => $this->company->id, 'is_active' => true]);
-        $user->assignRole('customer');
+        $this->grantRole($user, 'customer');
         DeviceToken::factory()->forApp('customer')->create(['user_id' => $user->id, 'token' => 'customer-phone-0123456789']);
         $customer = $this->consentedCustomer($this->company, '0813-7777-0001');
         $customer->forceFill(['user_id' => $user->id])->save();

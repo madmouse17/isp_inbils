@@ -24,6 +24,7 @@ use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SubscriptionController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\UserRoleController;
 use App\Http\Controllers\Admin\UserTwoFactorResetController;
 use App\Http\Controllers\Admin\VehicleController;
 use App\Models\Core\CompanyIntegration;
@@ -75,9 +76,11 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
     Route::get('users/export', [UserController::class, 'export'])->name('users.export');
     Route::resource('users', UserController::class);
     Route::post('users/{user}/two-factor/reset', UserTwoFactorResetController::class)->name('users.two-factor.reset');
+    // The roles a member holds in this company, also for a member homed elsewhere (his login fields are not edited here).
+    Route::put('users/{user}/roles', UserRoleController::class)->name('users.roles.update');
     Route::get('roles/export', [RoleController::class, 'export'])->name('roles.export');
-    // Role definitions are platform-owned (ADR-003): a tenant admin reads them and assigns them through Pengguna.
-    Route::resource('roles', RoleController::class)->only(['index', 'show'])->scoped(['role' => 'public_id']);
+    // A role belongs to one company (ADR-004): whoever holds roles.manage there writes its roles, within the guards of CompanyRoleService.
+    Route::resource('roles', RoleController::class)->scoped(['role' => 'public_id']);
 
     Route::get('permissions', [PermissionController::class, 'index'])->name('permissions.index');
 

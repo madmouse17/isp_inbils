@@ -7,9 +7,12 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use InvalidArgumentException;
 use RuntimeException;
+use Tests\Traits\GrantsCompanyRoles;
 
 abstract class TestCase extends BaseTestCase
 {
+    use GrantsCompanyRoles;
+
     private const REFUSAL = 'PHPUnit bootstrap safety guard refused to bootstrap Laravel.';
 
     /** The one schema of every serial run, and the base of a worker's own: Laravel's parallel runner names that one `{base}_test_{token}`. */

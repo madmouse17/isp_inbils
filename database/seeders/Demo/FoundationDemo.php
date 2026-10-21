@@ -7,6 +7,7 @@ use App\Models\Core\EmployeeProfile;
 use App\Models\Core\Vehicle;
 use App\Models\User;
 use App\Services\Core\CompanyMembershipService;
+use App\Services\Core\CompanyRoleService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\OrganizationService;
 use Modules\Service\Models\BandwidthProfile;
@@ -160,6 +161,7 @@ final class FoundationDemo
     private static function people(DemoContext $c, array $units, array $vehicles): void
     {
         self::logins($c);
+        $roles = app(CompanyRoleService::class)->copyTemplates($c->company);
 
         foreach (self::EXISTING as $key => [$unit, $phone, $hired, $skills, $plate]) {
             EmployeeProfile::query()->where('user_id', $c->user($key)->id)->firstOrFail()->update([
@@ -174,7 +176,7 @@ final class FoundationDemo
         foreach (self::PEOPLE as $key => [$name, $local, $role, $unit, $number, $phone, $hired, $skills, $plate, $status]) {
             $user = new User(['name' => $name, 'email' => $c->email($local), 'password' => $c->password(), 'is_active' => $status === 'active']);
             $user->forceFill(['company_id' => $c->companyId(), 'email_verified_at' => $c->start])->save();
-            $user->assignRole($role);
+            $user->assignRole($roles[$role]);
             app(CompanyMembershipService::class)->grant($user, $c->company, true);
 
             EmployeeProfile::query()->create([
@@ -208,10 +210,12 @@ final class FoundationDemo
             return;
         }
 
+        $roles = app(CompanyRoleService::class)->copyTemplates($c->company);
+
         foreach (self::TRIAL_LOGINS as $key => [$name, $employee]) {
             $user = new User(['name' => $name, 'email' => $c->email($key), 'password' => $c->password(), 'is_active' => true]);
             $user->forceFill(['company_id' => $c->companyId(), 'email_verified_at' => $c->start])->save();
-            $user->assignRole($key);
+            $user->assignRole($roles[$key]);
             app(CompanyMembershipService::class)->grant($user, $c->company, true);
 
             if ($employee) {

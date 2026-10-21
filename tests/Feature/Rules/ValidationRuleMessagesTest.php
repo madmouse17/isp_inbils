@@ -6,7 +6,7 @@ use App\Models\Core\Customer;
 use App\Models\Core\Location;
 use App\Models\User;
 use App\Rules\BelongsToCompany;
-use App\Rules\HasAnyActiveRole;
+use App\Rules\HoldsPermission;
 use App\Rules\IsActiveTechnician;
 use App\Rules\MatchesParentAttribute;
 use App\Rules\NoSodConflict;
@@ -18,8 +18,6 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Validator;
 use Modules\Ticketing\Models\Ticket;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\BuildsCompanyGroup;
 
@@ -87,15 +85,21 @@ class ValidationRuleMessagesTest extends TestCase
     public function test_assignment_rules_say_who_is_not_eligible(): void
     {
         $customer = $this->groupUser($this->head, 'customer');
+        $technician = $this->groupUser($this->head, 'technician');
+        $holds = fn (?int $company = null): HoldsPermission => new HoldsPermission(['ticket.start'], $company);
+        $message = 'pengguna yang dipilih harus berupa pengguna aktif dengan hak akses yang sesuai.';
 
-        $this->assertSame(
-            ['pengguna yang dipilih harus berupa pengguna aktif dengan peran yang sesuai.'],
-            $this->errors(['user_id' => $customer->id], 'user_id', new HasAnyActiveRole(['technician'])),
-        );
+        $this->assertSame([$message], $this->errors(['user_id' => $customer->id], 'user_id', $holds()));
+        $this->assertSame([], $this->errors(['user_id' => $technician->id], 'user_id', $holds()));
+        // The company is the one named, not the one the person is signed in to: the technician is no member of Sub A.
+        $this->assertSame([$message], $this->errors(['user_id' => $technician->id], 'user_id', $holds($this->subA->id)));
         $this->assertSame(
             ['Teknisi yang dipilih harus karyawan aktif yang bisa mengerjakan SPK.'],
             $this->errors(['technician_id' => $customer->id], 'technician_id', new IsActiveTechnician()),
         );
+
+        $this->withoutCompanyContext();
+        $this->assertSame(['Konteks perusahaan diperlukan.'], $this->errors(['user_id' => $technician->id], 'user_id', $holds()));
     }
 
     public function test_parent_rule_names_the_parent_field(): void
@@ -121,11 +125,8 @@ class ValidationRuleMessagesTest extends TestCase
         $this->assertSame($expected, $this->errors(['permissions' => $conflict], 'permissions', new NoSodConflict()));
         $this->assertSame([], $this->errors(['permissions' => $conflict], 'permissions', new NoSodConflict(exempt: true)));
 
-        foreach ($conflict as $permission) {
-            Permission::findOrCreate($permission, 'web');
-        }
-        Role::create(['name' => 'rule-approver', 'guard_name' => 'web'])->givePermissionTo($conflict[0]);
-        Role::create(['name' => 'rule-issuer', 'guard_name' => 'web'])->givePermissionTo($conflict[1]);
+        $this->companyRole($this->head, 'rule-approver', [$conflict[0]]);
+        $this->companyRole($this->head, 'rule-issuer', [$conflict[1]]);
         $roles = ['rule-approver', 'rule-issuer'];
 
         $this->assertSame($expected, $this->errors(['roles' => $roles], 'roles', new NoStackedSodConflict($staff)));

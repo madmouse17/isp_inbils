@@ -8,8 +8,6 @@ use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Modules\Service\Models\SpeedProfile;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class SpeedProfileServerTableExportTest extends TestCase
@@ -32,7 +30,7 @@ class SpeedProfileServerTableExportTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     public function test_index_honors_page_size_sorted_boundaries_and_preserves_query(): void
@@ -132,10 +130,8 @@ class SpeedProfileServerTableExportTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $role = Role::firstOrCreate(['name' => 'speed-no-export', 'guard_name' => 'web']);
-        Permission::findOrCreate('service.view', 'web');
-        $role->syncPermissions(['service.view']);
-        $user->assignRole($role);
+        $role = $this->companyRole($user->company_id, 'speed-no-export', ['app.web', 'service.view']);
+        $this->grantRole($user, $role);
 
         $this->actingAs($user)
             ->get(route('admin.speed-profiles.export', ['format' => 'csv']))

@@ -32,7 +32,7 @@ class RotateLegacyCustomerPasswords extends Command
                 User::query()
                     ->where('company_id', $companyId)
                     ->where('must_change_password', true)
-                    ->role('customer')
+                    ->withPermissionIn('portal.access', (int) $companyId)
                     ->chunkById(100, function ($users) use ($dryRun, &$totals): void {
                         foreach ($users as $user) {
                             $linkable = $user->is_active && filled($user->email);

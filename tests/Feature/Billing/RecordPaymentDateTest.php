@@ -11,7 +11,6 @@ use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\Payment;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
 
@@ -171,7 +170,7 @@ class RecordPaymentDateTest extends TestCase
     {
         $invoice = $this->sentInvoice();
         $reader = User::factory()->create(['company_id' => $this->admin->company_id, 'email_verified_at' => now(), 'is_active' => true]);
-        $reader->assignRole(Role::findOrCreate('billing-reader', 'web')->givePermissionTo(['dashboard.view', 'billing.view']));
+        $this->grantPermissions($reader, ['dashboard.view', 'billing.view', 'app.web']);
 
         $this->actingAs($reader)
             ->postJson(route('admin.invoices.payments.store', $invoice), $this->payment('2026-10-17'))

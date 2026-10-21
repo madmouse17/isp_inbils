@@ -108,7 +108,7 @@ class InvoiceOnlinePaymentsPanelTest extends TestCase
         $invoice = $this->invoice();
         PaymentAttemptFactory::new()->forInvoice($invoice)->create();
         $technician = User::factory()->create(['company_id' => $this->admin->company_id, 'email_verified_at' => now()]);
-        $technician->assignRole('technician');
+        $this->grantRole($technician, 'technician');
 
         $this->actingAs($technician)->get(route('admin.invoices.show', $invoice))->assertRedirect(route('app-only'));
     }

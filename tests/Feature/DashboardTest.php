@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Core\Company;
 use App\Models\User;
+use App\Support\PermissionCatalogue;
 use Database\Seeders\RolePermissionSeeder;
 use Database\Seeders\SystemSettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -31,7 +32,7 @@ class DashboardTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     public function test_dashboard_returns_real_counts_in_the_admin_block(): void
@@ -43,7 +44,7 @@ class DashboardTest extends TestCase
             ->has('company')
             ->where('admin.userCount', 1)
             ->where('admin.activeUserCount', 1)
-            ->where('admin.roleCount', 5)
+            ->where('admin.roleCount', count(PermissionCatalogue::templates()))
             ->has('admin.modules', 7)
             ->missing('userCount')
             ->missing('roleCount')

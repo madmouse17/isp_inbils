@@ -52,7 +52,7 @@ interface UserData {
     is_active: boolean;
     roles: string[];
     two_factor_enabled?: boolean;
-    can?: { delete?: boolean; reset_two_factor?: boolean };
+    can?: { delete?: boolean; reset_two_factor?: boolean; assign_roles?: boolean };
     created_at?: string;
     last_login_at?: string | null;
 }
@@ -306,18 +306,25 @@ export default function Show({ user, history, historyAccess }: ShowProps) {
                                         {history.linked_customer.name}
                                     </DetailRow>
                                 ) : null}
-                                <DetailRow label="Peran">
-                                    {user.data.roles.length === 0 ? (
-                                        <span className="text-muted-foreground">
-                                            Belum ada peran
-                                        </span>
-                                    ) : (
-                                        <div className="flex flex-wrap gap-2">
-                                            {user.data.roles.map((role) => (
-                                                <RoleBadge key={role} role={role} />
-                                            ))}
-                                        </div>
-                                    )}
+                                <DetailRow label="Peran di perusahaan ini">
+                                    <div className="space-y-1">
+                                        {user.data.roles.length === 0 ? (
+                                            <span className="text-muted-foreground">
+                                                Belum ada peran di perusahaan ini
+                                            </span>
+                                        ) : (
+                                            <div className="flex flex-wrap gap-2">
+                                                {user.data.roles.map((role) => (
+                                                    <RoleBadge key={role} role={role} />
+                                                ))}
+                                            </div>
+                                        )}
+                                        {history.linked_customer ? (
+                                            <p className="text-xs text-muted-foreground">
+                                                Peran pelanggan dikelola dari data pelanggan.
+                                            </p>
+                                        ) : null}
+                                    </div>
                                 </DetailRow>
                             </dl>
                         </CardContent>

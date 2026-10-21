@@ -20,7 +20,6 @@ use Modules\Service\Database\Factories\ServicePackageFactory;
 use Modules\SPK\Models\WorkOrder;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class CustomerPageTest extends TestCase
@@ -42,7 +41,7 @@ class CustomerPageTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     public function test_show_and_edit_include_customer_related_tables(): void
@@ -276,16 +275,18 @@ class CustomerPageTest extends TestCase
 
     private function makeCustomerUpdaterWithoutAddressManage(): array
     {
-        $role = Role::firstOrCreate(['name' => 'customer-updater-test'], ['guard_name' => 'web']);
-        $role->syncPermissions(['customer.view', 'customer.update']);
-        app()['cache']->forget('spatie.permission.cache');
+        $role = $this->companyRole(
+            $this->admin->company_id,
+            'customer-updater-test',
+            ['app.web', 'customer.view', 'customer.update'],
+        );
 
         $user = User::factory()->create([
             'company_id' => $this->admin->company_id,
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $user->assignRole($role);
+        $this->grantRole($user, $role);
 
         $customer = Customer::factory()->create(['company_id' => $user->company_id]);
 
@@ -294,16 +295,18 @@ class CustomerPageTest extends TestCase
 
     private function makeCustomerViewerWithoutUpdate(): array
     {
-        $role = Role::firstOrCreate(['name' => 'customer-viewer-test'], ['guard_name' => 'web']);
-        $role->syncPermissions(['customer.view']);
-        app()['cache']->forget('spatie.permission.cache');
+        $role = $this->companyRole(
+            $this->admin->company_id,
+            'customer-viewer-test',
+            ['app.web', 'customer.view'],
+        );
 
         $user = User::factory()->create([
             'company_id' => $this->admin->company_id,
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $user->assignRole($role);
+        $this->grantRole($user, $role);
 
         $customer = Customer::factory()->create(['company_id' => $user->company_id]);
 

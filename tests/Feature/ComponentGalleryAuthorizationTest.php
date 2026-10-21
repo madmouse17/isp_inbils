@@ -24,7 +24,10 @@ class ComponentGalleryAuthorizationTest extends TestCase
 
     public function test_component_gallery_requires_developer_components_view_permission(): void
     {
-        $this->actingAs($this->verifiedUser())
+        $user = $this->verifiedUser();
+        $this->grantPermissions($user, ['app.web']);
+
+        $this->actingAs($user)
             ->get('/admin/components')
             ->assertForbidden();
     }
@@ -32,7 +35,7 @@ class ComponentGalleryAuthorizationTest extends TestCase
     public function test_component_gallery_allows_developer_components_view_permission_when_app_is_local(): void
     {
         $user = $this->verifiedUser();
-        $user->givePermissionTo('developer.components.view');
+        $this->grantPermissions($user, ['app.web', 'developer.components.view']);
 
         $this->app['env'] = 'local';
 
@@ -44,7 +47,7 @@ class ComponentGalleryAuthorizationTest extends TestCase
     public function test_component_gallery_allows_developer_components_view_permission_when_app_is_testing(): void
     {
         $user = $this->verifiedUser();
-        $user->givePermissionTo('developer.components.view');
+        $this->grantPermissions($user, ['app.web', 'developer.components.view']);
 
         $this->actingAs($user)
             ->get('/admin/components')
@@ -54,7 +57,7 @@ class ComponentGalleryAuthorizationTest extends TestCase
     public function test_component_gallery_does_not_grant_system_setting_access_to_gallery(): void
     {
         $user = $this->verifiedUser();
-        $user->givePermissionTo('system.setting');
+        $this->grantPermissions($user, ['app.web', 'system.setting']);
 
         $this->app['env'] = 'local';
 
@@ -66,7 +69,7 @@ class ComponentGalleryAuthorizationTest extends TestCase
     public function test_component_gallery_is_not_accessible_when_app_env_is_production_even_with_permission(): void
     {
         $user = $this->verifiedUser();
-        $user->givePermissionTo('developer.components.view');
+        $this->grantPermissions($user, ['app.web', 'developer.components.view']);
 
         $this->app['env'] = 'production';
 
@@ -78,7 +81,7 @@ class ComponentGalleryAuthorizationTest extends TestCase
     public function test_component_gallery_is_open_in_the_e2e_environment_and_closed_in_staging(): void
     {
         $user = $this->verifiedUser();
-        $user->givePermissionTo('developer.components.view');
+        $this->grantPermissions($user, ['app.web', 'developer.components.view']);
 
         $this->app['env'] = 'e2e';
         $this->actingAs($user)->get('/admin/components')->assertOk();
@@ -90,7 +93,7 @@ class ComponentGalleryAuthorizationTest extends TestCase
     public function test_demo_options_load_only_on_request_and_stay_in_the_company(): void
     {
         $user = $this->verifiedUser();
-        $user->givePermissionTo('developer.components.view');
+        $this->grantPermissions($user, ['app.web', 'developer.components.view']);
         $mine = Location::factory()->create(['company_id' => $user->company_id, 'name' => 'Gudang Pusat']);
         Location::factory()->create(['company_id' => Company::factory()->create(['is_active' => true])->id, 'name' => 'Gudang Asing']);
 

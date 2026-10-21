@@ -4,6 +4,7 @@ namespace Tests\Feature\Ticketing;
 
 use App\Models\Core\Company;
 use App\Models\User;
+use App\Services\Core\CompanyService;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -148,7 +149,8 @@ class TicketCategoryAdminTest extends TestCase
     public function test_permission_is_granted_to_admin_and_manager_only(): void
     {
         foreach (['admin' => true, 'manager' => true, 'staff' => false, 'technician' => false, 'customer' => false] as $role => $allowed) {
-            $this->assertSame($allowed, $this->user($role)->can('ticket.category.manage'), $role);
+            $user = $this->user($role);
+            $this->assertSame($allowed, CompanyService::runAs($this->company->id, fn (): bool => $user->can('ticket.category.manage')), $role);
         }
     }
 
@@ -161,7 +163,7 @@ class TicketCategoryAdminTest extends TestCase
     private function user(string $role): User
     {
         $user = User::factory()->create(['company_id' => $this->company->id, 'email_verified_at' => now(), 'is_active' => true]);
-        $user->assignRole($role);
+        $this->grantRole($user, $role);
 
         return $user;
     }

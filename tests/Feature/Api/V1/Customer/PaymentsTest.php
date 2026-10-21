@@ -13,7 +13,6 @@ use Illuminate\Testing\TestResponse;
 use Modules\Billing\Database\Factories\InvoiceFactory;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\Payment;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 use Tests\Traits\InteractsWithMidtrans;
@@ -85,7 +84,7 @@ class PaymentsTest extends TestCase
 
     private function revokeCustomerPermission(string $permission): void
     {
-        Role::findByName('customer', 'web')->revokePermissionTo($permission);
+        $this->companyRoles((int) $this->customerUser->company_id)['customer']->revokePermissionTo($permission);
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 

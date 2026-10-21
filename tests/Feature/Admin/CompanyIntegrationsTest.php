@@ -169,7 +169,7 @@ class CompanyIntegrationsTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page->component('Admin/Company/Integrations', false));
 
         foreach (['manager', 'staff', 'technician', 'customer'] as $role) {
-            $user = $this->groupUser($this->head, $role);
+            $user = $this->grantPermissions($this->groupUser($this->head, $role), ['app.web']);
 
             $this->actingAs($user)->get(route('admin.company.integrations.edit'))->assertForbidden();
             $this->actingAs($user)->put(route('admin.company.integrations.update', 'midtrans'), ['code' => '123456', ...$this->midtrans()])->assertForbidden();

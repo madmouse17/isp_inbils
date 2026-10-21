@@ -48,7 +48,7 @@ class TenantBoundaryTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     public function test_customer_detail_hides_other_company_customer(): void

@@ -29,6 +29,7 @@ import type {
 import { LifecycleActions } from './components/LifecycleActions';
 import { SubsidiariesSection } from './components/SubsidiariesSection';
 import { UsersSection } from './components/UsersSection';
+import { RolesSection } from './components/RolesSection';
 import { AccountStatusCell, LastLoginCell } from './components/UserSignInState';
 import { ActivitySections } from './components/ActivitySections';
 import { ExportsSection } from './components/ExportsSection';
@@ -40,6 +41,8 @@ export default function Show({
     subsidiaries,
     users,
     userFilters,
+    companyRoles,
+    roleTemplates,
     recentAudit,
     failedJobs,
     failedWhatsApp,
@@ -292,7 +295,7 @@ export default function Show({
                         columns={adminColumns}
                         rows={admins}
                         emptyTitle="Belum ada admin"
-                        emptyDescription="Perusahaan ini belum mempunyai pengguna dengan peran admin."
+                        emptyDescription="Perusahaan ini belum mempunyai pengguna yang dapat mengelola peran."
                         itemLabel="admin"
                     />
                 </CardContent>
@@ -318,6 +321,7 @@ export default function Show({
             </Card>
             <SubsidiariesSection tenant={tenant} admins={admins} subsidiaries={subsidiaries} />
             <UsersSection tenant={tenant} users={users} filters={userFilters} />
+            <RolesSection tenant={tenant} companyRoles={companyRoles} templates={roleTemplates} />
             <ActivitySections
                 tenant={tenant}
                 audit={recentAudit}

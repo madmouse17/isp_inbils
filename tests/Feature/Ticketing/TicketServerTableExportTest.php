@@ -10,8 +10,6 @@ use Inertia\Testing\AssertableInertia as Assert;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Services\TicketService;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class TicketServerTableExportTest extends TestCase
@@ -37,7 +35,7 @@ class TicketServerTableExportTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     private function makeTicket(int $companyId, string $title, string $status = 'open'): Ticket
@@ -147,10 +145,8 @@ class TicketServerTableExportTest extends TestCase
             'is_active' => true,
         ]);
 
-        $role = Role::firstOrCreate(['name' => 'ticket-view-only', 'guard_name' => 'web']);
-        Permission::findOrCreate('ticket.view', 'web');
-        $role->syncPermissions(['ticket.view']);
-        $user->assignRole($role);
+        $role = $this->companyRole($this->admin->company_id, 'ticket-view-only', ['app.web', 'ticket.view']);
+        $this->grantRole($user, $role);
 
         $this->actingAs($user)
             ->get(route('admin.tickets.export', ['format' => 'csv']))
@@ -170,10 +166,9 @@ class TicketServerTableExportTest extends TestCase
             'is_active' => true,
         ]);
 
-        $handlerRole = Role::firstOrCreate(['name' => 'ticket-handler-role', 'guard_name' => 'web']);
-        $handlerRole->syncPermissions(['ticket.view', 'ticket.start', 'ticket.resolve', 'ticket.export']);
-        $handler->assignRole($handlerRole);
-        $otherHandler->assignRole($handlerRole);
+        $handlerRole = $this->companyRole($this->admin->company_id, 'ticket-handler-role', ['app.web', 'ticket.view', 'ticket.start', 'ticket.resolve', 'ticket.export']);
+        $this->grantRole($handler, $handlerRole);
+        $this->grantRole($otherHandler, $handlerRole);
 
         $ownTicket = $this->makeTicket((int) $this->admin->company_id, 'Handler Own Ticket');
         $otherTicket = $this->makeTicket((int) $this->admin->company_id, 'Other Assigned Ticket');
@@ -213,9 +208,8 @@ class TicketServerTableExportTest extends TestCase
             'is_active' => true,
         ]);
 
-        $handlerRole = Role::firstOrCreate(['name' => 'ticket-handler-inactive-role', 'guard_name' => 'web']);
-        $handlerRole->syncPermissions(['ticket.view', 'ticket.start', 'ticket.resolve', 'ticket.close', 'ticket.export']);
-        $inactiveHandler->assignRole($handlerRole);
+        $handlerRole = $this->companyRole($this->admin->company_id, 'ticket-handler-inactive-role', ['app.web', 'ticket.view', 'ticket.start', 'ticket.resolve', 'ticket.close', 'ticket.export']);
+        $this->grantRole($inactiveHandler, $handlerRole);
 
         $assignedTicket = $this->makeTicket((int) $this->admin->company_id, 'Inactive Assigned Ticket');
         $unassignedTicket = $this->makeTicket((int) $this->admin->company_id, 'Inactive Unassigned Ticket');
@@ -262,13 +256,11 @@ class TicketServerTableExportTest extends TestCase
             'is_active' => true,
         ]);
 
-        $closerRole = Role::firstOrCreate(['name' => 'ticket-closer-scope-role', 'guard_name' => 'web']);
-        $closerRole->syncPermissions(['ticket.view', 'ticket.close', 'ticket.export']);
-        $closeOnlyHandler->assignRole($closerRole);
+        $closerRole = $this->companyRole($this->admin->company_id, 'ticket-closer-scope-role', ['app.web', 'ticket.view', 'ticket.close', 'ticket.export']);
+        $this->grantRole($closeOnlyHandler, $closerRole);
 
-        $otherRole = Role::firstOrCreate(['name' => 'ticket-other-scope-role', 'guard_name' => 'web']);
-        $otherRole->syncPermissions(['ticket.view', 'ticket.start', 'ticket.resolve']);
-        $otherHandler->assignRole($otherRole);
+        $otherRole = $this->companyRole($this->admin->company_id, 'ticket-other-scope-role', ['app.web', 'ticket.view', 'ticket.start', 'ticket.resolve']);
+        $this->grantRole($otherHandler, $otherRole);
 
         $ownTicket = $this->makeTicket((int) $this->admin->company_id, 'Closer Own Ticket');
         $otherTicket = $this->makeTicket((int) $this->admin->company_id, 'Closer Other Ticket');

@@ -247,6 +247,127 @@ What changed and what an operator must do. Details: [OBSERVABILITY.md](./OBSERVA
 - **Nothing to configure** for the request id, the redaction tap, the slow-query line (500 ms) or the exception throttle. Log consumers that read `context.request_id` must read `extra.request_id`.
 - **Rollback**: a code rollback leaves the columns and the index in place, which the old code ignores. Do not run the migration's `down()` unless the old release has to write rows without them: the data in the three columns is lost.
 
+## Tenant roles release (lane `tenant-roles`)
+
+Roles move from one global set to one set per company, and the application checks permissions instead of role names. Decision: `docs/architecture/decisions/ADR-004-tenant-scoped-roles.md`. The release rewrites every user's role assignments, so it needs a maintenance window, a backup and a before/after check. Nothing changes in `/api/v1` and no mobile release is needed.
+
+- **Migrations** (six, run in order by `php artisan migrate --force`):
+  1. `2026_10_29_100000_create_role_templates_tables` creates `role_templates` and `role_template_has_permissions`;
+  2. `2026_10_29_100100_add_company_columns_to_roles_table` adds `roles.company_id` (nullable at first, foreign key to `companies` with cascade delete) and `roles.template_key`, and replaces the unique `(name, guard_name)` with `(company_id, name, guard_name)` and `(company_id, template_key)`;
+  3. `2026_10_29_100200_add_access_permissions` creates the permissions `app.web`, `app.technician`, `portal.access`, `evaluation.evaluable` and `report.technician.team` and grants them to the global roles that held the matching duty (by their legacy names). A user who has direct permissions but no role gets `app.web` directly, as the old redirect let him in;
+  4. `2026_10_29_100300_create_default_role_templates` creates every permission of the catalogue and the eight default templates (Admin, Manajer, NOC & Layanan Pelanggan, Teknisi, Gudang, Keuangan, Staf, Pelanggan) when no template has their key or name, never overwriting an edited one (`PermissionCatalogue::install()`);
+  5. `2026_10_29_100400_copy_global_roles_into_companies` copies every global role into every company, remaps every user's assignments to the copies in his home company and in every company he is a member of, and adds the three missing templates (NOC & Layanan Pelanggan, Gudang, Keuangan) to each company with no users. It runs in one transaction and compares every user's permissions per company before and after; any difference rolls the whole step back with "Role cutover would change the permissions of {n} user-company pairs; nothing was changed.";
+  6. `2026_10_29_100500_require_company_on_roles` makes `roles.company_id` NOT NULL, and stops with an error if a role without a company is left.
+- **Names change**: the five old roles are renamed Admin, Manajer, Staf, Teknisi and Pelanggan (a role keeps its old name only when another global role already uses the new one). Tell company administrators before the window.
+- **Fresh installs** run `php artisan migrate:fresh --seed`. Migration 4 already creates the catalogue and the templates; `RolePermissionSeeder` calls the same `PermissionCatalogue::install()` and finds nothing to add. A company gets its roles when it is created.
+- **No `db:seed` step, now or in later releases.** Running `php artisan db:seed --class=RolePermissionSeeder --force` on a deployed instance after the migrations is harmless: it only inserts missing permissions and missing default templates, and never creates, changes or removes a company role, a role's permissions or a user's assignment. It is also useless for a release: a permission it adds is held by nobody, and it does not grant it to the company roles. It would recreate a default template the platform operator deleted (Admin and Pelanggan cannot be deleted), with the factory permissions. Never run it before `migrate`: the template tables do not exist yet. A release that adds a permission uses `PermissionCatalogue::release()` in a migration (`docs/SECURITY.md` 2.5).
+
+Deploy, in this order:
+
+1. Announce the window. Back up the database (see [BACKUP_RESTORE.md](./BACKUP_RESTORE.md)) and verify the backup.
+2. Run the BEFORE query below and save its output. Also run the three checks after it and give the results to the owner.
+3. `php artisan down --retry=60`.
+4. Deploy the code: `composer install --no-dev --optimize-autoloader`, then the `npm run build` artefacts.
+5. `php artisan migrate --force`. If migration 5 (the cutover) fails, stay in maintenance mode, run `php artisan migrate:rollback --step=4`, redeploy the previous release, and continue at step 8.
+6. `php artisan config:cache` (the `permission.models` config changed), then `php artisan permission:cache-reset` and `php artisan queue:restart`.
+7. Run the AFTER query and `diff` it against step 2: the diff must be empty. Run the audience check that follows the three checks: it must return no rows. Then check by hand that every persona can sign in, that **Peran** lists the copies, and that `/app-only` works for a technician.
+8. `php artisan up`.
+
+BEFORE query (read-only; it compares permissions per user and company, without the five new ones, which the migration adds on purpose):
+
+```sql
+SET SESSION group_concat_max_len = 1048576;
+WITH m AS (
+    SELECT id AS user_id, company_id FROM users WHERE company_id IS NOT NULL
+    UNION
+    SELECT user_id, company_id FROM company_user
+),
+g AS (
+    -- BEFORE deploy: roles are global, so they apply in every company of the user.
+    SELECT m.user_id, m.company_id, rhp.permission_id
+    FROM m
+    JOIN model_has_roles mhr ON mhr.model_id = m.user_id AND mhr.model_type = 'App\\Models\\User'
+    JOIN role_has_permissions rhp ON rhp.role_id = mhr.role_id
+    UNION
+    SELECT m.user_id, m.company_id, mhp.permission_id
+    FROM m
+    JOIN model_has_permissions mhp ON mhp.model_id = m.user_id AND mhp.model_type = 'App\\Models\\User'
+)
+SELECT m.user_id, m.company_id, COUNT(p.id) AS permissions,
+       SHA2(COALESCE(GROUP_CONCAT(p.name ORDER BY p.name), ''), 256) AS fingerprint
+FROM m
+LEFT JOIN g ON g.user_id = m.user_id AND g.company_id = m.company_id
+LEFT JOIN permissions p ON p.id = g.permission_id
+     AND p.name NOT IN ('app.web', 'app.technician', 'portal.access', 'evaluation.evaluable', 'report.technician.team')
+GROUP BY m.user_id, m.company_id
+ORDER BY m.user_id, m.company_id;
+```
+
+The AFTER query is the same, with the first branch of `g` joined through the role's company:
+
+```sql
+    JOIN model_has_roles mhr ON mhr.model_id = m.user_id AND mhr.model_type = 'App\\Models\\User'
+    JOIN roles r ON r.id = mhr.role_id AND r.company_id = m.company_id
+    JOIN role_has_permissions rhp ON rhp.role_id = r.id
+```
+
+Three more checks before the window. Role assignments of users with no company cannot be mapped and are dropped by the cutover (they act in no company, so they lose nothing); count them:
+
+```sql
+SELECT COUNT(*) FROM model_has_roles mhr JOIN users u ON u.id = mhr.model_id
+WHERE mhr.model_type = 'App\\Models\\User' AND u.company_id IS NULL
+  AND NOT EXISTS (SELECT 1 FROM company_user cu WHERE cu.user_id = u.id);
+```
+
+Users who hold the technician role together with a role that grants `evaluation.view` will now see all evaluations (access is additive, delta D1 in `docs/SECURITY.md` 2.7):
+
+```sql
+SELECT DISTINCT mhr.model_id FROM model_has_roles mhr
+JOIN roles r ON r.id = mhr.role_id AND r.name = 'technician'
+WHERE EXISTS (SELECT 1 FROM model_has_roles o JOIN role_has_permissions rp ON rp.role_id = o.role_id
+              JOIN permissions p ON p.id = rp.permission_id AND p.name = 'evaluation.view'
+              WHERE o.model_id = mhr.model_id AND o.model_type = mhr.model_type);
+```
+
+`roles.manage` changes meaning in this release. Until now it only let a user read the role and permission pages. From now on whoever holds it creates, edits and deletes every role of his company, is exempt from the stacked separation-of-duties check, and, together with `app.web` (the cutover gives that to every role except technician and customer), counts as an administrator of the company. The migration compares permission names only, so it keeps each holder as he is. List everyone who holds `roles.manage` through a role other than `admin`, or directly, and decide with the owner for each one: take it away before the window, or accept it. An empty result is the expected one.
+
+```sql
+SELECT u.id AS user_id, u.company_id, u.email, r.name AS role
+FROM model_has_roles mhr
+JOIN roles r ON r.id = mhr.role_id AND r.name <> 'admin'
+JOIN role_has_permissions rhp ON rhp.role_id = r.id
+JOIN permissions p ON p.id = rhp.permission_id AND p.name = 'roles.manage'
+JOIN users u ON u.id = mhr.model_id
+WHERE mhr.model_type = 'App\\Models\\User'
+UNION ALL
+SELECT u.id, u.company_id, u.email, '(direct permission)'
+FROM model_has_permissions mhp
+JOIN permissions p ON p.id = mhp.permission_id AND p.name = 'roles.manage'
+JOIN users u ON u.id = mhp.model_id
+WHERE mhp.model_type = 'App\\Models\\User'
+ORDER BY company_id, user_id;
+```
+
+Audience check, run after the migration (step 7): no role may hold `portal.access` together with `app.web`, because the role of customer accounts must never open the back office. The role editor, the template editor and the operator's repair refuse that combination from this release on. The cutover grants `app.web` to every global role except technician and customer, so a custom role that already held `portal.access` would be listed here: take one of the two permissions away in **Peran**. It must return no rows.
+
+```sql
+SELECT r.company_id, r.id AS role_id, r.name
+FROM roles r
+JOIN role_has_permissions a ON a.role_id = r.id
+JOIN permissions pa ON pa.id = a.permission_id AND pa.name = 'portal.access'
+JOIN role_has_permissions b ON b.role_id = r.id
+JOIN permissions pb ON pb.id = b.permission_id AND pb.name = 'app.web'
+ORDER BY r.company_id, r.id;
+```
+
+Notes:
+
+- If migration 5 throws, migrations 1 to 4 stay applied, and the new code would hide every global role. Keep maintenance mode on until the rollback is done.
+- The cutover uses MySQL-only SQL (temporary tables, `SHA2`), which matches the supported stack (MySQL 8.4).
+- The permission cache is one global key that holds the roles of every company. It grows with the number of company roles (about 500 `role_has_permissions` rows per company with the eight templates). `permission:cache-reset` after the deploy rebuilds it.
+- A later release that adds a permission does it with `PermissionCatalogue::release()` in a migration (`docs/SECURITY.md` 2.5), never with the seeder.
+- **Rollback**: `php artisan down`; `php artisan migrate:rollback --step=6`; redeploy the previous release; then `config:cache`, `permission:cache-reset`, `queue:restart` and `up`. Migration 5 refuses to roll back once companies have diverged (two companies hold different permissions under one role name, a company lacks a role name another has, a user's role names differ between his companies, or a top-up role has users). It then stops with "Roles changed per company since the cutover; restore the pre-deploy backup instead." Restore the backup taken in step 1.
+
 ## Health and readiness
 
 - `/up` is the liveness endpoint.

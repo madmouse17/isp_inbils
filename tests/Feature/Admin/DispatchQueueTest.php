@@ -29,7 +29,6 @@ use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Services\TicketService;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\WithoutAppOnlyRedirect;
 
@@ -64,7 +63,7 @@ class DispatchQueueTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $user->assignRole(Role::where('name', 'customer')->firstOrFail());
+        $this->grantRole($user, 'customer');
 
         $this->actingAs($user)
             ->get(route('admin.dispatch.index'))
@@ -472,7 +471,7 @@ class DispatchQueueTest extends TestCase
             'company_id' => $company->id,
             'is_active' => true,
         ]);
-        $technician->assignRole('technician');
+        $this->grantRole($technician, 'technician');
         EmployeeProfile::factory()->create([
             'company_id' => $company->id,
             'user_id' => $technician->id,
@@ -530,7 +529,7 @@ class DispatchQueueTest extends TestCase
             'company_id' => $company->id,
             'is_active' => true,
         ]);
-        $handler->assignRole('technician');
+        $this->grantRole($handler, 'technician');
 
         $ticket = $this->makeOpenTicket($company, $dispatcher);
 
@@ -562,7 +561,7 @@ class DispatchQueueTest extends TestCase
             'company_id' => $company->id,
             'is_active' => true,
         ]);
-        $technician->assignRole('technician');
+        $this->grantRole($technician, 'technician');
         EmployeeProfile::factory()->create([
             'company_id' => $company->id,
             'user_id' => $technician->id,
@@ -599,7 +598,7 @@ class DispatchQueueTest extends TestCase
             'company_id' => $company->id,
             'is_active' => true,
         ]);
-        $handler->assignRole('technician');
+        $this->grantRole($handler, 'technician');
 
         $ticket = $this->makeOpenTicket($company, $dispatcher);
 
@@ -626,7 +625,7 @@ class DispatchQueueTest extends TestCase
         ]);
         $dispatcher->givePermissionTo('ticket.assign');
         $handler = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
-        $handler->assignRole('technician');
+        $this->grantRole($handler, 'technician');
         $ticket = $this->makeOpenTicket($company, $dispatcher);
 
         $this->actingAs($dispatcher)
@@ -661,7 +660,7 @@ class DispatchQueueTest extends TestCase
             'company_id' => $companyA->id,
             'is_active' => true,
         ]);
-        $handlerA->assignRole('technician');
+        $this->grantRole($handlerA, 'technician');
 
         $ticketB = $this->makeOpenTicket($companyB, $dispatcherB);
 
@@ -781,7 +780,7 @@ class DispatchQueueTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $dispatcher->assignRole('admin');
+        $this->grantRole($dispatcher, 'admin');
         $dispatcher->givePermissionTo(['ticket.assign', 'ticket.start']);
 
         $ticket = $this->makeOpenTicket($company, $dispatcher);
@@ -807,7 +806,7 @@ class DispatchQueueTest extends TestCase
         ]);
         $dispatcher->givePermissionTo('ticket.assign');
         $handler = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
-        $handler->assignRole('technician');
+        $this->grantRole($handler, 'technician');
         $ticket = $this->makeOpenTicket($company, $dispatcher);
 
         $this->actingAs($dispatcher)
@@ -837,7 +836,7 @@ class DispatchQueueTest extends TestCase
         ]);
         $dispatcher->givePermissionTo('spk.reassign');
         $handler = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
-        $handler->assignRole('technician');
+        $this->grantRole($handler, 'technician');
         $spk = $this->makeUnassignedSpk($company, $dispatcher);
         $spk->update(['assigned_to' => $handler->id, 'status' => 'assigned']);
 
@@ -861,7 +860,7 @@ class DispatchQueueTest extends TestCase
         ]);
         $dispatcher->givePermissionTo('spk.reassign');
         $handler = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
-        $handler->assignRole('technician');
+        $this->grantRole($handler, 'technician');
         $waiting = $this->makeUnassignedSpk($company, $dispatcher);
         $waiting->update(['assigned_to' => $handler->id, 'status' => 'assigned']);
         $onTheWay = $this->makeUnassignedSpk($company, $dispatcher);
@@ -883,9 +882,9 @@ class DispatchQueueTest extends TestCase
         ]);
         $dispatcher->givePermissionTo('ticket.reassign');
         $oldHandler = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
-        $oldHandler->assignRole('technician');
+        $this->grantRole($oldHandler, 'technician');
         $newHandler = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
-        $newHandler->assignRole('technician');
+        $this->grantRole($newHandler, 'technician');
         $ticket = $this->makeOpenTicket($company, $dispatcher);
         $ticket->update(['assigned_to' => $oldHandler->id, 'status' => 'assigned']);
 
@@ -940,7 +939,7 @@ class DispatchQueueTest extends TestCase
     private function technician(Company $company, array $user = [], ?array $profile = []): User
     {
         $technician = User::factory()->create(['company_id' => $company->id, 'is_active' => true, ...$user]);
-        $technician->assignRole('technician');
+        $this->grantRole($technician, 'technician');
 
         if ($profile !== null) {
             EmployeeProfile::factory()->create([

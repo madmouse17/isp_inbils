@@ -108,7 +108,7 @@ class PaymentAttemptLocalCancelTest extends TestCase
             'email_verified_at' => now(),
             ...$attributes,
         ]);
-        $user->assignRole($role);
+        $this->grantRole($user, $role);
 
         return $user;
     }

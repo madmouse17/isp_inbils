@@ -161,11 +161,7 @@ export default function AuditLog({ data, filters, userOptions, selectedUser, can
     const dateRangeId = useId();
 
     const userPermissions = auth.user?.permissions ?? [];
-    const userRoles = auth.user?.roles ?? [];
-    const canViewAudit =
-        userPermissions.includes('report.audit.view') ||
-        userRoles.includes('admin') ||
-        userRoles.includes('super-admin');
+    const canViewAudit = userPermissions.includes('report.audit.view');
     const canExport = can?.export === true;
 
     const {

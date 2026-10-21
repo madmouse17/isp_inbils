@@ -10,7 +10,6 @@ use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\BuildsReportingWorld;
 use Tests\Traits\CreatesReportingUsers;
@@ -109,9 +108,7 @@ class ReportTechnicianScopeTest extends TestCase
 
     public function test_a_technician_with_export_reaches_only_their_own_rows(): void
     {
-        $role = Role::firstOrCreate(['name' => 'tech-with-export', 'guard_name' => 'web']);
-        $role->givePermissionTo(['report.export']);
-        $this->inScope->assignRole($role);
+        $this->grantPermissions($this->inScope, ['app.web', 'report.export'], $this->companyId);
         $this->actingAs($this->inScope);
 
         // No target named: the technician themself, on the report, the lists and the files.
@@ -300,7 +297,7 @@ class ReportTechnicianScopeTest extends TestCase
     {
         $companyId ??= $this->companyId;
         $user = User::factory()->create(['company_id' => $companyId, 'is_active' => true, 'email_verified_at' => now()]);
-        $user->assignRole(Role::findByName($role));
+        $this->grantRole($user, $role, $companyId);
         EmployeeProfile::factory()->create([
             'company_id' => $companyId,
             'user_id' => $user->id,
@@ -314,11 +311,8 @@ class ReportTechnicianScopeTest extends TestCase
     /** @param  list<string>  $permissions */
     private function userIn(array $permissions): User
     {
-        $role = Role::firstOrCreate(['name' => 'custom-'.md5(implode('|', $permissions)), 'guard_name' => 'web']);
-        $role->syncPermissions($permissions);
-
         $user = User::factory()->create(['company_id' => $this->companyId, 'is_active' => true, 'email_verified_at' => now()]);
-        $user->assignRole($role);
+        $this->grantPermissions($user, ['app.web', ...$permissions], $this->companyId);
 
         return $user;
     }

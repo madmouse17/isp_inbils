@@ -3,6 +3,7 @@
 namespace App\Queries\Admin;
 
 use App\Models\Core\Customer;
+use App\Models\Role;
 use App\Models\User;
 use App\Services\Core\CompanyService;
 use App\Services\Platform\PlatformAuditService;
@@ -15,12 +16,12 @@ use Modules\SPK\Models\WorkOrder;
 use Modules\Ticketing\Models\Ticket;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 
 /**
  * Company statistics that only actors who administer users, roles or the company may see on the
- * dashboard. Role and Permission are the documented tenant-wide exceptions to company scoping; each
- * module link also needs the permission that opens its page, so no count is shown without a way in.
+ * dashboard. Permission is the documented tenant-wide exception to company scoping; Role is scoped to the company
+ * like every tenant table. Each module link also needs the permission that opens its page, so no count is shown
+ * without a way in.
  */
 final class DashboardAdminStatsQuery
 {
@@ -60,7 +61,7 @@ final class DashboardAdminStatsQuery
         return [
             'userCount' => User::query()->where('company_id', $companyId)->count(),
             'activeUserCount' => User::query()->where('company_id', $companyId)->where('is_active', true)->count(),
-            'roleCount' => Role::query()->count(),
+            'roleCount' => Role::forCompany($companyId)->count(),
             'permissionCount' => Permission::query()->count(),
             'recentActivity' => Activity::query()
                 ->where('company_id', $companyId)

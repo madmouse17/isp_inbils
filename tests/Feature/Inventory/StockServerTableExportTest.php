@@ -31,7 +31,7 @@ class StockServerTableExportTest extends TestCase
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
         $this->actingAs($this->admin);
         $this->location = Location::factory()->create(['company_id' => $this->admin->company_id]);
     }
@@ -233,7 +233,7 @@ class StockServerTableExportTest extends TestCase
     public function test_direct_stock_and_movement_exports_require_export_permission(): void
     {
         $viewer = User::factory()->create(['company_id' => $this->admin->company_id, 'is_active' => true, 'email_verified_at' => now()]);
-        $viewer->givePermissionTo('inventory.view');
+        $this->grantPermissions($viewer, ['app.web', 'inventory.view']);
         $this->actingAs($viewer);
         foreach (['admin.stocks.export', 'admin.stock-movements.export'] as $route) {
             foreach (['csv', 'pdf'] as $format) {

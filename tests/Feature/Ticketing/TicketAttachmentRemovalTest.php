@@ -4,6 +4,7 @@ namespace Tests\Feature\Ticketing;
 
 use App\Models\Core\Company;
 use App\Models\User;
+use App\Services\Core\CompanyService;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -80,7 +81,7 @@ class TicketAttachmentRemovalTest extends TestCase
 
     public function test_a_manager_who_is_also_a_technician_cannot_take_off_other_peoples_files(): void
     {
-        $this->assertTrue($this->both->can('ticket.attachment.upload'), 'the technician role is where the permission comes from');
+        $this->assertTrue(CompanyService::runAs($this->company->id, fn (): bool => $this->both->can('ticket.attachment.upload')), 'the technician role is where the permission comes from');
         $ticket = $this->ticket();
         $theirs = $this->file($ticket, $this->uploader);
         $mine = $this->file($ticket, $this->both);
@@ -145,7 +146,9 @@ class TicketAttachmentRemovalTest extends TestCase
     private function user(string ...$roles): User
     {
         $user = User::factory()->create(['company_id' => $this->company->id, 'email_verified_at' => now(), 'is_active' => true]);
-        $user->assignRole(...$roles);
+        foreach ($roles as $role) {
+            $this->grantRole($user, $role);
+        }
 
         return $user;
     }

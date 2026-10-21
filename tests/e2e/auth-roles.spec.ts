@@ -209,10 +209,7 @@ test('@kanban-t_525dca8a seeded demo roles can login and see permitted shell', a
     );
 });
 
-test('tenant roles are read-only: list opens the role, no create, edit or delete', async ({
-    page,
-    expectHttpError,
-}) => {
+test('tenant admin opens and edits the Admin company role', async ({ page }) => {
     await login(
         page,
         demoUsers.find((demoUser) => demoUser.role === 'admin')!,
@@ -221,21 +218,14 @@ test('tenant roles are read-only: list opens the role, no create, edit or delete
 
     const main = page.getByRole('main');
     await expect(main.getByRole('heading', { name: 'Peran' })).toBeVisible();
-    await expect(main.getByText('Definisi peran dikelola oleh operator platform.')).toBeVisible();
-    await expect(main.getByRole('link', { name: 'Buat Peran' })).toHaveCount(0);
-    await expect(main.getByRole('link', { name: 'Ubah' })).toHaveCount(0);
-    await expect(main.getByRole('button', { name: 'Aksi lainnya' })).toHaveCount(0);
+    await expect(main.getByRole('link', { name: 'Buat peran' })).toBeVisible();
 
-    await main.getByRole('link', { name: 'admin', exact: true }).click();
+    await main.getByRole('link', { name: 'Admin', exact: true }).click();
     await expect(page).toHaveURL(/\/admin\/roles\/[0-9A-HJKMNP-TV-Z]{26}$/i);
-    await expect(main.getByRole('heading', { name: 'Peran admin' })).toBeVisible();
-    await expect(main.getByRole('heading', { name: 'Hak akses peran' })).toBeVisible();
-    await expect(main.getByRole('link', { name: 'Ubah' })).toHaveCount(0);
-    await main.getByRole('link', { name: 'Kembali' }).click();
-    await expect(page).toHaveURL(/\/admin\/roles$/);
-
-    expectHttpError({ url: '/admin/roles/create', method: 'GET', status: 404 });
-    expect((await page.goto('/admin/roles/create'))?.status()).toBe(404);
+    await expect(main.getByRole('heading', { name: 'Peran Admin' })).toBeVisible();
+    await main.getByRole('link', { name: 'Ubah' }).click();
+    await expect(main.getByRole('heading', { name: 'Ubah peran Admin' })).toBeVisible();
+    await expect(page.getByLabel('Nama')).toHaveValue('Admin');
 });
 
 test('@kanban-t_525dca8a dark toggle applies and survives reload', async ({ page }) => {

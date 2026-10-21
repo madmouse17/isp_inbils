@@ -48,7 +48,7 @@ class DateRangeFiltersTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $this->user->assignRole('admin');
+        $this->grantRole($this->user, 'admin');
         $this->user->givePermissionTo(['ticket.assign', 'ticket.start']);
         EmployeeProfile::factory()->create(['company_id' => $this->company->id, 'user_id' => $this->user->id, 'status' => 'active']);
     }

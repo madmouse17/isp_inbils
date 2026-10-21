@@ -15,7 +15,6 @@ use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\Feature\Api\V1\PostsMultipart;
 use Tests\TestCase;
@@ -188,8 +187,8 @@ class TicketAttachmentsTest extends TestCase
         $technicianTicket = $this->ticket($user->company_id, ['status' => 'assigned', 'assigned_to' => $technician->id]);
         $own = $customerTicket->addMediaFromString('png')->usingFileName('mine.png')
             ->withCustomProperties(['company_id' => $user->company_id, 'uploaded_by' => $user->id])->toMediaCollection('attachments');
-        $this->revokeFromRole('customer', 'ticket.attachment.upload');
-        $this->revokeFromRole('technician', 'ticket.attachment.upload');
+        $this->revokeFromRole($user->company_id, 'customer', 'ticket.attachment.upload');
+        $this->revokeFromRole($user->company_id, 'technician', 'ticket.attachment.upload');
         $file = fn (): UploadedFile => UploadedFile::fake()->image('x.jpg');
 
         $this->multipart("customer/tickets/{$customerTicket->public_id}/attachments", ['file' => $file()], $this->issueToken($user, 'customer'))
@@ -313,7 +312,7 @@ class TicketAttachmentsTest extends TestCase
     {
         // A customer who also works as a technician: the customer token reaches the customer's own tickets only.
         [$user] = $this->customerLogin();
-        $user->assignRole('technician');
+        $this->grantRole($user, 'technician');
         $assigned = $this->ticket($user->company_id, ['status' => 'assigned', 'assigned_to' => $user->id, 'customer_id' => Customer::factory()->create(['company_id' => $user->company_id])->id]);
 
         $this->multipart("customer/tickets/{$assigned->public_id}/attachments", ['file' => UploadedFile::fake()->image('x.jpg')], $this->issueToken($user, 'customer'))
@@ -337,9 +336,9 @@ class TicketAttachmentsTest extends TestCase
         ]);
     }
 
-    private function revokeFromRole(string $role, string $permission): void
+    private function revokeFromRole(int $companyId, string $role, string $permission): void
     {
-        Role::findByName($role, 'web')->revokePermissionTo($permission);
+        $this->companyRoles($companyId)[$role]->revokePermissionTo($permission);
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 }

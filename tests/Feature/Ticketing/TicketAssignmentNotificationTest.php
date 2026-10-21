@@ -9,7 +9,6 @@ use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Notifications\TicketAssignedNotification;
 use Modules\Ticketing\Services\TicketService;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
 
@@ -22,7 +21,6 @@ class TicketAssignmentNotificationTest extends TestCase
     {
         parent::setUp();
 
-        Role::firstOrCreate(['name' => 'technician', 'guard_name' => 'web']);
     }
 
     public function test_assign_notifies_assignee(): void
@@ -37,7 +35,7 @@ class TicketAssignmentNotificationTest extends TestCase
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
-        $handler->assignRole('technician');
+        $this->grantRole($handler, 'technician');
 
         $ticket = $this->makeOpenTicket($admin, 'TKT-2026-00001');
 
@@ -60,7 +58,7 @@ class TicketAssignmentNotificationTest extends TestCase
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
-        $handler->assignRole('technician');
+        $this->grantRole($handler, 'technician');
 
         $ticket = $this->makeOpenTicket($admin, 'TKT-2026-00002');
         TicketService::assign($ticket, $handler->id, $admin->id, null, $ticket->fresh()->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'));

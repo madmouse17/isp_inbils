@@ -20,7 +20,6 @@ use Modules\Inventory\Notifications\InventoryRequestSubmittedNotification;
 use Modules\SPK\Database\Factories\WorkOrderFactory;
 use Modules\SPK\Models\WorkOrder;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 use Tests\Traits\InteractsWithMobileApi;
@@ -256,7 +255,7 @@ class InventoryRequestWritesTest extends TestCase
         $technician = $this->technicianLogin();
         $cable = $this->product($technician, 'Drop Cable', 'mtr');
         $token = $this->issueToken($technician, 'technician');
-        Role::findByName('technician', 'web')->revokePermissionTo('inventory.request.create');
+        $this->companyRoles((int) $technician->company_id)['technician']->revokePermissionTo('inventory.request.create');
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $this->api('POST', 'technician/inventory-requests', [

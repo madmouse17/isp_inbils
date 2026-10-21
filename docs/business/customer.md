@@ -224,8 +224,8 @@ membaca kolom ini).
   daftar Create/Edit, rule `IsEligibleCustomerAcquirer`, dan default saat create.
 - **Capability**: `customer.sales.assign` mengisi customer yang masih Unassigned;
   `customer.sales.correct` mengubah atau mengosongkan acquirer yang sudah ada dan wajib disertai
-  `acquirer_correction_reason` (maks 500 karakter). Seeder: admin dan manager keduanya, staff hanya
-  assign, technician dan customer tidak ada.
+  `acquirer_correction_reason` (maks 500 karakter). Templat peran: Admin dan Manajer keduanya; NOC dan Staf
+  hanya assign; Teknisi, Gudang, Keuangan dan Pelanggan tidak ada (`PermissionCatalogue::templates()`).
 - **Visibility**: kolom Index, filter, display Show, field `CustomerResource`, dan kolom export
   "Acquired By" hanya untuk pemegang assign atau correct (`CustomerPolicy::viewAcquirer`). Untuk user
   lain filter `acquired_by` diabaikan sehingga tidak bisa dipakai menebak atribusi.
@@ -242,9 +242,12 @@ membaca kolom ini).
   ditawarkan sebagai pilihan. Acquirer dari company lain tidak pernah di-resolve (tampil Unassigned).
 - **Hapus user**: FK `restrictOnDelete`. `UserController::destroy` menolak menghapus user yang pernah
   menjadi acquirer (pesan validasi); nonaktifkan akun sebagai gantinya.
-- **Deployment**: setelah `php artisan migrate`, jalankan ulang
-  `php artisan db:seed --class=RolePermissionSeeder --force` (idempotent). Custom role tidak diubah
-  seeder: beri kedua permission lewat layar Roles.
+- **Deployment**: cukup `php artisan migrate`, tanpa seeder. Peran dimiliki per perusahaan: perusahaan yang
+  sudah ada memegang salinan peran dari cutover `tenant-roles` dan boleh sudah mengubahnya, jadi `db:seed`
+  tidak mengubah peran mereka. Kedua permission ada di katalog dan di templat Admin dan Manajer (NOC dan Staf
+  hanya assign), yang disalin ke perusahaan baru. Administrator perusahaan yang sudah ada mengatur
+  pemegangnya lewat Administrasi → Peran. Permission baru di rilis berikutnya masuk lewat migration
+  `PermissionCatalogue::release()` (`docs/SECURITY.md` 2.5).
 
 ### Notifikasi WhatsApp: persetujuan, STOP, pengaturan, template
 

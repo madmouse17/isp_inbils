@@ -229,7 +229,7 @@ class StockPermissionTest extends TestCase
     private function userWithRole(string $role): User
     {
         $user = User::factory()->create(['company_id' => $this->company->id]);
-        $user->assignRole($role);
+        $this->grantRole($user, $role);
 
         return $user;
     }

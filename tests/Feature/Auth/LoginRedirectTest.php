@@ -28,7 +28,7 @@ class LoginRedirectTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $user->assignRole('admin');
+        $this->grantRole($user, 'admin');
 
         $response = $this->post(route('login'), [
             'email' => $user->email,
@@ -68,7 +68,7 @@ class LoginRedirectTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $user->assignRole('admin');
+        $this->grantRole($user, 'admin');
 
         $response = $this->actingAs($user)->get('/dashboard');
 

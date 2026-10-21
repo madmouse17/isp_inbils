@@ -10,7 +10,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Modules\Billing\Models\Invoice;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class InvoiceServerTableExportTest extends TestCase
@@ -36,7 +35,7 @@ class InvoiceServerTableExportTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     private function makeInvoice(int $companyId, Customer $customer, string $number, string $status = 'draft'): Invoice
@@ -284,11 +283,8 @@ class InvoiceServerTableExportTest extends TestCase
             'is_active' => true,
         ]);
 
-        $role = Role::firstOrCreate(['name' => 'billing-view-only', 'guard_name' => 'web']);
-        Permission::findOrCreate('billing.view', 'web');
-        $role->syncPermissions(['billing.view']);
         Permission::query()->where('name', 'billing.export')->delete();
-        $user->assignRole($role);
+        $this->grantPermissions($user, ['billing.view', 'app.web']);
 
         $this->actingAs($user)
             ->get(route('admin.invoices.export', ['format' => 'csv']))

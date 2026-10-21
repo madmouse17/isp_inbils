@@ -6,10 +6,12 @@ use App\Models\Core\Company;
 use App\Models\Core\CompanyIntegration;
 use App\Models\Platform\TenantExport;
 use App\Models\PlatformAdmin;
+use App\Models\RoleTemplate;
 use App\Models\User;
 use App\Services\Platform\PlatformAuditService;
 use App\Services\Platform\SupportToolsService;
 use App\Services\Platform\TenantLifecycleService;
+use App\Support\PermissionCatalogue;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -70,6 +72,8 @@ class TenantDetailQuery
                 'users_count' => (int) $subsidiary->users_count,
             ])->all(),
             'users' => JsonResource::collection($users),
+            'companyRoles' => $this->companyRoles($companies),
+            'roleTemplates' => RoleTemplate::query()->orderBy('id')->get(['key', 'name'])->map(fn (RoleTemplate $template): array => ['key' => $template->key, 'name' => $template->name])->all(),
             'userFilters' => $userFilters,
             'recentAudit' => $this->recentAudit($ids),
             'failedJobs' => $this->failedJobs($ids),
@@ -129,6 +133,9 @@ class TenantDetailQuery
     }
 
     /**
+     * The people who administer a company of this tenant: users whose roles IN THEIR HOME COMPANY hold roles.manage. The
+     * platform has no tenant context, so the roles are matched on the home company explicitly.
+     *
      * @param  list<int>  $ids
      * @return Collection<int, User>
      */
@@ -137,8 +144,14 @@ class TenantDetailQuery
         return User::query()
             ->select(self::USER_COLUMNS)
             ->whereIn('company_id', $ids)
-            ->whereHas('roles', fn (Builder $roles) => $roles->where('name', 'admin')->where('guard_name', 'web'))
-            ->with('roles:id,name')
+            ->whereExists(fn ($roles) => $roles->from('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->join('role_has_permissions', 'role_has_permissions.role_id', '=', 'roles.id')
+                ->join('permissions', 'permissions.id', '=', 'role_has_permissions.permission_id')
+                ->whereColumn('model_has_roles.model_id', 'users.id')
+                ->where('model_has_roles.model_type', User::class)
+                ->whereColumn('roles.company_id', 'users.company_id')
+                ->where('permissions.name', PermissionCatalogue::ADMINISTRATION))
             ->orderBy('name')
             ->orderBy('id')
             ->limit(self::ADMINS)
@@ -160,7 +173,6 @@ class TenantDetailQuery
                 $query->where(fn (Builder $match) => $match->where('name', 'like', $like)->orWhere('email', 'like', $like));
             })
             ->when($filters['status'], fn (Builder $query, string $status) => $query->where('is_active', $status === 'active'))
-            ->with('roles:id,name')
             ->orderBy('name')
             ->orderBy('id')
             ->paginate($filters['per_page'])
@@ -188,10 +200,12 @@ class TenantDetailQuery
             ->where('companies.is_active', true)
             ->pluck('company_user.user_id')
             ->all());
-        $invitations = $this->invitations($users);
+        $administrators = $this->support->administratorIds($users);
+        $invitations = $this->invitations($users, $administrators);
         $locks = $this->support->loginLocks($users);
+        $roles = $this->homeRoleNames($users);
 
-        return $users->map(function (User $user) use ($companies, $tenantActive, $enterable, $invitations, $locks): array {
+        return $users->map(function (User $user) use ($companies, $tenantActive, $enterable, $invitations, $locks, $administrators, $roles): array {
             $home = $companies[$user->company_id];
 
             return [
@@ -199,16 +213,74 @@ class TenantDetailQuery
                 'name' => $user->name,
                 'email' => $user->email,
                 'company' => ['id' => $home->public_id, 'name' => $home->name, 'code' => $home->code],
-                'roles' => $user->roles->pluck('name')->sort()->values()->all(),
+                'roles' => $roles[$user->id] ?? [],
                 'is_active' => $user->is_active,
                 'last_login_at' => Carbon::make($user->last_login_at)?->toIso8601String(),
                 'two_factor_enabled' => $user->hasTwoFactorEnabled(),
                 'can_impersonate' => $user->is_active && $tenantActive && ($home->is_active || isset($enterable[$user->id])),
                 'login_lock' => $locks[$user->id] ?? null,
                 'invitation' => $invitations[$user->id] ?? null,
-                'can_resend_invitation' => $this->support->canResendInvitation($user),
+                'can_resend_invitation' => $this->support->canResendInvitation($user, $administrators),
             ];
         })->values()->all();
+    }
+
+    /**
+     * The role names each user holds in his HOME company, by user id, in one read. A user may also hold roles in the
+     * companies he is a member of; the tenant page lists the home company's, as the company column says.
+     *
+     * @param  Collection<int, User>  $users
+     * @return array<int, list<string>>
+     */
+    private function homeRoleNames(Collection $users): array
+    {
+        if ($users->isEmpty()) {
+            return [];
+        }
+
+        return DB::table('model_has_roles')
+            ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+            ->join('users', 'users.id', '=', 'model_has_roles.model_id')
+            ->where('model_has_roles.model_type', User::class)
+            ->whereIn('model_has_roles.model_id', $users->pluck('id')->all())
+            ->whereColumn('roles.company_id', 'users.company_id')
+            ->orderBy('roles.name')
+            ->get(['model_has_roles.model_id', 'roles.name'])
+            ->groupBy('model_id')
+            ->map(fn (Collection $rows): array => $rows->pluck('name')->all())
+            ->all();
+    }
+
+    /**
+     * Every company of the tenant with its roles, the head first: the repair table of the tenant page. Counts are
+     * subqueries, so one read serves the whole tenant.
+     *
+     * @param  Collection<int, Company>  $companies  the tenant's companies by id, the head first
+     * @return list<array<string, mixed>>
+     */
+    private function companyRoles(Collection $companies): array
+    {
+        $rows = DB::table('roles')
+            ->whereIn('company_id', $companies->keys()->all())
+            ->where('guard_name', 'web')
+            ->select(['public_id', 'company_id', 'name', 'template_key'])
+            ->selectSub(DB::table('role_has_permissions')->whereColumn('role_has_permissions.role_id', 'roles.id')->selectRaw('count(*)'), 'permissions_count')
+            ->selectSub(DB::table('model_has_roles')->whereColumn('model_has_roles.role_id', 'roles.id')->where('model_type', User::class)->selectRaw('count(*)'), 'users_count')
+            ->orderBy('name')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('company_id');
+
+        return $companies->map(fn (Company $company): array => [
+            'company' => ['id' => $company->public_id, 'name' => $company->name, 'code' => $company->code],
+            'roles' => ($rows[$company->id] ?? collect())->map(fn (object $role): array => [
+                'id' => $role->public_id,
+                'name' => $role->name,
+                'template_key' => $role->template_key,
+                'permissions_count' => (int) $role->permissions_count,
+                'users_count' => (int) $role->users_count,
+            ])->values()->all(),
+        ])->values()->all();
     }
 
     /**
@@ -219,9 +291,10 @@ class TenantDetailQuery
      * and the invitation rows of the platform log.
      *
      * @param  Collection<int, User>  $users
+     * @param  array<int, true>  $administrators  SupportToolsService::administratorIds() of the same users
      * @return array<int, array{state: 'queued'|'sent'|'expired'|'failed', at: string}>
      */
-    private function invitations(Collection $users): array
+    private function invitations(Collection $users, array $administrators): array
     {
         $waiting = $users->filter(fn (User $user): bool => $user->last_login_at === null);
 
@@ -249,7 +322,7 @@ class TenantDetailQuery
             $invitation = match (true) {
                 $failed !== null && ($token === null || $failed->gte($token)) => ['failed', $failed],
                 $token !== null => [$token->copy()->addMinutes($lifetime)->isPast() ? 'expired' : 'sent', $token],
-                $queuedAt !== null && $this->support->canResendInvitation($user) => ['queued', $queuedAt],
+                $queuedAt !== null && $this->support->canResendInvitation($user, $administrators) => ['queued', $queuedAt],
                 default => null,
             };
 

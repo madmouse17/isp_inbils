@@ -133,7 +133,7 @@ class TenantManagementTest extends TestCase
         app()['cache']->forget('spatie.permission.cache');
         $company = Company::factory()->create(['code' => 'KEEP']);
         $admin = User::factory()->create(['company_id' => $company->id, 'email_verified_at' => now(), 'is_active' => true]);
-        $admin->assignRole('admin');
+        $this->grantRole($admin, 'admin');
         CompanyService::resetCache();
 
         $this->actingAs($admin)->put(route('admin.company.profile.update'), ['name' => 'Renamed', 'code' => 'HACK'])->assertRedirect();

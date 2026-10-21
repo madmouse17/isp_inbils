@@ -17,9 +17,11 @@ const {
     formatGroup,
     formatPermission,
     groupPermissions,
+    isGrantable,
     permissionGroupSection,
     setGroupPermissions,
     setPermission,
+    splitGrantable,
 } = await import('./permissionGroups.ts');
 const { PERMISSION_GROUP_LABELS, PERMISSION_LABELS } = await import('./permissionLabels.ts');
 
@@ -58,6 +60,7 @@ const everyGroup = [
     'organization',
     'company',
     'alpha',
+    'app',
 ].map((group) => ({ name: `${group}.view`, group }));
 
 // Sidebar order, then unknown groups alphabetically (`portal` has no sidebar entry since technician and
@@ -86,6 +89,7 @@ assert.deepEqual(Object.keys(groupPermissions(everyGroup)), [
     'system',
     'developer',
     'alpha',
+    'app',
     'portal',
     'zebra',
 ]);
@@ -97,36 +101,58 @@ assert.equal(permissionGroupSection('announcement'), 'Pelanggan & Layanan');
 assert.equal(permissionGroupSection('network_asset'), 'Jaringan');
 assert.equal(permissionGroupSection('inventory'), 'Inventaris');
 assert.equal(permissionGroupSection('portal'), 'Lainnya');
+assert.equal(permissionGroupSection('app'), 'Lainnya');
 assert.equal(permissionGroupSection('system'), 'Administrasi');
 assert.equal(permissionGroupSection('zebra'), 'Lainnya');
 
-// Every seeded permission group but `portal` must land under a sidebar section, never under "Lainnya",
-// and every seeded group and permission must have its Indonesian label.
-const seeder = readFileSync(
-    new URL('../../../../database/seeders/RolePermissionSeeder.php', import.meta.url),
+// Every permission group of the catalogue but `portal` and `app` must land under a sidebar section, never
+// under "Lainnya" (those two classify the account: they open no menu), and every group and permission must
+// have its Indonesian label, and no label may outlive its permission.
+const catalogue = readFileSync(
+    new URL('../../../../app/Support/PermissionCatalogue.php', import.meta.url),
     'utf8',
 );
-const seededNames = new Set([...seeder.matchAll(/'([a-z_]+\.[a-z_.]+)'/g)].map(([, name]) => name));
-const seededGroups = new Set([...seededNames].map((name) => name.split('.')[0]));
-assert.ok(seededGroups.size > 20, 'the seeder permission list was found');
-for (const group of seededGroups) {
-    if (group !== 'portal') {
+const constantNames = (constant) => {
+    const body = catalogue.match(new RegExp(`const ${constant}\\s*=\\s*\\[([\\s\\S]*?)\\];`))?.[1];
+    assert.ok(body !== undefined, `PermissionCatalogue::${constant} was found`);
+
+    return [...body.matchAll(/'([a-z_]+\.[a-z_.]+)'/g)].map(([, name]) => name);
+};
+const cataloguedNames = new Set(constantNames('ALL'));
+const cataloguedGroups = new Set([...cataloguedNames].map((name) => name.split('.')[0]));
+assert.ok(cataloguedGroups.size > 20, 'the catalogue permission list was found');
+for (const group of cataloguedGroups) {
+    if (group !== 'portal' && group !== 'app') {
         assert.notEqual(
             permissionGroupSection(group),
             'Lainnya',
-            `seeded group "${group}" has no sidebar section`,
+            `catalogue group "${group}" has no sidebar section`,
         );
     }
-    assert.ok(PERMISSION_GROUP_LABELS[group], `seeded group "${group}" has no label`);
+    assert.ok(PERMISSION_GROUP_LABELS[group], `catalogue group "${group}" has no label`);
 }
-for (const name of seededNames) {
-    assert.ok(PERMISSION_LABELS[name], `seeded permission "${name}" has no label`);
+for (const name of cataloguedNames) {
+    assert.ok(PERMISSION_LABELS[name], `catalogue permission "${name}" has no label`);
 }
 assert.deepEqual(
-    Object.keys(PERMISSION_LABELS).filter((name) => !seededNames.has(name)),
+    Object.keys(PERMISSION_LABELS).filter((name) => !cataloguedNames.has(name)),
     [],
-    'a label for a permission the seeder does not know',
+    'a label for a permission the catalogue does not know',
 );
+for (const name of constantNames('UNGUARDED')) {
+    assert.ok(cataloguedNames.has(name), `unguarded permission "${name}" is in the catalogue`);
+}
+
+// The five markers of the tenant roles: named in words, not by their codes.
+assert.equal(formatPermission('app.web'), 'Masuk aplikasi web (back-office)');
+assert.equal(formatPermission('app.technician'), 'Teknisi lapangan (aplikasi Teknisi)');
+assert.equal(formatPermission('portal.access'), 'Akun pelanggan (portal dan aplikasi Pelanggan)');
+assert.equal(formatPermission('evaluation.evaluable'), 'Dapat dinilai di Evaluasi');
+assert.equal(
+    formatPermission('report.technician.team'),
+    'Laporan kinerja teknisi: unit organisasi sendiri',
+);
+assert.equal(formatGroup('app'), 'Akses aplikasi');
 
 // A name nobody described yet shows its code, never an invented English phrase.
 assert.equal(formatPermission('spk.approve'), 'Setujui SPK');
@@ -140,6 +166,21 @@ assert.deepEqual(setGroupPermissions(['spk.view', 'billing.view'], permissions.s
 ]);
 assert.deepEqual(setPermission(['spk.view'], 'spk.create', true), ['spk.view', 'spk.create']);
 assert.deepEqual(setPermission(['spk.view'], 'spk.view', false), []);
+
+// A permission the user may not give is never selected or cleared by select-all; absent `grantable` means he may.
+const mixed = [
+    { name: 'spk.view', group: 'spk', grantable: true },
+    { name: 'spk.approve', group: 'spk', grantable: false },
+    { name: 'spk.create', group: 'spk' },
+];
+assert.deepEqual(mixed.map(isGrantable), [true, false, true]);
+assert.deepEqual(setGroupPermissions([], mixed, true), ['spk.view', 'spk.create']);
+assert.deepEqual(setGroupPermissions(['spk.view', 'spk.approve'], mixed, false), ['spk.approve']);
+assert.deepEqual(splitGrantable(['spk.view', 'spk.approve', 'odd.unknown'], mixed), {
+    granted: ['spk.view'],
+    skipped: ['spk.approve', 'odd.unknown'],
+});
+assert.deepEqual(splitGrantable([], mixed), { granted: [], skipped: [] });
 
 // Search: name or label, case-insensitive, trimmed; blank keeps everything.
 const searchable = [

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
@@ -12,6 +12,7 @@ import { ExportMenu } from '@/Components/ui/ExportMenu';
 import {
     Alert,
     AlertDescription,
+    Badge,
     Button,
     Card,
     CardContent,
@@ -23,6 +24,8 @@ import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
 import { ACTIVE_STATE, TWO_FACTOR_STATE, labelOf } from '@/lib/statuses';
 import type { PageProps, Paginated } from '@/types';
+import { AssignRolesDialog } from './components/AssignRolesDialog';
+import type { RoleOption } from './components/RoleChecklist';
 
 interface UserRow {
     id: string;
@@ -30,9 +33,12 @@ interface UserRow {
     email: string;
     roles: string[];
     is_active: boolean;
+    /** Homed in another company: listed here for his roles, his login fields are edited in his home company. */
+    is_member_only: boolean;
     two_factor_enabled?: boolean;
     can?: {
         delete?: boolean;
+        assign_roles?: boolean;
     };
 }
 
@@ -45,6 +51,7 @@ interface UsersProps {
         direction?: string;
         per_page?: string | number;
     };
+    roleOptions?: RoleOption[];
     can: { create: boolean; export: boolean };
 }
 
@@ -55,12 +62,13 @@ const STATUS_OPTIONS = [
     { value: '0', label: labelOf(ACTIVE_STATE, false) },
 ];
 
-export default function Index({ users, filters, can }: UsersProps) {
+export default function Index({ users, filters, roleOptions = [], can }: UsersProps) {
     const { params, set, setMany, sortBy, sortDir, onSort, processing } = useServerTable({
         url: route('admin.users.index'),
         filters,
         only: ['users', 'filters', 'can'],
     });
+    const [assigning, setAssigning] = useState<UserRow | null>(null);
     // A refused delete comes back as a validation error on the page, not on a form.
     const deleteError = (usePage<PageProps>().props.errors as Record<string, string | undefined>)
         .user;
@@ -80,14 +88,20 @@ export default function Index({ users, filters, can }: UsersProps) {
                 header: 'Nama',
                 sortable: true,
                 sortKey: 'name',
-                cell: (user) => (
-                    <Link
-                        href={route('admin.users.show', user.id)}
-                        className="font-medium text-primary-text hover:underline"
-                    >
-                        {user.name}
-                    </Link>
-                ),
+                cell: (user) =>
+                    user.is_member_only ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium text-foreground">{user.name}</span>
+                            <Badge variant="info">Anggota</Badge>
+                        </div>
+                    ) : (
+                        <Link
+                            href={route('admin.users.show', user.id)}
+                            className="font-medium text-primary-text hover:underline"
+                        >
+                            {user.name}
+                        </Link>
+                    ),
             },
             {
                 key: 'email',
@@ -98,13 +112,16 @@ export default function Index({ users, filters, can }: UsersProps) {
             {
                 key: 'roles',
                 header: 'Peran',
-                cell: (user) => (
-                    <div className="flex flex-wrap gap-1">
-                        {user.roles.map((role) => (
-                            <RoleBadge key={role} role={role} />
-                        ))}
-                    </div>
-                ),
+                cell: (user) =>
+                    user.roles.length === 0 ? (
+                        <span className="text-muted-foreground">Belum ada peran</span>
+                    ) : (
+                        <div className="flex flex-wrap gap-1">
+                            {user.roles.map((role) => (
+                                <RoleBadge key={role} role={role} />
+                            ))}
+                        </div>
+                    ),
             },
             {
                 key: 'is_active',
@@ -127,15 +144,32 @@ export default function Index({ users, filters, can }: UsersProps) {
                 key: 'actions',
                 header: 'Aksi',
                 cell: (user) => (
-                    <DataTableActions
-                        showHref={route('admin.users.show', user.id)}
-                        editHref={route('admin.users.edit', user.id)}
-                        deleteHref={
-                            user.can?.delete ? route('admin.users.destroy', user.id) : undefined
-                        }
-                        deleteMessage={`Hapus ${user.name}?`}
-                        deleteDescription="Pengguna yang tercatat pada pelanggan atau penyesuaian stok tidak bisa dihapus. Nonaktifkan akunnya."
-                    />
+                    <div className="flex items-center gap-1">
+                        {user.can?.assign_roles ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                aria-label={`Atur peran ${user.name}`}
+                                onClick={() => setAssigning(user)}
+                            >
+                                Atur peran
+                            </Button>
+                        ) : null}
+                        {user.is_member_only ? null : (
+                            <DataTableActions
+                                showHref={route('admin.users.show', user.id)}
+                                editHref={route('admin.users.edit', user.id)}
+                                deleteHref={
+                                    user.can?.delete
+                                        ? route('admin.users.destroy', user.id)
+                                        : undefined
+                                }
+                                deleteMessage={`Hapus ${user.name}?`}
+                                deleteDescription="Pengguna yang tercatat pada pelanggan atau penyesuaian stok tidak bisa dihapus. Nonaktifkan akunnya."
+                            />
+                        )}
+                    </div>
                 ),
             },
         ],
@@ -147,7 +181,7 @@ export default function Index({ users, filters, can }: UsersProps) {
             <div className="space-y-6">
                 <PageHeader
                     title="Pengguna"
-                    subtitle="Akun pengguna perusahaan beserta peran dan status 2FA-nya."
+                    subtitle="Anggota perusahaan beserta peran dan status 2FA-nya. Anggota dari perusahaan lain hanya diatur perannya di sini."
                     actions={
                         <div className="flex flex-wrap gap-2">
                             {can.export ? (
@@ -209,6 +243,15 @@ export default function Index({ users, filters, can }: UsersProps) {
                     </CardContent>
                 </Card>
             </div>
+
+            {assigning ? (
+                <AssignRolesDialog
+                    key={assigning.id}
+                    user={assigning}
+                    roleOptions={roleOptions}
+                    onClose={() => setAssigning(null)}
+                />
+            ) : null}
         </AdminLayout>
     );
 }

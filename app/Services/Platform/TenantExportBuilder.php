@@ -37,6 +37,15 @@ class TenantExportBuilder
         'activity_log' => ['ip_address', 'user_agent'],
     ];
 
+    /**
+     * The links of a role are not written as they are. `user_roles.csv` says who holds which role by public id, company
+     * code and role name, while these two would carry internal ids that mean nothing to the tenant (members homed in
+     * another tenant, the permission catalogue). The operator guide promises it: what a role grants is not exported.
+     *
+     * @var list<string>
+     */
+    private const ROLE_LINKS = ['model_has_roles', 'role_has_permissions'];
+
     public function __construct(private readonly TenantTableRegistry $registry) {}
 
     /** @return array{path: string, size: int, row_counts: array<string, int>} */
@@ -83,6 +92,11 @@ class TenantExportBuilder
 
             foreach ($this->registry->pivots() as $pivot) {
                 $table = $pivot['table'];
+
+                if (in_array($table, self::ROLE_LINKS, true)) {
+                    continue;
+                }
+
                 $query = DB::table($table);
 
                 foreach ($pivot['parents'] as $column => $parent) {
@@ -99,8 +113,9 @@ class TenantExportBuilder
 
             // The files are the ones these rows name (see mediaEntries); the rows say which record each file belongs to.
             [$rowCounts['media'], $omitted['media']] = $this->writeTableCsv($disk, $work.'/data/media.csv', 'media', $this->mediaOwnedBy($ids));
-            // Role definitions are the platform's, not the tenant's. What the tenant owns is who holds which role.
-            [$rowCounts['user_roles'], $omitted['user_roles']] = $this->writeTableCsv($disk, $work.'/data/user_roles.csv', 'user_roles', $this->userRoles($ids), ['user_id', 'role_id', 'role_name']);
+            // Role definitions are per company since ADR-004, so `roles` is a tenant table and is written with the rest.
+            // user_roles.csv says who holds which of this tenant's roles; the raw links stay out (ROLE_LINKS).
+            [$rowCounts['user_roles'], $omitted['user_roles']] = $this->writeTableCsv($disk, $work.'/data/user_roles.csv', 'user_roles', $this->userRoles($ids), ['user_public_id', 'company_code', 'role_name', 'template_key']);
         });
 
         $omitted = array_filter($omitted);
@@ -392,7 +407,9 @@ class TenantExportBuilder
     }
 
     /**
-     * Who holds which role, for the users the tenant owns: `users.csv` and this file are read together.
+     * Who holds which role in the tenant's companies: the roles whose `company_id` is one of the tenant's, with the
+     * people holding them (members homed elsewhere included). `users.csv` and `roles.csv` are read together with it.
+     * `role_has_permissions` is left out (ROLE_LINKS), so a restore does not bring back what a role grants.
      *
      * @param  list<int>  $companyIds
      */
@@ -401,9 +418,11 @@ class TenantExportBuilder
         return DB::query()->fromSub(
             DB::table('model_has_roles')
                 ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->join('companies', 'companies.id', '=', 'roles.company_id')
+                ->join('users', 'users.id', '=', 'model_has_roles.model_id')
                 ->where('model_has_roles.model_type', User::class)
-                ->whereIn('model_has_roles.model_id', DB::table('users')->whereIn('company_id', $companyIds)->select('id'))
-                ->select(['model_has_roles.model_id as user_id', 'model_has_roles.role_id', 'roles.name as role_name']),
+                ->whereIn('roles.company_id', $companyIds)
+                ->select(['users.public_id as user_public_id', 'companies.code as company_code', 'roles.name as role_name', 'roles.template_key']),
             'user_roles',
         );
     }

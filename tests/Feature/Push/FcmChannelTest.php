@@ -87,7 +87,7 @@ class FcmChannelTest extends TestCase
     public function test_a_customer_notification_reaches_customer_installs_and_a_user_notification_technician_installs(): void
     {
         [$user, $customer] = $this->customerLogin();
-        $user->assignRole('technician');
+        $this->grantRole($user, 'technician');
         EmployeeProfile::factory()->create(['company_id' => $user->company_id, 'user_id' => $user->id, 'status' => 'active']);
         $this->install($user, 'customer', 'customer-install');
         $this->install($user, 'technician', 'technician-install');

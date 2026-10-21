@@ -6,6 +6,7 @@ use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\Core\NumberSequence;
 use App\Models\User;
+use App\Services\Core\CompanyRoleService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
 use Carbon\CarbonImmutable;
@@ -69,8 +70,8 @@ class DemoDataSeeder extends Seeder
     }
 
     /**
-     * Fills a company with the sample ISP as a trial. $admin is the company's real admin: homed there and holding the
-     * admin role. Refuses a company that already has customers, subscriptions, jobs, invoices or tickets, unless an
+     * Fills a company with the sample ISP as a trial. $admin is the company's real admin: homed there and an
+     * administrator of it (CompanyRoleService). Refuses a company that already has customers, subscriptions, jobs, invoices or tickets, unless an
      * earlier run marked it (then only the idempotent parts are topped up). All or nothing, in one transaction.
      *
      * The story stands on the stock rows and sample assets that the starter catalog leaves out, so the company's catalog
@@ -79,7 +80,7 @@ class DemoDataSeeder extends Seeder
      */
     public function seedFor(Company $company, User $admin): void
     {
-        if ((int) $admin->company_id !== (int) $company->id || ! $admin->hasRole('admin')) {
+        if ((int) $admin->company_id !== (int) $company->id || ! app(CompanyRoleService::class)->isAdministrator($admin, (int) $company->id)) {
             throw new InvalidArgumentException("Sample data for {$company->code} needs the admin of that company; user {$admin->getKey()} is not one.");
         }
 

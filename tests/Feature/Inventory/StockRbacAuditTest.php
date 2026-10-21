@@ -15,7 +15,6 @@ use Modules\Inventory\Models\StockMovement;
 use Modules\Inventory\Models\Unit;
 use Modules\Inventory\Services\StockService;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\WithoutAppOnlyRedirect;
 
@@ -350,7 +349,7 @@ class StockRbacAuditTest extends TestCase
     private function userWithRole(string $role): User
     {
         $user = User::factory()->create(['company_id' => $this->company->id]);
-        $user->assignRole(Role::findByName($role));
+        $this->grantRole($user, $role);
 
         return $user;
     }

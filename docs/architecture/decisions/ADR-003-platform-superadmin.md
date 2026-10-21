@@ -1,6 +1,6 @@
 # ADR-003: Platform superadmin as a separate identity and authority
 
-Status: Accepted
+Status: Accepted. The role clause (global role definitions, tenant read-only) is superseded by ADR-004 (roles per company).
 
 ## Context
 

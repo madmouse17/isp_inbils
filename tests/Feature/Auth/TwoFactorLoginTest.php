@@ -356,7 +356,7 @@ class TwoFactorLoginTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $user->assignRole('admin');
+        $this->grantRole($user, 'admin');
 
         return $user;
     }

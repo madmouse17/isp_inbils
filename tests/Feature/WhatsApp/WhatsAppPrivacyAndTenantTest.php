@@ -553,14 +553,14 @@ class WhatsAppPrivacyAndTenantTest extends TestCase
     {
         $company = $this->whatsAppEnabledFor(Company::factory()->create(['name' => $name, 'timezone' => 'Asia/Jakarta', 'is_active' => true]));
         $admin = User::factory()->create(['company_id' => $company->id, 'email_verified_at' => now(), 'is_active' => true]);
-        $admin->assignRole('admin');
+        $this->grantRole($admin, 'admin');
 
         $customer = $this->consentedCustomer($company, $customerPhone);
         $portal = User::factory()->create(['company_id' => $company->id, 'is_active' => true, 'email' => 'pelanggan.'.$company->id.'@example.test']);
         $customer->forceFill(['user_id' => $portal->id])->save();
 
         $technician = $this->technician($company, $technicianPhone);
-        $technician->assignRole('technician');
+        $this->grantRole($technician, 'technician');
 
         ServiceSubscription::factory()->create([
             'company_id' => $company->id,

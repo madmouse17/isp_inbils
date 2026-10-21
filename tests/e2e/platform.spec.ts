@@ -49,7 +49,7 @@ test('@platform operator creates a tenant', async ({ page }) => {
 
     await expect(page).toHaveURL(/\/platform\/companies\/[0-9A-HJKMNP-TV-Z]{26}$/i);
     await expect(
-        page.getByRole('main').getByRole('heading', { name: 'E2E Platform Created' }),
+        page.getByRole('main').getByRole('heading', { name: 'E2E Platform Created', level: 1 }),
     ).toBeVisible();
     // The new admin is listed twice: under "Admin perusahaan" and among the users.
     await expect(page.getByText(email)).toHaveCount(2);
@@ -98,7 +98,7 @@ test('@platform operator creates an empty tenant from the Kosong choice', async 
 
     await expect(page).toHaveURL(/\/platform\/companies\/[0-9A-HJKMNP-TV-Z]{26}$/i);
     await expect(
-        page.getByRole('main').getByRole('heading', { name: 'E2E Platform Empty' }),
+        page.getByRole('main').getByRole('heading', { name: 'E2E Platform Empty', level: 1 }),
     ).toBeVisible();
 });
 

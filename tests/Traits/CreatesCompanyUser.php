@@ -3,20 +3,18 @@
 namespace Tests\Traits;
 
 use App\Models\Core\Company;
+use App\Models\Core\Setting;
 use App\Models\User;
 use App\Services\Core\CompanyService;
-use Database\Seeders\RolePermissionSeeder;
 use Database\Seeders\SystemSettingSeeder;
-use Spatie\Permission\Models\Role;
 
 trait CreatesCompanyUser
 {
+    /** A company and its Admin: the permission catalogue and the role templates come with the migrations. */
     protected function createCompanyUser(): User
     {
-        if (! Role::where('name', 'admin')->exists()) {
-            $this->seed(RolePermissionSeeder::class);
+        if (! Setting::query()->where('key', 'app.name')->exists()) {
             $this->seed(SystemSettingSeeder::class);
-            app()['cache']->forget('spatie.permission.cache');
         }
 
         $company = Company::factory()->create(['is_active' => true]);
@@ -25,7 +23,7 @@ trait CreatesCompanyUser
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $user->assignRole('admin');
+        $this->grantRole($user, 'admin', $company);
         CompanyService::resetCache();
         CompanyService::useCompanyForTests((int) $company->id);
 

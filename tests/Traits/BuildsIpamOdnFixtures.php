@@ -9,68 +9,34 @@ use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use App\Services\Core\CompanyService;
-use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Support\Str;
 use Modules\NetworkAsset\Database\Factories\NetworkAssetFactory;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\Service\Database\Factories\ServicePackageFactory;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 
 /**
  * Companies, users, locations, subscriptions and assets for the IPAM and ODN tests, each built for an
- * explicit company. The six IPAM/ODN permissions and their role grants (Q14) are seeded here so the
- * tests do not depend on RolePermissionSeeder.
+ * explicit company. The IPAM and ODN permissions belong to the catalogue and to the templates, so a company's copies
+ * of the five personas hold them without any seeding here.
  */
 trait BuildsIpamOdnFixtures
 {
-    /** @var array<string, list<string>> */
-    private const IPAM_ODN_ROLE_GRANTS = [
-        'admin' => ['ipam.view', 'ipam.manage', 'ipam.assign', 'odn.view', 'odn.manage', 'odn.assign'],
-        'manager' => ['ipam.view', 'ipam.manage', 'ipam.assign', 'odn.view', 'odn.manage', 'odn.assign'],
-        'staff' => ['ipam.view', 'odn.view', 'odn.assign'],
-        'technician' => ['ipam.view', 'odn.view'],
-        'customer' => [],
-    ];
-
     protected Company $company;
 
     protected User $admin;
 
-    /** Adds the six IPAM/ODN permissions to the five personas; it composes with RolePermissionSeeder (it only adds). */
-    protected function seedIpamOdnPermissions(): void
-    {
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
-
-        foreach (self::IPAM_ODN_ROLE_GRANTS as $role => $permissions) {
-            foreach ($permissions as $permission) {
-                Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
-            }
-
-            Role::firstOrCreate(['name' => $role, 'guard_name' => 'web'])->givePermissionTo($permissions);
-        }
-
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
-    }
-
     /**
-     * Company, an admin acting in it, and the permissions. Call from setUp(). Pass true when the test also
-     * drives routes of other modules (asset create, SPK show...), which need their own permissions.
+     * Company and an admin acting in it. Call from setUp(). The admin holds every guarded permission, so the tests
+     * that also drive routes of other modules (asset create, SPK show...) need nothing more.
      */
-    protected function bootIpamOdnWorld(bool $withSeededRoles = false): void
+    protected function bootIpamOdnWorld(): void
     {
-        if ($withSeededRoles) {
-            $this->seed(RolePermissionSeeder::class);
-        }
-
-        $this->seedIpamOdnPermissions();
-
         $this->company = Company::factory()->create(['is_active' => true]);
         $this->admin = $this->makeUser($this->company, 'admin');
         $this->actingAs($this->admin);
     }
 
+    /** A user of the company holding its copy of the template `$role` (`admin`, `manager`, `staff`...). */
     protected function makeUser(Company $company, string $role): User
     {
         $user = User::factory()->create([
@@ -78,9 +44,25 @@ trait BuildsIpamOdnFixtures
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $user->assignRole($role);
 
-        return $user;
+        return $this->grantRole($user, $role, $company);
+    }
+
+    /**
+     * A user of the company whose only role is a custom one holding exactly `app.web` and $permissions. makeUser()
+     * would add a template's permissions on top, because roles add up.
+     *
+     * @param  list<string>  $permissions
+     */
+    protected function makeUserWithPermissions(Company $company, array $permissions): User
+    {
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'email_verified_at' => now(),
+            'is_active' => true,
+        ]);
+
+        return $this->grantPermissions($user, ['app.web', ...$permissions], $company);
     }
 
     /** Runs the callback as a user of another company (fixtures created through models need a company scope). */

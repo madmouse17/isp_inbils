@@ -24,7 +24,6 @@ use Modules\SPK\Models\WorkOrder;
 use Modules\SPK\Models\WorkOrderItem;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\AllowsManualCodes;
 use Tests\Traits\WithoutAppOnlyRedirect;
@@ -514,7 +513,7 @@ class P0CriticalPathTest extends TestCase
             ->get(route('admin.dashboard'))
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->where('auth.user.roles.0', 'admin')
+                ->missing('auth.user.roles')
                 ->where('auth.user.permissions', fn ($permissions) => collect($permissions)->contains('billing.view') && collect($permissions)->contains('spk.view') && collect($permissions)->contains('ticket.view') && collect($permissions)->contains('inventory.view'))
             );
 
@@ -530,7 +529,7 @@ class P0CriticalPathTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $user->assignRole(Role::where('name', $roleName)->firstOrFail());
+        $this->grantRole($user, $roleName);
 
         return $user;
     }

@@ -310,6 +310,26 @@ class SupportActionsTest extends TestCase
         $this->assertSame(0, RateLimiter::attempts('platform-invitation|'.$this->alpha['staff']->id), 'a refusal does not spend the budget');
     }
 
+    public function test_an_administrator_is_whoever_holds_roles_manage_in_the_home_company_whatever_the_role_is_called(): void
+    {
+        Notification::fake();
+        $root = $this->alpha['root'];
+        $owner = $this->tenantUser($root, 'staff');
+        $this->grantRole($owner, $this->companyRole($root, 'Pemilik', ['roles.manage', 'app.web']), $root);
+        $viewer = $this->tenantUser($root, 'staff');
+        $this->grantRole($viewer, $this->companyRole($root, 'Pelihat', ['customer.view', 'app.web']), $root);
+        $elsewhere = $this->tenantUser($root, 'staff');
+        $this->grantRole($elsewhere, $this->companyRole($this->alpha['child'], 'Pemilik Cabang', ['roles.manage', 'app.web']), $this->alpha['child']);
+
+        $this->resend($root, $owner)->assertSessionHas('success')->assertSessionHasNoErrors();
+        foreach ([$viewer, $elsewhere] as $user) {
+            $this->resend($root, $user)->assertSessionHasErrors('invitation');
+        }
+
+        Notification::assertSentToTimes($owner, TenantAdminInvitation::class, 1);
+        $this->assertSame(1, Activity::query()->where('description', 'user.invitation_resent')->where('log_name', 'platform')->count());
+    }
+
     public function test_a_resend_is_throttled_to_six_a_minute_per_target_user(): void
     {
         Notification::fake();

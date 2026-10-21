@@ -6,8 +6,6 @@ use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\Core\EmployeeProfile;
 use App\Models\User;
-use Database\Seeders\RolePermissionSeeder;
-use Spatie\Permission\Models\Role;
 
 /**
  * Fixtures for the customer sales attribution tests. Requires RefreshDatabase.
@@ -16,16 +14,15 @@ trait BuildsCustomerAcquirers
 {
     protected Company $company;
 
+    /** The company the fixtures live in; the roles come with the migrations, so nothing is seeded. */
     protected function seedRolesAndCompany(): void
     {
-        $this->seed(RolePermissionSeeder::class);
-        app()['cache']->forget('spatie.permission.cache');
-
         $this->company = Company::factory()->create(['is_active' => true]);
     }
 
     /**
-     * A user of the company holding a seeded role, with an active EmployeeProfile unless $profile is false.
+     * A user of the company holding its copy of a template (`admin`, `manager`, `staff`...), with an active
+     * EmployeeProfile unless $profile is false.
      *
      * @param  array<string, mixed>  $attributes
      * @param  array<string, mixed>|false  $profile
@@ -33,14 +30,26 @@ trait BuildsCustomerAcquirers
     protected function employee(string $role, ?Company $company = null, array $attributes = [], array|false $profile = []): User
     {
         $user = $this->companyUser($company, $attributes);
-        $user->assignRole($role);
+        $this->grantRole($user, $role, $company ?? $this->company);
         $this->giveProfile($user, $profile);
 
         return $user;
     }
 
     /**
-     * A user of the company whose only role is a custom role holding exactly $permissions.
+     * A Staf user who can still register customers: the Staf template lacks `customer.create` for new companies (D9),
+     * but the staff copies of existing companies keep it, and these tests model that seller.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @param  array<string, mixed>|false  $profile
+     */
+    protected function salesStaff(?Company $company = null, array $attributes = [], array|false $profile = []): User
+    {
+        return $this->grantPermissions($this->employee('staff', $company, $attributes, $profile), ['customer.create']);
+    }
+
+    /**
+     * A user of the company whose only role is a custom role holding exactly $permissions and web access.
      *
      * @param  list<string>  $permissions
      * @param  array<string, mixed>  $attributes
@@ -48,12 +57,8 @@ trait BuildsCustomerAcquirers
      */
     protected function employeeWithPermissions(array $permissions, ?Company $company = null, array $attributes = [], array|false $profile = []): User
     {
-        $role = Role::firstOrCreate(['name' => 'custom-'.md5(implode('|', $permissions)), 'guard_name' => 'web']);
-        $role->syncPermissions($permissions);
-        app()['cache']->forget('spatie.permission.cache');
-
         $user = $this->companyUser($company, $attributes);
-        $user->assignRole($role);
+        $this->grantPermissions($user, ['app.web', ...$permissions], $company ?? $this->company);
         $this->giveProfile($user, $profile);
 
         return $user;

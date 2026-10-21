@@ -16,8 +16,6 @@ use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\Feature\Platform\TenantFixtures;
 use Tests\TestCase;
 
@@ -264,6 +262,7 @@ class CompanyTwoFactorPolicyTest extends TestCase
     {
         $admin = $this->tenant['admin'];
         app(CompanyMembershipService::class)->grant($admin, $this->tenant['child']);
+        $this->grantRole($admin, 'admin', $this->tenant['child']);
         $this->setPolicy($this->tenant['child']);
 
         $this->actingAs($admin)->get(route('admin.dashboard'))->assertOk();
@@ -380,13 +379,11 @@ class CompanyTwoFactorPolicyTest extends TestCase
     /** @param list<string> $permissions A user of the tenant whose only role is a custom one holding exactly these. */
     private function userWith(string $roleName, array $permissions): User
     {
-        $role = Role::findOrCreate($roleName, 'web');
-        $role->syncPermissions($permissions);
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $root = $this->tenant['root'];
+        $user = User::factory()->create(['company_id' => $root->id, 'email_verified_at' => now(), 'is_active' => true]);
+        app(CompanyMembershipService::class)->grant($user, $root, true);
 
-        $user = $this->tenantUser($this->tenant['root'], 'staff');
-        $user->syncRoles([$role]);
-
-        return $user;
+        // `app.web` lets the user reach the admin pages at all; the permissions under test come on top of it.
+        return $this->grantRole($user, $this->companyRole($root, $roleName, [...$permissions, 'app.web']));
     }
 }

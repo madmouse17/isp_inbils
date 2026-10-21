@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
-/** Where technician and customer logins land on the web: it names their app and nothing else. */
+/** Where logins without web access land: it names the Android app of a technician or a customer, or says no web access was given. */
 class AppOnlyController extends Controller
 {
     public function __invoke(Request $request): Response|RedirectResponse
@@ -20,13 +20,21 @@ class AppOnlyController extends Controller
             return redirect()->route('admin.dashboard');
         }
 
-        // A login holding both roles is shown the technician app; the customer app is the other half of the pair.
-        $role = $user->hasRole('technician') ? 'technician' : 'customer';
+        // A login that qualifies for both apps is shown the technician app; the customer app is the other half of the pair.
+        $app = match (true) {
+            $user->can('app.technician') => 'technician',
+            $user->can('portal.access') => 'customer',
+            default => null,
+        };
 
         return Inertia::render('AppOnly', [
-            'role' => $role,
-            'appName' => $role === 'technician' ? 'Inbils Teknisi' : 'Inbils Pelanggan',
-            'playStoreUrl' => SettingService::playStoreUrl($role),
+            'role' => $app,
+            'appName' => match ($app) {
+                'technician' => 'Inbils Teknisi',
+                'customer' => 'Inbils Pelanggan',
+                default => null,
+            },
+            'playStoreUrl' => $app === null ? null : SettingService::playStoreUrl($app),
         ]);
     }
 }

@@ -20,10 +20,10 @@ class SetupWizardService
 
     /**
      * Creates a company with its first admin, in the order the wizard always had: the company without automatic events,
-     * its logo, the admin role, the admin homed and made a default member, the audit rows, then CompanyCreated, whose
-     * listener seeds the defaults ($catalog says how much, see CompanySeeder). The admin exists and is homed before
-     * seeding, so the seeder acts as them and never falls back to a system-seed user. Shared by the wizard ($admin =
-     * the signed-in user) and platform provisioning (a new user).
+     * its logo, the platform's role templates copied into it, the admin (the Admin copy, homed and made a default
+     * member), the audit rows, then CompanyCreated, whose listener seeds the defaults ($catalog says how much, see
+     * CompanySeeder). The admin exists and is homed before seeding, so the seeder acts as them and never falls back to
+     * a system-seed user. Shared by the wizard ($admin = the signed-in user) and platform provisioning (a new user).
      */
     public function createFor(User $admin, array $data, string $catalog = CompanySeeder::CATALOG_STARTER): Company
     {
@@ -49,7 +49,9 @@ class SetupWizardService
                 CompanyLogoService::store($company, $logo);
             }
 
-            $user->assignRole('admin');
+            $roles = app(CompanyRoleService::class)->copyTemplates($company);
+            // The role is the new company's: the user is not its member yet, so the assignment names the company.
+            CompanyService::runAs((int) $company->id, fn () => $user->assignRole($roles['admin']));
             $user->forceFill([
                 'name' => $data['admin_name'] ?? $user->name,
                 'company_id' => $company->id,

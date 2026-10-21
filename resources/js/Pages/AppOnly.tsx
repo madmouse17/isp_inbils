@@ -5,8 +5,9 @@ import GuestLayout from '@/Layouts/GuestLayout';
 type AppOnlyRole = 'technician' | 'customer';
 
 interface AppOnlyProps extends Record<string, unknown> {
-    role: AppOnlyRole;
-    appName: string;
+    /** The app this login uses; null when it holds neither the technician nor the customer marker. */
+    role: AppOnlyRole | null;
+    appName: string | null;
     playStoreUrl: string | null;
 }
 
@@ -15,8 +16,37 @@ const roleLabels: Record<AppOnlyRole, string> = {
     customer: 'pelanggan',
 };
 
-/** Where technician and customer accounts land: their work happens in the Android app, not on the web. */
+/** Where logins without web access land: a technician or customer works in the Android app, anyone else is told to ask for web access. */
 export default function AppOnly({ role, appName, playStoreUrl }: AppOnlyProps) {
+    if (role === null) {
+        return (
+            <GuestLayout>
+                <Head title="Akun ini belum punya akses aplikasi web" />
+                <main lang="id" className="space-y-5 py-2">
+                    <header className="space-y-2">
+                        <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+                            Akun ini belum punya akses aplikasi web
+                        </h1>
+                        <p className="text-sm leading-relaxed text-muted-foreground">
+                            Minta admin perusahaan Anda memberi peran yang memuat akses web.
+                        </p>
+                    </header>
+
+                    <div className="flex flex-col gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="min-h-11"
+                            onClick={() => router.post(route('logout'))}
+                        >
+                            Keluar
+                        </Button>
+                    </div>
+                </main>
+            </GuestLayout>
+        );
+    }
+
     return (
         <GuestLayout>
             <Head title="Gunakan aplikasi Inbils" />

@@ -9,6 +9,7 @@ use App\Models\Core\Location;
 use App\Models\User;
 use App\Queries\Admin\ApprovalInboxQuery;
 use App\Services\Core\AuditService;
+use App\Services\Core\CompanyService;
 use Carbon\Carbon;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -25,7 +26,6 @@ use Modules\SPK\Database\Factories\WorkOrderFactory;
 use Modules\SPK\Models\WorkOrder;
 use Modules\SPK\Models\WorkOrderItem;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\AsksInertiaForProps;
 use Tests\Traits\WithoutAppOnlyRedirect;
@@ -78,7 +78,7 @@ class ApprovalInboxTest extends TestCase
     {
         [$company] = $this->approver();
         $viewer = User::factory()->create(['company_id' => $company->id, 'email_verified_at' => now(), 'is_active' => true]);
-        $viewer->assignRole(Role::where('name', 'technician')->firstOrFail());
+        $this->grantRole($viewer, 'technician');
 
         $this->actingAs($viewer)
             ->get(route('admin.approvals.index'))
@@ -574,7 +574,7 @@ class ApprovalInboxTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $technician->assignRole(Role::where('name', 'technician')->firstOrFail());
+        $this->grantRole($technician, 'technician');
 
         $this->actingAs($technician)
             ->get(route('admin.dashboard'))
@@ -813,7 +813,7 @@ class ApprovalInboxTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $technician->assignRole(Role::where('name', 'technician')->firstOrFail());
+        $this->grantRole($technician, 'technician');
 
         $techRequest = Request::create(route('admin.approvals.index'));
         $techRequest->setUserResolver(fn () => $technician);
@@ -1033,7 +1033,8 @@ class ApprovalInboxTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $manager->assignRole(Role::where('name', 'manager')->firstOrFail());
+        $this->grantRole($manager, 'manager');
+        CompanyService::useCompanyForTests($company->id);
 
         return [$company, $manager];
     }

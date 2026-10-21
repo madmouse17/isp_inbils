@@ -74,11 +74,9 @@ class ProfileController extends Controller
 
         $user = $request->user();
 
-        UserDeletionGuard::ensureDeletable($user);
-
-        Auth::logout();
-
-        $user->delete();
+        // The check, the sign-out and the delete are one transaction: signing out saves the remember token, which a
+        // deleted user cannot take any more, so the sign-out comes first.
+        UserDeletionGuard::delete($user, fn () => Auth::logout());
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

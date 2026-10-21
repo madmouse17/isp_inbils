@@ -312,6 +312,7 @@ class NotificationCenterTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
+        $this->grantPermissions($deniedUser, ['app.web']);
         $denied = $this->notification($deniedUser, [
             'type' => 'ticket_assigned',
             'company_id' => $actor->company_id,

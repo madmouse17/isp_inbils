@@ -49,13 +49,15 @@ class PublicIdInventoryTest extends TestCase
         'network_asset' => ['nas_devices', 'network_accounts', 'network_asset_installations', 'network_assets', 'odn_ports', 'odn_splitters'],
         // Its own group: asset_ports is created with its public_id (2026_10_24_110200), so the 2026_10_22 migration above does not touch it.
         'hardware_panel' => ['asset_ports'],
+        // Its own group: role_templates is created with its public_id (2026_10_29_100000), so the 2026_10_22 migration above does not touch it.
+        'role_templates' => ['role_templates'],
         'service' => ['announcements', 'promo_banners', 'bandwidth_profiles', 'service_package_categories', 'service_packages', 'sla_tiers', 'speed_profiles'],
         'spk' => ['work_orders', 'work_order_assignments', 'work_order_items'],
         'ticketing' => ['tickets', 'ticket_categories', 'ticket_comments'],
     ];
 
     /** Package tables: no model of ours to put the trait on, so AppServiceProvider fills the column on create. */
-    private const PACKAGE_TABLES = ['roles', 'media', 'activity_log', 'personal_access_tokens'];
+    private const PACKAGE_TABLES = ['media', 'activity_log', 'personal_access_tokens'];
 
     /** Tenant models that carry no `public_id`, and why: see the class comment. */
     private const WITHOUT_PUBLIC_ID = [ServicePackageVersion::class, CompanyIntegration::class];

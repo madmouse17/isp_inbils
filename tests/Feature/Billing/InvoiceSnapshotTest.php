@@ -26,8 +26,6 @@ use Modules\Billing\Notifications\InvoiceIssuedNotification;
 use Modules\Billing\Services\BillingService;
 use Modules\Billing\Support\InvoiceParty;
 use Modules\Service\Database\Factories\ServicePackageFactory;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\BuildsSubscriptionBilling;
 use Tests\Traits\CreatesCompanyUser;
@@ -456,9 +454,7 @@ class InvoiceSnapshotTest extends TestCase
         $foreign->delete();
 
         $viewer = User::factory()->create(['company_id' => $this->admin->company_id, 'email_verified_at' => now(), 'is_active' => true]);
-        $role = Role::firstOrCreate(['name' => 'invoice-viewer', 'guard_name' => 'web']);
-        $role->syncPermissions([Permission::findOrCreate('billing.view', 'web'), Permission::findOrCreate('billing.update', 'web')]);
-        $viewer->assignRole($role);
+        $this->grantPermissions($viewer, ['billing.view', 'billing.update', 'app.web']);
 
         $this->actingAs($viewer)->post(route('admin.invoices.restore', $draft->public_id))->assertForbidden();
         $this->assertSoftDeleted($draft);

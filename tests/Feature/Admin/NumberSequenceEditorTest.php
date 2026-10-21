@@ -40,7 +40,7 @@ class NumberSequenceEditorTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $this->admin->assignRole('admin');
+        $this->grantRole($this->admin, 'admin');
     }
 
     protected function tearDown(): void
@@ -156,6 +156,7 @@ class NumberSequenceEditorTest extends TestCase
     public function test_index_and_update_are_forbidden_without_the_system_setting_permission(): void
     {
         $user = User::factory()->create(['company_id' => $this->company->id, 'email_verified_at' => now(), 'is_active' => true]);
+        $this->grantPermissions($user, ['app.web']);
         $row = $this->sequence('customer');
 
         $this->actingAs($user)->get(route('admin.number-sequences.index'))->assertForbidden();

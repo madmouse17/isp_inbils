@@ -4,7 +4,6 @@ namespace Tests\Feature\Admin;
 
 use App\Models\Core\Company;
 use App\Models\User;
-use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Permission;
@@ -14,21 +13,16 @@ class PermissionServerTableTest extends TestCase
 {
     use RefreshDatabase;
 
+    private Company $company;
+
     private User $admin;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->seed(RolePermissionSeeder::class);
-        app()['cache']->forget('spatie.permission.cache');
-        $company = Company::factory()->create(['is_active' => true]);
-        $this->admin = User::factory()->create([
-            'company_id' => $company->id,
-            'email_verified_at' => now(),
-            'is_active' => true,
-        ]);
-        $this->admin->assignRole('admin');
+        $this->company = Company::factory()->create(['is_active' => true]);
+        $this->admin = $this->grantRole($this->newUser($this->company), 'admin', $this->company);
     }
 
     public function test_search_sort_and_pagination_preserve_the_global_permission_catalogue(): void
@@ -38,12 +32,8 @@ class PermissionServerTableTest extends TestCase
         }
         Permission::findOrCreate('outside-table-search', 'web');
 
-        $otherAdmin = User::factory()->create([
-            'company_id' => Company::factory()->create(['is_active' => true])->id,
-            'email_verified_at' => now(),
-            'is_active' => true,
-        ]);
-        $otherAdmin->assignRole('admin');
+        $otherCompany = Company::factory()->create(['is_active' => true]);
+        $otherAdmin = $this->grantRole($this->newUser($otherCompany), 'admin', $otherCompany);
 
         foreach ([$this->admin, $otherAdmin] as $actor) {
             $this->actingAs($actor)
@@ -128,17 +118,20 @@ class PermissionServerTableTest extends TestCase
         $this->get(route('admin.permissions.index'))->assertRedirect(route('login'));
     }
 
-    private function userWithPermission(?string $permission): User
+    private function newUser(Company $company): User
     {
-        $user = User::factory()->create([
-            'company_id' => $this->admin->company_id,
+        return User::factory()->create([
+            'company_id' => $company->id,
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
+    }
 
-        if ($permission !== null) {
-            $user->givePermissionTo($permission);
-        }
+    /** A member of the company with web access and, when given, this one permission: held directly, not through a role. */
+    private function userWithPermission(?string $permission): User
+    {
+        $user = $this->newUser($this->company);
+        $user->givePermissionTo($permission === null ? ['app.web'] : ['app.web', $permission]);
 
         return $user;
     }

@@ -46,7 +46,7 @@ class EvidenceAuthorizationTest extends TestCase
         $this->technician = $this->technicianLogin($this->company);
         $this->colleague = $this->technicianLogin($this->company);
         $this->manager = User::factory()->create(['company_id' => $this->company->id]);
-        $this->manager->assignRole('manager');
+        $this->grantRole($this->manager, 'manager');
     }
 
     public function test_a_technician_who_is_not_assigned_cannot_upload_to_an_in_progress_spk(): void

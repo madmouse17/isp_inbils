@@ -95,7 +95,7 @@ class PaymentAttemptRefundTest extends TestCase
     private function staffWithRole(string $role): User
     {
         $user = User::factory()->create(['company_id' => $this->admin->company_id, 'email_verified_at' => now(), 'is_active' => true]);
-        $user->assignRole($role);
+        $this->grantRole($user, $role);
 
         return $user;
     }
@@ -189,6 +189,7 @@ class PaymentAttemptRefundTest extends TestCase
         // The permission is what counts, not a role: a user holding it directly may mark it.
         $holder = User::factory()->create(['company_id' => $this->admin->company_id, 'email_verified_at' => now(), 'is_active' => true]);
         $holder->givePermissionTo('billing.payment.reverse');
+        $this->grantPermissions($holder, ['app.web']);
 
         $this->refund($attempt, $holder)->assertRedirect();
 

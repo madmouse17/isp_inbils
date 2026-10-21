@@ -25,7 +25,6 @@ use Modules\Inventory\Models\Unit;
 use Modules\SPK\Database\Factories\WorkOrderFactory;
 use Modules\SPK\Models\WorkOrderItem;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
 
@@ -462,13 +461,12 @@ class InventoryMasterLifecycleTest extends TestCase
         };
     }
 
-    /** @param  list<string>  $permissions */
+    /** @param  list<string>  $permissions  `app.web` opens the admin pages; the permissions under test come with it */
     private function user(string $role, array $permissions): User
     {
-        $record = Role::firstOrCreate(['name' => $role, 'guard_name' => 'web']);
-        $record->syncPermissions($permissions);
+        $user = User::factory()->create(['company_id' => $this->admin->company_id, 'email_verified_at' => now(), 'is_active' => true]);
 
-        return User::factory()->create(['company_id' => $this->admin->company_id, 'email_verified_at' => now(), 'is_active' => true])->assignRole($record);
+        return $this->grantRole($user, $this->companyRole((int) $this->admin->company_id, $role, [...$permissions, 'app.web']));
     }
 
     /** @return list<string> the names an index lists for a status, sorted */

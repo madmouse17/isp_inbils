@@ -26,7 +26,7 @@ class TechnicianPerformanceQuery
             return $query;
         }
 
-        if ($actor->hasRole('manager') && $actor->can('report.technician')) {
+        if ($actor->can('report.technician.team') && $actor->can('report.technician')) {
             $organizationPath = self::actorOrganizationPath($actor, $companyId);
 
             if ($organizationPath === null) {
@@ -43,7 +43,7 @@ class TechnicianPerformanceQuery
             });
         }
 
-        if ($actor->hasRole('technician') && $actor->can('report.technician')) {
+        if ($actor->can('app.technician') && $actor->can('report.technician')) {
             return $query->whereKey($actor->id);
         }
 
@@ -141,7 +141,7 @@ class TechnicianPerformanceQuery
         return User::query()
             ->where('users.company_id', $companyId)
             ->where('users.is_active', true)
-            ->whereHas('roles', fn (Builder $query) => $query->where('name', 'technician'))
+            ->withPermissionIn('app.technician', $companyId)
             ->whereHas('employeeProfile', fn (Builder $query) => $query
                 ->where('employee_profiles.company_id', $companyId)
                 ->where('employee_profiles.status', 'active'));

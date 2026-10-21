@@ -4,23 +4,17 @@ namespace Tests\Feature\Billing;
 
 use App\Models\Core\Company;
 use App\Models\User;
+use App\Services\Core\CompanyMembershipService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Modules\Billing\Notifications\BillingScheduleFailedNotification;
 use Modules\Billing\Services\BillingScheduleGateway;
 use RuntimeException;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class BillingFailureNotificationTest extends TestCase
 {
     use RefreshDatabase;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-        Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
-    }
 
     public function test_generate_command_notifies_on_failure(): void
     {
@@ -28,9 +22,9 @@ class BillingFailureNotificationTest extends TestCase
 
         $company = Company::factory()->create();
         $admin = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
-        $admin->assignRole('admin');
+        $this->grantRole($admin, 'admin');
         $inactive = User::factory()->create(['company_id' => $company->id, 'is_active' => false]);
-        $inactive->assignRole('admin');
+        $this->grantRole($inactive, 'admin');
         $nonAdmin = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
 
         $this->mock(BillingScheduleGateway::class, function ($mock) {
@@ -56,7 +50,7 @@ class BillingFailureNotificationTest extends TestCase
 
         $company = Company::factory()->create();
         $admin = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
-        $admin->assignRole('admin');
+        $this->grantRole($admin, 'admin');
 
         $this->mock(BillingScheduleGateway::class, function ($mock) {
             $mock->shouldReceive('checkOverdue')
@@ -71,18 +65,31 @@ class BillingFailureNotificationTest extends TestCase
         });
     }
 
-    public function test_recipients_are_the_active_admins_of_that_one_company(): void
+    public function test_recipients_are_the_active_administrators_of_that_one_company(): void
     {
         $company = Company::factory()->create();
-        $admin = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
-        $admin->assignRole('admin');
-        $inactive = User::factory()->create(['company_id' => $company->id, 'is_active' => false]);
-        $inactive->assignRole('admin');
-        User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
-        $stranger = User::factory()->create(['company_id' => Company::factory()->create()->id, 'is_active' => true]);
-        $stranger->assignRole('admin');
+        $otherCompany = Company::factory()->create();
 
-        $this->assertSame([$admin->id], BillingScheduleFailedNotification::recipients($company->id)->pluck('id')->all());
+        $admin = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
+        $this->grantRole($admin, 'admin');
+        $inactive = User::factory()->create(['company_id' => $company->id, 'is_active' => false]);
+        $this->grantRole($inactive, 'admin');
+        $manager = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
+        $this->grantRole($manager, 'manager');
+        User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
+        // A role of the company's own making counts when it administers: the recipients are the holders of roles.manage.
+        $custom = $this->grantPermissions(User::factory()->create(['company_id' => $company->id, 'is_active' => true]), ['roles.manage']);
+        // Homed in another company but a member here with Admin here: told as well.
+        $member = User::factory()->create(['company_id' => $otherCompany->id, 'is_active' => true]);
+        app(CompanyMembershipService::class)->grant($member, $company);
+        $this->grantRole($member, 'admin', $company);
+        $stranger = User::factory()->create(['company_id' => $otherCompany->id, 'is_active' => true]);
+        $this->grantRole($stranger, 'admin');
+
+        $this->assertEqualsCanonicalizing(
+            [$admin->id, $custom->id, $member->id],
+            BillingScheduleFailedNotification::recipients($company->id)->pluck('id')->all(),
+        );
     }
 
     public function test_the_mail_is_indonesian_and_carries_the_command(): void

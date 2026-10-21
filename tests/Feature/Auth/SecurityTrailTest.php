@@ -4,6 +4,7 @@ namespace Tests\Feature\Auth;
 
 use App\Models\Core\Company;
 use App\Models\PlatformAdmin;
+use App\Models\Role;
 use App\Models\User;
 use App\Services\Core\CompanyService;
 use App\Services\Core\TwoFactorService;
@@ -395,32 +396,35 @@ class SecurityTrailTest extends TestCase
     public function test_role_grants_and_revocations_are_recorded_and_an_unchanged_edit_records_none(): void
     {
         $admin = $this->createCompanyUser();
+        $roles = $this->companyRoles((int) $admin->company_id);
+        [$manager, $staff, $technician] = [$roles['manager']->name, $roles['staff']->name, $roles['technician']->name];
         $member = User::factory()->create(['company_id' => $admin->company_id]);
         Activity::query()->delete();
 
-        $this->actingAs($admin)->put(route('admin.users.update', $member), $this->userForm($member, ['roles' => ['staff', 'manager']]))->assertSessionHasNoErrors();
-        $this->actingAs($admin)->put(route('admin.users.update', $member), $this->userForm($member, ['roles' => ['manager', 'staff']]))->assertSessionHasNoErrors();
-        $this->actingAs($admin)->put(route('admin.users.update', $member), $this->userForm($member, ['roles' => ['staff', 'technician']]))->assertSessionHasNoErrors();
+        $this->actingAs($admin)->put(route('admin.users.update', $member), $this->userForm($member, ['roles' => [$staff, $manager]]))->assertSessionHasNoErrors();
+        $this->actingAs($admin)->put(route('admin.users.update', $member), $this->userForm($member, ['roles' => [$manager, $staff]]))->assertSessionHasNoErrors();
+        $this->actingAs($admin)->put(route('admin.users.update', $member), $this->userForm($member, ['roles' => [$staff, $technician]]))->assertSessionHasNoErrors();
         $this->actingAs($admin)->put(route('admin.users.update', $member), $this->userForm($member, ['roles' => []]))->assertSessionHasNoErrors();
 
         $rows = Activity::query()->where('description', 'like', 'role.%')->orderBy('id')->get();
         $this->assertSame(['role.attached', 'role.detached', 'role.attached', 'role.detached'], $rows->pluck('description')->all(), 'the unchanged edit records nothing, and no role is taken and given back');
-        $this->assertSame([['manager', 'staff'], ['manager'], ['technician'], ['staff', 'technician']], $rows->map(fn (Activity $row): array => $row->properties['roles'])->all());
+        $this->assertSame([[$manager, $staff], [$manager], [$technician], [$staff, $technician]], $rows->map(fn (Activity $row): array => $row->properties['roles'])->all());
         foreach ($rows as $row) {
             $this->assertSame('security', $row->log_name);
-            $this->assertSame([User::class, $member->id, $admin->company_id, $admin->id], [$row->subject_type, $row->subject_id, (int) $row->company_id, $row->causer_id]);
+            $this->assertSame([Role::class, (int) $admin->company_id, $admin->id], [$row->subject_type, (int) $row->company_id, $row->causer_id], 'the role is the subject, so the row belongs to the role\'s company');
+            $this->assertContains(Role::query()->findOrFail($row->subject_id)->name, $row->properties['roles']);
             $this->assertSame($member->id, $row->properties['user_id']);
             $this->assertEqualsCanonicalizing(['user_id', 'roles'], array_keys($row->properties->all()), 'MySQL keeps JSON keys in its own order');
         }
 
         // A new user's roles are a grant too; a form without roles grants nothing and records nothing.
-        $this->actingAs($admin)->post(route('admin.users.store'), ['name' => 'Fresh', 'email' => 'fresh@example.test', 'password' => 'Fr3sh-Passw0rd', 'roles' => ['customer']])->assertSessionHasNoErrors();
+        $this->actingAs($admin)->post(route('admin.users.store'), ['name' => 'Fresh', 'email' => 'fresh@example.test', 'password' => 'Fr3sh-Passw0rd', 'roles' => [$technician]])->assertSessionHasNoErrors();
         $this->actingAs($admin)->post(route('admin.users.store'), ['name' => 'Bare', 'email' => 'bare@example.test', 'password' => 'B4re-Passw0rd', 'roles' => []])->assertSessionHasNoErrors();
 
         $fresh = User::query()->where('email', 'fresh@example.test')->firstOrFail();
-        $granted = Activity::query()->where('description', 'role.attached')->where('subject_id', $fresh->id)->sole();
-        $this->assertSame(['customer'], $granted->properties['roles']);
-        $this->assertSame(0, Activity::query()->where('description', 'like', 'role.%')->where('subject_id', User::query()->where('email', 'bare@example.test')->value('id'))->count());
+        $granted = Activity::query()->where('description', 'role.attached')->where('properties->user_id', $fresh->id)->sole();
+        $this->assertSame([$technician], $granted->properties['roles']);
+        $this->assertSame(0, Activity::query()->where('description', 'like', 'role.%')->where('properties->user_id', User::query()->where('email', 'bare@example.test')->value('id'))->count());
     }
 
     /** One wrong login. */

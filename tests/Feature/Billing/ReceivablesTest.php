@@ -9,8 +9,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Services\BillingService;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\BuildsSubscriptionBilling;
 use Tests\Traits\CreatesCompanyUser;
@@ -236,10 +234,7 @@ class ReceivablesTest extends TestCase
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
-        $role = Role::firstOrCreate(['name' => 'receivables-no-view', 'guard_name' => 'web']);
-        Permission::findOrCreate('billing.view', 'web');
-        $role->syncPermissions([]);
-        $user->assignRole($role);
+        $this->grantPermissions($user, ['app.web']);
 
         $this->actingAs($user)
             ->get(route('admin.billing.receivables'))
