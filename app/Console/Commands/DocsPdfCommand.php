@@ -24,14 +24,18 @@ class DocsPdfCommand extends Command
     /** Markdown file stem => PDF title. */
     private const GUIDES = [
         'web' => 'Panduan Web Inbils',
+        'platform' => 'Panduan Panel Operator Inbils',
         'teknisi' => 'Panduan Aplikasi Teknisi',
         'pelanggan' => 'Panduan Aplikasi Pelanggan',
     ];
 
     private const IMAGE_TYPES = ['png' => 'image/png', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg'];
 
+    /** The cover logo, the same file the web shows. */
+    private const LOGO = 'images/brand/inbils-logo.png';
+
     protected $signature = 'inbils:docs:pdf
-        {--only= : Render one guide: web, teknisi or pelanggan}
+        {--only= : Render one guide: web, platform, teknisi or pelanggan}
         {--dir= : Guide directory holding <name>.md (default docs/user-guide)}';
 
     protected $description = 'Render the user guide Markdown files in docs/user-guide into PDFs under docs/user-guide/pdf.';
@@ -80,6 +84,7 @@ class DocsPdfCommand extends Command
 
         $pdf = Pdf::loadView('pdf.user-guide', [
             'title' => self::GUIDES[$name],
+            'logo' => 'data:image/png;base64,'.base64_encode((string) file_get_contents(resource_path(self::LOGO))),
             'version' => $this->version(),
             'toc' => $toc,
             'body' => new HtmlString((string) (new HtmlRenderer($environment))->renderDocument($document)),

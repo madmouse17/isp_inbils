@@ -34,6 +34,254 @@
             ]
         },
         {
+            "slug": "platform-two-factor-setup",
+            "url": "/platform/two-factor/setup",
+            "auth": "platform-enrol",
+            "actions": [
+                {
+                    "waitFor": "role=button[name=\"Mulai pengaturan\"] >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "platform-two-factor-status",
+            "url": "/platform/two-factor/setup",
+            "auth": "platform",
+            "actions": [
+                {
+                    "waitFor": "text=Autentikasi dua langkah aktif >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "platform-dashboard",
+            "url": "/platform",
+            "auth": "platform",
+            "actions": [
+                {
+                    "waitFor": "role=heading[name=\"Dasbor\"] >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "platform-company-create",
+            "url": "/platform/companies/create",
+            "auth": "platform",
+            "actions": [
+                {
+                    "waitFor": "#tenant-name"
+                }
+            ]
+        },
+        {
+            "slug": "platform-company-create-demo",
+            "url": "/platform/companies/create",
+            "auth": "platform",
+            "actions": [
+                {
+                    "click": "#tenant-demo-data"
+                },
+                {
+                    "waitFor": "text=Data contoh memakai Katalog awal, jadi pilihan Kosong tidak tersedia. >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "platform-company-show",
+            "url": "/platform?search=DEMO",
+            "auth": "platform",
+            "actions": [
+                {
+                    "click": "role=link[name=\"Inbils Demo Company\"] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "role=heading[name=\"Profil perusahaan\"] >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "platform-company-subsidiaries",
+            "url": "/platform?search=DEMO",
+            "auth": "platform",
+            "actions": [
+                {
+                    "click": "role=link[name=\"Inbils Demo Company\"] >> visible=true >> nth=0"
+                },
+                {
+                    "click": "role=heading[name=/^Anak perusahaan$/] >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "platform-company-users",
+            "url": "/platform?search=DEMO",
+            "auth": "platform",
+            "actions": [
+                {
+                    "click": "role=link[name=\"Inbils Demo Company\"] >> visible=true >> nth=0"
+                },
+                {
+                    "click": "role=heading[name=/^Pengguna$/] >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "platform-company-suspend-dialog",
+            "url": "/platform?search=DEMO",
+            "auth": "platform",
+            "actions": [
+                {
+                    "click": "role=link[name=\"Inbils Demo Company\"] >> visible=true >> nth=0"
+                },
+                {
+                    "click": "role=button[name=/^Tangguhkan$/] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "role=alertdialog >> visible=true >> nth=0"
+                },
+                {
+                    "fill": [
+                        "#platform-action-reason",
+                        "Permintaan tertulis dari pemilik perusahaan"
+                    ]
+                },
+                {
+                    "fill": [
+                        "#platform-action-code",
+                        "DEMO"
+                    ]
+                }
+            ]
+        },
+        {
+            "slug": "platform-support-dialog",
+            "url": "/platform?search=DEMO",
+            "auth": "platform",
+            "actions": [
+                {
+                    "click": "role=link[name=\"Inbils Demo Company\"] >> visible=true >> nth=0"
+                },
+                {
+                    "click": "role=button[name=\"Masuk sebagai Demo Admin\"] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "role=alertdialog >> visible=true >> nth=0"
+                },
+                {
+                    "fill": [
+                        "#platform-action-reason",
+                        "Pemeriksaan keluhan pengguna"
+                    ]
+                }
+            ]
+        },
+        {
+            "slug": "platform-roles",
+            "url": "/platform/roles",
+            "auth": "platform",
+            "actions": [
+                {
+                    "waitFor": "role=heading[name=\"Peran & hak akses\"] >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "platform-role-edit",
+            "url": "/platform/roles",
+            "auth": "platform",
+            "actions": [
+                {
+                    "click": "main table tbody tr a >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "text=Peran bawaan >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "platform-exports",
+            "url": "/platform/exports",
+            "auth": "platform",
+            "actions": [
+                {
+                    "waitFor": "role=heading[name=\"Ekspor data\"] >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "platform-audit",
+            "url": "/platform/audit",
+            "auth": "platform",
+            "actions": [
+                {
+                    "waitFor": "role=heading[name=\"Audit platform\"] >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "platform-audit-detail",
+            "url": "/platform/audit",
+            "auth": "platform",
+            "actions": [
+                {
+                    "click": "role=button[name=/^Lihat rincian/] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "text=Properti tercatat >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "platform-support-banner",
+            "url": "/platform?search=DEMO",
+            "auth": "platform",
+            "actions": [
+                {
+                    "click": "role=link[name=\"Inbils Demo Company\"] >> visible=true >> nth=0"
+                },
+                {
+                    "click": "role=button[name=\"Masuk sebagai Demo Admin\"] >> visible=true >> nth=0"
+                },
+                {
+                    "fill": [
+                        "#platform-action-reason",
+                        "Pemeriksaan keluhan pengguna"
+                    ]
+                },
+                {
+                    "fill": [
+                        "#platform-action-password",
+                        "{{platformPassword}}"
+                    ]
+                },
+                {
+                    "click": "role=button[name=\"Mulai akses dukungan\"] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "role=region[name=\"Akses dukungan\"] >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "platform-support-write-dialog",
+            "url": "/admin/dashboard",
+            "auth": "platform",
+            "actions": [
+                {
+                    "click": "role=button[name=\"Mode ubah\"] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "role=alertdialog >> visible=true >> nth=0"
+                },
+                {
+                    "fill": [
+                        "#impersonation-confirmation-code",
+                        "DEMO"
+                    ]
+                }
+            ]
+        },
+        {
             "slug": "dashboard",
             "url": "/admin/dashboard"
         },
@@ -88,7 +336,7 @@
         },
         {
             "slug": "spk-add-item",
-            "url": "/admin/spk",
+            "url": "/admin/spk?search=E2E-DISPATCH-SPK",
             "actions": [
                 {
                     "click": "main table tbody tr a >> nth=0"

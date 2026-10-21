@@ -18,7 +18,7 @@ export default function SetupLayout({ title = 'Pengaturan awal', children }: Set
                 <div className="mx-auto flex max-w-3xl flex-col gap-6">
                     <header className="flex items-center justify-between gap-4">
                         <div>
-                            <Wordmark className="text-sm text-muted-foreground" />
+                            <Wordmark className="h-7" />
                             <h1 className="text-xl font-semibold">Pengaturan awal</h1>
                         </div>
                         <Button type="button" variant="secondary" onClick={toggle}>

@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 
 import { demoPassword, userFor } from '../tests/e2e/support/demo';
+import { loginAsPlatformOperator, platformFixture } from '../tests/e2e/support/platform';
 
 type Action =
     | { click: string }
@@ -14,7 +15,7 @@ type Viewport = { width: number; height: number };
 type Screen = {
     slug: string;
     url: string;
-    auth?: boolean;
+    auth?: boolean | 'platform' | 'platform-enrol';
     actions?: Action[];
     fullPage?: boolean;
     phone?: boolean;
@@ -33,10 +34,14 @@ test.use({
     actionTimeout: 30_000,
 });
 
+function fillValue(value: string): string {
+    return value === '{{platformPassword}}' ? platformFixture.password! : value;
+}
+
 async function runAction(page: Page, action: Action) {
     if ('click' in action) await page.locator(action.click).click();
     else if ('hover' in action) await page.locator(action.hover).hover();
-    else if ('fill' in action) await page.locator(action.fill[0]).fill(action.fill[1]);
+    else if ('fill' in action) await page.locator(action.fill[0]).fill(fillValue(action.fill[1]));
     else await page.locator(action.waitFor).waitFor();
 }
 
@@ -65,6 +70,15 @@ async function login(page: Page) {
     });
 }
 
+async function loginAsPlatformEnrolmentOperator(page: Page): Promise<void> {
+    await page.goto('/platform/login');
+    await page.getByLabel('Email').fill(platformFixture.enrolEmail!);
+    await page.getByLabel(/^Kata sandi( \*)?$/).fill(platformFixture.password!);
+    await page.getByRole('button', { name: 'Masuk' }).click();
+    await expect(page).toHaveURL(/\/platform\/two-factor\/setup$/);
+    await expect(page.getByRole('button', { name: 'Mulai pengaturan' })).toBeVisible();
+}
+
 // One bad screen must not hide the rest: the failures of a run are listed together at the end.
 async function shootAll(page: Page, screens: Screen[]): Promise<string[]> {
     const failures: string[] = [];
@@ -89,10 +103,32 @@ test('docs screenshots', async ({ page }) => {
 
     const member = await shootAll(
         page,
-        manifest.screens.filter((s) => s.auth !== false && !s.phone),
+        manifest.screens.filter((screen) => (screen.auth === undefined || screen.auth === true) && !screen.phone),
     );
 
     expect([...guest, ...member], 'screens that did not render').toEqual([]);
+});
+
+test('docs screenshots (platform enrolment)', async ({ page }) => {
+    mkdirSync(outDir, { recursive: true });
+
+    await loginAsPlatformEnrolmentOperator(page);
+
+    expect(
+        await shootAll(page, manifest.screens.filter((s) => s.auth === 'platform-enrol')),
+        'platform enrolment screens that did not render',
+    ).toEqual([]);
+});
+
+test('docs screenshots (platform)', async ({ page }) => {
+    mkdirSync(outDir, { recursive: true });
+
+    await loginAsPlatformOperator(page);
+
+    expect(
+        await shootAll(page, manifest.screens.filter((s) => s.auth === 'platform')),
+        'platform screens that did not render',
+    ).toEqual([]);
 });
 
 test.describe('phone', () => {

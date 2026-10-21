@@ -8,7 +8,7 @@ Panduan ini untuk pengguna web Inbils di kantor: admin, manajer, dan staf. Ketig
 - Manajer menyetujui SPK dan permintaan barang, memantau laporan, mengelola pelanggan, layanan, jaringan, dan tagihan, serta boleh membatalkan tagihan dan pembayaran.
 - Staf menjalankan pekerjaan harian: mengubah data pelanggan, membuat SPK, tiket, dan tagihan, mencatat pembayaran, serta memproses stok masuk dan keluar di gudang.
 
-Pembagian izin yang rinci ada di bagian 10.1. Operator platform dapat membuat peran lain (bagian 8.6), jadi daftar menu per orang di perusahaan Anda bisa berbeda dari uraian di atas.
+Pembagian izin yang rinci ada di bagian 10.1. Operator platform dapat membuat peran lain (bagian 8.6), jadi daftar menu per orang di perusahaan Anda bisa berbeda dari uraian di atas. Operator platform adalah tim Inbils yang mengelola seluruh instalasi melalui `/platform`, bukan admin perusahaan. Pekerjaan mereka dibahas terpisah dalam **Panduan Panel Operator Inbils** (`platform.md` atau `pdf/platform.pdf`).
 
 Teknisi dan pelanggan tidak memakai web. Akun yang hanya berperan teknisi atau pelanggan dialihkan ke halaman **Gunakan aplikasi Inbils**, yang menyebut aplikasi Android yang harus dipakai: Inbils Teknisi atau Inbils Pelanggan. Halaman itu punya tombol **Buka Play Store** (tampil bila tautan Play Store sudah diatur), **Kelola akun & 2FA**, dan **Keluar**. Pekerjaan teknisi (memulai dan menyerahkan SPK, mengerjakan tiket, mengembalikan material) dan pekerjaan pelanggan (melihat dan membayar tagihan, membuat tiket) dilakukan di aplikasi masing-masing, dengan panduan terpisah: Panduan Aplikasi Teknisi dan Panduan Aplikasi Pelanggan. Di web, mereka hanya membuka halaman masuk, lupa kata sandi, profil (termasuk 2FA), dan halaman hasil pembayaran. Di halaman profil, tautan **Kembali ke halaman aplikasi** membawa mereka kembali. Akun yang juga memegang peran lain, misalnya admin, manajer, atau staf, tidak dialihkan.
 
@@ -17,7 +17,7 @@ Teknisi dan pelanggan tidak memakai web. Akun yang hanya berperan teknisi atau p
 - Nama menu, tombol, tab, dan isian ditulis tebal persis seperti tulisan di layar. Semua layar Inbils berbahasa Indonesia. Singkatan dan nama produk berikut tidak diterjemahkan: SPK, ODN, ODP, OLT, PON, NAS, IP, CIDR, MAC, VLAN, SLA, MRR, KPI, SKU, RADIUS, Midtrans, WhatsApp, 2FA, dan Email.
 - Gambar diambil dari data contoh "Inbils Demo Company" dengan login admin. Data dan tombol di layar Anda bisa berbeda, terutama bila peran Anda bukan admin.
 - Setiap menu dimulai dengan tujuan dan peran yang dapat memakainya, disusul langkah bernomor dan daftar kesalahan umum.
-- Bab 9 menyusun alur kerja yang melewati beberapa menu. Bab 10 memuat tabel peran dan istilah. Bab 11 untuk operator platform Inbils dan tidak muncul di web perusahaan.
+- Bab 9 menyusun alur kerja yang melewati beberapa menu. Bab 10 memuat tabel peran dan istilah.
 
 Bila menu yang disebut panduan tidak ada di sidebar Anda, peran Anda belum memiliki izinnya. Minta operator platform menambahkannya ke peran Anda, atau berikan peran lain di menu Pengguna (bagian 8.5 dan 8.6). Bila Anda membuka halaman yang tidak diizinkan, Inbils menampilkan halaman **Akses ditolak** dengan pesan "Anda tidak punya izin untuk membuka halaman ini. Hubungi administrator jika Anda memerlukan aksesnya." Klik **Ke dasbor** untuk kembali.
 
@@ -30,7 +30,7 @@ Peran yang dapat memakai: semua pengguna dengan akun aktif. Akun nonaktif ditola
 1. Buka alamat Inbils di browser. Admin atau tim IT Anda memberi alamatnya.
 2. Isi **Email** dan **Kata sandi**.
 
-   ![Halaman masuk Inbils dengan judul Masuk, isian Email dan Kata sandi, kotak Ingat saya, tautan Lupa kata sandi?, dan tombol Masuk](images/web/login.png)
+   ![Halaman masuk Inbils dengan logo inbils, judul Masuk, isian Email dan Kata sandi, kotak Ingat saya, tautan Lupa kata sandi?, dan tombol Masuk](images/web/login.png)
 
 3. Centang **Ingat saya** bila Anda memakai perangkat pribadi. Tanpa centang ini, sesi berakhir setelah 120 menit tanpa aktivitas (pengaturan standar yang dapat diubah admin server).
 4. Klik **Masuk**.
@@ -140,7 +140,7 @@ Hampir semua menu memakai kerangka yang sama. Bagian ini menjelaskan kerangka it
 
 ### Sidebar dan bilah atas
 
-- Sidebar di kiri memuat logo atau inisial perusahaan, nama perusahaan, tombol **Ganti perusahaan** bila ada (bagian 1.6), **Dasbor**, dan enam grup menu: **Operasional**, **Pelanggan & Layanan**, **Jaringan**, **Inventaris**, **Keuangan & Laporan**, **Administrasi**. Klik judul grup untuk membuka atau menutupnya. Grup yang berisi halaman aktif terbuka sendiri.
+- Sidebar di kiri memuat logo perusahaan, nama perusahaan, tombol **Ganti perusahaan** bila ada (bagian 1.6), **Dasbor**, dan enam grup menu: **Operasional**, **Pelanggan & Layanan**, **Jaringan**, **Inventaris**, **Keuangan & Laporan**, **Administrasi**. Bila perusahaan belum mengunggah logo, kotak logo menampilkan tanda Inbils (bulatan biru). Klik judul grup untuk membuka atau menutupnya. Grup yang berisi halaman aktif terbuka sendiri.
 - Hanya menu yang diizinkan untuk peran Anda yang tampil. Grup tanpa menu tidak tampil.
 - Angka kecil di samping **Pekerjaan Saya**, **Penugasan**, dan **Persetujuan** menunjukkan jumlah antrean yang menunggu.
 - Di layar sempit, sidebar tersembunyi. Klik tombol tiga garis di kiri atas (**Menu navigasi**) untuk membukanya. Tombol Esc menutupnya.
@@ -4832,7 +4832,7 @@ Selain itu, peran non-admin tidak boleh memegang pasangan izin yang berbenturan.
 | Istilah | Arti |
 | --- | --- |
 | 2FA | Autentikasi dua langkah. Kode 6 digit dari aplikasi autentikator diminta setelah kata sandi (bagian 1.4). |
-| Akses dukungan | Sesi terbatas 30 menit saat operator platform masuk sebagai seorang pengguna untuk menangani keluhan. Mulai dalam mode baca, tercatat di Log Audit perusahaan, dan ditandai banner di atas halaman (bagian 11.5). |
+| Akses dukungan | Sesi terbatas 30 menit saat operator platform masuk sebagai seorang pengguna untuk menangani keluhan. Mulai dalam mode baca, tercatat di Log Audit perusahaan, dan ditandai banner di atas halaman. Lihat **Panduan Panel Operator Inbils**. |
 | Aset jaringan | Perangkat jaringan yang dilacak satu per satu, dengan nomor seri, lokasi, dan status (**Tersedia**, **Terpasang**, **Perawatan**, **Rusak**, atau **Dipensiunkan**) (bagian 5.2). |
 | Blokir internet | Isolasi jaringan manual pada satu langganan, lewat tombol **Blokir internet** di langganan atau **Blokir** di **Tunggakan**. Blokir bukan status, dan pembayaran tidak mencabutnya. **Buka blokir** mencabutnya (bagian 4.1 dan 7.2). |
 | Break-glass | Penyesuaian stok langsung oleh admin tanpa persetujuan. Layar web tidak menyediakan tombolnya (bagian 6.5). |
@@ -4851,7 +4851,7 @@ Selain itu, peran non-admin tidak boleh memegang pasangan izin yang berbenturan.
 | Nonaktifkan | Menyembunyikan data master dari pilihan baru tanpa mengubah riwayatnya. Pilihan satu-satunya untuk data yang sudah dipakai; **Hapus permanen** hanya untuk data yang belum pernah dipakai (bagian 1.5). |
 | NPWP | Nomor pokok wajib pajak, diisi di kolom **NPWP** pelanggan (bagian 4.1). |
 | ODN | Register jaringan serat optik: port PON pada OLT, splitter pada ODC dan ODP, dan port drop tiap langganan. OLT, ODC, dan ODP didaftarkan sebagai aset jaringan (bagian 5.5). |
-| Operator platform | Orang di tim Inbils yang memakai panel `/platform`: membuat dan menangguhkan perusahaan, mengelola definisi peran, dan memberi akses dukungan. Bukan pengguna perusahaan (bab 11). |
+| Operator platform | Orang di tim Inbils yang memakai panel `/platform`: membuat dan menangguhkan perusahaan, mengelola definisi peran, dan memberi akses dukungan. Bukan pengguna perusahaan. Lihat **Panduan Panel Operator Inbils**. |
 | OTC | One-Time Charge, biaya sekali bayar seperti biaya pemasangan. Di paket namanya **Harga pemasangan**, dan di langganan **Biaya pemasangan** (bagian 4.2). |
 | Panel perangkat | Gambar router, switch, OLT, ONU/ONT, ODC, ODP, atau rak seperti wajah aslinya, dengan port berwarna menurut statusnya. Lembar port di dalamnya mencatat label, sambungan antar perangkat, dan pelanggan di port (bagian 5.6). |
 | Periode | Rentang tanggal yang dihitung sebuah laporan (bagian 7.3). |
@@ -4871,130 +4871,3 @@ Selain itu, peran non-admin tidak boleh memegang pasangan izin yang berbenturan.
 | Tunggakan | Menu yang mengelompokkan tagihan belum lunas per pelanggan menurut umur sejak jatuh tempo (bagian 7.2). |
 | Versi paket | Catatan harga, profil, tingkat SLA, dan kategori sebuah paket pada suatu waktu. Langganan tetap di versi yang dijualnya sampai dipindahkan lewat **Ganti paket** (bagian 4.1 dan 4.2). |
 | VLAN | Nomor jaringan virtual yang dicatat di Alamat IP dan ditautkan ke prefiks (bagian 5.4). |
-
-# 11. Panel operator (/platform)
-
-Bab ini untuk operator platform Inbils, yaitu tim yang menjalankan seluruh instalasi dan melayani banyak perusahaan ISP. Admin, manajer dan staf perusahaan tidak memakai panel ini dan tidak melihatnya di sidebar. Panel dibuka di alamat `/platform` pada instalasi yang sama (atau di alamat khusus bila tim server mengatur `PLATFORM_DOMAIN`).
-
-Akun operator berdiri sendiri. Operator bukan pengguna perusahaan mana pun: tidak punya perusahaan asal, keanggotaan, atau peran perusahaan, dan tidak muncul di menu Pengguna. Untuk melihat layar seorang pengguna, operator memakai akses dukungan (bagian 11.5), bukan akun perusahaan.
-
-## 11.1 Masuk dan 2FA operator
-
-Tim server membuat akun operator dengan perintah `php artisan inbils:platform:admin-create`. Panel tidak punya pendaftaran, lupa kata sandi, atau tombol mematikan 2FA. Buat akun hanya saat calon operator siap langsung mendaftarkan autentikatornya: siapa pun yang memegang kata sandi sebelum pendaftaran selesai dapat mendaftarkan autentikatornya lebih dulu.
-
-![Halaman Masuk ke panel operator dengan isian Email dan Kata sandi](images/web/platform-login.png)
-
-Masuk pertama kali:
-
-1. Buka `/platform`, isi **Email** dan **Kata sandi**, lalu klik **Masuk**.
-2. Di halaman **Autentikasi dua langkah**, klik **Mulai pengaturan**, lalu pindai kode QR dengan aplikasi autentikator. Kode QR hanya tampil sekali. Bila terlewat, klik **Mulai lagi** untuk mendapat yang baru.
-3. Isi **Kode autentikasi** (6 digit), lalu klik **Konfirmasi dan aktifkan**.
-4. Halaman **Kode pemulihan Anda** menampilkan 8 kode pemulihan sekali saja. Salin dengan tombol salin atau klik **Unduh sebagai teks**, lalu simpan di tempat aman. Setiap kode hanya berlaku sekali. **Buat kode pemulihan baru** membuat kumpulan baru dan membatalkan yang lama.
-
-Sebelum pendaftaran selesai, halaman lain di panel tidak dapat dibuka.
-
-Masuk berikutnya: setelah email dan kata sandi, isi **Kode autentikasi**, atau klik **Pakai kode pemulihan** dan masukkan satu kode pemulihan. Setiap sesi browser harus lolos pemeriksaan kodenya sendiri, jadi masuk di browser kedua meminta kode lagi. Sebuah kode hanya diterima sekali: bila Anda masuk dua kali dalam 30 detik yang sama, tunggu kode berikutnya muncul di aplikasi.
-
-Batas dan sesi:
-
-- Lima kegagalan per menit untuk satu email dan alamat IP, atau 20 per jam untuk satu email, menahan login sementara. Akun nonaktif gagal dengan pesan kredensial salah yang sama seperti kata sandi salah.
-- Sesi berakhir setelah 30 menit tanpa aktivitas.
-- Tindakan berisiko (tangguhkan, ajukan hapus, ekspor, mode ubah, perubahan peran) meminta **Kata sandi operator** di dialognya. Kata sandi itu berlaku 5 menit untuk tindakan berikutnya. Halaman **Konfirmasi kata sandi** muncul bila Anda perlu memasukkannya di luar dialog.
-- Operator yang kehilangan autentikator dan kode pemulihan tidak dapat memulihkan diri sendiri. Hubungi tim server untuk membuat akun operator baru.
-
-## 11.2 Dasbor dan daftar perusahaan
-
-Dasbor memantau setiap perusahaan top-level (satu perusahaan induk beserta anak perusahaannya dihitung sebagai satu baris).
-
-- Kartu di atas: **Perusahaan aktif**, **Ditangguhkan**, **Pengajuan hapus**, dan **Job gagal tanpa perusahaan** (job gagal yang tidak dapat dikaitkan ke perusahaan mana pun).
-- Filter: **Cari** (nama atau kode perusahaan) dan **Status** (**Semua status**, **Aktif**, **Ditangguhkan**, **Pengajuan hapus**).
-- Kolom: **Perusahaan**, **Kode**, **Status**, **Anak perusahaan**, **Pengguna**, **Pelanggan**, **Job gagal 7 hari**, **WhatsApp gagal 7 hari**, **Masuk terakhir**, **Penyimpanan**. Angka perusahaan induk sudah mencakup anak perusahaannya. **Penyimpanan** dibaca dari data media yang tercatat, sehingga berkas lama tanpa data itu membuat angkanya lebih rendah dari ukuran sebenarnya.
-- Klik nama perusahaan untuk membuka halamannya (bagian 11.4). Tombol **Perusahaan baru** di kanan atas membuka formulir pembuatan.
-
-## 11.3 Membuat perusahaan
-
-Hanya operator yang membuat perusahaan baru dan anak perusahaan.
-
-1. Klik **Perusahaan baru** (di dasbor atau sidebar).
-2. Isi **Nama perusahaan** dan **Kode perusahaan**. Kode tidak dapat diubah setelah dibuat dan dipakai untuk mengonfirmasi tindakan berisiko. Admin perusahaan juga tidak dapat mengubahnya di menu Perusahaan.
-3. Pilih **Zona waktu** dan **Mata uang**, dan bila perlu unggah **Logo** (JPG, PNG, WebP atau SVG hingga 10 MB).
-4. Isi **Nama admin** dan **Email admin**. Inbils membuat akun admin pertama dengan kata sandi acak dan mengirim email undangan berisi tautan atur kata sandi yang berlaku 60 menit.
-5. Pilih **Isi awal**, yaitu data yang langsung ada di perusahaan baru:
-   - **Katalog awal** (pilihan awal): paket, profil kecepatan, tingkat SLA, kategori tiket, barang dan lokasi contoh yang bisa diubah. Tanpa stok dan tanpa aset.
-   - **Kosong**: hanya satuan barang, kategori paket, dan kategori tiket. Kategori tiket tetap dibuat karena pelanggan tidak bisa membuka tiket tanpa kategori.
-6. Centang **Isi data contoh** bila perusahaan ini untuk uji coba. Data contoh (pelanggan, tagihan, SPK, tiket, inventaris) diisi lewat antrean, di atas Katalog awal, tanpa perangkat jaringan dan tanpa pesan WhatsApp. Mencentangnya memilih dan mengunci **Katalog awal**, dan formulir menulis alasannya. Stok awal dan aset contoh hanya ada di data contoh. Akun contohnya memakai kata sandi acak yang tidak diberitahukan kepada siapa pun.
-7. Klik **Buat perusahaan**.
-
-Perusahaan langsung aktif dengan peran, penomoran dan pengaturan dasar. Kolom **Masuk terakhir** di halaman perusahaan menunjukkan di mana undangan admin berada selama admin belum masuk (lihat bagian 11.4). Pengisian data contoh dan ekspor berjalan di worker `platform-queue`. Tanpa worker itu keduanya tetap menunggu di antrean.
-
-## 11.4 Halaman perusahaan
-
-Halaman perusahaan berisi **Profil perusahaan**, **Ringkasan** (angka yang sama dengan dasbor), **Status perusahaan**, **Admin perusahaan**, kartu **Integrasi**, **Anak perusahaan**, **Pengguna**, **Ekspor**, **Audit terbaru**, serta daftar **Job gagal** dan **WhatsApp gagal** (tombol **Lihat 30 hari terakhir** membuka 30 hari penuh).
-
-Kartu **Integrasi** mendaftar Midtrans, WhatsApp, Email, dan RADIUS untuk perusahaan itu dan anak perusahaannya, dengan kolom **Perusahaan**, **Layanan**, **Status** (**Tidak diisi**, **Terisi**, **Terverifikasi**, atau **Galat**), **Aktif**, dan **Terakhir diuji** (atau **Belum pernah**). Operator hanya melihat status dan waktu uji, tidak pernah isi akun atau rahasianya, dan tidak bisa mengisinya: setiap admin perusahaan mengisi kartunya sendiri di **Integrasi** (bagian 8.9).
-
-### Tangguhkan, aktifkan kembali, ajukan hapus
-
-Tombol di **Status perusahaan** mengikuti status perusahaan:
-
-- **Tangguhkan** (perusahaan aktif). Dialog meminta **Alasan** (5 sampai 200 karakter, tercatat di audit), **Ketik {kode} untuk melanjutkan** dan **Kata sandi operator**. Perusahaan dan anak perusahaan yang aktif kehilangan akses: pengguna tidak dapat masuk dan token aplikasi dicabut. Data tetap tersimpan.
-- **Aktifkan kembali** (perusahaan ditangguhkan). Dialog hanya meminta **Alasan**. Anak perusahaan yang ikut ditangguhkan aktif lagi, dan pengajuan hapus yang masih ada dibatalkan.
-- **Ajukan hapus** (hanya pada perusahaan yang ditangguhkan, nonaktif sampai syaratnya terpenuhi). Syaratnya: sudah ditangguhkan 30 hari dan ada ekspor selesai setelah penangguhan. Bagian **Syarat pengajuan hapus** menyebut syarat yang belum terpenuhi. Dialog meminta kode perusahaan dan kata sandi operator. Tombol ini hanya mencatat pengajuan. Panel web tidak pernah menghapus data. Penghapusan permanen hanya dengan perintah `php artisan inbils:platform:purge-company {kode}` oleh tim server (interaktif, mengetik ulang kode).
-
-### Anak perusahaan
-
-**Tambah anak perusahaan** (nonaktif selama perusahaan ditangguhkan) meminta **Nama**, **Kode** dan admin mana yang menjadi anggotanya. Mata uang dan zona waktu mengikuti perusahaan induk. Anak perusahaan baru memperoleh satu akun sistem internal (`system-seed-...@inbils.internal`) yang ikut tampil di daftar pengguna perusahaan itu.
-
-### Pengguna dan alat dukungan
-
-Tabel **Pengguna** punya filter **Cari** dan **Status**, dan kolom **Pengguna**, **Perusahaan**, **Peran**, **Status**, **2FA**, **Masuk terakhir**, **Aksi**. Tabel **Admin perusahaan** memakai kolom **Masuk terakhir** dan menu **Aksi** yang sama.
-
-- Kolom **Status** menambah lencana kuning **Terkunci {n} mnt** (atau **Terkunci < 1 mnt**) pada pengguna yang sedang ditolak masuk karena terlalu banyak kata sandi salah atau kode 2FA salah. Arahkan penunjuk ke lencana untuk melihat alasannya. Menit dibulatkan ke atas.
-- Kolom **Masuk terakhir** pada pengguna yang belum pernah masuk menulis di mana undangannya berada: **Antre sejak {jam}** (email menunggu di antrean), **Terkirim {jam}** (email dikirim, tautan masih berlaku), **Tautan kedaluwarsa** (tautan lebih tua dari masa berlakunya, kirim ulang) atau **Gagal terkirim {jam}** (email gagal terkirim setelah semua percobaan). Pengguna yang belum pernah masuk dan tanpa undangan menulis **Belum pernah**.
-- **Masuk sebagai** membuka akses dukungan (bagian 11.5).
-- Menu **Aksi lain** tampil untuk setiap pengguna dan memuat **Buka kunci masuk**, **Atur ulang 2FA** dan **Kirim ulang undangan**. **Buka kunci masuk** menghapus kunci karena kata sandi salah dan karena kode 2FA salah, untuk setiap alamat yang tercatat gagal masuk bagi pengguna itu dalam 15 menit terakhir, sehingga pengguna bisa langsung mencoba lagi. Kunci pada alamat yang tidak cocok dengan akun mana pun tidak dibuka. **Atur ulang 2FA** hanya tampil bila pengguna punya 2FA (mematikan 2FA pengguna dan mengakhiri semua sesi serta tokennya; pengguna mendaftar ulang sendiri). **Kirim ulang undangan** hanya untuk admin aktif yang belum pernah masuk (6 kali per menit untuk setiap pengguna). Tindakan ini tercatat di log audit perusahaan sebagai tindakan tim dukungan. Pengguna harus berasal dari perusahaan ini, bukan sekadar anggota dari perusahaan lain, karena 2FA berlaku untuk seluruh akun.
-
-## 11.5 Akses dukungan (masuk sebagai pengguna)
-
-Akses dukungan memperlihatkan layar tenant persis seperti pengguna itu melihatnya, untuk menangani keluhan.
-
-Untuk operator:
-
-1. Di tabel **Pengguna**, klik **Masuk sebagai** pada baris pengguna. Tombol hanya tampil untuk pengguna aktif di perusahaan aktif.
-2. Isi **Alasan** dan **Kata sandi operator**, lalu klik **Mulai akses dukungan**. Panel perusahaan terbuka sebagai pengguna itu.
-3. Sesi dimulai dalam mode baca, berlaku paling lama 30 menit dan berakhir pada hitungan itu apa pun yang Anda lakukan. Sesi juga berakhir saat Anda keluar, perusahaan ditangguhkan, atau pengguna dinonaktifkan.
-4. Untuk mengubah data, klik **Mode ubah** di banner, ketik kode perusahaan, lalu konfirmasi. Bila kata sandi operator sudah kedaluwarsa, Inbils membuka halaman **Konfirmasi kata sandi** dan mengembalikan Anda ke halaman tenant yang sama. Klik **Mode ubah** sekali lagi. **Mode baca** di banner kembali ke baca saja.
-5. Klik **Keluar** untuk mengakhiri sesi.
-
-Di tenant, banner tampil di atas semua halaman selama sesi berjalan: "Anda masuk sebagai {pengguna} ({perusahaan}) · superadmin {nama operator} · mode Baca (atau Ubah) · sisa mm:ss". Hitungan mundur hanya penunjuk. Server memeriksa batas 30 menit pada setiap permintaan, dan halaman dimuat ulang saat hitungan habis. Pengguna perusahaan sendiri tidak melihat banner ini, karena sesi mereka terpisah.
-
-Aturan selama akses dukungan:
-
-- Mode baca menolak setiap perubahan. Pesan yang tampil: "Mode baca saja: perubahan tidak diizinkan selama akses dukungan. Aktifkan mode ubah dari banner untuk melanjutkan."
-- Izin tetap mengikuti pengguna yang dimasuki: operator tidak mendapat hak lebih daripada pengguna itu.
-- Tidak tersedia dalam mode apa pun: pengaturan akun pribadi (profil, kata sandi, 2FA) dengan pesan "Pengaturan akun pribadi tidak tersedia selama akses dukungan.", melihat rahasia akun jaringan, menerbitkan token API, dan berpindah ke perusahaan di luar tenant itu.
-- Aktivitas tercatat atas nama operator, dengan satu kode kelompok untuk seluruh sesi. Perusahaan melihat sesi itu di **Log Audit** (bagian 7.12) sebagai modul **Akses dukungan**, dengan teks "Akses dukungan oleh tim Inbils: {aksi}". Email atau id operator tidak ditampilkan.
-
-## 11.6 Peran & hak akses
-
-Definisi peran berlaku untuk pengguna di semua perusahaan, jadi hanya operator yang mengubahnya. Admin perusahaan hanya melihat peran (bagian 8.6) dan memberikannya ke pengguna di menu Pengguna (bagian 8.5).
-
-- Menu **Peran & hak akses** di sidebar panel menampilkan kolom **Nama**, **Hak akses** dan **Pengguna semua perusahaan**, dengan pencarian **Cari**.
-- **Buat peran**, **Ubah** dan **Hapus** (konfirmasi **Hapus peran**) meminta kata sandi operator (**Konfirmasi perubahan peran**). Setiap perubahan tercatat di audit platform.
-- Lima peran bawaan (`admin`, `manager`, `staff`, `technician`, `customer`, bertanda **Bawaan**) tidak dapat dihapus atau diganti namanya. Izinnya boleh diubah, dan halaman ubahnya memberi peringatan. Seeder (`RolePermissionSeeder`) menimpa izin kelima peran itu pada setiap pembaruan sistem, jadi perubahan izin yang permanen sebaiknya dibuat di peran baru.
-- Peran selain `admin` tidak boleh memuat pasangan izin yang berbenturan (pemisahan tugas, bagian 10.1).
-
-## 11.7 Ekspor data perusahaan
-
-1. Di halaman perusahaan, bagian **Ekspor**, klik **Minta ekspor**. Dialog meminta kode perusahaan dan kata sandi operator.
-2. Arsip dibuat di latar belakang. Hanya satu ekspor yang boleh berjalan untuk satu perusahaan.
-3. Buka **Ekspor** di sidebar. Kolom: **Perusahaan**, **Status** (**Antrean**, **Berjalan**, **Siap diunduh**, **Gagal**, **Kedaluwarsa**), **Diminta**, **Ukuran**, **Baris**, **Berlaku sampai**, **Catatan**, **Unduh**. Halaman memuat ulang sendiri selama ada ekspor yang antre atau berjalan.
-4. Klik **Unduh** pada ekspor **Siap diunduh**. Tautannya bertanda tangan, berlaku 24 jam, dan hanya dapat dibuka dalam sesi operator yang aktif.
-
-Arsip ZIP berisi satu CSV per tabel perusahaan, folder berkas media, dan `manifest.json` yang mencatat jumlah baris dan kolom yang sengaja tidak diekspor: kata sandi, TOTP, kode pemulihan, token, rahasia RADIUS, NAS dan PPPoE, serta token pembayaran. Setelah masa berlaku habis, arsip dihapus dan barisnya tetap ada dengan status **Kedaluwarsa** sebagai bukti ekspor untuk syarat pengajuan hapus (bagian 11.4).
-
-## 11.8 Audit platform
-
-**Audit platform** mencatat kegiatan operator dan akses dukungan di semua perusahaan. Filter: **Cari**, **Perusahaan** (termasuk anak perusahaannya), **Operator**, **Kegiatan** dan **Rentang tanggal** (dihitung per hari UTC). Kolom: **Waktu**, **Kegiatan**, **Sumber** (**Platform** atau **Akses dukungan**), **Pelaku**, **Perusahaan**, **Subjek**, **Rincian**. Tombol di kolom **Rincian** membuka dialog dengan properti baris dan kode kelompok sesi akses dukungan. Setelah perusahaan dihapus permanen, barisnya tetap ada dan menampilkan kode serta nama perusahaan yang tersimpan.
-
-Log platform tidak tampil di Log Audit perusahaan. Hanya baris **Akses dukungan** yang tampil di sana (bagian 11.5).

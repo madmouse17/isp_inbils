@@ -22,6 +22,12 @@ Tautan berlaku 60 menit. Bila sudah lewat atau email tidak ditemukan, pakai **Lu
 
 Akun lama yang kata sandinya masih nomor telepon sudah dimatikan. Pemilik akun itu harus mengatur kata sandi baru lewat tautan email dulu. Lihat "Kesalahan umum".
 
+## Membuka aplikasi
+
+![Layar pembuka dengan logo Inbils dan tulisan Aplikasi pelanggan](images/customer/splash.png)
+
+Saat aplikasi dibuka, layar menampilkan logo Inbils dengan kilau cahaya yang melintas, lalu tulisan "Aplikasi pelanggan" muncul di bawahnya. Layar ini hilang sendiri begitu aplikasi siap, biasanya dalam sekitar satu detik. Bila sinyal lambat, indikator kecil muncul di bawah tulisan itu sampai aplikasi siap. Bila ponsel diatur untuk mengurangi animasi, logo tampil tanpa kilau dan layar langsung berganti saat aplikasi siap.
+
 ## Masuk
 
 ![Layar masuk](images/customer/masuk.png)
@@ -72,7 +78,7 @@ Beranda adalah tab pertama. Navigasi bawah punya empat tab: **Beranda**, **Tagih
 
 ![Beranda](images/customer/redesign/beranda-blue-light.png)
 
-Warna aplikasi mengikuti warna merek ISP Anda, dan logo ISP tampil di kiri atas bila ISP sudah mengunggahnya (tanpa logo, tampil inisial nama ISP). Isi layar dari atas ke bawah:
+Warna aplikasi mengikuti warna merek ISP Anda, dan logo ISP tampil di kiri atas bila ISP sudah mengunggahnya (tanpa logo, tampil bulatan biru Inbils). Isi layar dari atas ke bawah:
 
 1. **Kepala**: logo dan nama ISP di kiri, **ikon lonceng** di kanan. Angka merah di lonceng menunjukkan notifikasi yang belum dibaca. Lihat bab 7.
 2. **Sapaan** "Halo, nama Anda".

@@ -18,6 +18,12 @@ Akun dibuat oleh admin Inbils. Anda tidak bisa mendaftar sendiri di aplikasi. Ad
 
 Aplikasi memakai **email dan kata sandi yang sama dengan situs web Inbils**. Mengganti kata sandi di aplikasi berarti mengganti kata sandi di web, dan sebaliknya.
 
+## Membuka aplikasi
+
+![Layar pembuka dengan logo Inbils dan tulisan Aplikasi teknisi](images/technician/splash.png)
+
+Saat aplikasi dibuka, layar menampilkan logo Inbils dengan kilau cahaya yang melintas, lalu tulisan "Aplikasi teknisi" muncul di bawahnya. Layar ini hilang sendiri begitu aplikasi siap, biasanya dalam sekitar satu detik. Bila sinyal lambat, indikator kecil muncul di bawah tulisan itu sampai aplikasi siap. Bila Anda membuka aplikasi dari notifikasi, layar pembuka hilang langsung ke pekerjaan yang dituju.
+
 ## Masuk
 
 ![Layar Masuk](images/technician/masuk.png)
@@ -90,7 +96,7 @@ Lima tab di bagian bawah layar: **Beranda** menunjukkan pekerjaan hari ini, **Pe
 
 Beranda adalah tab pertama dan layar yang terbuka setelah masuk. Isinya dari atas ke bawah:
 
-1. **Kepala ISP**: logo perusahaan (atau inisial nama perusahaan bila belum ada logo atau logonya gagal dimuat), nama perusahaan, dan tanggal hari ini. Di bawahnya sapaan "Halo, nama depan Anda". Warna aplikasi mengikuti warna merek ISP, jadi tampilannya bisa berbeda antar ISP.
+1. **Kepala ISP**: logo perusahaan (atau bulatan biru Inbils bila belum ada logo atau logonya gagal dimuat), nama perusahaan, dan tanggal hari ini. Di bawahnya sapaan "Halo, nama depan Anda". Warna aplikasi mengikuti warna merek ISP, jadi tampilannya bisa berbeda antar ISP.
 2. **Kartu tiket mendesak**: tiket Anda yang paling dekat batas respons pertamanya, di atas kartu kunjungan. Teksnya "Tiket mendesak · respons sebelum 21:17 (sisa 41 menit)", dengan kode dan judul tiket di bawahnya. Ikonnya berubah kuning saat sisa 30 menit atau kurang dan merah setelah batas lewat ("lewat 12 menit"). Ketuk kartu untuk membuka tiketnya. Hitungannya bergerak tiap 30 detik. Kartu tidak tampil bila tidak ada tiket yang menunggu respons pertama. Respons pertama berarti Anda menekan **Mulai** pada tiket atau mengirim komentar yang bisa dibaca pelanggan.
 3. **Kartu kunjungan**: SPK yang perlu Anda datangi sekarang. Aplikasi memilih SPK yang sedang **Dikerjakan** (judulnya **Sedang dikerjakan**), atau bila tidak ada, SPK **Ditugaskan** dengan jadwal paling awal (judulnya **Kunjungan berikutnya**). SPK tanpa jadwal ada di urutan terakhir. Tiket bukan kunjungan dan tidak muncul di kartu ini. Kartu memuat:
    - jadwal: **Hari ini**, **Besok**, atau tanggalnya. Jadwal yang sudah lewat tertulis "Terlambat, jadwal {tanggal}" dan kartu berubah menjadi warna peringatan;

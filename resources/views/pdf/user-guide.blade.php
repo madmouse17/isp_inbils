@@ -22,7 +22,8 @@
         pre { background: #f1f1f1; padding: 6px 8px; white-space: pre-wrap; }
         blockquote { margin: 0 0 8px; padding: 2px 10px; border-left: 3px solid #999; color: #444; }
         a { color: #1d4ed8; text-decoration: none; }
-        .cover { text-align: center; padding-top: 260px; }
+        .cover { text-align: center; padding-top: 240px; }
+        .cover img { height: 64px; border: 0; margin: 0 0 10px; }
         .cover .brand { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #555; }
         .cover .title { font-size: 30px; font-weight: bold; margin: 14px 0 20px; }
         .cover .version { font-size: 10px; color: #666; }
@@ -35,7 +36,8 @@
 </head>
 <body>
     <div class="cover">
-        <div class="brand">Inbils ISP ERP</div>
+        <img src="{{ $logo }}" alt="Inbils">
+        <div class="brand">ISP ERP</div>
         <div class="title">{{ $title }}</div>
         <div class="version">Versi {{ $version }}</div>
     </div>

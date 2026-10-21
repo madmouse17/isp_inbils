@@ -4,6 +4,12 @@ Semua perubahan notable di project inbils. Format [Keep a Changelog](https://kee
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/) (v0.x.x
 selama development, v1.0.0 saat release).
 
+### Changed - Inbils logo, animated app splash and operator guide (2026-10-21)
+
+- **Logo.** The owner's "inbils" wordmark replaces the signal glyph and the text wordmark on the web sign-in, operator sign-in, setup and error pages (`Components/ui/Wordmark.tsx`, now an image; `BrandMark.tsx` removed) and on the sign-in screens of both apps (`InbilsLogo` in `inbils_core`). The transparent matte was cut from the JPEG master, which carried a painted checkerboard; the master is `customer/assets/branding/inbils_logo_master.png` in the mobile repo. The square mark is the orbit dot of the "i": it is the favicon, the apple-touch-icon, and the fallback tile for a company without a logo (web sidebar and both apps), replacing the initials. An uploaded company logo still wins.
+- **Apps.** A native splash (wordmark on the surface colour, no icon disc on Android 12+), then the `InbilsSplash` overlay: a 900 ms light sweep and the line "Aplikasi pelanggan" or "Aplikasi teknisi"; it waits for session restore, never blocks a push-tap cold start, and is instant under reduced motion. The technician app now also uses `flutter_native_splash`.
+- **Guides.** A fourth guide, `docs/user-guide/platform.md` → `pdf/platform.pdf` "Panduan Panel Operator Inbils", for the platform operator (superadmin); web guide chapter 11 moved there. Screenshots retaken (web incl. an operator sign-in mode in `scripts/docs-screenshots.spec.ts`, both apps incl. the splash), PDF covers carry the logo, all four PDFs re-rendered.
+
 ### Changed - Flow audit fixes Wave 2: high-benefit small UX (2026-10-20)
 
 - Lane `flow-audit-fixes`, wave 2 (`.scratch/flow-audit-fixes/design-w2.md`, 32 IDs). Web batches A and B shipped as `2fb1ea3` and `c31d56a`. Batch C (both apps and the push sender) and this documentation are in the working tree until the wave gate passes. No migration, no new permission, no new package.

@@ -5,7 +5,6 @@ import { Card, CardContent } from '@/Components/ui/Card';
 import { Checkbox } from '@/Components/ui/Checkbox';
 import { Input } from '@/Components/ui/Input';
 import { Label } from '@/Components/ui/Label';
-import { BrandLockup, BrandMark } from '@/Components/ui/BrandMark';
 import { Wordmark } from '@/Components/ui/Wordmark';
 import { Head, Link, useForm } from '@inertiajs/react';
 import type { FormEventHandler } from 'react';
@@ -41,10 +40,9 @@ export default function Login({
                     <div className="flex h-full flex-col justify-between p-12">
                         <Link
                             href="/"
-                            className="flex w-fit items-center gap-3 rounded-md text-2xl focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-hidden"
+                            className="w-fit rounded-md focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-hidden"
                         >
-                            <BrandMark className="size-10 text-brand-400" />
-                            <Wordmark className="text-white" />
+                            <Wordmark className="h-12" />
                         </Link>
 
                         <p className="max-w-xl text-3xl leading-tight font-semibold tracking-tight xl:text-4xl">
@@ -62,7 +60,7 @@ export default function Login({
                                     href="/"
                                     className="rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
                                 >
-                                    <BrandLockup />
+                                    <Wordmark className="h-14" />
                                 </Link>
                             </div>
 

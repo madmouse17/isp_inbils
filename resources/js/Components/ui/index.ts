@@ -105,7 +105,7 @@ export type { TimeInputProps } from './TimeInput';
 export { EnumBadge } from './EnumBadge';
 export type { EnumBadgeProps } from './EnumBadge';
 export { EmptyCell } from './EmptyCell';
-export { Wordmark } from './Wordmark';
+export { InbilsMark, Wordmark } from './Wordmark';
 // Lazy chart wrappers only: Chart.tsx (and recharts) load on first render, never with the barrel.
 export { BarChartLazy, DonutChartLazy, LineChartLazy } from './ChartLazy';
 export type { BarChartProps, ChartSeries, DonutChartProps, LineChartProps } from './Chart';

@@ -102,7 +102,7 @@ export default function ErrorPage({
     return (
         <main className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted/30 p-6 dark:bg-background">
             <Head title={title} />
-            <Wordmark className="text-2xl" />
+            <Wordmark className="h-12" />
             <Empty className="max-w-lg flex-none border border-dashed bg-card">
                 <EmptyHeader>
                     <EmptyMedia variant="icon">

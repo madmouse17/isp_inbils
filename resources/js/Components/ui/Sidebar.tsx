@@ -1,6 +1,7 @@
 import { ChevronDown } from 'lucide-react';
 import { Link } from '@inertiajs/react';
 import { Children, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { InbilsMark } from '@/Components/ui/Wordmark';
 import { cn } from '@/lib/utils';
 
 interface SidebarItemProps {
@@ -133,12 +134,6 @@ export function Sidebar({
     );
     const drawerOpen = open === true && !isDesktop;
     const drawerClosed = open === false && !isDesktop;
-    const initials = brandName
-        .split(/\s+/)
-        .map((word) => word[0])
-        .join('')
-        .slice(0, 2)
-        .toLowerCase();
 
     useEffect(() => {
         if (!drawerOpen) {
@@ -210,14 +205,7 @@ export function Sidebar({
                 )}
             >
                 <div className="flex shrink-0 items-center gap-3 px-6 py-4">
-                    <div
-                        className={cn(
-                            'flex h-9 w-9 items-center justify-center rounded-lg text-sm font-semibold',
-                            brandLogo
-                                ? 'overflow-hidden border border-border bg-background p-1'
-                                : 'bg-primary text-primary-foreground',
-                        )}
-                    >
+                    <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg border border-border bg-background p-1">
                         {brandLogo ? (
                             <img
                                 src={brandLogo}
@@ -225,7 +213,7 @@ export function Sidebar({
                                 className="h-full w-full rounded-lg object-contain"
                             />
                         ) : (
-                            initials
+                            <InbilsMark />
                         )}
                     </div>
                     <div className="min-w-0">

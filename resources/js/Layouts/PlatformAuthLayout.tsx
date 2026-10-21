@@ -3,7 +3,6 @@ import { LogOut } from 'lucide-react';
 import { AuthBackdrop } from '@/Components/composite/AuthBackdrop';
 import { OperatorBand } from '@/Components/composite/platform/OperatorBand';
 import { Button, Wordmark } from '@/Components/ui';
-import { BrandMark } from '@/Components/ui/BrandMark';
 import { cn } from '@/lib/utils';
 import type { PlatformSharedProps } from '@/types/platform';
 
@@ -30,10 +29,7 @@ export default function PlatformAuthLayout({
                     <div className={cn('w-full', wide ? 'max-w-3xl' : 'max-w-md')}>
                         <div className="mb-5 flex items-center justify-between gap-4">
                             <div>
-                                <span className="flex items-center gap-2.5">
-                                    <BrandMark className="size-8 text-brand-600 dark:text-brand-400" />
-                                    <Wordmark className="text-2xl" />
-                                </span>
+                                <Wordmark className="h-10" />
                                 <p className="mt-1 text-sm text-muted-foreground">
                                     Akun operator Inbils
                                 </p>
