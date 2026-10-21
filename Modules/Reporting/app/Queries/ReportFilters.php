@@ -13,7 +13,8 @@ use Modules\Reporting\Registry\ReportType;
  * drill-down lists resolve them once through this object, so all three feed the same inputs to the
  * same predicates and the same company: explicit and fail-closed, never the ambient scope.
  * A record filter is held twice: the integer id the queries filter by, and the public id the links and
- * files print (an integer id never leaves the server).
+ * files print (an integer id never leaves the server). The actor is who asked: the figures that name people (the SLA
+ * split by handler) name only those the actor may see; a file or a test built without one hides nobody.
  */
 final readonly class ReportFilters
 {
@@ -29,6 +30,7 @@ final readonly class ReportFilters
         public ?string $group = null,
         public ?int $packageCategoryId = null,
         public array $publicIds = [],
+        public ?User $actor = null,
     ) {}
 
     public static function fromRequest(ReportFilterRequest $request, ?User $technician = null): self
@@ -56,6 +58,7 @@ final readonly class ReportFilters
                 'location_id' => $location['public_id'] ?? null,
                 'service_package_category_id' => $packageCategory['public_id'] ?? null,
             ]),
+            actor: $request->user(),
         );
     }
 
@@ -91,7 +94,7 @@ final readonly class ReportFilters
     {
         return match ($report) {
             ReportType::Business => BusinessMetricsQuery::execute($this->dateFrom, $this->dateTo, $this->companyId, packageCategoryId: $this->packageCategoryId),
-            ReportType::Sla => SlaComplianceQuery::execute($this->dateFrom, $this->dateTo, $this->categoryId, $this->companyId),
+            ReportType::Sla => SlaComplianceQuery::execute($this->dateFrom, $this->dateTo, $this->categoryId, $this->companyId, $this->actor),
             ReportType::Asset => AssetUtilizationQuery::execute($this->locationId, $this->assetType, $this->dateFrom, $this->dateTo, $this->companyId),
             ReportType::Technician => TechnicianPerformanceQuery::execute((int) $this->technicianId, $this->dateFrom, $this->dateTo, $this->companyId),
             default => throw new LogicException("{$report->value} has no aggregate payload."),

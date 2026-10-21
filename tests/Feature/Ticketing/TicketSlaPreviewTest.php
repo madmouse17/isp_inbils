@@ -51,7 +51,7 @@ class TicketSlaPreviewTest extends TestCase
 
         $this->assertSame('2026-03-02 12:00:00', $this->utc($answer['response_due']));
         $this->assertSame('2026-03-02 17:00:00', $this->utc($answer['resolution_due']));
-        $this->assertSame(['type' => 'category', 'name' => 'Gangguan', 'response_hours' => 3, 'resolution_hours' => 8, 'urgent_halved' => false], $answer['source']);
+        $this->assertSame(['type' => 'category', 'name' => 'Gangguan', 'response_hours' => 3, 'resolution_hours' => 8, 'urgent_halved' => false, 'calendar' => '24h'], $answer['source']);
         $this->assertSame('24h', $answer['calendar']);
         $this->assertSame(['response_due', 'resolution_due', 'source', 'calendar'], array_keys($answer));
     }
@@ -65,7 +65,7 @@ class TicketSlaPreviewTest extends TestCase
 
         $this->assertSame('2026-03-02 11:00:00', $this->utc($answer['response_due']));
         $this->assertSame('2026-03-02 15:00:00', $this->utc($answer['resolution_due']));
-        $this->assertSame(['type' => 'tier', 'name' => 'Gold', 'response_hours' => 2, 'resolution_hours' => 6, 'urgent_halved' => false], $answer['source']);
+        $this->assertSame(['type' => 'tier', 'name' => 'Gold', 'response_hours' => 2, 'resolution_hours' => 6, 'urgent_halved' => false, 'calendar' => '24h'], $answer['source']);
     }
 
     public function test_priority_urgent_halves_both_targets_rounding_up(): void

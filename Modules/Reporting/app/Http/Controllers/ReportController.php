@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -25,6 +26,7 @@ use Modules\Reporting\Http\Resources\StockMovementResource;
 use Modules\Reporting\Queries\AuditLogQuery;
 use Modules\Reporting\Queries\ReportFilters;
 use Modules\Reporting\Queries\SalesKpiQuery;
+use Modules\Reporting\Queries\SlaComplianceQuery;
 use Modules\Reporting\Queries\StockCardQuery;
 use Modules\Reporting\Queries\StockMovementReferences;
 use Modules\Reporting\Queries\TechnicianPerformanceQuery;
@@ -35,6 +37,9 @@ use Modules\Service\Models\ServicePackageCategory;
 
 class ReportController extends Controller
 {
+    /** How many products the Stock Card offers before one is chosen. */
+    private const RECENT_PRODUCTS = 8;
+
     public function index(Request $request): InertiaResponse
     {
         return Inertia::render('Admin/Reports/Index', [
@@ -42,6 +47,8 @@ class ReportController extends Controller
                 fn (ReportType $report): array => $report->toCard(),
                 ReportType::openableBy($request->user()),
             ),
+            // Set when the consolidated report refused a user of a subsidiary: the Head they can go to instead.
+            'consolidatedParent' => $request->session()->get('consolidated_parent'),
         ]);
     }
 
@@ -139,6 +146,8 @@ class ReportController extends Controller
             ),
             'selectedTechnician' => $this->selectedOption($eligible, $technician?->public_id, $this->presentUser(...)),
             'hasTechnicians' => (clone $eligible)->exists(),
+            // Every technician of the user's scope ranked for the period, until one is picked.
+            'ranking' => $technician === null ? TechnicianPerformanceQuery::ranking($actor, $request->input('date_from') ?: null, $request->input('date_to') ?: null) : null,
             'filters' => $request->only(['technician_id', 'date_from', 'date_to']),
             'meta' => MetricRegistry::meta(ReportType::Technician),
             ...$this->exportAndDrill($request, ReportType::Technician, $filters),
@@ -165,6 +174,7 @@ class ReportController extends Controller
         return Inertia::render('Admin/Reports/Sla', [
             'data' => $data,
             'charts' => $filters->charts(ReportType::Sla, $data),
+            'violators' => SlaComplianceQuery::violators($filters->dateFrom, $filters->dateTo, $filters->categoryId, $filters->companyId, $request->user()),
             'filters' => $request->only(['date_from', 'date_to', 'category_id']),
             'meta' => MetricRegistry::meta(ReportType::Sla),
             ...$this->exportAndDrill($request, ReportType::Sla, $filters),
@@ -217,6 +227,7 @@ class ReportController extends Controller
             ],
             'meta' => MetricRegistry::meta(ReportType::StockCard),
             'can' => ['export' => $actor->can('report.export')],
+            'recentProducts' => $product === null ? $this->recentProducts((int) CompanyService::currentId()) : null,
             'links' => $product !== null ? [
                 'stocks' => $this->inventoryLink($request, 'admin.stocks.index', $product['public_id'], $location['public_id'] ?? null),
                 'movements' => $this->inventoryLink($request, 'admin.stock-movements.index', $product['public_id'], $location['public_id'] ?? null),
@@ -304,6 +315,37 @@ class ReportController extends Controller
     private function presentLocation(Location $location): array
     {
         return ['value' => $location->public_id, 'label' => $location->name, 'description' => $location->code];
+    }
+
+    /**
+     * The products whose stock moved last, newest first: what the Stock Card offers before a product is chosen. One
+     * query: the movements of the company grouped by product, and only the winners joined to their product.
+     * shortcut: it reads every ledger row of the company through the (company_id, product_id) index; past a million
+     * movements, add a (company_id, id) index and scan back from the newest rows.
+     *
+     * @return list<array{value: string, label: string, description: ?string, last_moved_at: string}>
+     */
+    private function recentProducts(int $companyId): array
+    {
+        $latest = DB::table('stock_movements')
+            ->where('company_id', $companyId)
+            ->groupBy('product_id')
+            ->orderByRaw('max(id) desc')
+            ->limit(self::RECENT_PRODUCTS)
+            ->select('product_id', DB::raw('max(id) as last_id'), DB::raw('max(created_at) as last_moved_at'));
+
+        return DB::query()->fromSub($latest, 'latest')
+            ->join('products', 'products.id', '=', 'latest.product_id')
+            ->where('products.company_id', $companyId)
+            ->orderByDesc('latest.last_id')
+            ->get(['products.public_id', 'products.name', 'products.sku', 'latest.last_moved_at'])
+            ->map(fn (object $row): array => [
+                'value' => $row->public_id,
+                'label' => $row->name,
+                'description' => $row->sku,
+                'last_moved_at' => Carbon::parse($row->last_moved_at, config('app.timezone'))->toIso8601String(),
+            ])
+            ->all();
     }
 
     /**

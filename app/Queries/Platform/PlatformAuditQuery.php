@@ -147,7 +147,7 @@ class PlatformAuditQuery
      */
     private function row(Activity $activity, Collection $companies, array $subjects): array
     {
-        $properties = AuditProperties::forDisplay($activity->properties?->all() ?? []);
+        $properties = AuditProperties::forActivity($activity);
         $companyId = $activity->getAttribute('company_id');
         /** @var Company|null $company */
         $company = $companyId === null ? null : $companies->get($companyId);

@@ -20,3 +20,20 @@ export const INVOICE_SOURCE = {
     subscription: { label: 'Langganan', tone: 'neutral' },
     manual: { label: 'Manual', tone: 'neutral' },
 } satisfies StatusMap;
+
+/**
+ * The status a screen shows for an invoice. Only the daily job turns `sent` and `partial` into `overdue`, so for some hours
+ * after midnight a list would call an already late invoice "Belum dibayar" while Tunggakan and the apps count it late (F5-D13).
+ * A screen reads the due date instead. `today` is the company's calendar day as `Y-m-d` (`todayInZone`).
+ */
+export function effectiveInvoiceStatus(
+    status: string,
+    dueDate: string | null | undefined,
+    today: string,
+): string {
+    return (status === 'sent' || status === 'partial') &&
+        dueDate != null &&
+        dueDate.slice(0, 10) < today
+        ? 'overdue'
+        : status;
+}

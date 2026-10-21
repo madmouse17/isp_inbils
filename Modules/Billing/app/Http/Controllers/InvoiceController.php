@@ -8,25 +8,26 @@ use App\Http\Requests\DateRangeIndexRequest;
 use App\Models\Core\Customer;
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\CompanyService;
-use App\Services\Core\NumberSequenceService;
 use App\Support\ExportQuery;
 use App\Support\OptimisticLock;
 use App\Support\PublicId;
 use App\Support\RecordNotFound;
 use App\Support\SearchOptions;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Modules\Billing\Http\Requests\CancelInvoiceRequest;
 use Modules\Billing\Http\Requests\CreateFromSpkRequest;
 use Modules\Billing\Http\Requests\GenerateInvoicesRequest;
+use Modules\Billing\Http\Requests\ReceivableInvoicesRequest;
 use Modules\Billing\Http\Requests\RecordPaymentRequest;
+use Modules\Billing\Http\Requests\RemindInvoiceRequest;
 use Modules\Billing\Http\Requests\ReversePaymentRequest;
 use Modules\Billing\Http\Requests\StoreInvoiceItemRequest;
 use Modules\Billing\Http\Requests\StoreInvoiceRequest;
@@ -38,6 +39,7 @@ use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\InvoiceItem;
 use Modules\Billing\Models\Payment;
 use Modules\Billing\Models\PaymentAttempt;
+use Modules\Billing\Queries\ReceivableInvoicesQuery;
 use Modules\Billing\Queries\ReceivablesQuery;
 use Modules\Billing\Services\BillingService;
 use Modules\Billing\Services\MidtransGateway;
@@ -85,6 +87,7 @@ class InvoiceController extends Controller
                 ...$request->only(['type', 'status', 'source', 'customer_id', 'search', 'date_from', 'date_to', 'sort_by', 'sort_dir', 'per_page']),
                 // Normalised, so the page shows its chip exactly when the list is filtered.
                 'online_pending' => $request->boolean('online_pending') ? '1' : null,
+                'due_within' => $this->dueWithin($request),
             ],
             'can' => [
                 'create' => $request->user()?->can('billing.create') ?? false,
@@ -108,7 +111,32 @@ class InvoiceController extends Controller
             ->when($request->input('search'), fn ($query, $value) => $query->where(fn ($search) => $search
                 ->where('number', 'like', "%{$value}%")
                 ->orWhereHas('customer', fn ($customer) => $customer->where('name', 'like', "%{$value}%"))))
+            ->when($this->dueWithin($request), fn (Builder $query, int $days) => $this->whereDueWithin($query, $days))
             ->when($request->boolean('online_pending'), fn (Builder $query) => $query->whereHas('paymentAttempts', fn (Builder $attempts) => $attempts->stalePending()));
+    }
+
+    /** The `due_within` filter as a number of days from today (1 to 366); null when it is absent or is not such a number. */
+    private function dueWithin(Request $request): ?int
+    {
+        $days = $request->integer('due_within');
+
+        return $days >= 1 && $days <= 366 ? $days : null;
+    }
+
+    /**
+     * Invoices still to be paid whose due date falls from today through `$days` days ahead, by the company's calendar. The
+     * daily job turns a late invoice `overdue`, so only `sent` and `partial` can be due in the days ahead.
+     *
+     * @param  Builder<Invoice>  $query
+     * @return Builder<Invoice>
+     */
+    private function whereDueWithin(Builder $query, int $days): Builder
+    {
+        $today = CarbonImmutable::parse(BillingService::todayFor((int) CompanyService::currentId()));
+
+        return $query->whereIn('status', ['sent', 'partial'])
+            ->whereColumn('paid_amount', '<', 'total')
+            ->whereBetween('due_date', [$today->toDateString(), $today->addDays($days)->toDateString()]);
     }
 
     public function create(Request $request): InertiaResponse
@@ -145,6 +173,8 @@ class InvoiceController extends Controller
             ),
             // Same default the store applies when due_date is empty.
             'due_days' => BillingService::dueDaysFor((int) CompanyService::currentId()),
+            // The company's PPN: every line of the invoice takes it.
+            'tax_rate' => BillingService::taxRateFor((int) CompanyService::currentId()),
         ]);
     }
 
@@ -180,16 +210,16 @@ class InvoiceController extends Controller
     {
         Gate::authorize('store', Invoice::class);
 
-        $data = $request->validated();
+        $data = $request->safe()->except('items');
         $data['type'] = 'one_time';
         $data['source'] = 'manual';
         $data['status'] = 'draft';
         $data['issue_date'] = $data['issue_date'] ?? now()->toDateString();
-        $data['due_date'] = $data['due_date'] ?? now()->addDays(BillingService::dueDaysFor(CompanyService::currentId()))->toDateString();
+        // The term runs from the day the invoice is issued: a later date typed there moves the due date with it.
+        $data['due_date'] = $data['due_date'] ?? CarbonImmutable::parse($data['issue_date'])->addDays(BillingService::dueDaysFor(CompanyService::currentId()))->toDateString();
         $data['created_by'] = $request->user()->id;
 
-        // The number is taken inside the transaction that inserts the invoice: an insert that fails gives it back, so numbers have no gaps.
-        DB::transaction(fn () => Invoice::create($data + ['number' => NumberSequenceService::generate('invoice', CompanyService::currentId())]));
+        BillingService::createManual($data, $request->validated('items') ?? []);
 
         return redirect()->route('admin.invoices.index')
             ->with('success', 'Tagihan dibuat.');
@@ -253,6 +283,8 @@ class InvoiceController extends Controller
                     $invoice->paymentAttempts()->with(['payment:id,public_id', 'resolver:id,name'])->latest('id')->limit(20)->get(),
                 )),
             ],
+            // The company's PPN: the item dialog starts from it, not from zero.
+            'tax_rate' => BillingService::taxRateFor((int) CompanyService::currentId()),
             'can' => [
                 'update' => $request->user()?->can('update', $invoice) ?? false,
                 'send' => $request->user()?->can('billing.send') ?? false,
@@ -304,16 +336,24 @@ class InvoiceController extends Controller
         ])->download('Kuitansi-'.$invoice->number.'.pdf');
     }
 
-    public function receivables(Request $request, ReceivablesQuery $query): InertiaResponse
+    public function receivables(ReceivableInvoicesRequest $request, ReceivablesQuery $query, ReceivableInvoicesQuery $invoices): InertiaResponse
     {
         Gate::authorize('viewAny', Invoice::class);
 
-        $result = $query->run($request);
+        // Each list is built only when one of its props is asked for: filtering one does not rebuild the other.
+        $customers = null;
+        $customerList = function () use (&$customers, $query, $request): array {
+            return $customers ??= $query->run($request);
+        };
+        $filters = $request->filters();
+        $today = BillingService::todayFor((int) CompanyService::currentId());
 
         return Inertia::render('Admin/Billing/Receivables', [
-            'rows' => ReceivableResource::collection($result['rows']),
-            'totals' => $result['totals'],
-            'filters' => $result['filters'],
+            'rows' => fn () => ReceivableResource::collection($customerList()['rows']),
+            'totals' => fn () => $customerList()['totals'],
+            'filters' => fn () => $customerList()['filters'],
+            'invoices' => fn () => $invoices->paginate($filters, $today),
+            'invoiceFilters' => $filters,
             'paymentExceptions' => $this->paymentExceptions(),
             // The default of OverdueSuspensionService::settings(): the isolir dialog tells which way the customer comes back.
             'autoReactivate' => filter_var(CompanyService::current()?->settings['auto_reactivate_on_payment'] ?? true, FILTER_VALIDATE_BOOL),
@@ -321,8 +361,32 @@ class InvoiceController extends Controller
                 'suspend' => $request->user()?->can('customer.subscription.suspend') ?? false,
                 'block' => $request->user()?->can('customer.subscription.block') ?? false,
                 'refund' => $request->user()?->can('billing.payment.reverse') ?? false,
+                'remind' => $request->user()?->can('billing.send') ?? false,
+                'export' => $request->user()?->can('billing.export') ?? false,
             ],
         ]);
+    }
+
+    /** The open invoices as a file, narrowed by the filters of the "Per tagihan" list (K33). */
+    public function receivablesExport(ReceivableInvoicesRequest $request, ReceivableInvoicesQuery $invoices): Response|StreamedResponse
+    {
+        Gate::authorize('viewAny', Invoice::class);
+        abort_unless($request->user()?->can('billing.export') ?? false, 403);
+
+        $today = BillingService::todayFor((int) CompanyService::currentId());
+        $filters = $request->filters();
+        $export = ExportQuery::make($invoices->builder($filters, $today))
+            ->fromRequest($request)
+            ->maxRows(ExportQuery::resolveMaxRows(config('exports.max_rows', ExportQuery::DEFAULT_MAX_ROWS)))
+            ->types(ReceivableInvoicesQuery::EXPORT_TYPES)
+            ->describe(...$invoices->describe($filters, $today));
+
+        $map = static fn (Invoice $invoice): array => $invoices->exportRow($invoice, $today);
+        $stamp = now()->format('Ymd-His');
+
+        return strtolower((string) $request->input('format', 'csv')) === 'pdf'
+            ? $export->downloadPdf('Tunggakan', ReceivableInvoicesQuery::EXPORT_COLUMNS, $map, "receivables-export-{$stamp}.pdf")
+            : $export->streamCsv(ReceivableInvoicesQuery::EXPORT_COLUMNS, $map, "receivables-export-{$stamp}.csv");
     }
 
     /**
@@ -353,16 +417,21 @@ class InvoiceController extends Controller
         ];
     }
 
-    public function edit(Invoice $invoice): InertiaResponse
+    public function edit(Invoice $invoice): InertiaResponse|RedirectResponse
     {
         $this->ensureSameCompany($invoice);
         Gate::authorize('edit', $invoice);
-        abort_if($invoice->status !== 'draft', 422, 'Hanya tagihan draf yang bisa diubah.');
+
+        if ($invoice->status !== 'draft') {
+            return redirect()->route('admin.invoices.show', $invoice)->with('error', 'Hanya tagihan draf yang bisa diubah.');
+        }
 
         $invoice->load(['customer', 'subscription', 'items']);
 
         return Inertia::render('Admin/Billing/Invoices/Edit', [
             'invoice' => new InvoiceResource($invoice),
+            // The version the form was rendered from: the save sends it back and is refused when the draft was saved meanwhile.
+            'version' => OptimisticLock::version($invoice),
         ]);
     }
 
@@ -393,6 +462,21 @@ class InvoiceController extends Controller
         BillingService::send($invoice);
 
         return back()->with('success', 'Tagihan dikirim.');
+    }
+
+    /** "Kirim pengingat" from Tunggakan: the due reminder to the customer, once per invoice per day (F5-U03). */
+    public function remind(RemindInvoiceRequest $request, Invoice $invoice): RedirectResponse|JsonResponse
+    {
+        $this->ensureSameCompany($invoice);
+
+        if (! BillingService::remind($invoice)) {
+            $message = "Pengingat untuk {$invoice->number} sudah dikirim hari ini.";
+
+            // A page visit keeps its page and shows the message as a toast; any other client gets the 429.
+            return $request->header('X-Inertia') ? back()->with('error', $message) : response()->json(['message' => $message], 429);
+        }
+
+        return back()->with('success', "Pengingat dikirim untuk {$invoice->number}.");
     }
 
     public function recordPayment(RecordPaymentRequest $request, Invoice $invoice): RedirectResponse

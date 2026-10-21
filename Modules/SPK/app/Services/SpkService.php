@@ -350,7 +350,12 @@ class SpkService
         return $subscription === null || $subscription->trashed() || $customer === null || $customer->trashed() ? null : $customer;
     }
 
-    /** @param array<string, mixed>|null $checkIn */
+    /**
+     * Starts the visit. A check-in farther from the site than the company allows needs the reason the technician gave (K10);
+     * without one nothing is written.
+     *
+     * @param  array<string, mixed>|null  $checkIn
+     */
     public static function start(WorkOrder $wo, ?array $checkIn = null): WorkOrder
     {
         $expectedStatus = $wo->status;
@@ -362,18 +367,19 @@ class SpkService
             self::assertAssignedTechnician($wo, 'spk.start');
             self::throwStatusConflictIfChanged($wo, $expectedStatus, 'assigned', 'Konflik: status SPK sudah diubah oleh pengguna lain.');
             abort_if($wo->status !== 'assigned', 422, 'SPK harus berstatus ditugaskan untuk bisa dimulai.');
+
+            $record = null;
+            if ($checkIn !== null && $checkIn !== []) {
+                $wo->loadMissing(['location', 'subscription.installationAddress']);
+                $record = FieldCheckIn::forStart($checkIn, FieldCheckIn::site(WorkOrderSite::site($wo)));
+            }
+
             $wo->update(['status' => 'in_progress', 'started_at' => now()]);
 
             AuditService::log('work_order', 'started', ['code' => $wo->code], $wo);
 
-            if ($checkIn !== null) {
-                $wo->loadMissing(['location', 'subscription.installationAddress']);
-                AuditService::log(
-                    'work_order',
-                    'check_in',
-                    FieldCheckIn::properties($checkIn, FieldCheckIn::site(WorkOrderSite::site($wo))),
-                    $wo
-                );
+            if ($record !== null) {
+                AuditService::log('work_order', 'check_in', $record, $wo);
             }
 
             return $wo->fresh();

@@ -36,7 +36,24 @@ export interface StockMovement {
     quantity: number | string;
     balance_after: number | string;
     note: string | null;
+    /** Who booked it; null for a movement the system booked. */
+    actor?: { id: Id; name: string } | null;
+    /** Only a goods receipt (`receive`) can carry these. */
+    supplier_name?: string | null;
+    purchase_reference?: string | null;
+    unit_cost?: number | string | null;
     created_at: string | null;
+    product?: { id: Id; name: string; sku?: string | null } | null;
+    from_location?: { id: Id; name: string } | null;
+    to_location?: { id: Id; name: string } | null;
+}
+
+/** What the system holds of one product at one place, as the Stok page answers a `stockLookup` reload. */
+export interface StockLookup {
+    quantity: number | string;
+    reserved_quantity: number | string;
+    available: number | string;
+    unit: string | null;
 }
 
 export interface Product {

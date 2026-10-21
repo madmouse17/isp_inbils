@@ -20,6 +20,9 @@ final class AuditProperties
 
     private const RECORD_KEY = '/^(id|assigned_to)$|(_id|_ids|_by)$/';
 
+    /** The audit events that keep where a technician stood. */
+    private const POSITION_EVENTS = ['check_in', 'en_route'];
+
     /**
      * Hides what $keys held, in the new (`attributes`) and the old (`old`) values of the entry about to be stored: it
      * says which field changed and never what it held. A dotted key reaches into an array column
@@ -41,6 +44,28 @@ final class AuditProperties
         }
 
         $activity->properties = collect($properties);
+    }
+
+    /**
+     * The properties of one entry as a screen or a file may read them: forDisplay(), and for the entries that keep where a
+     * technician stood (a check-in, the announcement of a trip) the two coordinates are hidden like a personal column. How far
+     * they were (`distance_m`), whether that was too far and why (`far`, `far_reason`) stay. The stored entry keeps the fix.
+     *
+     * @return array<array-key, mixed>
+     */
+    public static function forActivity(Activity $activity): array
+    {
+        $properties = $activity->properties?->toArray() ?? [];
+
+        if (in_array($activity->description, self::POSITION_EVENTS, true)) {
+            foreach (['lat', 'lng'] as $key) {
+                if (filled($properties[$key] ?? null)) {
+                    $properties[$key] = self::MASKED;
+                }
+            }
+        }
+
+        return self::forDisplay($properties);
     }
 
     /**

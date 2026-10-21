@@ -17,6 +17,7 @@ class SLATierResource extends JsonResource
             'name' => $this->name,
             'response_time_hours' => $this->response_time_hours,
             'resolution_time_hours' => $this->resolution_time_hours,
+            'calendar' => $this->calendar,
             'is_active' => $this->is_active,
             'created_at' => $this->created_at,
             ...$this->lifecycleAttributes(),

@@ -84,6 +84,56 @@ export interface TechnicianChartData {
     series: Series;
 }
 
+/** One row of an SLA breakdown (`by_technician`, `by_priority`, `by_source`): the tickets resolved in the period for one handler, priority or target source. */
+export interface SlaSplitRow {
+    /** The handler's name, the priority code or the SLA tier's name; null for no handler, or a ticket held to its category. */
+    name: string | null;
+    total: number;
+    compliant: number;
+    breached: number;
+    rate: number;
+    avg_frt_minutes: number | null;
+}
+
+/** A resolved ticket that missed its deadline by a lot. */
+export interface SlaViolator {
+    id: string;
+    code: string;
+    title: string;
+    category: string | null;
+    assignee: string | null;
+    priority: string;
+    late_minutes: number;
+    url: string;
+}
+
+/** One technician of the ranking the Technician report shows until one is picked. */
+export interface TechnicianRankingRow {
+    id: string;
+    name: string;
+    rank: number;
+    spk_completed: number;
+    tickets_resolved: number;
+    sla_compliance_pct: number | null;
+    avg_frt_minutes: number | null;
+    avg_score: number | null;
+    active_workload: number;
+}
+
+/** A product the Stock Card offers before one is chosen: the picker's option and when its stock last moved. */
+export interface RecentStockProduct {
+    value: string;
+    label: string;
+    description: string | null;
+    last_moved_at: string;
+}
+
+/** The Head a user of a subsidiary is sent to when the consolidated report refused them. */
+export interface ConsolidatedParent {
+    id: string;
+    name: string;
+}
+
 /** The payload of `BusinessMetricsQuery`: one company's figures, or the consolidated total. */
 export interface BusinessMetrics {
     mrr: MetricAmount;

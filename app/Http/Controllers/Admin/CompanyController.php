@@ -13,7 +13,9 @@ use App\Services\Core\CompanyService;
 use App\Services\Core\IndonesiaRegionService;
 use App\Services\WhatsApp\WhatsAppCloudClient;
 use App\Services\WhatsApp\WhatsAppSettings;
+use App\Support\FieldCheckIn;
 use App\Support\OptimisticLock;
+use App\Support\ServiceHours;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -75,11 +77,15 @@ class CompanyController extends Controller
                 'map_lat' => null,
                 'map_lng' => null,
                 'map_zoom' => null,
+                // The farthest a technician checks in from the customer's address without giving a reason.
+                'checkin_max_distance_m' => FieldCheckIn::DEFAULT_MAX_DISTANCE_M,
                 ...WhatsAppSettings::defaults(),
             ], $company->settings ?? [], [
                 // Always a real boolean on the page, whatever a hand-edited row holds.
                 EnforceCompanyTwoFactor::SETTING => EnforceCompanyTwoFactor::required($company),
-            ]), ['spk_auto_invoice']),
+            ]), ['spk_auto_invoice', 'service_hours']),
+            // The open hours get their own field: all seven days, a closed or never set one as null.
+            'serviceHours' => ServiceHours::week($company->settings['service_hours'] ?? null),
             'version' => OptimisticLock::version($company),
             'cities' => $this->cities(),
             // The city the profile address names, offered while no map region is chosen; null when the address names none.
@@ -109,6 +115,16 @@ class CompanyController extends Controller
         // Stored as a real boolean, so the policy is never read as off by a strict comparison.
         if (array_key_exists(EnforceCompanyTwoFactor::SETTING, $settings)) {
             $settings[EnforceCompanyTwoFactor::SETTING] = filter_var($settings[EnforceCompanyTwoFactor::SETTING], FILTER_VALIDATE_BOOLEAN);
+        }
+
+        if (array_key_exists('checkin_max_distance_m', $settings)) {
+            $settings['checkin_max_distance_m'] = (int) $settings['checkin_max_distance_m'];
+        }
+
+        // A week without an open day is "not set": stored as nothing, so a tier on service hours counts 24 hours until it is.
+        if ($request->has('service_hours')) {
+            $week = $request->validated('service_hours');
+            $settings['service_hours'] = ServiceHours::isSet($week) ? ServiceHours::week($week) : null;
         }
 
         // The first save of this form confirms the billing defaults it showed (F1-U05). The stamp is the server's alone:

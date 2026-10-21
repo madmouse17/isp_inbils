@@ -174,7 +174,7 @@ class NetworkCredentialsTest extends TestCase
         $url = fn (string $action): string => "technician/work-orders/{$workOrder->public_id}/{$action}";
 
         $this->api('POST', $url('en-route'), token: $firstToken)->assertOk();
-        $this->api('POST', $url('start'), ['check_in' => ['lat' => -6.2, 'lng' => 106.8166667]], $firstToken)
+        $this->api('POST', $url('start'), ['check_in' => ['lat' => -6.2, 'lng' => 106.8166667, 'far_reason' => 'Koordinat alamat data uji acak']], $firstToken)
             ->assertOk()
             ->assertJsonPath('data.status', 'in_progress');
         $workOrder->addMediaFromString('proof')->usingFileName('proof.jpg')

@@ -1,28 +1,39 @@
-﻿import type { FormEvent } from 'react';
+import type { FormEvent } from 'react';
 import { Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Switch } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
+import { CalendarField, type SlaCalendar } from './components/CalendarField';
 
 interface SlaData {
     id: string;
     name: string;
     response_time_hours: number;
     resolution_time_hours: number;
+    calendar: SlaCalendar;
     is_active: boolean;
 }
 
 interface EditProps extends Record<string, unknown> {
     slaTier: { data: SlaData };
+    /** Whether the company has set its service hours. */
+    serviceHoursSet: boolean;
 }
 
-export default function Edit({ slaTier }: EditProps) {
+export default function Edit({ slaTier, serviceHoursSet }: EditProps) {
     const s = slaTier.data;
-    const { data, setData, put, processing, errors } = useForm({
+    const { data, setData, put, processing, errors } = useForm<{
+        name: string;
+        response_time_hours: string;
+        resolution_time_hours: string;
+        calendar: SlaCalendar;
+        is_active: boolean;
+    }>({
         name: s.name,
         response_time_hours: String(s.response_time_hours),
         resolution_time_hours: String(s.resolution_time_hours),
+        calendar: s.calendar,
         is_active: s.is_active,
     });
 
@@ -90,10 +101,16 @@ export default function Edit({ slaTier }: EditProps) {
                                     onCheckedChange={(c) => setData('is_active', c)}
                                 />
                             </div>
+                            <CalendarField
+                                value={data.calendar}
+                                onChange={(calendar) => setData('calendar', calendar)}
+                                error={errors.calendar}
+                                serviceHoursSet={serviceHoursSet}
+                            />
                             <p className="text-sm text-muted-foreground md:col-span-2">
                                 Tiket berprioritas mendesak memakai setengah dari kedua target
-                                (dibulatkan ke atas). Jam dihitung kalender, bukan jam kerja.
-                                Perubahan target hanya berlaku untuk tiket baru.
+                                (dibulatkan ke atas). Perubahan target dan hitungan hanya berlaku
+                                untuk tiket baru.
                             </p>
                         </CardContent>
                     </Card>

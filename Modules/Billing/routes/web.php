@@ -12,6 +12,7 @@ use Modules\Billing\Models\Invoice;
 Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->prefix('admin')->name('admin.')->whereUlid(['invoice', 'payment', 'item', 'attempt'])->group(function () {
     Route::get('invoices/export', [InvoiceController::class, 'export'])->name('invoices.export');
     Route::get('billing/receivables', [InvoiceController::class, 'receivables'])->name('billing.receivables');
+    Route::get('billing/receivables/export', [InvoiceController::class, 'receivablesExport'])->name('billing.receivables.export');
     Route::post('invoices/create-from-spk', [InvoiceController::class, 'createFromSpk'])->name('invoices.create-from-spk');
     Route::post('invoices/generate-preview', [InvoiceController::class, 'generatePreview'])->name('invoices.generate-preview');
     Route::post('invoices/generate', [InvoiceController::class, 'generate'])->name('invoices.generate');
@@ -20,6 +21,7 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
     Route::resource('invoices', InvoiceController::class);
     LifecycleController::routes('invoices', Invoice::class, ['restore']);
     Route::post('invoices/{invoice}/send', [InvoiceController::class, 'send'])->name('invoices.send');
+    Route::post('invoices/{invoice}/remind', [InvoiceController::class, 'remind'])->name('invoices.remind');
     Route::post('invoices/{invoice}/payments', [InvoiceController::class, 'recordPayment'])->name('invoices.payments.store');
     Route::post('invoices/{invoice}/payments/{payment}/reverse', [InvoiceController::class, 'reversePayment'])->name('invoices.payments.reverse');
     Route::post('invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('invoices.cancel');

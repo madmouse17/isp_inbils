@@ -21,7 +21,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -198,7 +197,7 @@ class WorkOrderController extends Controller
                 'edit' => in_array($wo->status, SpkService::EDITABLE_STATUSES, true) && ($request->user()?->can('edit', $wo) ?? false),
             ],
             // Only what the page words itself: the technician's own coordinates stay out of the props.
-            'checkIn' => $checkIn === null ? null : Arr::only($checkIn, ['status', 'distance_m', 'accuracy_m', 'reason']),
+            'checkIn' => FieldCheckIn::pageSummary($checkIn),
             // The four steps the apps show, and the one the visit is at.
             'steps' => TripSteps::of($wo),
             'currentStep' => TripSteps::current($wo),

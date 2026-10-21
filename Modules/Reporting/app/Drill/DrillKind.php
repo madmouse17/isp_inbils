@@ -78,12 +78,25 @@ enum DrillKind: string
         };
     }
 
+    /** A portal account (a customer) reads the tickets of its own customer only, as the ticket list does. */
+    public function restrictsPortal(User $user): bool
+    {
+        return $this === self::Ticket && $user->can('portal.access');
+    }
+
     /**
+     * The rows $user may read: a portal account its own customer's tickets, a handler the ones assigned to them.
+     *
      * @param  Builder<*>  $query
      * @return Builder<*>
      */
     public function scopeToActor(Builder $query, User $user): Builder
     {
+        // Fail closed like the ticket list: a portal account without a linked customer sees nothing.
+        if ($this->restrictsPortal($user)) {
+            $query->where($query->getModel()->qualifyColumn('customer_id'), $user->customer()->value('id') ?? 0);
+        }
+
         if (! $this->restrictsHandlers($user)) {
             return $query;
         }

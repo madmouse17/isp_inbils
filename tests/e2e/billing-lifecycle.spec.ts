@@ -23,6 +23,7 @@ import {
     refreshSession,
     selectSearchOption,
     unique,
+    unitPriceForTotal,
 } from './support/demo';
 import { companyDateFormat, formatIsoAs } from './support/dateRange';
 
@@ -92,17 +93,17 @@ test.describe('@lifecycle billing', () => {
         await openDraftInvoice(page, customerName);
         await expect(page).toHaveURL(/\/admin\/invoices\/[0-9A-HJKMNP-TV-Z]{26}$/i);
         await expectDetail(page, 'Status', 'Draf');
+        // A line takes the company's PPN (the dialog has no tax field): the price is the one that makes the invoice 100.000.
+        const unitPrice = await unitPriceForTotal(page, 100000);
         await page.getByRole('button', { name: 'Tambah item' }).click();
         const itemDialog = page.getByRole('dialog', { name: 'Tambah item' });
         await itemDialog.getByLabel('Deskripsi').fill(line);
         await itemDialog.getByLabel('Kuantitas').fill('1');
-        await itemDialog.getByLabel('Harga satuan').fill('100000');
+        await itemDialog.getByLabel('Harga satuan').fill(String(unitPrice));
         await itemDialog.getByLabel('Diskon').fill('0');
-        await itemDialog.getByLabel('Pajak (%)').fill('0');
         await itemDialog.getByRole('button', { name: 'Simpan', exact: true }).click();
-        await expect(page.getByRole('row').filter({ hasText: line })).toContainText(
-            /Rp\s*100\.000/,
-        );
+        await expect(page.getByRole('row').filter({ hasText: line })).toBeVisible();
+        await expectDetail(page, 'Total', /Rp\s*100\.000/);
 
         await page.getByRole('button', { name: 'Kirim tagihan' }).click();
         const sendDialog = page.getByRole('alertdialog', { name: /Kirim tagihan/ });

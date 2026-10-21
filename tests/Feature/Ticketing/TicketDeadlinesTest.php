@@ -198,16 +198,16 @@ class TicketDeadlinesTest extends TestCase
         $gold = $this->subscriptionOnTier($user->company_id, responseHours: 3, resolutionHours: 7, tierName: 'Gold');
 
         $this->assertSame(
-            ['type' => 'category', 'name' => 'Gangguan', 'response_hours' => 5, 'resolution_hours' => 9, 'urgent_halved' => false],
+            ['type' => 'category', 'name' => 'Gangguan', 'response_hours' => 5, 'resolution_hours' => 9, 'urgent_halved' => false, 'calendar' => '24h'],
             TicketService::deadlineSource(new Ticket(['category_id' => $category->id, 'priority' => 'medium'])),
         );
         $this->assertSame(
-            ['type' => 'category', 'name' => 'Gangguan', 'response_hours' => 5, 'resolution_hours' => 9, 'urgent_halved' => true],
+            ['type' => 'category', 'name' => 'Gangguan', 'response_hours' => 5, 'resolution_hours' => 9, 'urgent_halved' => true, 'calendar' => '24h'],
             TicketService::deadlineSource(new Ticket(['category_id' => $category->id, 'priority' => 'urgent'])),
             'the hours stay the configured ones: the page shows them divided',
         );
         $this->assertSame(
-            ['type' => 'tier', 'name' => 'Gold', 'response_hours' => 3, 'resolution_hours' => 7, 'urgent_halved' => true],
+            ['type' => 'tier', 'name' => 'Gold', 'response_hours' => 3, 'resolution_hours' => 7, 'urgent_halved' => true, 'calendar' => '24h'],
             TicketService::deadlineSource(new Ticket(['category_id' => $category->id, 'subscription_id' => $gold->id, 'priority' => 'urgent'])),
         );
 
@@ -220,6 +220,19 @@ class TicketDeadlinesTest extends TestCase
         $category->default_response_hours = null;
         $withoutTarget = (new Ticket(['priority' => 'medium']))->setRelation('category', $category)->setRelation('subscription', null);
         $this->assertNull(TicketService::deadlineSource($withoutTarget)['response_hours']);
+    }
+
+    public function test_a_tier_that_asks_for_service_hours_of_a_company_without_them_counts_every_hour(): void
+    {
+        $user = $this->createCompanyUser();
+        $this->actingAs($user);
+        $category = $this->category($user, slaHours: 9, responseHours: 5);
+        $subscription = $this->subscriptionOnTier($user->company_id, responseHours: 3, resolutionHours: 7);
+        SLATier::query()->where('company_id', $user->company_id)->update(['calendar' => 'business']);
+        $ticket = new Ticket(['category_id' => $category->id, 'subscription_id' => $subscription->id, 'priority' => 'medium']);
+
+        $this->assertSame('2026-03-02 12:00:00', TicketService::computeDeadlines($ticket)['response']->toDateTimeString(), 'plain hours: 09:00 and 3 more');
+        $this->assertSame('24h', TicketService::deadlineSource($ticket)['calendar'], 'the page says what was counted, not what was asked');
     }
 
     public function test_show_hides_customer_address_without_customer_view(): void
@@ -292,7 +305,7 @@ class TicketDeadlinesTest extends TestCase
 
         $this->assertNotNull($waiting['response_deadline']);
         $this->assertSame(
-            ['type' => 'tier', 'name' => 'Gold', 'response_hours' => 2, 'resolution_hours' => 6, 'urgent_halved' => false],
+            ['type' => 'tier', 'name' => 'Gold', 'response_hours' => 2, 'resolution_hours' => 6, 'urgent_halved' => false, 'calendar' => '24h'],
             $waiting['deadline_source'],
         );
         $this->assertFalse($waiting['is_response_breached']);

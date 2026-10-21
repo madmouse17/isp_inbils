@@ -23,9 +23,11 @@ class UpdateInvoiceRequest extends FormRequest
         $issued = $invoice instanceof Invoice ? $invoice->issue_date->toDateString() : null;
 
         return [
-            'due_date' => ['bail', 'nullable', 'date_format:Y-m-d', ...($issued === null ? [] : ['after_or_equal:'.$issued])],
-            'discount_amount' => ['nullable', 'numeric', 'min:0'],
-            'notes' => ['nullable', 'string'],
+            // Absent leaves a field alone; a cleared one is refused: both columns are never null (a discount of nothing is zero).
+            'due_date' => ['bail', 'sometimes', 'required', 'date_format:Y-m-d', ...($issued === null ? [] : ['after_or_equal:'.$issued])],
+            // The column holds 13 digits and cents; what the invoice comes to is the real ceiling, checked under the lock of the save.
+            'discount_amount' => ['sometimes', 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999999.99'],
+            'notes' => ['nullable', 'string', 'max:5000'],
             OptimisticLock::FIELD => OptimisticLock::rules(),
         ];
     }
@@ -44,8 +46,14 @@ class UpdateInvoiceRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'due_date.required' => 'Jatuh tempo wajib diisi.',
             'due_date.date_format' => 'Format :attribute harus tahun-bulan-tanggal (YYYY-MM-DD).',
             'due_date.after_or_equal' => 'Jatuh tempo tidak boleh sebelum tanggal terbit.',
+            'discount_amount.numeric' => 'Diskon harus berupa angka.',
+            'discount_amount.decimal' => 'Diskon paling banyak dua angka di belakang koma.',
+            'discount_amount.min' => 'Diskon tidak boleh negatif.',
+            'discount_amount.max' => 'Diskon terlalu besar.',
+            'notes.max' => 'Catatan paling banyak :max karakter.',
         ];
     }
 }

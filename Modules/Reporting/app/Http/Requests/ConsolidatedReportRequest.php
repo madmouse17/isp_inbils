@@ -26,17 +26,18 @@ class ConsolidatedReportRequest extends FormRequest
 
     /**
      * A holder of the permission who works in a subsidiary asked for a Head's report: say where it lives instead of a bare
-     * 403. Without the permission, or outside a subsidiary, nothing is explained and the refusal stays a 403.
+     * 403, and hand the Reports page the Head, so it offers the way there (F10-U02). Without the permission, or outside a
+     * subsidiary, nothing is explained and the refusal stays a 403.
      */
     protected function failedAuthorization(): void
     {
         $parent = CompanyService::current()?->parent;
 
         if ($parent !== null && ($this->user()?->can('report.consolidated.view') ?? false)) {
-            throw new HttpResponseException(redirect()->route('admin.reports.index')->with(
-                'warning',
-                "Metrik Konsolidasi hanya tersedia di perusahaan induk {$parent->name}. Ganti perusahaan lewat pemilih di menu samping.",
-            ));
+            throw new HttpResponseException(redirect()->route('admin.reports.index')->with([
+                'warning' => "Metrik Konsolidasi hanya tersedia di perusahaan induk {$parent->name}. Ganti perusahaan lewat pemilih di menu samping.",
+                'consolidated_parent' => ['id' => $parent->public_id, 'name' => $parent->name],
+            ]));
         }
 
         parent::failedAuthorization();

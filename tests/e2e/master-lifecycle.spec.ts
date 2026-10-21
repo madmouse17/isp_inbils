@@ -433,7 +433,6 @@ test.describe('@lifecycle master lifecycle', () => {
             quantity: 1,
             unit_price: 100000,
             discount_amount: 0,
-            tax_rate: 0,
         });
         await write(page, 'POST', `/admin/invoices/${issued.id}/send`);
         const draft = await createInvoice(page, customer.id, `${run} masih draf`, subscription.id);

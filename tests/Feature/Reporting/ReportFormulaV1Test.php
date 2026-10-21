@@ -57,6 +57,7 @@ class ReportFormulaV1Test extends TestCase
             'total_resolved', 'sla_compliant', 'sla_rate', 'breach_count',
             'response_on_time', 'response_breached', 'response_without_target', 'response_rate',
             'avg_resolution_minutes', 'avg_frt_minutes', 'by_category',
+            'by_technician', 'by_priority', 'by_source', 'csat_average', 'csat_count',
         ],
         'asset' => [
             'status_distribution', 'by_location', 'installation_count', 'customer_linked_count', 'retired_count',
@@ -1171,9 +1172,41 @@ class ReportFormulaV1Test extends TestCase
      */
     private function assertPayload(ReportType $report, array $expected, array $actual, string $scenario = ''): void
     {
+        if ($report === ReportType::Sla) {
+            $expected += $this->slaSplits($expected);
+        }
+
         $this->assertMetricsAreV1($report, array_keys($expected));
         $this->assertEqualsCanonicalizing(array_keys($expected), array_keys($actual), "{$report->value} payload keys {$scenario}");
         $this->assertSame($this->canonical($expected), $this->canonical($actual), "{$report->value} {$scenario}");
+    }
+
+    /**
+     * The splits and the satisfaction of an SLA payload in this world, whose resolved tickets have no handler, one priority
+     * (medium), no subscription and no rating: each split is one row holding the whole figure (no row when nothing was
+     * resolved) and nothing was rated. SlaBreakdownTest works them out with handlers, priorities, tiers and ratings.
+     *
+     * @param  array<string, mixed>  $figures  the cards of the payload
+     * @return array<string, mixed>
+     */
+    private function slaSplits(array $figures): array
+    {
+        $whole = [
+            'total' => $figures['total_resolved'],
+            'compliant' => $figures['sla_compliant'],
+            'breached' => $figures['breach_count'],
+            'rate' => $figures['sla_rate'],
+            'avg_frt_minutes' => $figures['avg_frt_minutes'],
+        ];
+        $rows = fn (?string $name): array => $figures['total_resolved'] === 0 ? [] : [['name' => $name, ...$whole]];
+
+        return [
+            'by_technician' => $rows(null),
+            'by_priority' => $rows('medium'),
+            'by_source' => $rows(null),
+            'csat_average' => null,
+            'csat_count' => 0,
+        ];
     }
 
     /**

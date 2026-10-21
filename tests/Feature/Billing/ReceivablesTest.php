@@ -241,10 +241,29 @@ class ReceivablesTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_export_endpoint_is_not_available(): void
+    public function test_the_export_is_there_for_billing_export_holders_and_empty_without_open_invoices(): void
     {
-        $this->actingAs($this->createCompanyUser())
-            ->get('/admin/billing/receivables/export')
-            ->assertNotFound();
+        $response = $this->actingAs($this->createCompanyUser())->get(route('admin.billing.receivables.export'))->assertOk();
+
+        $this->assertSame(
+            ['Nomor tagihan', 'Pelanggan', 'Kode pelanggan', 'Tanggal terbit', 'Jatuh tempo', 'Lewat jatuh tempo (hari)', 'Umur', 'Total', 'Terbayar', 'Sisa', 'Status'],
+            str_getcsv(trim(ltrim($response->streamedContent(), "\xEF\xBB\xBF"))),
+        );
+    }
+
+    public function test_the_page_names_which_list_each_filter_belongs_to_and_keeps_the_customer_lists_own_words(): void
+    {
+        $user = $this->createCompanyUser();
+        $customer = Customer::factory()->create(['company_id' => $user->company_id, 'name' => 'Budi']);
+        Invoice::factory()->create(['company_id' => $user->company_id, 'customer_id' => $customer->id, 'status' => 'sent', 'due_date' => now()->addDays(5)->toDateString(), 'total' => 100000, 'paid_amount' => 0]);
+
+        $this->actingAs($user)
+            ->get(route('admin.billing.receivables', ['sort_by' => 'total', 'sort_dir' => 'desc', 'per_page' => 25, 'bucket' => 'current']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('filters', ['sort_by' => 'total', 'sort_dir' => 'desc', 'per_page' => 25])
+                ->where('invoiceFilters.bucket', 'current')
+                ->has('rows.data', 1)
+                ->has('invoices.data', 1));
     }
 }

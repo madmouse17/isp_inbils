@@ -15,6 +15,13 @@ use Modules\Reporting\Queries\ReportFilters;
  */
 final readonly class DrillList
 {
+    /** The column a sum adds up, as the list and the report name it. */
+    private const SUM_LABELS = [
+        'mrc_amount' => 'MRC',
+        'paid_amount' => 'terbayar',
+        'total' => 'total',
+    ];
+
     public function __construct(
         private DrillSource $source,
         private ReportFilters $filters,
@@ -73,8 +80,9 @@ final readonly class DrillList
         $source = $this->source;
         $rows = $this->query()->count();
         $figure = $source->figure($payload, $this->filters->group);
-        // A handler's own-rows scope only narrows a company-wide list: on their own performance the rows are the figure.
-        $restricted = $source->kind->restrictsHandlers($this->actor) && $this->filters->technicianId !== $this->actor->id;
+        // A portal account's own-customer scope or a handler's own-rows scope only narrows a company-wide list; not on a handler's own performance, where the rows are the figure.
+        $restricted = $source->kind->restrictsPortal($this->actor)
+            || ($source->kind->restrictsHandlers($this->actor) && $this->filters->technicianId !== $this->actor->id);
 
         $tieOut = [
             'measure' => $source->measure->value,
@@ -99,7 +107,7 @@ final readonly class DrillList
             case Measure::Sum:
                 $sum = $this->sum();
                 $tieOut['sum'] = $sum;
-                $tieOut['sum_label'] = 'Σ '.implode(' − ', $source->sum);
+                $tieOut['sum_label'] = 'Σ '.implode(' − ', array_map(fn (string $column): string => self::SUM_LABELS[$column] ?? $column, $source->sum));
                 $tieOut['matches'] = $restricted ? null : Money::compare($sum, (string) $figure) === 0;
                 break;
 

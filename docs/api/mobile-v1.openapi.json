@@ -4471,6 +4471,14 @@
                                                 ],
                                                 "format": "date-time"
                                             },
+                                            "far_reason": {
+                                                "type": [
+                                                    "string",
+                                                    "null"
+                                                ],
+                                                "description": "Why the technician starts farther from the customer's address than the company allows. The start is refused (422 on this field) without it; the trip announcement ignores it.",
+                                                "maxLength": 300
+                                            },
                                             "unavailable_reason": {
                                                 "type": "string",
                                                 "enum": [
@@ -5952,6 +5960,14 @@
                                 ],
                                 "format": "date-time"
                             },
+                            "far_reason": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "description": "Why the technician starts farther from the customer's address than the company allows. The start is refused (422 on this field) without it; the trip announcement ignores it.",
+                                "maxLength": 300
+                            },
                             "unavailable_reason": {
                                 "type": "string",
                                 "enum": [
@@ -6942,6 +6958,14 @@
                                 ],
                                 "format": "date-time"
                             },
+                            "far_reason": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "description": "Why the technician starts farther from the customer's address than the company allows. The start is refused (422 on this field) without it; the trip announcement ignores it.",
+                                "maxLength": 300
+                            },
                             "unavailable_reason": {
                                 "type": "string",
                                 "enum": [
@@ -7743,6 +7767,15 @@
                                     "string",
                                     "null"
                                 ]
+                            },
+                            "far": {
+                                "type": "boolean"
+                            },
+                            "far_reason": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
                             }
                         },
                         "required": [
@@ -7750,7 +7783,9 @@
                             "distance_m",
                             "accuracy_m",
                             "captured_at",
-                            "reason"
+                            "reason",
+                            "far",
+                            "far_reason"
                         ]
                     },
                     "description": {
@@ -8105,6 +8140,15 @@
                                     "string",
                                     "null"
                                 ]
+                            },
+                            "far": {
+                                "type": "boolean"
+                            },
+                            "far_reason": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
                             }
                         },
                         "required": [
@@ -8112,7 +8156,9 @@
                             "distance_m",
                             "accuracy_m",
                             "captured_at",
-                            "reason"
+                            "reason",
+                            "far",
+                            "far_reason"
                         ]
                     },
                     "ticket": {

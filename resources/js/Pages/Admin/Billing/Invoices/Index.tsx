@@ -13,9 +13,10 @@ import GenerateDialog from '@/Pages/Admin/Billing/Invoices/GenerateDialog';
 import { useCan } from '@/hooks/useCan';
 import { useCompany } from '@/hooks/useCompany';
 import { useTableQuery } from '@/hooks/useTableQuery';
+import { todayInZone } from '@/lib/dateRange';
 import { formatDate, formatRupiah } from '@/lib/format';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
-import { INVOICE_STATUS, LIFECYCLE_STATE } from '@/lib/statuses';
+import { effectiveInvoiceStatus, INVOICE_STATUS, LIFECYCLE_STATE } from '@/lib/statuses';
 
 /** The `online_pending` filter: invoices whose Snap page has stayed unpaid for over an hour. */
 const ONLINE_PENDING_LABEL = 'Pembayaran online tertunda > 1 jam';
@@ -42,6 +43,8 @@ type Props = {
         date_from?: string;
         date_to?: string;
         online_pending?: string;
+        /** Open invoices due within this many days from today; set by the dashboard card. */
+        due_within?: number | string | null;
         sort_by?: string;
         sort_dir?: string;
         per_page?: string | number;
@@ -68,6 +71,7 @@ export default function InvoicesIndex({
             date_from: filters.date_from ?? '',
             date_to: filters.date_to ?? '',
             online_pending: filters.online_pending ?? '',
+            due_within: filters.due_within ?? '',
             sort_by: filters.sort_by ?? '',
             sort_dir: filters.sort_dir ?? '',
             per_page: filters.per_page ?? toPagination(invoices).per_page,
@@ -76,14 +80,18 @@ export default function InvoicesIndex({
     );
 
     const onlinePending = params.online_pending === '1';
+    const dueWithin = params.due_within ?? '';
     const hasFilters = Boolean(
         params.search ||
         params.status ||
         params.customer_id ||
         params.date_from ||
         params.date_to ||
-        onlinePending,
+        onlinePending ||
+        dueWithin,
     );
+    // The daily job is what turns an unpaid invoice `overdue`; the list reads the due date, so it never lags behind it.
+    const today = todayInZone(company?.timezone);
 
     const columns: DataTableColumn<InvoiceRow>[] = useMemo(
         () => [
@@ -126,7 +134,10 @@ export default function InvoicesIndex({
                     row.deleted_at ? (
                         <EnumBadge map={LIFECYCLE_STATE} value="dihapus" />
                     ) : (
-                        <EnumBadge map={INVOICE_STATUS} value={row.status} />
+                        <EnumBadge
+                            map={INVOICE_STATUS}
+                            value={effectiveInvoiceStatus(row.status, row.due_date, today)}
+                        />
                     ),
             },
             {
@@ -174,7 +185,7 @@ export default function InvoicesIndex({
                 ),
             },
         ],
-        [company, can],
+        [company, can, today],
     );
 
     return (
@@ -256,18 +267,32 @@ export default function InvoicesIndex({
                     </div>
                 </div>
 
-                {onlinePending && (
+                {(onlinePending || dueWithin) && (
                     <div className="flex flex-wrap items-center gap-2">
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            aria-label={`Hapus filter ${ONLINE_PENDING_LABEL}`}
-                            rightIcon={<X className="size-4" aria-hidden="true" />}
-                            onClick={() => set('online_pending', '')}
-                        >
-                            {ONLINE_PENDING_LABEL}
-                        </Button>
+                        {onlinePending && (
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                aria-label={`Hapus filter ${ONLINE_PENDING_LABEL}`}
+                                rightIcon={<X className="size-4" aria-hidden="true" />}
+                                onClick={() => set('online_pending', '')}
+                            >
+                                {ONLINE_PENDING_LABEL}
+                            </Button>
+                        )}
+                        {dueWithin && (
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                aria-label={`Hapus filter Jatuh tempo ≤ ${dueWithin} hari`}
+                                rightIcon={<X className="size-4" aria-hidden="true" />}
+                                onClick={() => set('due_within', '')}
+                            >
+                                {`Jatuh tempo ≤ ${dueWithin} hari`}
+                            </Button>
+                        )}
                     </div>
                 )}
 
@@ -296,6 +321,7 @@ export default function InvoicesIndex({
                             date_from: '',
                             date_to: '',
                             online_pending: '',
+                            due_within: '',
                         })
                     }
                     loading={processing}

@@ -101,6 +101,8 @@ export interface TicketDeadlineSource {
     resolution_hours: number;
     /** Priority urgent: both targets count half of the configured hours, rounded up. */
     urgent_halved: boolean;
+    /** What the hours are counted in: every hour, or only the open hours of the company (`business`, once it set them). */
+    calendar: '24h' | 'business';
 }
 
 export interface TicketCustomerAddress {

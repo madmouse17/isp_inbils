@@ -353,9 +353,10 @@ class WorkOrderTripTest extends TestCase
         $this->api('POST', "technician/work-orders/{$atHome->public_id}/start", ['check_in' => ['lat' => -6.2, 'lng' => 106.8166667]], $this->token)
             ->assertOk()
             ->assertJsonPath('data.check_in.distance_m', 0);
-        $response = $this->api('POST', "technician/work-orders/{$atPop->public_id}/start", ['check_in' => ['lat' => -6.9175, 'lng' => 107.6191]], $this->token)->assertOk();
+        $response = $this->api('POST', "technician/work-orders/{$atPop->public_id}/start", ['check_in' => ['lat' => -6.9175, 'lng' => 107.6191, 'far_reason' => 'Menunggu pelanggan di POP']], $this->token)->assertOk();
 
         $this->assertGreaterThan(100_000, $response->json('data.check_in.distance_m'), 'standing at the POP is far from the customer');
+        $this->assertTrue($response->json('data.check_in.far'));
     }
 
     public function test_an_address_without_coordinates_gives_no_distance_instead_of_the_pops(): void

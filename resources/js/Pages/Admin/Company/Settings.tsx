@@ -26,7 +26,25 @@ import { formatNumber } from '@/lib/format';
 import type { PageProps } from '@/types';
 import type { CompanyWhatsApp } from '@/types/whatsapp';
 
+type DayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+
+/** The open hours of the company, `[opens, closes]` as `HH:mm`; a closed day is null. */
+type ServiceWeek = Record<DayKey, [string, string] | null>;
+
 type SettingValue = string | number | boolean | string[] | null;
+
+const SERVICE_DAYS: { key: DayKey; label: string }[] = [
+    { key: 'mon', label: 'Senin' },
+    { key: 'tue', label: 'Selasa' },
+    { key: 'wed', label: 'Rabu' },
+    { key: 'thu', label: 'Kamis' },
+    { key: 'fri', label: 'Jumat' },
+    { key: 'sat', label: 'Sabtu' },
+    { key: 'sun', label: 'Minggu' },
+];
+// What a day shows when it is opened from "Tutup".
+const DEFAULT_OPENS = '08:00';
+const DEFAULT_CLOSES = '17:00';
 
 interface CityOption {
     code: string;
@@ -38,6 +56,8 @@ interface CityOption {
 
 interface SettingsProps {
     settings: Record<string, SettingValue>;
+    /** The open hours of the company, all seven days; a closed day or a week never set is null. */
+    serviceHours: ServiceWeek;
     /** Row version of the company; sent back as expected_updated_at so a save never overwrites a newer one. */
     version: string;
     whatsapp: CompanyWhatsApp;
@@ -124,6 +144,21 @@ const SETTING_SECTIONS: { id: string; title: string; fields: Record<string, Sett
         },
     },
     {
+        id: 'lapangan',
+        title: 'Lapangan',
+        fields: {
+            checkin_max_distance_m: {
+                label: 'Jarak check-in maksimal',
+                kind: 'number',
+                unit: 'meter',
+                min: 50,
+                max: 100000,
+                step: 1,
+                help: 'Teknisi yang memulai pekerjaan lebih jauh dari ini dari lokasi pelanggan wajib menulis alasan. Check-in ditandai di halaman tiket dan SPK.',
+            },
+        },
+    },
+    {
         id: 'format',
         title: 'Format tanggal',
         fields: {
@@ -193,6 +228,7 @@ function withRoundedPoint(settings: Record<string, SettingValue>): Record<string
 
 export default function Settings({
     settings,
+    serviceHours,
     version,
     whatsapp,
     cities,
@@ -201,14 +237,17 @@ export default function Settings({
 }: SettingsProps) {
     const { data, setData, put, transform, processing, errors } = useForm({
         settings: withRoundedPoint(settings),
+        service_hours: serviceHours,
         expected_updated_at: version,
     });
     // What the form held at the last save, for the unsaved marker. Inertia's own isDirty also counts expected_updated_at,
     // which the effect below refreshes after every save, so it would report changes that nobody made.
     // shortcut: compares JSON text, so a key written in another order would read as a change; every key the form edits is
     // already in the page props, so none is ever added in a new place.
-    const [savedSettings, setSavedSettings] = useState(() => JSON.stringify(data.settings));
-    const dirty = JSON.stringify(data.settings) !== savedSettings;
+    const [savedSettings, setSavedSettings] = useState(() =>
+        JSON.stringify([data.settings, data.service_hours]),
+    );
+    const dirty = JSON.stringify([data.settings, data.service_hours]) !== savedSettings;
     const canManageIntegrations = usePermission().can('company.integrations.manage');
     const conflict = usePage<PageProps>().props.errors.conflict;
     // The save redirects back to this page, so the new version must replace the old one or the next save conflicts with the user's own. After a conflict the old version stays, so a retry conflicts until the page is reloaded.
@@ -235,15 +274,25 @@ export default function Settings({
                 }
             }
 
-            return { settings: next, expected_updated_at: form.expected_updated_at };
+            return {
+                settings: next,
+                service_hours: form.service_hours,
+                expected_updated_at: form.expected_updated_at,
+            };
         });
         put(route('admin.company.settings.update'), {
-            onSuccess: () => setSavedSettings(JSON.stringify(data.settings)),
+            onSuccess: () => setSavedSettings(JSON.stringify([data.settings, data.service_hours])),
         });
     };
 
     const setSetting = (key: string, value: SettingValue) =>
         setData('settings', { ...data.settings, [key]: value });
+
+    // A week without an open day is "not set".
+    const week = data.service_hours;
+    const serviceHoursSet = SERVICE_DAYS.some(({ key }) => week[key] !== null);
+    const setDay = (day: DayKey, hours: [string, string] | null) =>
+        setData('service_hours', { ...week, [day]: hours });
 
     // Keys the company never set show what the maps resolve to today.
     const mapDefault = useMapDefault();
@@ -365,6 +414,7 @@ export default function Settings({
     const navSections = [
         ...shownSections.map(({ id, title }) => ({ id, label: title })),
         { id: 'peta', label: 'Peta' },
+        { id: 'jam-layanan', label: 'Jam layanan' },
         { id: 'whatsapp', label: 'WhatsApp' },
         { id: 'keamanan', label: 'Keamanan' },
     ];
@@ -414,7 +464,8 @@ export default function Settings({
                         <ul className="hidden flex-col gap-1 lg:flex">{sectionLinks('ghost')}</ul>
                     </nav>
 
-                    <form onSubmit={submit} className="space-y-6 min-w-0 flex-1">
+                    {/* noValidate: the server refuses a value with its own Indonesian message on the field; min and max stay as hints of the number input. */}
+                    <form onSubmit={submit} noValidate className="space-y-6 min-w-0 flex-1">
                         {shownSections.map((section) => (
                             <Card key={section.id} id={section.id} className={SECTION_ANCHOR}>
                                 <CardHeader>
@@ -538,6 +589,117 @@ export default function Settings({
                                     heightClassName="h-80"
                                     disabled={!can.update}
                                 />
+                            </CardContent>
+                        </Card>
+
+                        <Card id="jam-layanan" className={SECTION_ANCHOR}>
+                            <CardHeader>
+                                <CardTitle>Jam layanan</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <p className="text-sm text-muted-foreground">
+                                    Jam buka perusahaan, menurut zona waktu perusahaan. Tingkat SLA
+                                    dengan hitungan tenggat Jam layanan hanya menghitung jam di
+                                    sini: tiket yang masuk di luar jam buka mulai dihitung saat buka
+                                    berikutnya.
+                                </p>
+                                {!serviceHoursSet && (
+                                    <Alert variant="warning" role="status">
+                                        <AlertDescription>
+                                            Jam layanan belum diisi; tenggat dihitung 24 jam.
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
+                                <div className="grid gap-3 lg:grid-cols-2">
+                                    {SERVICE_DAYS.map(({ key, label }) => {
+                                        const hours = week[key];
+                                        const dayError = settingErrors[`service_hours.${key}`];
+
+                                        return (
+                                            <div
+                                                key={key}
+                                                role="group"
+                                                aria-labelledby={`jam-layanan-${key}`}
+                                                className="rounded-lg border p-3"
+                                            >
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <h3
+                                                        id={`jam-layanan-${key}`}
+                                                        className="text-sm font-medium"
+                                                    >
+                                                        {label}
+                                                    </h3>
+                                                    <Checkbox
+                                                        label="Tutup"
+                                                        checked={hours === null}
+                                                        disabled={!can.update}
+                                                        onCheckedChange={(closed) =>
+                                                            setDay(
+                                                                key,
+                                                                closed === true
+                                                                    ? null
+                                                                    : [
+                                                                          DEFAULT_OPENS,
+                                                                          DEFAULT_CLOSES,
+                                                                      ],
+                                                            )
+                                                        }
+                                                    />
+                                                </div>
+                                                {hours !== null && (
+                                                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                                                        <TimeInput
+                                                            label="Dari"
+                                                            value={hours[0]}
+                                                            onChange={(time) =>
+                                                                setDay(key, [time, hours[1]])
+                                                            }
+                                                            error={
+                                                                settingErrors[
+                                                                    `service_hours.${key}.0`
+                                                                ]
+                                                            }
+                                                            disabled={!can.update}
+                                                        />
+                                                        <TimeInput
+                                                            label="Sampai"
+                                                            value={hours[1]}
+                                                            onChange={(time) =>
+                                                                setDay(key, [hours[0], time])
+                                                            }
+                                                            error={
+                                                                settingErrors[
+                                                                    `service_hours.${key}.1`
+                                                                ]
+                                                            }
+                                                            disabled={!can.update}
+                                                        />
+                                                    </div>
+                                                )}
+                                                {dayError && (
+                                                    <p className="mt-2 text-sm text-destructive-text">
+                                                        {dayError}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                {settingErrors.service_hours && (
+                                    <p className="text-sm text-destructive-text">
+                                        {settingErrors.service_hours}
+                                    </p>
+                                )}
+                                <p className="text-sm text-muted-foreground">
+                                    Jam dukungan yang dibaca pelanggan di aplikasi diisi terpisah di{' '}
+                                    <Link
+                                        href={route('admin.company.profile.edit')}
+                                        className="font-medium text-primary-text underline underline-offset-2"
+                                    >
+                                        Profil perusahaan
+                                    </Link>
+                                    . Samakan keduanya.
+                                </p>
                             </CardContent>
                         </Card>
 

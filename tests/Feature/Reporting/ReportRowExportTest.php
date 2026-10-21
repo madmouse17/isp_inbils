@@ -84,7 +84,7 @@ class ReportRowExportTest extends TestCase
             array_column(array_slice($records, 0, 10), 'Saldo setelah'),
         );
         $this->assertSame($product->name, $records[0]['Barang']);
-        $this->assertSame('receive', $records[0]['Jenis']);
+        $this->assertSame('Masuk', $records[0]['Jenis']);
         $this->assertSame($this->location->name, $records[0]['Ke']);
         $this->assertSame('Reporting fixture', $records[0]['Catatan']);
     }

@@ -68,9 +68,12 @@ class StockController extends Controller
             'selectedLocation' => InventoryOptions::selectedLocation($request->input('location_id')),
             'filters' => $request->only(['location_id', 'product_id', 'low_stock', 'search', 'sort_by', 'sort_dir', 'sort', 'direction', 'per_page']),
             'adjustmentRequests' => StockAdjustmentRequestResource::collection($this->pendingAdjustmentRequests($request)),
+            // What the system holds of one product at one place, for the transfer and adjust dialogs; read only when a partial reload asks for it.
+            'stockLookup' => Inertia::optional(fn (): ?array => $this->stockLookup($request)),
             'can' => [
                 'export' => $request->user()?->can('inventory.export') ?? false,
                 'receive' => $request->user()?->can('inventory.stock.receive') ?? false,
+                'transfer' => $request->user()?->can('inventory.stock.transfer') ?? false,
                 'adjust_request' => $request->user()?->can('inventory.stock.adjust.request') ?? false,
                 'adjust_approve' => $request->user()?->can('inventory.stock.adjust.approve') ?? false,
             ],
@@ -178,6 +181,9 @@ class StockController extends Controller
             $request->input('note'),
             $request->input('reference_type'),
             $request->filled('reference_id') ? $request->integer('reference_id') : null,
+            $request->input('supplier_name'),
+            $request->input('purchase_reference'),
+            $request->filled('unit_cost') ? (string) $request->input('unit_cost') : null,
         );
 
         return back()->with('success', 'Barang berhasil diterima.');
@@ -288,6 +294,26 @@ class StockController extends Controller
         ]);
     }
 
+    /** @return array{quantity: float|string, reserved_quantity: float|string, available: float, unit: ?string}|null */
+    private function stockLookup(Request $request): ?array
+    {
+        $product = Product::query()->withTrashed()->with('unit:id,symbol')->wherePublicId($request->query('lookup_product_id'))->first();
+        $location = Location::query()->withTrashed()->wherePublicId($request->query('lookup_location_id'))->first();
+
+        if ($product === null || $location === null) {
+            return null;
+        }
+
+        $stock = Stock::query()->where('product_id', $product->id)->where('location_id', $location->id)->first();
+
+        return [
+            'quantity' => $stock?->quantity ?? '0.00',
+            'reserved_quantity' => $stock?->reserved_quantity ?? '0.00',
+            'available' => $stock?->available ?? 0.0,
+            'unit' => $product->unit?->symbol,
+        ];
+    }
+
     /**
      * Reviewers see every pending request; requesters only their own.
      *
@@ -334,7 +360,7 @@ class StockController extends Controller
     private function filteredMovementsQuery(Request $request): Builder
     {
         $query = StockMovement::query()
-            ->with(['product', 'fromLocation', 'toLocation'])
+            ->with(['product', 'fromLocation', 'toLocation', 'creator:id,public_id,name'])
             ->when($request->input('product_id'), fn (Builder $q, $v) => $q->where('product_id', PublicId::resolveOne(Product::class, $v, fn (Builder $product) => $product->withTrashed()) ?? 0))
             ->when($request->input('movement_type'), fn (Builder $q, $v) => $q->where('movement_type', $v))
             ->when($request->input('location_id'), function (Builder $q, $v): void {

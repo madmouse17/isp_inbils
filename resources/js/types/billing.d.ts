@@ -82,3 +82,35 @@ export interface PaymentAttemptRefund {
 export interface InvoicePaymentAttempt extends PaymentAttemptEntry {
     refund: PaymentAttemptRefund | null;
 }
+
+/** The aging buckets of Tunggakan, by the keys `BillingService::receivables()` uses for its columns. */
+export type ReceivableBucket = 'current' | 'b1_30' | 'b31_60' | 'b61_90' | 'b90_plus';
+
+/** One open invoice in the "Per tagihan" list of Tunggakan (`ReceivableInvoicesQuery::row()`). */
+export interface ReceivableInvoice {
+    id: string;
+    number: string;
+    /** Named as the invoice printed it. */
+    customer: { id: string; code: string; name: string } | null;
+    status: keyof typeof INVOICE_STATUS;
+    issue_date: string;
+    due_date: string;
+    /** Days past the due date by the company's calendar; 0 until the due date has passed. */
+    days_overdue: number;
+    bucket: ReceivableBucket;
+    total: string;
+    paid_amount: string;
+    sisa: string;
+    /** False when the customer was deleted: nobody is left to remind. */
+    can_remind: boolean;
+    /** A reminder already went today, so the server would refuse another one. */
+    reminded_today: boolean;
+}
+
+/** The filters of that list as the server read them; a blank one is null. */
+export interface ReceivableInvoiceFilters {
+    search: string | null;
+    bucket: ReceivableBucket | null;
+    due_from: string | null;
+    due_to: string | null;
+}

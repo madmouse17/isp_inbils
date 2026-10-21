@@ -170,13 +170,13 @@ class TicketSnapshotTest extends TestCase
         $this->assertSame('2026-03-02 15:00:00', $old->sla_deadline->toDateTimeString());
         $this->assertSame('2026-03-02 11:00:00', $old->response_deadline->toDateTimeString());
         $this->assertSame(
-            ['type' => 'tier', 'name' => 'Gold', 'response_hours' => 2, 'resolution_hours' => 6, 'urgent_halved' => false],
+            ['type' => 'tier', 'name' => 'Gold', 'response_hours' => 2, 'resolution_hours' => 6, 'urgent_halved' => false, 'calendar' => '24h'],
             TicketService::deadlineSource($old),
         );
         $this->assertSame('2026-03-02 11:00:00', $new->sla_deadline->toDateTimeString());
         $this->assertSame('2026-03-02 10:00:00', $new->response_deadline->toDateTimeString());
         $this->assertSame(
-            ['type' => 'tier', 'name' => 'Silver', 'response_hours' => 1, 'resolution_hours' => 2, 'urgent_halved' => false],
+            ['type' => 'tier', 'name' => 'Silver', 'response_hours' => 1, 'resolution_hours' => 2, 'urgent_halved' => false, 'calendar' => '24h'],
             TicketService::deadlineSource($new),
         );
 

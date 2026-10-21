@@ -21,6 +21,9 @@ test.describe('@kanban-t_f519540a stock and asset UI wiring', () => {
         await selectSearchOption(page, 'Barang', 'E2E-STOCK-PRODUCT');
         await selectSearchOption(page, 'Lokasi', 'E2E Rack 01');
         await dialog.getByLabel('Jumlah').fill('3');
+        await dialog.getByLabel('Pemasok').fill('PT E2E Pemasok');
+        await dialog.getByLabel('No. faktur').fill('INV-E2E-1');
+        await dialog.getByLabel('Harga satuan').fill('1500');
         await dialog.getByLabel('Catatan').fill(note);
         await dialog.getByRole('button', { name: 'Simpan' }).click();
 
@@ -34,8 +37,52 @@ test.describe('@kanban-t_f519540a stock and asset UI wiring', () => {
         const row = page.getByRole('row').filter({ hasText: note });
         await expect(row).toContainText('Masuk');
         await expect(row).toContainText('E2E Stock Product');
-        await expect(row.getByRole('cell').filter({ hasText: /^3([.,]00)?$/ })).toHaveCount(1);
+        // The quantity and the balance it left can both read 3: one cell of that value at least.
+        await expect(
+            row
+                .getByRole('cell')
+                .filter({ hasText: /^3([.,]00)?$/ })
+                .first(),
+        ).toBeVisible();
         await expect(row).toContainText('E2E Rack 01');
+        await expect(row).toContainText('Pemasok: PT E2E Pemasok');
+        await expect(row).toContainText('No. faktur: INV-E2E-1');
+        await expect(row).toContainText('Harga satuan:');
+        await expect(page.getByRole('columnheader', { name: 'Saldo setelah' })).toBeVisible();
+        await expect(page.getByRole('columnheader', { name: 'Oleh' })).toBeVisible();
+    });
+
+    test('@k30 moves stock between two locations from the Stok page', async ({ page }) => {
+        const note = `E2E stock transfer ${Date.now()}`;
+
+        await loginAs(page, 'admin');
+        await settleAppChunks(page);
+        await page.goto('/admin/stocks');
+
+        // Something to move: two units into the rack.
+        await page.getByRole('button', { name: 'Terima Barang' }).click();
+        const receive = page.getByRole('dialog', { name: 'Terima Barang' });
+        await selectSearchOption(page, 'Barang', 'E2E-STOCK-PRODUCT');
+        await selectSearchOption(page, 'Lokasi', 'E2E Rack 01');
+        await receive.getByLabel('Jumlah').fill('2');
+        await receive.getByRole('button', { name: 'Simpan' }).click();
+        await expect(receive).toBeHidden();
+
+        await page.getByRole('button', { name: 'Pindahkan stok' }).click();
+        const dialog = page.getByRole('dialog', { name: 'Pindahkan stok' });
+        await selectSearchOption(page, 'Dari', 'E2E Rack 01');
+        await selectSearchOption(page, 'Ke', 'E2E ODP Site 01');
+        await selectSearchOption(page, 'Barang', 'E2E-STOCK-PRODUCT');
+        await expect(dialog.getByText(/Tersedia di lokasi asal: [\d.,]+/)).toBeVisible();
+        await dialog.getByLabel('Jumlah').fill('1');
+        await dialog.getByLabel('Catatan').fill(note);
+        await dialog.getByRole('button', { name: 'Pindahkan' }).click();
+        await expect(dialog).toBeHidden();
+
+        await page.getByRole('link', { name: 'Mutasi Stok' }).click();
+        await page.getByLabel('Jenis', { exact: true }).selectOption('transfer');
+        // One row for the place it left and one for the place it reached.
+        await expect(page.getByRole('row').filter({ hasText: note })).toHaveCount(2);
     });
 
     test('@receive-modal keyboard, mobile, and dark-mode runtime proof', async ({ page }) => {

@@ -193,7 +193,7 @@ class ReportPackageCategoryFilterTest extends TestCase
         $rows = $this->csvRecords($this->actingAs($this->admin)->get(route('admin.reports.business.export', [...self::PERIOD, 'service_package_category_id' => $this->rumahan->public_id])));
         $byMetric = collect($rows)->keyBy('Metrik');
 
-        $this->assertStringContainsString('service_package_category_id='.$this->rumahan->public_id, $byMetric['MRR']['Filter']);
+        $this->assertStringContainsString('Kategori paket: '.$this->rumahan->name, $byMetric['MRR']['Filter']);
         $this->assertStringNotContainsString('kategori paket', $byMetric['MRR']['Cakupan']);
         $this->assertStringContainsString('Filter kategori paket tidak berlaku', $byMetric['Kepatuhan SLA']['Cakupan']);
     }

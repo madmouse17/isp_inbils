@@ -5,6 +5,7 @@ namespace Modules\Service\Http\Requests;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\Service\Models\SLATier;
 
 class StoreSLATierRequest extends FormRequest
 {
@@ -20,6 +21,7 @@ class StoreSLATierRequest extends FormRequest
             'name' => ['required', 'string', 'max:255', Rule::unique('sla_tiers')->where('company_id', CompanyService::currentId())],
             'response_time_hours' => ['required', 'integer', 'min:1', 'max:720', 'lte:resolution_time_hours'],
             'resolution_time_hours' => ['required', 'integer', 'min:1', 'max:720'],
+            'calendar' => ['sometimes', 'required', Rule::in(SLATier::CALENDARS)],
             'is_active' => ['boolean'],
         ];
     }
@@ -39,6 +41,7 @@ class StoreSLATierRequest extends FormRequest
             'name' => 'nama',
             'response_time_hours' => 'target respons',
             'resolution_time_hours' => 'target penyelesaian',
+            'calendar' => 'hitungan tenggat',
             'is_active' => 'status',
         ];
     }

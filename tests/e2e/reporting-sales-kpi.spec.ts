@@ -25,28 +25,28 @@ const febManager: Figures = {
     subscriptions: 2,
     invoiced: 2_500_000,
     collected: 2_300_000,
-    rate: '92.00%',
+    rate: '92%',
 };
 const febStaff: Figures = {
     customers: 1,
     subscriptions: 1,
     invoiced: 600_000,
     collected: 400_000,
-    rate: '66.67%',
+    rate: '66,67%',
 };
 const febUnassigned: Figures = {
     customers: 1,
     subscriptions: 1,
     invoiced: 300_000,
     collected: 300_000,
-    rate: '100.00%',
+    rate: '100%',
 };
 const febTotal: Figures = {
     customers: 4,
     subscriptions: 4,
     invoiced: 3_400_000,
     collected: 3_000_000,
-    rate: '88.24%',
+    rate: '88,24%',
 };
 const none: Figures = { customers: 0, subscriptions: 0, invoiced: 0, collected: 0, rate: '-' };
 
@@ -230,7 +230,7 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
         await expect(totalCard(page, 'Pelanggan baru').locator('p').first()).toHaveText('4');
         await expect(totalCard(page, 'Langganan diaktifkan').locator('p').first()).toHaveText('4');
         await expect(totalCard(page, 'Tingkat penagihan').locator('p').first()).toHaveText(
-            '88.24%',
+            '88,24%',
         );
         for (const [label, amount, short] of [
             ['Ditagihkan', febTotal.invoiced, 'Rp 3,4 jt'],
@@ -363,7 +363,7 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
             subscriptions: 1,
             invoiced: 250_000,
             collected: 750_000,
-            rate: '300.00%',
+            rate: '300%',
         });
         await expectFigures(bodyRow(page, staff), { ...none, collected: 200_000 });
 
@@ -376,7 +376,7 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
                     subscriptions: 1,
                     invoiced: 1_000_000,
                     collected: 600_000,
-                    rate: '60.00%',
+                    rate: '60%',
                 },
             ],
             [
@@ -386,7 +386,7 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
                     subscriptions: 1,
                     invoiced: 500_000,
                     collected: 400_000,
-                    rate: '80.00%',
+                    rate: '80%',
                 },
             ],
         ];

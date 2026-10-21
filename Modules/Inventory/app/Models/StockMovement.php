@@ -26,6 +26,9 @@ use LogicException;
  * @property ?int $reference_id
  * @property ?string $note
  * @property ?int $created_by
+ * @property ?string $supplier_name
+ * @property ?string $purchase_reference
+ * @property float|string|null $unit_cost
  */
 class StockMovement extends Model
 {
@@ -45,12 +48,16 @@ class StockMovement extends Model
         'reference_id',
         'note',
         'created_by',
+        'supplier_name',
+        'purchase_reference',
+        'unit_cost',
     ];
 
     protected $casts = [
         'quantity' => 'decimal:2',
         'balance_after' => 'decimal:2',
         'reserved_after' => 'decimal:2',
+        'unit_cost' => 'decimal:2',
     ];
 
     public $timestamps = true;

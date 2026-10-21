@@ -23,6 +23,7 @@ import {
     logout,
     selectSearchOption,
     unique,
+    unitPriceForTotal,
 } from './support/demo';
 import { companyDateFormat, formatIsoAs } from './support/dateRange';
 import { apiLogin } from './support/api';
@@ -216,17 +217,17 @@ async function issueInvoice(page: Page): Promise<InvoiceRow> {
     if (!invoice) throw new Error('The invoice just created was not among the drafts.');
 
     await page.goto(`/admin/invoices/${invoice.id}`);
+    // A line takes the company's PPN (the dialog has no tax field): the price is the one that makes the invoice 100.000.
+    const unitPrice = await unitPriceForTotal(page, 100000);
     await page.getByRole('button', { name: 'Tambah item' }).click();
     const itemDialog = page.getByRole('dialog', { name: 'Tambah item' });
     await itemDialog.getByLabel('Deskripsi').fill('Internet 20 Mbps');
     await itemDialog.getByLabel('Kuantitas').fill('1');
-    await itemDialog.getByLabel('Harga satuan').fill('100000');
+    await itemDialog.getByLabel('Harga satuan').fill(String(unitPrice));
     await itemDialog.getByLabel('Diskon').fill('0');
-    await itemDialog.getByLabel('Pajak (%)').fill('0');
     await itemDialog.getByRole('button', { name: 'Simpan', exact: true }).click();
-    await expect(page.getByRole('row').filter({ hasText: 'Internet 20 Mbps' })).toContainText(
-        /Rp\s*100\.000/,
-    );
+    await expect(page.getByRole('row').filter({ hasText: 'Internet 20 Mbps' })).toBeVisible();
+    await expectDetail(page, 'Total', /Rp\s*100\.000/);
     await page.getByRole('button', { name: 'Kirim tagihan' }).click();
     await page
         .getByRole('alertdialog', { name: /Kirim tagihan/ })

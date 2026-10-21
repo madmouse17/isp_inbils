@@ -4,8 +4,10 @@ namespace Modules\Service\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
+use App\Services\Core\CompanyService;
 use App\Services\Core\LifecycleService;
 use App\Support\ExportQuery;
+use App\Support\ServiceHours;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,6 +27,8 @@ class SLATierController extends Controller
     use HasIndexQuery;
 
     private const SORTABLE = ['name', 'response_time_hours', 'resolution_time_hours', 'created_at'];
+
+    private const CALENDAR_LABELS = [SLATier::CALENDAR_24H => '24 jam', SLATier::CALENDAR_BUSINESS => 'Jam layanan'];
 
     public function index(Request $request, SlaTierCompliance $compliance): InertiaResponse
     {
@@ -50,7 +54,7 @@ class SLATierController extends Controller
     {
         Gate::authorize('create', SLATier::class);
 
-        return Inertia::render('Admin/Service/SLATiers/Create');
+        return Inertia::render('Admin/Service/SLATiers/Create', ['serviceHoursSet' => $this->serviceHoursSet()]);
     }
 
     public function store(StoreSLATierRequest $request): RedirectResponse
@@ -65,7 +69,7 @@ class SLATierController extends Controller
     {
         Gate::authorize('edit', $slaTier);
 
-        return Inertia::render('Admin/Service/SLATiers/Edit', ['slaTier' => new SLATierResource($slaTier)]);
+        return Inertia::render('Admin/Service/SLATiers/Edit', ['slaTier' => new SLATierResource($slaTier), 'serviceHoursSet' => $this->serviceHoursSet()]);
     }
 
     public function update(UpdateSLATierRequest $request, SLATier $slaTier): RedirectResponse
@@ -97,6 +101,7 @@ class SLATierController extends Controller
             'name' => 'Nama',
             'response_time_hours' => 'Target respons (jam)',
             'resolution_time_hours' => 'Target penyelesaian (jam)',
+            'calendar' => 'Hitungan tenggat',
             'is_active' => 'Status',
         ];
 
@@ -104,6 +109,7 @@ class SLATierController extends Controller
             'name' => $tier->name,
             'response_time_hours' => $tier->response_time_hours,
             'resolution_time_hours' => $tier->resolution_time_hours,
+            'calendar' => self::CALENDAR_LABELS[$tier->calendar] ?? $tier->calendar,
             'is_active' => $tier->is_active ? 'Aktif' : 'Nonaktif',
         ];
 
@@ -126,5 +132,11 @@ class SLATierController extends Controller
                 });
             })
             ->tap(fn (Builder $query) => $this->applySort($query, $request, 'name'));
+    }
+
+    /** Whether the company has set its service hours: a tier on the business calendar counts 24 hours until it has. */
+    private function serviceHoursSet(): bool
+    {
+        return ServiceHours::of(CompanyService::current()) !== null;
     }
 }

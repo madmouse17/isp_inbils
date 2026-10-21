@@ -194,6 +194,11 @@ export default function Show({ ticket, handlers }: ShowProps) {
         t.deadline_source.type === 'tier'
             ? `Target ${t.deadline_source.name}`
             : `Target kategori ${t.deadline_source.name}`;
+    // A tier on the business calendar counts the open hours of the company, not the clock.
+    const countedFrom =
+        t.deadline_source.calendar === 'business'
+            ? 'Dihitung sejak tiket dibuat, dalam jam layanan:'
+            : 'Dihitung sejak tiket dibuat:';
     const { toast } = useToast();
     const [actionModal, setActionModal] = useState<ActionModal | null>(null);
     const [confirmingStart, setConfirmingStart] = useState(false);
@@ -499,7 +504,7 @@ export default function Show({ ticket, handlers }: ShowProps) {
                                     {t.response_deadline &&
                                         t.deadline_source.response_hours !== null && (
                                             <span className="block text-xs font-normal text-muted-foreground">
-                                                Dihitung sejak tiket dibuat:{' '}
+                                                {countedFrom}{' '}
                                                 {targetHoursText(
                                                     t.deadline_source.response_hours,
                                                     t.deadline_source.urgent_halved,
@@ -534,7 +539,7 @@ export default function Show({ ticket, handlers }: ShowProps) {
                                     )}
                                     {t.sla_deadline && (
                                         <span className="block text-xs font-normal text-muted-foreground">
-                                            Dihitung sejak tiket dibuat:{' '}
+                                            {countedFrom}{' '}
                                             {targetHoursText(
                                                 t.deadline_source.resolution_hours,
                                                 t.deadline_source.urgent_halved,

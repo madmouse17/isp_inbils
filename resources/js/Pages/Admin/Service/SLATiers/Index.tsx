@@ -10,15 +10,17 @@ import { EnumBadge } from '@/Components/ui/EnumBadge';
 import { Input } from '@/Components/ui/Input';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
-import { formatDate, formatNumber } from '@/lib/format';
+import { formatDate, formatNumber, formatPercent } from '@/lib/format';
 import { LIFECYCLE_STATE, lifecycleStateOf } from '@/lib/statuses';
 import type { LifecycleFields } from '@/types/models';
+import { SLA_CALENDAR_LABEL, type SlaCalendar } from './components/CalendarField';
 
 type Row = LifecycleFields & {
     id: string;
     name: string;
     response_time_hours?: number | string | null;
     resolution_time_hours?: number | string | null;
+    calendar: SlaCalendar;
     response_on_time_rate_30d: number | null;
     resolution_on_time_rate_30d: number | null;
     tickets_30d: number;
@@ -91,22 +93,21 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
                 cell: (row) => String(row.resolution_time_hours ?? '-'),
             },
             {
+                key: 'calendar',
+                header: 'Hitungan tenggat',
+                cell: (row) => SLA_CALENDAR_LABEL[row.calendar],
+            },
+            {
                 key: 'response_on_time_rate_30d',
                 header: 'Respons tepat waktu (30 hari)',
                 className: 'text-right tabular-nums',
-                cell: (row) =>
-                    row.response_on_time_rate_30d === null
-                        ? '-'
-                        : `${row.response_on_time_rate_30d}%`,
+                cell: (row) => formatPercent(row.response_on_time_rate_30d),
             },
             {
                 key: 'resolution_on_time_rate_30d',
                 header: 'Penyelesaian tepat waktu (30 hari)',
                 className: 'text-right tabular-nums',
-                cell: (row) =>
-                    row.resolution_on_time_rate_30d === null
-                        ? '-'
-                        : `${row.resolution_on_time_rate_30d}%`,
+                cell: (row) => formatPercent(row.resolution_on_time_rate_30d),
             },
             {
                 key: 'tickets_30d',

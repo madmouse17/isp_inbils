@@ -32,9 +32,15 @@ class StockTransferRequest extends FormRequest
         return [
             'product_id' => ['required', Rule::exists('products', 'id')->where('company_id', $companyId)],
             'from_location_id' => ['required', Rule::exists('locations', 'id')->where('company_id', $companyId)],
-            'to_location_id' => ['required', Rule::exists('locations', 'id')->where('company_id', $companyId)],
+            'to_location_id' => ['required', 'different:from_location_id', Rule::exists('locations', 'id')->where('company_id', $companyId)],
             'quantity' => ['required', 'numeric', 'min:0.01'],
             'note' => ['nullable', 'string', 'max:500'],
         ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return ['to_location_id.different' => 'Lokasi tujuan harus berbeda dari lokasi asal.'];
     }
 }

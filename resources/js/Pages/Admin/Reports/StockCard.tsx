@@ -23,10 +23,10 @@ import {
 } from '@/Components/ui';
 import { useCompany } from '@/hooks/useCompany';
 import { useServerTable } from '@/hooks/useServerTable';
-import { formatDateTime } from '@/lib/format';
+import { formatDate, formatDateTime } from '@/lib/format';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
 import { STOCK_MOVEMENT_TYPE } from '@/lib/statuses';
-import type { ReportMeta } from '@/types';
+import type { RecentStockProduct, ReportMeta } from '@/types';
 import { ReportExportMenu } from './components/ReportExportMenu';
 
 interface Movement {
@@ -59,6 +59,8 @@ interface Props extends Record<string, unknown> {
     meta: ReportMeta;
     can: { export: boolean };
     links?: { stocks: string | null; movements: string | null } | null;
+    /** The products whose stock moved last; present only while no product is chosen. */
+    recentProducts?: RecentStockProduct[] | null;
 }
 
 export default function StockCard({
@@ -71,6 +73,7 @@ export default function StockCard({
     meta,
     can,
     links,
+    recentProducts,
 }: Props) {
     const company = useCompany();
     const pagination = movements ? toPagination(movements) : null;
@@ -215,9 +218,46 @@ export default function StockCard({
                             </div>
                         </form>
                         {!filters.product_id && (
-                            <p className="text-sm text-muted-foreground">
-                                Pilih barang lalu tekan Tampilkan untuk melihat pergerakan stok.
-                            </p>
+                            <div className="space-y-4">
+                                <p className="text-sm text-muted-foreground">
+                                    Pilih barang lalu tekan Tampilkan untuk melihat pergerakan stok.
+                                </p>
+                                {recentProducts && recentProducts.length > 0 && (
+                                    <section
+                                        aria-labelledby="stock-card-recent"
+                                        className="space-y-2"
+                                    >
+                                        <h2 id="stock-card-recent" className="text-sm font-medium">
+                                            Barang terakhir bergerak
+                                        </h2>
+                                        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                                            {recentProducts.map((product) => (
+                                                <li key={product.value}>
+                                                    <Link
+                                                        href={route('admin.reports.stock-card', {
+                                                            product_id: product.value,
+                                                        })}
+                                                        className="block min-h-11 rounded-md border border-border px-3 py-2 hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-hidden"
+                                                    >
+                                                        <span className="block truncate text-sm font-medium">
+                                                            {product.label}
+                                                        </span>
+                                                        <span className="block truncate text-xs text-muted-foreground">
+                                                            {product.description
+                                                                ? `${product.description} · `
+                                                                : ''}
+                                                            {formatDate(
+                                                                product.last_moved_at,
+                                                                company,
+                                                            )}
+                                                        </span>
+                                                    </Link>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </section>
+                                )}
+                            </div>
                         )}
                         {filters.product_id && movements && pagination && (
                             <DataTable

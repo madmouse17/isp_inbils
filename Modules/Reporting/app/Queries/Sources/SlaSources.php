@@ -140,4 +140,23 @@ final class SlaSources
             ->whereNotNull('resolved_at')
             ->join('ticket_categories', 'tickets.category_id', '=', 'ticket_categories.id');
     }
+
+    /**
+     * Tickets a customer rated inside a period, by the day of the rating and not of the resolution: the satisfaction figure
+     * of a period is what customers said in it. The rating and its date are written together, and a rating survives a
+     * reopen. It reads the `(company_id, customer_rated_at, customer_rating)` index.
+     *
+     * @return Builder<Ticket>
+     */
+    public static function rated(?int $companyId, ?string $dateFrom = null, ?string $dateTo = null, ?int $categoryId = null): Builder
+    {
+        $query = self::scoped(Ticket::class, $companyId)->whereNotNull('customer_rated_at');
+        self::applyDateRange($query, 'customer_rated_at', $dateFrom, $dateTo);
+
+        if ($categoryId) {
+            $query->where('category_id', $categoryId);
+        }
+
+        return $query;
+    }
 }

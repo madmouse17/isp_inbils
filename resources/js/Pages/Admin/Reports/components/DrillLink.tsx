@@ -10,9 +10,11 @@ interface DrillLinkProps {
     label: string;
     /** The row of a breakdown (a status, a category) when the figure is one. */
     group?: string;
+    /** What the link says. Two links in one card name what each opens ("Lihat SPK", "Lihat tiket"), so they never read the same. */
+    text?: string;
 }
 
-export function DrillLink({ href, label, group }: DrillLinkProps) {
+export function DrillLink({ href, label, group, text = 'Lihat data' }: DrillLinkProps) {
     if (!href) {
         return null;
     }
@@ -25,10 +27,11 @@ export function DrillLink({ href, label, group }: DrillLinkProps) {
     return (
         <Link
             href={target}
-            aria-label={`Lihat data di balik ${label}`}
-            className="mt-2 inline-block rounded-sm text-sm font-medium text-primary-text underline underline-offset-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-hidden"
+            // The accessible name starts with the words on the link, so a voice command by the visible text finds it.
+            aria-label={`${text} di balik ${label}`}
+            className="mt-2 mr-4 inline-block rounded-sm text-sm font-medium text-primary-text underline underline-offset-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-hidden"
         >
-            Lihat data
+            {text}
         </Link>
     );
 }

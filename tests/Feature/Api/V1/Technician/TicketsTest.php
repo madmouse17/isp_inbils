@@ -135,11 +135,12 @@ class TicketsTest extends TestCase
         $ticket = $this->assignedTicket('assigned');
 
         $this->api('POST', "technician/tickets/{$ticket->public_id}/start", [
-            'check_in' => ['lat' => -6.1753924, 'lng' => 106.8271528, 'accuracy_m' => 5],
+            'check_in' => ['lat' => -6.1753924, 'lng' => 106.8271528, 'accuracy_m' => 5, 'far_reason' => 'Pelanggan menunggu di POP'],
         ], $this->token, ['Idempotency-Key' => (string) Str::uuid()])
             ->assertOk()
             ->assertJsonPath('data.check_in.status', 'recorded')
-            ->assertJsonPath('data.check_in.distance_m', fn (int $metres): bool => $metres > 1000);
+            ->assertJsonPath('data.check_in.distance_m', fn (int $metres): bool => $metres > 1000)
+            ->assertJsonPath('data.check_in.far', true);
 
         $this->subscription->installationAddress->update(['lat' => null, 'lng' => null]);
         $other = $this->assignedTicket('assigned');

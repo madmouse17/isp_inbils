@@ -5,6 +5,8 @@ namespace Modules\Billing\Services;
 use App\Actions\CreateInvoiceFromSpkAction;
 use App\Models\Core\Company;
 use App\Models\Core\ServiceSubscription;
+use App\Notifications\Channels\FcmChannel;
+use App\Notifications\Channels\WhatsAppChannel;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
@@ -15,13 +17,19 @@ use App\Support\RecordNotFound;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Validation\ValidationException;
 use Modules\Billing\Events\InvoiceIssued;
 use Modules\Billing\Events\PaymentRecorded;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\InvoiceItem;
 use Modules\Billing\Models\Payment;
+use Modules\Billing\Notifications\InvoiceDueReminderNotification;
+use Modules\Billing\Notifications\InvoiceWhatsAppNotification;
 use Modules\Billing\Support\InvoiceParty;
 use Modules\Inventory\Models\Product;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -40,24 +48,40 @@ class BillingService
     /** How many skipped subscriptions the preview names; the count still covers all of them. */
     private const SKIPPED_ROWS_LIMIT = 50;
 
+    /**
+     * The company's PPN in percent. The settings form refuses a rate outside 0-100 with at most two decimals (the width of
+     * tax_rate), but a row written before it did may hold one: it reads as the nearest rate an invoice line can carry.
+     */
     public static function taxRateFor(int $companyId): float
     {
         $settings = Company::find($companyId)?->settings ?? [];
 
-        return (float) ($settings['tax_ppn_rate'] ?? SettingService::get('default_tax_ppn_rate', 11));
+        return min(100.0, max(0.0, round((float) ($settings['tax_ppn_rate'] ?? SettingService::get('default_tax_ppn_rate', 11)), 2)));
     }
 
+    /** The days from the issue date to the due date: 0-365 like the settings form, whatever an older row holds. */
     public static function dueDaysFor(int $companyId): int
     {
         $settings = Company::find($companyId)?->settings ?? [];
 
-        return (int) ($settings['invoice_due_days'] ?? 14);
+        return min(365, max(0, (int) ($settings['invoice_due_days'] ?? 14)));
+    }
+
+    private static function zoneFor(int $companyId): string
+    {
+        return Company::query()->whereKey($companyId)->value('timezone') ?: (string) config('app.timezone');
     }
 
     /** The billing month in progress by the clock of the company's own timezone, as 'YYYY-MM'. */
     public static function currentPeriodFor(int $companyId): string
     {
-        return now(Company::query()->whereKey($companyId)->value('timezone') ?: (string) config('app.timezone'))->format('Y-m');
+        return now(self::zoneFor($companyId))->format('Y-m');
+    }
+
+    /** The calendar day it is for the company, as 'YYYY-MM-DD': what "today", "overdue" and "once a day" mean to its staff. */
+    public static function todayFor(int $companyId): string
+    {
+        return now(self::zoneFor($companyId))->toDateString();
     }
 
     /**
@@ -311,6 +335,61 @@ class BillingService
     }
 
     /**
+     * "Kirim pengingat" (F5-U03): the customer gets the due reminder now, at most once per invoice per company day, whoever
+     * presses the button. The day is claimed before anything is sent, so two people pressing together send one reminder, and
+     * the claim is handed back when the send fails.
+     *
+     * @return bool false when the invoice was already reminded today and nothing was sent
+     *
+     * @throws HttpException 422 when the invoice owes nothing or its customer is gone
+     */
+    public static function remind(Invoice $invoice): bool
+    {
+        self::assertCompanyId($invoice->company_id);
+        abort_unless(
+            in_array($invoice->status, InvoiceWhatsAppNotification::AWAITING_PAYMENT, true) && Money::compare($invoice->total, $invoice->paid_amount) > 0,
+            422,
+            'Hanya tagihan yang belum lunas yang bisa diingatkan.',
+        );
+
+        $customer = $invoice->customer;
+        abort_if($customer === null || $customer->trashed(), 422, 'Pelanggan tagihan ini sudah dihapus.');
+
+        $notification = new InvoiceDueReminderNotification($invoice->company_id, $invoice->id, InvoiceDueReminderNotification::MANUAL);
+        $now = now(self::zoneFor($invoice->company_id));
+        $key = self::reminderKey($invoice->company_id, $invoice->id, $now->toDateString());
+
+        if (! Cache::add($key, true, $now->copy()->endOfDay())) {
+            return false;
+        }
+
+        try {
+            Notification::send($customer, $notification);
+        } catch (Throwable $e) {
+            Cache::forget($key);
+
+            throw $e;
+        }
+
+        AuditService::log('invoice', 'reminder_sent', [
+            'number' => $invoice->number,
+            'channels' => array_map(fn (string $channel): string => match ($channel) {
+                WhatsAppChannel::class => 'whatsapp',
+                FcmChannel::class => 'fcm',
+                default => $channel,
+            }, $notification->via($customer)),
+        ], $invoice);
+
+        return true;
+    }
+
+    /** The marker of "this invoice was reminded on that company day": its presence is what the once-a-day rule reads. */
+    public static function reminderKey(int $companyId, int $invoiceId, string $day): string
+    {
+        return "invoice-remind:{$companyId}:{$invoiceId}:{$day}";
+    }
+
+    /**
      * Book a payment. `$paidAt` is the instant the money arrived when staff back-date it (RecordPaymentRequest checks the day);
      * null books it now. Eloquent writes a date in the timezone it carries, so it is converted to the app's first.
      */
@@ -436,7 +515,10 @@ class BillingService
     }
 
     /**
-     * @param  array{product_id?: int|null, description: string, quantity: string|int|float, unit_price: string|int|float, discount_amount?: string|int|float|null, tax_rate?: string|int|float|null}  $data
+     * A line on a draft, locked like the draft itself. The tax is the company's, never typed (F5-U02, like createManual()):
+     * a maker of drafts cannot bill a line at a rate of their own choosing.
+     *
+     * @param  array{product_id?: int|null, description: string, quantity: string|int|float, unit_price: string|int|float, discount_amount?: string|int|float|null}  $data
      */
     public static function addItem(Invoice $invoice, array $data): void
     {
@@ -462,7 +544,7 @@ class BillingService
                 'quantity' => $data['quantity'],
                 'unit_price' => $data['unit_price'],
                 'discount_amount' => $data['discount_amount'] ?? 0,
-                'tax_rate' => $data['tax_rate'] ?? 0,
+                'tax_rate' => self::taxRateFor($invoice->company_id),
                 'line_total' => $lineTotal,
             ]);
 
@@ -499,11 +581,13 @@ class BillingService
     /**
      * Save the editable fields of a draft. The draft is read again under its lock: one that was sent since the form was
      * rendered is refused with that reason and nothing is written, and so is a save made from a copy somebody else has
-     * saved over. The totals are recalculated in the same transaction.
+     * saved over. The totals are recalculated in the same transaction, and a discount that is more than the invoice comes to
+     * (subtotal and tax) is refused with the whole save, so a save never leaves a negative total.
      *
      * @param  array<string, mixed>  $data  the validated fields, without the version
      *
      * @throws HttpException 422 if the invoice is no longer a draft, 409 if it changed since the version the form carries
+     * @throws ValidationException on `discount_amount` when it is more than the subtotal and tax
      */
     public static function update(Invoice $invoice, array $data, string $expectedUpdatedAt): void
     {
@@ -514,7 +598,16 @@ class BillingService
             OptimisticLock::assert($invoice, $expectedUpdatedAt);
 
             $invoice->update($data);
-            self::recalculate($invoice);
+            $changed = array_keys(Arr::only($invoice->getChanges(), ['due_date', 'discount_amount', 'notes']));
+            $totals = self::recalculate($invoice);
+
+            if (array_key_exists('discount_amount', $data) && Money::compare($totals->discount_amount, Money::add($totals->subtotal, $totals->tax_amount)) > 0) {
+                throw ValidationException::withMessages(['discount_amount' => 'Diskon tidak boleh melebihi subtotal ditambah pajak.']);
+            }
+
+            if ($changed !== []) {
+                AuditService::log('invoice', 'draft_updated', ['number' => $invoice->number, 'changed' => $changed], $invoice);
+            }
         }, 3);
     }
 
@@ -536,6 +629,43 @@ class BillingService
             ?? abort(422, 'SPK ini tidak punya biaya atau bahan yang bisa ditagihkan.');
     }
 
+    /**
+     * A manual draft and its lines in one write (F5-U02). Every line takes the company's tax rate, the totals are worked
+     * out once, and the number is taken inside the same transaction as the insert: an insert that fails gives it back, so
+     * numbers have no gaps.
+     *
+     * @param  array<string, mixed>  $data  the invoice fields, validated
+     * @param  list<array{description: string, quantity: string|int|float, unit_price: string|int|float, product_id?: int|null}>  $items
+     */
+    public static function createManual(array $data, array $items): Invoice
+    {
+        $companyId = (int) CompanyService::currentId();
+        $taxRate = self::taxRateFor($companyId);
+
+        return DB::transaction(function () use ($data, $items, $companyId, $taxRate): Invoice {
+            $invoice = Invoice::create($data + ['number' => NumberSequenceService::generate('invoice', $companyId)]);
+
+            foreach ($items as $item) {
+                InvoiceItem::create([
+                    'company_id' => $companyId,
+                    'invoice_id' => $invoice->id,
+                    'product_id' => $item['product_id'] ?? null,
+                    'description' => $item['description'],
+                    'quantity' => $item['quantity'],
+                    'unit_price' => $item['unit_price'],
+                    'tax_rate' => $taxRate,
+                    'line_total' => self::lineTotal($item['quantity'], $item['unit_price']),
+                ]);
+            }
+
+            if ($items !== []) {
+                self::recalculate($invoice);
+            }
+
+            return $invoice;
+        });
+    }
+
     /** One line in whole rupiah (K1): quantity times unit price, less the line discount. */
     public static function lineTotal(string|int|float $quantity, string|int|float $unitPrice, string|int|float $discount = 0): string
     {
@@ -548,9 +678,10 @@ class BillingService
         return Money::rupiah(Money::div(Money::mul($lineTotal, $taxRate), '100'));
     }
 
-    public static function recalculate(Invoice $invoice): void
+    /** Works the totals of an invoice out again from its lines, and answers the invoice as it now stands. */
+    public static function recalculate(Invoice $invoice): Invoice
     {
-        DB::transaction(function () use ($invoice) {
+        return DB::transaction(function () use ($invoice): Invoice {
             $invoice = Invoice::withoutCompany()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
             $invoice->load('items');
             $subtotal = '0.00';
@@ -571,6 +702,8 @@ class BillingService
                 // A discount typed with cents must not leave cents on the invoice: it could no longer be paid online.
                 'total' => Money::rupiah($total),
             ]);
+
+            return $invoice;
         }, 3);
     }
 

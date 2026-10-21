@@ -3,6 +3,7 @@
  *
  * Coverage:
  * - tier form holds contract targets only (no uptime/credit), tier list shows the computed 30-day columns
+ * - the tier form says how a tier counts its hours ("24 jam" or "Jam layanan"), and the list shows it
  * - a ticket of a subscriber takes the tier's target, with its source on the detail page
  * - a ticket without a subscription takes its category's target; editing the category changes the next ticket
  * - the category screen is closed to roles without ticket.category.manage
@@ -73,6 +74,7 @@ type TicketData = {
         response_hours: number | null;
         resolution_hours: number;
         urgent_halved: boolean;
+        calendar: '24h' | 'business';
     };
 };
 
@@ -116,6 +118,18 @@ test.describe('@sla-targets', () => {
         await page.getByLabel('Nama').fill(tierName);
         await page.getByLabel('Target respons (jam)').fill('3');
         await page.getByLabel('Target penyelesaian (jam)').fill('6');
+
+        // K11: a tier counts every hour unless it is put on the open hours of the company.
+        const calendar = page.getByLabel('Hitungan tenggat');
+        await expect(calendar).toHaveValue('24h');
+        await expect(calendar.locator('option')).toHaveText(['24 jam', 'Jam layanan']);
+        await calendar.selectOption('business');
+        const hoursSet = Boolean(
+            (await inertiaProps(page, '/admin/sla-tiers/create')).props?.serviceHoursSet,
+        );
+        await expect(
+            main.getByText('Jam layanan belum diisi; tenggat dihitung 24 jam.'),
+        ).toHaveCount(hoursSet ? 0 : 1);
         await settleAppChunks(page);
         await page.getByRole('button', { name: 'Simpan' }).click();
 
@@ -126,15 +140,17 @@ test.describe('@sla-targets', () => {
         await expect(
             main.getByRole('columnheader', { name: 'Penyelesaian tepat waktu (30 hari)' }),
         ).toBeVisible();
+        await expect(main.getByRole('columnheader', { name: 'Hitungan tenggat' })).toBeVisible();
         await expect(main.getByRole('columnheader', { name: /Uptime|Credit/ })).toHaveCount(0);
 
         await page.goto(`/admin/sla-tiers?search=${encodeURIComponent(tierName)}`);
         const row = main.getByRole('row').filter({ hasText: tierName });
         await expect(row).toBeVisible();
         // No ticket yet on a new tier: both rates are empty, not 0%.
-        await expect(row.getByRole('cell').nth(3)).toHaveText('-');
+        await expect(row.getByRole('cell').nth(3)).toHaveText('Jam layanan');
         await expect(row.getByRole('cell').nth(4)).toHaveText('-');
-        await expect(row.getByRole('cell').nth(5)).toHaveText('0');
+        await expect(row.getByRole('cell').nth(5)).toHaveText('-');
+        await expect(row.getByRole('cell').nth(6)).toHaveText('0');
     });
 
     test('a subscriber ticket takes the tier target and names its source', async ({ page }) => {
@@ -144,6 +160,7 @@ test.describe('@sla-targets', () => {
 
         const ticket = await ticketData(page, id);
         expect(ticket.deadline_source.type).toBe('tier');
+        expect(ticket.deadline_source.calendar).toBe('24h');
         expect(ticket.response_deadline).not.toBeNull();
         expect(hoursBetween(ticket.created_at, ticket.response_deadline as string)).toBeLessThan(
             hoursBetween(ticket.created_at, ticket.sla_deadline),
@@ -191,6 +208,7 @@ test.describe('@sla-targets', () => {
                 response_hours: 2,
                 resolution_hours: 5,
                 urgent_halved: false,
+                calendar: '24h',
             });
             expect(hoursBetween(ticket.created_at, ticket.sla_deadline)).toBeCloseTo(5, 1);
             expect(hoursBetween(ticket.created_at, ticket.response_deadline as string)).toBeCloseTo(

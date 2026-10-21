@@ -14,8 +14,9 @@ import { useTableQuery } from '@/hooks/useTableQuery';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
 import { formatNumber } from '@/lib/format';
 import { STOCK_ADJUSTMENT_STATUS } from '@/lib/statuses';
-import { useForm, usePage } from '@inertiajs/react';
-import { useMemo, useState, type FormEvent } from 'react';
+import type { StockLookup } from '@/types/inventory';
+import { router, useForm, usePage } from '@inertiajs/react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 
 type StockRow = {
     id: string;
@@ -68,6 +69,7 @@ type Props = {
     can: {
         export?: boolean;
         receive?: boolean;
+        transfer?: boolean;
         adjust_request?: boolean;
         adjust_approve?: boolean;
     };
@@ -77,6 +79,17 @@ type Props = {
 type ReceiveFormData = {
     product_id: string;
     location_id: string;
+    quantity: string;
+    supplier_name: string;
+    purchase_reference: string;
+    unit_cost: string;
+    note: string;
+};
+
+type TransferFormData = {
+    product_id: string;
+    from_location_id: string;
+    to_location_id: string;
     quantity: string;
     note: string;
 };
@@ -100,6 +113,69 @@ const signed = (value: number | string) => {
 
 const quantityCell = (value?: number | string | null) =>
     value === null || value === undefined ? <EmptyCell /> : formatNumber(value);
+
+/**
+ * What the system holds of a product at a place. The server answers a partial reload of `stockLookup` once both are chosen,
+ * so the dialogs show it without the page loading every stock. The answer is kept here, keyed by what it was asked for,
+ * so a dialog never shows the figure of the pair chosen before.
+ */
+function useStockLookup(productId: string, locationId: string, enabled: boolean) {
+    const key = `${productId}:${locationId}`;
+    const wanted = enabled && productId !== '' && locationId !== '';
+    const [answer, setAnswer] = useState<{ key: string; stock: StockLookup | null } | null>(null);
+
+    useEffect(() => {
+        if (!wanted) return;
+        let active = true;
+
+        router.reload({
+            only: ['stockLookup'],
+            data: { lookup_product_id: productId, lookup_location_id: locationId },
+            preserveUrl: true,
+            onSuccess: (page) => {
+                if (active) {
+                    setAnswer({
+                        key: `${productId}:${locationId}`,
+                        stock: (page.props.stockLookup as StockLookup | null | undefined) ?? null,
+                    });
+                }
+            },
+        });
+
+        return () => {
+            active = false;
+        };
+    }, [wanted, productId, locationId]);
+
+    if (!wanted) return { loading: false, stock: null };
+    return answer?.key === key
+        ? { loading: false, stock: answer.stock }
+        : { loading: true, stock: null };
+}
+
+/** The figure a dialog shows under a chosen product and place: nothing before both are chosen. */
+function StockFigure({
+    lookup,
+    label,
+    pick,
+}: {
+    lookup: { loading: boolean; stock: StockLookup | null };
+    label: string;
+    pick: 'quantity' | 'available';
+}) {
+    if (!lookup.loading && !lookup.stock) return null;
+    const { stock } = lookup;
+    const reserved = stock && pick === 'quantity' ? Number(stock.reserved_quantity) : 0;
+
+    return (
+        <p className="text-sm text-muted-foreground" aria-live="polite">
+            {stock
+                ? `${label}: ${formatNumber(stock[pick])} ${stock.unit ?? ''}`.trim()
+                : 'Memuat stok...'}
+            {reserved > 0 ? ` (${formatNumber(reserved)} dicadangkan)` : ''}
+        </p>
+    );
+}
 
 export default function StockIndex({
     stocks,
@@ -138,6 +214,9 @@ export default function StockIndex({
         product_id: '',
         location_id: '',
         quantity: '1',
+        supplier_name: '',
+        purchase_reference: '',
+        unit_cost: '',
         note: '',
     });
 
@@ -167,11 +246,69 @@ export default function StockIndex({
             product_id: data.product_id,
             location_id: data.location_id,
             quantity,
+            supplier_name: data.supplier_name.trim() || null,
+            purchase_reference: data.purchase_reference.trim() || null,
+            // As typed, never through a number: the server keeps every digit of a price.
+            unit_cost: data.unit_cost.trim() || null,
             note: data.note || null,
         }));
         form.post(route('admin.stocks.receive'), {
             preserveScroll: true,
             onSuccess: () => closeReceive(),
+        });
+    };
+
+    const canTransfer = can.transfer ?? false;
+    const [transferOpen, setTransferOpen] = useState(false);
+    const [transferError, setTransferError] = useState<string | null>(null);
+    const transferForm = useForm<TransferFormData>({
+        product_id: '',
+        from_location_id: '',
+        to_location_id: '',
+        quantity: '1',
+        note: '',
+    });
+    const transferSource = useStockLookup(
+        transferForm.data.product_id,
+        transferForm.data.from_location_id,
+        canTransfer && transferOpen,
+    );
+
+    const openTransfer = () => {
+        transferForm.reset();
+        transferForm.clearErrors();
+        setTransferError(null);
+        setTransferOpen(true);
+    };
+
+    const closeTransfer = () => {
+        setTransferOpen(false);
+        transferForm.reset();
+        transferForm.clearErrors();
+        setTransferError(null);
+    };
+
+    const submitTransfer = (e: FormEvent) => {
+        e.preventDefault();
+        const { product_id, from_location_id, to_location_id } = transferForm.data;
+        const quantity = Number(transferForm.data.quantity);
+        if (!product_id || !from_location_id || !to_location_id || !(quantity > 0)) {
+            setTransferError('Dari, ke, barang, dan jumlah (lebih dari 0) wajib diisi.');
+            return;
+        }
+        if (from_location_id === to_location_id) {
+            setTransferError('Lokasi tujuan harus berbeda dari lokasi asal.');
+            return;
+        }
+        setTransferError(null);
+        transferForm.transform((data) => ({
+            ...data,
+            quantity,
+            note: data.note || null,
+        }));
+        transferForm.post(route('admin.stocks.transfer'), {
+            preserveScroll: true,
+            onSuccess: () => closeTransfer(),
         });
     };
 
@@ -183,6 +320,11 @@ export default function StockIndex({
         new_quantity: '',
         note: '',
     });
+    const adjustStock = useStockLookup(
+        adjustForm.data.product_id,
+        adjustForm.data.location_id,
+        canAdjustRequest && adjustOpen,
+    );
 
     const openAdjust = () => {
         adjustForm.reset();
@@ -381,6 +523,17 @@ export default function StockIndex({
                                     Terima Barang
                                 </Button>
                             )}
+                            {canTransfer && (
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={openTransfer}
+                                    aria-haspopup="dialog"
+                                >
+                                    Pindahkan stok
+                                </Button>
+                            )}
                             {canAdjustRequest && (
                                 <Button
                                     type="button"
@@ -517,6 +670,35 @@ export default function StockIndex({
                         onChange={(e) => form.setData('quantity', e.target.value)}
                         error={receiveErrors.quantity}
                     />
+                    <Input
+                        id="receive-supplier"
+                        label="Pemasok"
+                        maxLength={150}
+                        value={form.data.supplier_name}
+                        onChange={(e) => form.setData('supplier_name', e.target.value)}
+                        error={receiveErrors.supplier_name}
+                    />
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <Input
+                            id="receive-reference"
+                            label="No. faktur"
+                            maxLength={100}
+                            value={form.data.purchase_reference}
+                            onChange={(e) => form.setData('purchase_reference', e.target.value)}
+                            error={receiveErrors.purchase_reference}
+                        />
+                        <Input
+                            id="receive-unit-cost"
+                            type="number"
+                            min={0}
+                            step="any"
+                            label="Harga satuan"
+                            hint="Rupiah per satuan barang."
+                            value={form.data.unit_cost}
+                            onChange={(e) => form.setData('unit_cost', e.target.value)}
+                            error={receiveErrors.unit_cost}
+                        />
+                    </div>
                     <Textarea
                         id="receive-note"
                         label="Catatan"
@@ -537,6 +719,91 @@ export default function StockIndex({
                         </Button>
                         <Button type="submit" disabled={form.processing} loading={form.processing}>
                             {form.processing ? 'Menyimpan...' : 'Simpan'}
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
+
+            <Modal
+                open={canTransfer && transferOpen}
+                onClose={closeTransfer}
+                title="Pindahkan stok"
+                size="lg"
+            >
+                <form onSubmit={submitTransfer} className="space-y-4">
+                    <RemoteSearchSelect
+                        id="transfer-from"
+                        field="location"
+                        label="Dari"
+                        placeholder="Cari kode atau nama lokasi asal"
+                        required
+                        options={locationOptions}
+                        value={transferForm.data.from_location_id}
+                        onChange={(value) => transferForm.setData('from_location_id', value)}
+                        error={transferForm.errors.from_location_id}
+                    />
+                    <RemoteSearchSelect
+                        id="transfer-to"
+                        field="location"
+                        label="Ke"
+                        placeholder="Cari kode atau nama lokasi tujuan"
+                        required
+                        options={locationOptions}
+                        value={transferForm.data.to_location_id}
+                        onChange={(value) => transferForm.setData('to_location_id', value)}
+                        error={transferForm.errors.to_location_id}
+                    />
+                    <RemoteSearchSelect
+                        id="transfer-product"
+                        field="product"
+                        label="Barang"
+                        placeholder="Cari nama atau SKU"
+                        required
+                        options={productOptions}
+                        value={transferForm.data.product_id}
+                        onChange={(value) => transferForm.setData('product_id', value)}
+                        error={transferForm.errors.product_id}
+                    />
+                    <StockFigure
+                        lookup={transferSource}
+                        label="Tersedia di lokasi asal"
+                        pick="available"
+                    />
+                    <Input
+                        id="transfer-quantity"
+                        type="number"
+                        min={0.01}
+                        step="any"
+                        label="Jumlah"
+                        required
+                        value={transferForm.data.quantity}
+                        onChange={(e) => transferForm.setData('quantity', e.target.value)}
+                        error={transferForm.errors.quantity}
+                    />
+                    <Textarea
+                        id="transfer-note"
+                        label="Catatan"
+                        value={transferForm.data.note}
+                        onChange={(e) => transferForm.setData('note', e.target.value)}
+                        rows={3}
+                        maxLength={500}
+                        error={transferForm.errors.note}
+                    />
+                    {transferError && (
+                        <p role="alert" className="text-sm text-destructive-text">
+                            {transferError}
+                        </p>
+                    )}
+                    <div className="flex justify-end gap-3 pt-4">
+                        <Button type="button" variant="outline" onClick={closeTransfer}>
+                            Batal
+                        </Button>
+                        <Button
+                            type="submit"
+                            disabled={transferForm.processing}
+                            loading={transferForm.processing}
+                        >
+                            {transferForm.processing ? 'Memindahkan...' : 'Pindahkan'}
                         </Button>
                     </div>
                 </form>
@@ -574,6 +841,7 @@ export default function StockIndex({
                         onChange={(value) => adjustForm.setData('location_id', value)}
                         error={adjustForm.errors.location_id}
                     />
+                    <StockFigure lookup={adjustStock} label="Stok sistem" pick="quantity" />
                     <Input
                         id="adjust-quantity"
                         type="number"

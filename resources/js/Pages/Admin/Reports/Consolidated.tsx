@@ -25,7 +25,7 @@ import {
 } from '@/Components/ui';
 import { usePermission } from '@/hooks/usePermission';
 import { useVisitPending } from '@/hooks/useVisitPending';
-import { formatDate, formatMoney, formatNumber } from '@/lib/format';
+import { formatDate, formatMoney, formatNumber, formatPercent } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type {
     BusinessMetrics,
@@ -85,7 +85,7 @@ function MetricValue({ metric, metrics, sla, currency }: MetricValueProps) {
         case 'sla_compliance_pct':
             return (
                 <>
-                    {metrics.sla_compliance_pct}%
+                    {formatPercent(metrics.sla_compliance_pct)}
                     <span className="block text-xs font-normal text-muted-foreground">
                         {sla.on_time} dari {sla.resolved} tepat waktu
                     </span>

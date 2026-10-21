@@ -9,7 +9,6 @@ use App\Support\Money;
 use App\Support\PublicId;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Modules\Inventory\Models\InventoryRequest;
 use Modules\Inventory\Models\InventoryRequestItem;
@@ -613,7 +612,7 @@ class ApprovalInboxQuery
                 ->all(),
             'technician' => $workOrder->assignee === null ? null : ['name' => $workOrder->assignee->name],
             // Only what the sheet words itself: the technician's own coordinates never leave the server.
-            'check_in' => $checkIn === null ? null : Arr::only($checkIn, ['status', 'distance_m', 'accuracy_m', 'reason']),
+            'check_in' => FieldCheckIn::pageSummary($checkIn),
             'items' => $workOrder->items->map(fn (WorkOrderItem $item): array => [
                 'name' => $item->product?->name ?? '-',
                 'quantity' => (string) $item->quantity_used,

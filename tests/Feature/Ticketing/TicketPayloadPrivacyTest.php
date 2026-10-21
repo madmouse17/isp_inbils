@@ -8,6 +8,7 @@ use App\Models\Core\Customer;
 use App\Models\Core\CustomerAddress;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
+use App\Services\Core\AuditService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -94,6 +95,24 @@ class TicketPayloadPrivacyTest extends TestCase
         $this->assertSame($this->portal->public_id, $customer['user_id'], 'the page tells the customer from staff by this account');
         $this->assertSame('081234567890', $customer['phone']);
         $this->assertNoCustomerRecord($props);
+    }
+
+    public function test_a_portal_account_never_gets_the_technicians_check_in_on_the_ticket_page(): void
+    {
+        AuditService::log('ticket', 'check_in', [
+            'status' => 'recorded', 'lat' => -6.19, 'lng' => 106.8, 'accuracy_m' => 9.0, 'captured_at' => null,
+            'distance_m' => 1112, 'far' => true, 'far_reason' => 'Pelanggan minta ketemu di warung',
+        ], $this->ticket);
+        // Roles stack: the customer role gives portal.access and another one the web, so the customer reaches the admin page of their own ticket.
+        $this->grantPermissions($this->portal, ['app.web', 'ticket.view']);
+
+        $staff = $this->props($this->reader, route('admin.tickets.show', $this->ticket))['ticket']['data'];
+        $this->assertSame('Pelanggan minta ketemu di warung', $staff['check_in']['far_reason'], 'staff read why the start was far');
+
+        $page = $this->props($this->portal, route('admin.tickets.show', $this->ticket));
+        $this->assertSame('TKT-PRIV', $page['ticket']['data']['code'], 'the customer reads their own ticket');
+        $this->assertArrayNotHasKey('check_in', $page['ticket']['data']);
+        $this->assertStringNotContainsString('warung', (string) json_encode($page));
     }
 
     public function test_a_customer_view_holder_reads_the_record_on_the_ticket_page_and_a_name_in_the_list(): void

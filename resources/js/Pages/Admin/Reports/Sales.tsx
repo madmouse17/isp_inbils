@@ -24,7 +24,7 @@ import {
 } from '@/Components/ui';
 import { useCompany } from '@/hooks/useCompany';
 import { useServerTable } from '@/hooks/useServerTable';
-import { formatDate, formatMoney, formatNumber } from '@/lib/format';
+import { formatDate, formatMoney, formatNumber, formatPercent } from '@/lib/format';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
 import type { Company, ReportMeta, SalesChartData } from '@/types';
 import { SalesCharts } from './components/SalesCharts';
@@ -96,7 +96,10 @@ function formatMetric(key: SalesMetricKey, metrics: Metrics, company: Company | 
         case 'outstanding':
             return formatMoney(metrics[key], company);
         case 'collection_rate':
-            return metrics.collection_rate === null ? '-' : `${metrics.collection_rate}%`;
+            // The rate keeps its two decimals (v1 rounds to 2), written with the decimal comma.
+            return metrics.collection_rate === null
+                ? '-'
+                : formatPercent(metrics.collection_rate, 2);
     }
 }
 

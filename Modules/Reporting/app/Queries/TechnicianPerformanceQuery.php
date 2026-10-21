@@ -2,6 +2,7 @@
 
 namespace Modules\Reporting\Queries;
 
+use App\Models\Core\EmployeeEvaluation;
 use App\Models\Core\EmployeeProfile;
 use App\Models\User;
 use App\Services\Core\CompanyService;
@@ -12,6 +13,8 @@ use Modules\Reporting\Queries\Concerns\AppliesDateRange;
 use Modules\Reporting\Queries\Sources\SlaSources;
 use Modules\Reporting\Queries\Sources\TechnicianSources;
 use Modules\Reporting\Support\TimeBuckets;
+use Modules\SPK\Models\WorkOrder;
+use Modules\Ticketing\Models\Ticket;
 
 class TechnicianPerformanceQuery
 {
@@ -108,6 +111,82 @@ class TechnicianPerformanceQuery
             'spk_by_type' => $spkByType,
             'tickets_by_category' => $ticketsByCategory,
         ];
+    }
+
+    /**
+     * Every technician the actor may select, ranked by the work they finished in the period (F9-U02): one grouped query
+     * per measure over all of them, never one per technician. The figures are those of execute() for the same period,
+     * except that a technician without a resolved ticket has no SLA rate (null, where execute() says 0) and a missing
+     * average is null. Ties share a rank; the order within a rank is by name.
+     *
+     * @return list<array{id: string, name: string, rank: int, spk_completed: int, tickets_resolved: int, sla_compliance_pct: float|null, avg_frt_minutes: int|null, avg_score: float|null, active_workload: int}>
+     */
+    public static function ranking(User $actor, ?string $dateFrom = null, ?string $dateTo = null, ?int $companyId = null): array
+    {
+        $companyId ??= self::companyId($actor);
+        $technicians = self::eligibleTechnicians($actor)->orderBy('users.name')->orderBy('users.id')->get(['users.id', 'users.public_id', 'users.name']);
+
+        if ($technicians->isEmpty()) {
+            return [];
+        }
+
+        $ids = $technicians->pluck('id')->all();
+        $perTechnician = fn (Builder $query, string $column = 'assigned_to') => $query->whereIn($column, $ids)->groupBy($column);
+
+        $completed = WorkOrder::forCompany($companyId)->where('status', 'completed');
+        self::applyDateRange($completed, 'completed_at', $dateFrom, $dateTo);
+        $completed = $perTechnician($completed)->selectRaw('assigned_to, count(*) as total')->pluck('total', 'assigned_to');
+
+        $resolved = Ticket::forCompany($companyId)->whereIn('status', ['resolved', 'closed']);
+        self::applyDateRange($resolved, 'tickets.resolved_at', $dateFrom, $dateTo);
+        $resolved = $perTechnician($resolved)
+            ->selectRaw('assigned_to, count(*) as resolved')
+            ->selectRaw('SUM(CASE WHEN resolved_at <= sla_deadline THEN 1 ELSE 0 END) as compliant')
+            ->selectRaw('AVG(CASE WHEN first_response_at IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, created_at, first_response_at) END) as avg_frt')
+            ->get()->keyBy('assigned_to');
+
+        $evaluated = EmployeeEvaluation::forCompany($companyId);
+        self::applyDateRange($evaluated, 'evaluated_at', $dateFrom, $dateTo);
+        $scores = $perTechnician($evaluated, 'employee_id')->selectRaw('employee_id, AVG(score) as average')->pluck('average', 'employee_id');
+
+        $activeSpk = $perTechnician(WorkOrder::forCompany($companyId)->whereIn('status', ['assigned', 'in_progress']))
+            ->selectRaw('assigned_to, count(*) as total')->pluck('total', 'assigned_to');
+        $activeTickets = $perTechnician(Ticket::forCompany($companyId)->whereIn('status', ['open', 'assigned', 'on_progress']))
+            ->selectRaw('assigned_to, count(*) as total')->pluck('total', 'assigned_to');
+
+        $rows = $technicians->map(function (User $technician) use ($completed, $resolved, $scores, $activeSpk, $activeTickets): array {
+            $tickets = $resolved->get($technician->id);
+            $finished = (int) ($tickets?->resolved ?? 0);
+            $average = $tickets?->avg_frt;
+            $score = $scores->get($technician->id);
+
+            return [
+                'id' => $technician->public_id,
+                'name' => $technician->name,
+                'rank' => 0,
+                'spk_completed' => (int) $completed->get($technician->id, 0),
+                'tickets_resolved' => $finished,
+                'sla_compliance_pct' => $finished > 0 ? round(((int) $tickets->compliant / $finished) * 100, 1) : null,
+                'avg_frt_minutes' => $average ? (int) round((float) $average) : null,
+                'avg_score' => $score ? round((float) $score, 1) : null,
+                'active_workload' => (int) $activeSpk->get($technician->id, 0) + (int) $activeTickets->get($technician->id, 0),
+            ];
+        })->all();
+
+        // Most finished work first; usort is stable, so equal totals keep the order by name.
+        usort($rows, fn (array $a, array $b): int => $b['spk_completed'] + $b['tickets_resolved'] <=> $a['spk_completed'] + $a['tickets_resolved']);
+
+        $rank = 0;
+        $previousTotal = null;
+
+        foreach ($rows as $index => $row) {
+            $total = $row['spk_completed'] + $row['tickets_resolved'];
+            $rank = $total === $previousTotal ? $rank : $index + 1;
+            $previousTotal = $total;
+            $rows[$index]['rank'] = $rank;
+        }
+
+        return $rows;
     }
 
     /**

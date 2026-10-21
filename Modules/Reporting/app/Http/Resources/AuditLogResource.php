@@ -14,7 +14,6 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Pagination\AbstractPaginator;
-use Illuminate\Support\Collection;
 use Spatie\Activitylog\Models\Activity;
 
 /**
@@ -42,9 +41,7 @@ class AuditLogResource extends JsonResource
     public function toArray(Request $request): array
     {
         $canViewProperties = $request->user()?->can('report.audit.view') ?? false;
-        /** @var Collection|null $props */
-        $props = $this->resource->properties ?? null;
-        $properties = ($canViewProperties && $props) ? AuditProperties::forDisplay($props->toArray()) : [];
+        $properties = $canViewProperties ? AuditProperties::forActivity($this->resource) : [];
 
         $causer = $this->resource->causer;
         $platformCauser = $causer instanceof PlatformAdmin;

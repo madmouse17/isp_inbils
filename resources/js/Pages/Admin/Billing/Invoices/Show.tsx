@@ -81,6 +81,8 @@ interface OnlineAttempt extends InvoicePaymentAttempt {
 interface ShowProps extends Record<string, unknown> {
     invoice: { data: Invoice & InvoiceSnapshots };
     onlinePayments: { enabled: boolean; attempts: { data: OnlineAttempt[] } };
+    /** The company's PPN in percent: the item dialog starts from it. */
+    tax_rate: number;
     can: InvoiceCan & {
         /** Download the receipt of a paid invoice: `billing.pdf.view`. */
         receipt: boolean;
@@ -114,7 +116,7 @@ function rememberPaymentMethod(method: string): void {
     }
 }
 
-export default function Show({ invoice, onlinePayments, can }: ShowProps) {
+export default function Show({ invoice, onlinePayments, tax_rate: taxRate, can }: ShowProps) {
     const inv = invoice.data;
     const attempts = onlinePayments.attempts.data;
     // Newest first: recording a payment closes every pending page, so any of them is a warning.
@@ -144,7 +146,6 @@ export default function Show({ invoice, onlinePayments, can }: ShowProps) {
         quantity: '1',
         unit_price: '',
         discount_amount: '0',
-        tax_rate: '0',
         reason: '',
     });
 
@@ -266,6 +267,11 @@ export default function Show({ invoice, onlinePayments, can }: ShowProps) {
                             >
                                 Unduh PDF
                             </Button>
+                            {isDraft && can.update && (
+                                <Button asChild variant="outline" size="sm">
+                                    <Link href={route('admin.invoices.edit', inv.id)}>Ubah</Link>
+                                </Button>
+                            )}
                             {inv.status === 'paid' && can.receipt && (
                                 <Button
                                     type="button"
@@ -905,15 +911,11 @@ export default function Show({ invoice, onlinePayments, can }: ShowProps) {
                                 onChange={(e) => setData('discount_amount', e.target.value)}
                                 error={errors.discount_amount}
                             />
-                            <Input
-                                label="Pajak (%)"
-                                type="number"
-                                step="0.01"
-                                value={data.tax_rate}
-                                onChange={(e) => setData('tax_rate', e.target.value)}
-                                error={errors.tax_rate}
-                            />
                         </div>
+                        <p className="text-sm text-muted-foreground">
+                            Pajak PPN {formatDecimal(taxRate, 2)}% mengikuti pengaturan perusahaan,
+                            dihitung per baris.
+                        </p>
                         <div className="flex justify-end gap-2">
                             <Button
                                 type="button"

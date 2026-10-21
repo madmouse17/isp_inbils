@@ -37,6 +37,40 @@ class CompanyBillingSettingsTest extends TestCase
         $this->assertSame(30, BillingService::dueDaysFor($company->id));
     }
 
+    public function test_a_stored_rate_or_term_no_invoice_can_hold_is_read_as_the_nearest_value_that_works(): void
+    {
+        $company = $this->createCompanyUser()->company;
+
+        foreach ([[-11, 0.0], [1000, 100.0], [11, 11.0]] as [$stored, $read]) {
+            $company->update(['settings' => [...($company->settings ?? []), 'tax_ppn_rate' => $stored]]);
+            $this->assertSame($read, BillingService::taxRateFor($company->id), "a rate of {$stored}");
+        }
+
+        foreach ([[-60, 0], [9999, 365], [30, 30]] as [$stored, $read]) {
+            $company->update(['settings' => [...($company->settings ?? []), 'invoice_due_days' => $stored]]);
+            $this->assertSame($read, BillingService::dueDaysFor($company->id), "a term of {$stored} days");
+        }
+    }
+
+    public function test_the_rate_and_the_term_are_checked_where_they_are_typed(): void
+    {
+        $user = $this->createCompanyUser();
+        $this->actingAs($user);
+        $save = fn (array $settings) => $this->putJson(route('admin.company.settings.update'), ['settings' => $settings, OptimisticLock::FIELD => OptimisticLock::version($user->company->fresh())]);
+
+        foreach ([-11, 100.01, 1000, 'sebelas', '11.555'] as $rate) {
+            $save(['tax_ppn_rate' => $rate])->assertUnprocessable()->assertJsonValidationErrors('settings.tax_ppn_rate');
+        }
+        foreach ([-60, 366, 7.5, 'dua minggu'] as $days) {
+            $save(['invoice_due_days' => $days])->assertUnprocessable()->assertJsonValidationErrors('settings.invoice_due_days');
+        }
+        $this->assertArrayNotHasKey('tax_ppn_rate', $user->company->fresh()->settings ?? [], 'a refused save writes nothing');
+
+        $save(['tax_ppn_rate' => '11.50', 'invoice_due_days' => 365])->assertRedirect();
+        $save(['tax_ppn_rate' => 0, 'invoice_due_days' => 0])->assertRedirect();
+        $this->assertEquals(['tax_ppn_rate' => 0, 'invoice_due_days' => 0], collect($user->company->fresh()->settings)->only(['tax_ppn_rate', 'invoice_due_days'])->all());
+    }
+
     public function test_settings_page_shows_billing_keys(): void
     {
         $user = $this->createCompanyUser();

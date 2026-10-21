@@ -2,12 +2,17 @@
 
 namespace App\Support;
 
+use App\Models\Core\Company;
 use App\Services\Core\AuditService;
+use App\Services\Core\CompanyService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Dompdf\Canvas;
+use Dompdf\FontMetrics;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -48,6 +53,14 @@ class ExportQuery
     private string $defaultSort = 'id';
 
     private string $defaultDirection = 'asc';
+
+    /** @var array<string, string|callable> PDF only: the type of a column by header, or a function of the source row that names it. */
+    private array $types = [];
+
+    private ?string $period = null;
+
+    /** @var list<string> */
+    private array $filterLines = [];
 
     /** @param  Builder<*>|list<array<string, mixed>>  $query */
     private function __construct(Builder|array $query)
@@ -218,6 +231,34 @@ class ExportQuery
         return $this;
     }
 
+    /**
+     * PDF only, the CSV keeps its raw values: how the cells of a column are printed, by column header. A type is one of
+     * ExportFormat::TYPES; a function of the source row may name it instead, for a column that holds different kinds of
+     * figure (and is aligned as one). A column without a type prints as it is.
+     *
+     * @param  array<string, string|callable(mixed): ?string>  $types
+     */
+    public function types(array $types): self
+    {
+        $this->types = $types;
+
+        return $this;
+    }
+
+    /**
+     * PDF only: what the header says about the data besides the report's title, already in words (no ids): the period
+     * and one phrase per filter that is applied.
+     *
+     * @param  list<string>  $filters
+     */
+    public function describe(?string $period = null, array $filters = []): self
+    {
+        $this->period = $period;
+        $this->filterLines = $filters;
+
+        return $this;
+    }
+
     public function sort(string $column, string $direction = 'asc'): self
     {
         $query = clone $this->builder();
@@ -374,6 +415,8 @@ class ExportQuery
         $max = min($this->maxRowsLimit(), intdiv(self::PDF_MAX_CELLS, max(1, count($headers))));
 
         return response()->streamDownload(function () use ($headers, $max, $title, $columns) {
+            $company = CompanyService::current();
+            $format = ExportFormat::forCompany($company);
             $rows = [];
             $capped = false;
             foreach ($this->rows() as $row) {
@@ -381,18 +424,72 @@ class ExportQuery
                     $capped = true;
                     break;
                 }
-                $rows[] = array_combine($headers, self::dataRow($row, $columns));
+                $rows[] = $this->pdfCells($row, $columns, $headers, $format);
             }
 
-            echo Pdf::loadView('exports.table', [
+            $pdf = Pdf::loadView('exports.table', [
                 'title' => $title,
                 'headers' => $headers,
                 'rows' => $rows,
                 'capped' => $capped,
                 'maxRows' => $max,
-            ])->setPaper('a4', 'landscape')->setOption('isRemoteEnabled', false)->output();
+                'figures' => array_keys(array_filter($this->types, fn (mixed $type): bool => ! is_string($type) || in_array($type, ExportFormat::FIGURES, true))),
+                'company' => ['name' => $company?->name, 'logo' => self::logoOf($company)],
+                'period' => $this->period,
+                'filters' => $this->filterLines,
+                'printedAt' => $format->now(),
+                'printedBy' => ($this->request ?? request())->user()?->name,
+            ])->setPaper('a4', 'landscape')
+                ->setOption('isRemoteEnabled', false)
+                // The package turns subsetting off, which embeds the whole DejaVu font (about 880 KB) in every file.
+                ->setOption('isFontSubsettingEnabled', true);
+            $pdf->getDomPDF()->setCallbacks(['pageNumbers' => ['event' => 'end_document', 'f' => self::pageNumber(...)]]);
+
+            echo $pdf->output();
             $this->auditExport('pdf', count($rows), $capped);
         }, $filename, $this->downloadHeaders('application/pdf', $max));
+    }
+
+    /**
+     * One table row of the PDF, keyed by header: the declared type of each column applied, the raw value kept otherwise.
+     *
+     * @param  array<int|string, mixed>  $columns
+     * @param  array<int, string>  $headers
+     * @return array<string, string|int|float>
+     */
+    private function pdfCells(mixed $row, array $columns, array $headers, ExportFormat $format): array
+    {
+        $cells = array_combine($headers, self::dataRow($row, $columns));
+
+        foreach ($this->types as $header => $type) {
+            // A name is a string ("date" is also a PHP function, so is_callable() cannot tell them apart); anything else is asked.
+            $type = is_string($type) ? $type : $type($row);
+
+            if ($type !== null && isset($cells[$header])) {
+                $cells[$header] = $format->cell($cells[$header], $type);
+            }
+        }
+
+        return $cells;
+    }
+
+    /** "Halaman 2 dari 5" at the foot of every page, drawn once the page count is known (no inline PHP in the view). */
+    private static function pageNumber(int $page, int $pages, Canvas $canvas, FontMetrics $fonts): void
+    {
+        $font = $fonts->getFont('DejaVu Sans');
+        $text = "Halaman {$page} dari {$pages}";
+        $size = 8.0;
+
+        $canvas->text($canvas->get_width() - 32 - $fonts->getTextWidth($text, $font, $size), $canvas->get_height() - 28, $text, $font, $size, [0.4, 0.4, 0.4]);
+    }
+
+    /** The company's logo as a data URI the PDF can embed without fetching anything; null when it has none or the file is gone. */
+    private static function logoOf(?Company $company): ?string
+    {
+        $logo = $company?->getFirstMedia('logo');
+        $bytes = $logo === null ? null : Storage::disk($logo->disk)->get($logo->getPathRelativeToRoot());
+
+        return $bytes === null ? null : 'data:'.$logo->mime_type.';base64,'.base64_encode($bytes);
     }
 
     /** One row per finished download; an aborted stream never reaches it. */

@@ -25,7 +25,7 @@ const dictionaryReports = [
         title: 'Kepatuhan SLA',
         permission: 'report.sla.view',
         version: 'sla.v1',
-        metrics: 11,
+        metrics: 16,
     },
     {
         key: 'asset',
@@ -247,7 +247,7 @@ test.describe('@smoke @reporting-v2 data dictionary and formula definitions', ()
         );
 
         // The table of contents is real navigation: it moves to the report section.
-        const slaLink = toc.getByRole('link', { name: 'Kepatuhan SLA (11)', exact: true });
+        const slaLink = toc.getByRole('link', { name: 'Kepatuhan SLA (16)', exact: true });
         await slaLink.focus();
         await page.keyboard.press('Enter');
         await expect(page).toHaveURL(/\/admin\/reports\/dictionary#dictionary-sla$/);

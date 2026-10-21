@@ -1,15 +1,28 @@
-﻿import type { FormEvent } from 'react';
+import type { FormEvent } from 'react';
 import { Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Switch } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
+import { CalendarField, type SlaCalendar } from './components/CalendarField';
 
-export default function Create() {
-    const { data, setData, post, processing, errors } = useForm({
+interface CreateProps extends Record<string, unknown> {
+    /** Whether the company has set its service hours. */
+    serviceHoursSet: boolean;
+}
+
+export default function Create({ serviceHoursSet }: CreateProps) {
+    const { data, setData, post, processing, errors } = useForm<{
+        name: string;
+        response_time_hours: string;
+        resolution_time_hours: string;
+        calendar: SlaCalendar;
+        is_active: boolean;
+    }>({
         name: '',
         response_time_hours: '',
         resolution_time_hours: '',
+        calendar: '24h',
         is_active: true,
     });
 
@@ -77,9 +90,15 @@ export default function Create() {
                                     onCheckedChange={(c) => setData('is_active', c)}
                                 />
                             </div>
+                            <CalendarField
+                                value={data.calendar}
+                                onChange={(calendar) => setData('calendar', calendar)}
+                                error={errors.calendar}
+                                serviceHoursSet={serviceHoursSet}
+                            />
                             <p className="text-sm text-muted-foreground md:col-span-2">
                                 Tiket berprioritas mendesak memakai setengah dari kedua target
-                                (dibulatkan ke atas). Jam dihitung kalender, bukan jam kerja.
+                                (dibulatkan ke atas).
                             </p>
                         </CardContent>
                     </Card>

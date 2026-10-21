@@ -94,7 +94,9 @@ class InvoiceDraftLockTest extends TestCase
     public function test_a_save_recalculates_the_totals_inside_the_same_write(): void
     {
         $invoice = $this->draft();
-        $this->actingAs($this->admin)->post(route('admin.invoices.items.store', $invoice), ['description' => 'Kabel', 'quantity' => 2, 'unit_price' => 50000, 'tax_rate' => 10])->assertRedirect();
+        // The line takes the company's PPN; the dialog no longer names a rate.
+        $this->admin->company->update(['settings' => [...($this->admin->company->settings ?? []), 'tax_ppn_rate' => 10]]);
+        $this->actingAs($this->admin)->post(route('admin.invoices.items.store', $invoice), ['description' => 'Kabel', 'quantity' => 2, 'unit_price' => 50000])->assertRedirect();
         $invoice = $invoice->fresh();
         DB::table('invoices')->where('id', $invoice->id)->update(['updated_at' => now()->subMinutes(5)]);
 

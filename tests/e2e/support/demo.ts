@@ -258,3 +258,21 @@ export async function inertiaProps(page: Page, url: string) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return JSON.parse(json) as { props?: Record<string, any> };
 }
+
+/**
+ * The unit price of a one-line invoice that comes to exactly `total` rupiah once the company's PPN is added, read from the
+ * invoice page now open. A line takes the company's rate (the item dialog has no tax field), and the line total and the tax
+ * are each whole rupiah, so the price is found by trying the one next to the plain division.
+ */
+export async function unitPriceForTotal(page: Page, total: number): Promise<number> {
+    const rate = Number((await inertiaProps(page, new URL(page.url()).pathname)).props?.tax_rate);
+    const guess = Math.round(total / (1 + rate / 100));
+    const price = [guess, guess - 1, guess + 1].find(
+        (candidate) => candidate + Math.round((candidate * rate) / 100) === total,
+    );
+
+    if (price === undefined)
+        throw new Error(`No whole-rupiah line makes ${total} with a PPN of ${rate}%.`);
+
+    return price;
+}

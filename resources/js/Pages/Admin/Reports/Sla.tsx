@@ -1,6 +1,6 @@
-import type { FormEvent } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { useState } from 'react';
-import { router, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
     FormulaVersionLabel,
@@ -22,9 +22,17 @@ import {
     type DateRange,
 } from '@/Components/ui';
 import { useVisitPending } from '@/hooks/useVisitPending';
-import { formatDecimal, formatPercent } from '@/lib/format';
-import type { ReportMeta, SlaChartData } from '@/types';
+import { formatDecimal, formatNumber, formatPercent } from '@/lib/format';
+import { labelOf, PRIORITY } from '@/lib/statuses';
+import type {
+    MetricDefinitionData,
+    ReportMeta,
+    SlaChartData,
+    SlaSplitRow,
+    SlaViolator,
+} from '@/types';
 import { DrillLink, type DrillLinks } from './components/DrillLink';
+import { formatMinutes } from './components/formatMinutes';
 import { ReportExportMenu } from './components/ReportExportMenu';
 import { SlaCharts } from './components/SlaCharts';
 
@@ -34,7 +42,12 @@ type SlaMetricKey =
     | 'response_rate'
     | 'breach_count'
     | 'avg_resolution_minutes'
-    | 'by_category';
+    | 'by_category'
+    | 'by_technician'
+    | 'by_priority'
+    | 'by_source'
+    | 'csat_average'
+    | 'csat_count';
 
 interface SlaData extends Record<string, unknown> {
     total_resolved?: number;
@@ -48,18 +61,96 @@ interface SlaData extends Record<string, unknown> {
     response_breached?: number;
     response_without_target?: number;
     response_rate?: number | null;
+    by_technician?: SlaSplitRow[];
+    by_priority?: SlaSplitRow[];
+    by_source?: SlaSplitRow[];
+    csat_average?: number | null;
+    csat_count?: number;
 }
 
 interface Props extends Record<string, unknown> {
     data?: SlaData;
     charts: SlaChartData;
+    /** The ten tickets that missed their deadline by the most; null for a viewer who may not list tickets. */
+    violators: SlaViolator[] | null;
     filters: { date_from?: string; date_to?: string; category_id?: string };
     meta: ReportMeta<SlaMetricKey>;
     can: { export: boolean };
     drill: DrillLinks;
 }
 
-export default function Sla({ data, charts, filters, meta, can, drill }: Props) {
+interface SplitCardProps {
+    definition: MetricDefinitionData;
+    /** Heading of the first column: what the rows are grouped by. */
+    groupedBy: string;
+    rows: SlaSplitRow[];
+    nameOf: (name: string | null) => string;
+}
+
+/** The tickets resolved in the period for each handler, priority or target source: how many, on time, late and how fast the first answer was. */
+function SplitCard({ definition, groupedBy, rows, nameOf }: SplitCardProps) {
+    return (
+        <Card>
+            <CardContent className="space-y-4 pt-6">
+                <div className="min-w-0">
+                    <p className="font-medium">{definition.label}</p>
+                    <MetricDefinitionNote
+                        definition={definition}
+                        className="mt-2 border-t-0 pt-0"
+                    />
+                </div>
+                <Table>
+                    <THead>
+                        <TR>
+                            <TH>{groupedBy}</TH>
+                            <TH className="text-right">Tiket selesai</TH>
+                            <TH className="text-right">Sesuai SLA</TH>
+                            <TH className="text-right">Melanggar</TH>
+                            <TH className="text-right">Persentase</TH>
+                            <TH className="text-right">Respons pertama</TH>
+                        </TR>
+                    </THead>
+                    <TBody>
+                        {rows.length === 0 ? (
+                            <TR>
+                                <TD colSpan={6} className="py-10 text-center text-muted-foreground">
+                                    Tidak ada data.
+                                </TD>
+                            </TR>
+                        ) : (
+                            rows.map((row, index) => (
+                                <TR key={`${row.name ?? '-'}-${index}`}>
+                                    <TD>{nameOf(row.name)}</TD>
+                                    <TD className="text-right tabular-nums">
+                                        {formatNumber(row.total)}
+                                    </TD>
+                                    <TD className="text-right tabular-nums">
+                                        {formatNumber(row.compliant)}
+                                    </TD>
+                                    <TD className="text-right tabular-nums">
+                                        {formatNumber(row.breached)}
+                                    </TD>
+                                    <TD className="text-right tabular-nums">
+                                        {formatPercent(row.rate)}
+                                    </TD>
+                                    <TD className="text-right whitespace-nowrap tabular-nums">
+                                        {formatMinutes(row.avg_frt_minutes)}
+                                    </TD>
+                                </TR>
+                            ))
+                        )}
+                    </TBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
+}
+
+function Cell({ children }: { children: ReactNode }) {
+    return <TD className="max-w-64 truncate">{children}</TD>;
+}
+
+export default function Sla({ data, charts, violators, filters, meta, can, drill }: Props) {
     const errors = (usePage().props.errors ?? {}) as Record<string, string | undefined>;
     const [range, setRange] = useState<DateRange>({
         from: filters.date_from ?? null,
@@ -81,7 +172,7 @@ export default function Sla({ data, charts, filters, meta, can, drill }: Props) 
             <div className="space-y-6">
                 <PageHeader
                     title="Kepatuhan SLA"
-                    subtitle="Tingkat penyelesaian sesuai SLA, jumlah pelanggaran, dan rincian per kategori."
+                    subtitle="Tingkat penyelesaian sesuai SLA, jumlah pelanggaran, rincian per kategori, teknisi, prioritas, dan sumber target, serta kepuasan pelanggan."
                     actions={
                         <>
                             <FormulaVersionLabel version={meta.formula_version} />
@@ -195,6 +286,31 @@ export default function Sla({ data, charts, filters, meta, can, drill }: Props) 
                                     />
                                 </CardContent>
                             </Card>
+                            <Card>
+                                <CardContent>
+                                    <p className="text-sm text-muted-foreground">
+                                        {meta.metrics.csat_average.label}
+                                    </p>
+                                    <p className="text-2xl font-bold">
+                                        {data.csat_average == null ? (
+                                            '-'
+                                        ) : (
+                                            <>
+                                                {formatDecimal(data.csat_average)}
+                                                <span className="ml-1 text-sm font-normal text-muted-foreground">
+                                                    dari 5
+                                                </span>
+                                            </>
+                                        )}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        {(data.csat_count ?? 0) === 0
+                                            ? 'Belum ada penilaian pada periode ini.'
+                                            : `${formatNumber(data.csat_count ?? 0)} penilaian`}
+                                    </p>
+                                    <MetricDefinitionNote definition={meta.metrics.csat_average} />
+                                </CardContent>
+                            </Card>
                         </div>
                         <SlaCharts charts={charts} byCategory={data.by_category ?? []} />
                         <Card>
@@ -246,6 +362,91 @@ export default function Sla({ data, charts, filters, meta, can, drill }: Props) 
                                 </Table>
                             </CardContent>
                         </Card>
+                        <SplitCard
+                            definition={meta.metrics.by_technician}
+                            groupedBy="Teknisi"
+                            rows={data.by_technician ?? []}
+                            nameOf={(name) => name ?? 'Belum ditugaskan'}
+                        />
+                        <SplitCard
+                            definition={meta.metrics.by_priority}
+                            groupedBy="Prioritas"
+                            rows={data.by_priority ?? []}
+                            nameOf={(name) => labelOf(PRIORITY, name)}
+                        />
+                        <SplitCard
+                            definition={meta.metrics.by_source}
+                            groupedBy="Sumber target"
+                            rows={data.by_source ?? []}
+                            nameOf={(name) =>
+                                name === null ? 'Target kategori tiket' : `Tingkat SLA ${name}`
+                            }
+                        />
+                        {violators !== null && (
+                            <Card>
+                                <CardContent className="space-y-4 pt-6">
+                                    <div className="min-w-0">
+                                        <p className="font-medium">Pelanggaran terlama</p>
+                                        <p className="text-sm text-muted-foreground">
+                                            Sepuluh tiket selesai yang paling lama melewati batas
+                                            SLA pada periode ini.
+                                        </p>
+                                        <DrillLink
+                                            href={drill.breach_count}
+                                            label={meta.metrics.breach_count.label}
+                                            text="Lihat semua pelanggaran"
+                                        />
+                                    </div>
+                                    <Table>
+                                        <THead>
+                                            <TR>
+                                                <TH>Tiket</TH>
+                                                <TH>Judul</TH>
+                                                <TH>Kategori</TH>
+                                                <TH>Penangan</TH>
+                                                <TH>Prioritas</TH>
+                                                <TH className="text-right">Terlambat</TH>
+                                            </TR>
+                                        </THead>
+                                        <TBody>
+                                            {violators.length === 0 ? (
+                                                <TR>
+                                                    <TD
+                                                        colSpan={6}
+                                                        className="py-10 text-center text-muted-foreground"
+                                                    >
+                                                        Tidak ada tiket yang melanggar SLA pada
+                                                        periode ini.
+                                                    </TD>
+                                                </TR>
+                                            ) : (
+                                                violators.map((ticket) => (
+                                                    <TR key={ticket.id}>
+                                                        <TD className="whitespace-nowrap">
+                                                            <Link
+                                                                href={ticket.url}
+                                                                className="rounded-sm font-medium text-primary-text underline underline-offset-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-hidden"
+                                                            >
+                                                                {ticket.code}
+                                                            </Link>
+                                                        </TD>
+                                                        <Cell>{ticket.title}</Cell>
+                                                        <Cell>{ticket.category ?? '-'}</Cell>
+                                                        <Cell>{ticket.assignee ?? '-'}</Cell>
+                                                        <TD>
+                                                            {labelOf(PRIORITY, ticket.priority)}
+                                                        </TD>
+                                                        <TD className="text-right whitespace-nowrap tabular-nums">
+                                                            {formatMinutes(ticket.late_minutes)}
+                                                        </TD>
+                                                    </TR>
+                                                ))
+                                            )}
+                                        </TBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
+                        )}
                     </div>
                 )}
             </div>

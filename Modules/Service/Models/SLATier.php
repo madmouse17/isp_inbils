@@ -17,6 +17,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property string $name
  * @property int $response_time_hours
  * @property int $resolution_time_hours
+ * @property string $calendar how the targets are counted: CALENDAR_24H or CALENDAR_BUSINESS
  * @property bool $is_active
  */
 class SLATier extends Model
@@ -28,13 +29,26 @@ class SLATier extends Model
     use LogsActivity;
     use SoftDeletes;
 
+    /** Every hour counts. */
+    public const CALENDAR_24H = '24h';
+
+    /** Only the open hours of the company count (companies.settings.service_hours). */
+    public const CALENDAR_BUSINESS = 'business';
+
+    public const CALENDARS = [self::CALENDAR_24H, self::CALENDAR_BUSINESS];
+
     protected $table = 'sla_tiers';
 
     protected $fillable = [
         'name',
         'response_time_hours',
         'resolution_time_hours',
+        'calendar',
         'is_active',
+    ];
+
+    protected $attributes = [
+        'calendar' => self::CALENDAR_24H,
     ];
 
     protected $casts = [

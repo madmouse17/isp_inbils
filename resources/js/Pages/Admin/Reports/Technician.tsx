@@ -1,13 +1,27 @@
-import type { FormEvent } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { useEffect } from 'react';
-import { useForm } from '@inertiajs/react';
+import { Link, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite';
 import { RemoteSearchSelect, type RemoteOption } from '@/Components/composite/RemoteSearchSelect';
-import { Button, Card, CardContent, CardHeader, CardTitle, DateRangePicker } from '@/Components/ui';
-import { formatDecimal, formatPercent } from '@/lib/format';
-import type { ReportMeta, TechnicianChartData } from '@/types';
+import {
+    Button,
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    DateRangePicker,
+    Table,
+    TBody,
+    TD,
+    TH,
+    THead,
+    TR,
+} from '@/Components/ui';
+import { formatDecimal, formatNumber, formatPercent } from '@/lib/format';
+import type { ReportMeta, TechnicianChartData, TechnicianRankingRow } from '@/types';
 import { DrillLink, type DrillLinks } from './components/DrillLink';
+import { formatMinutes } from './components/formatMinutes';
 import { ReportExportMenu } from './components/ReportExportMenu';
 import { TechnicianCharts } from './components/TechnicianCharts';
 
@@ -37,6 +51,8 @@ interface TechData extends Record<string, unknown> {
 interface Props extends Record<string, unknown> {
     data?: TechData | null;
     charts: TechnicianChartData | null;
+    /** Every technician of the viewer's scope ranked for the period; null once one is picked. */
+    ranking: TechnicianRankingRow[] | null;
     technicianOptions?: RemoteOption[];
     selectedTechnician: RemoteOption | null;
     hasTechnicians: boolean;
@@ -46,9 +62,20 @@ interface Props extends Record<string, unknown> {
     drill: DrillLinks;
 }
 
+/** A figure of a card with what it counts, so a bare "66" never stands alone. */
+function Figure({ children, unit }: { children: ReactNode; unit?: string }) {
+    return (
+        <p className="text-2xl font-bold">
+            {children}
+            {unit && <span className="ml-1 text-sm font-normal text-muted-foreground">{unit}</span>}
+        </p>
+    );
+}
+
 export default function Technician({
     data,
     charts,
+    ranking,
     technicianOptions,
     selectedTechnician,
     hasTechnicians,
@@ -93,19 +120,24 @@ export default function Technician({
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        if (!isSelf && formData.technician_id === '') return;
 
-        transform((values) =>
-            isSelf
-                ? { date_from: values.date_from, date_to: values.date_to }
-                : {
-                      technician_id: values.technician_id,
-                      date_from: values.date_from,
-                      date_to: values.date_to,
-                  },
-        );
+        // Without a technician the period alone is asked for, and the ranking of everyone answers it.
+        transform((values) => ({
+            ...(isSelf || values.technician_id === ''
+                ? {}
+                : { technician_id: values.technician_id }),
+            date_from: values.date_from,
+            date_to: values.date_to,
+        }));
         get(route('admin.reports.technician'), { preserveState: true });
     };
+
+    const detailUrl = (technicianId: string) =>
+        route('admin.reports.technician', {
+            technician_id: technicianId,
+            ...(filters.date_from ? { date_from: filters.date_from } : {}),
+            ...(filters.date_to ? { date_to: filters.date_to } : {}),
+        });
 
     const noTechnicians = !hasTechnicians && selectedTechnician === null;
 
@@ -138,11 +170,10 @@ export default function Technician({
                                         options={technicianOptions}
                                         selected={selectedTechnician}
                                         label="Teknisi"
-                                        placeholder="Cari teknisi..."
+                                        placeholder="Semua teknisi"
                                         value={formData.technician_id}
                                         onChange={(value) => setData('technician_id', value)}
                                         error={errors.technician_id}
-                                        required
                                     />
                                 </div>
                             )}
@@ -163,11 +194,7 @@ export default function Technician({
                                     error={errors.date_from ?? errors.date_to}
                                 />
                             </div>
-                            <Button
-                                type="submit"
-                                loading={processing}
-                                disabled={!isSelf && formData.technician_id === ''}
-                            >
+                            <Button type="submit" loading={processing}>
                                 Tampilkan
                             </Button>
                         </form>
@@ -180,7 +207,7 @@ export default function Technician({
                                 <CardTitle>{meta.metrics.spk_completed.label}</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-2xl font-bold">{data.spk_completed ?? 0}</p>
+                                <Figure unit="SPK">{formatNumber(data.spk_completed ?? 0)}</Figure>
                                 <DrillLink
                                     href={drill.spk_completed}
                                     label={meta.metrics.spk_completed.label}
@@ -192,7 +219,9 @@ export default function Technician({
                                 <CardTitle>{meta.metrics.tickets_resolved.label}</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-2xl font-bold">{data.tickets_resolved ?? 0}</p>
+                                <Figure unit="tiket">
+                                    {formatNumber(data.tickets_resolved ?? 0)}
+                                </Figure>
                                 <DrillLink
                                     href={drill.tickets_resolved}
                                     label={meta.metrics.tickets_resolved.label}
@@ -204,9 +233,7 @@ export default function Technician({
                                 <CardTitle>{meta.metrics.sla_compliance_pct.label}</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-2xl font-bold">
-                                    {formatPercent(data.sla_compliance_pct)}
-                                </p>
+                                <Figure>{formatPercent(data.sla_compliance_pct)}</Figure>
                                 <DrillLink
                                     href={drill.sla_compliance_pct}
                                     label={meta.metrics.sla_compliance_pct.label}
@@ -218,9 +245,9 @@ export default function Technician({
                                 <CardTitle>{meta.metrics.avg_score.label}</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-2xl font-bold">
+                                <Figure unit={data.avg_score == null ? undefined : 'dari 5'}>
                                     {formatDecimal(data.avg_score)}
-                                </p>
+                                </Figure>
                                 <DrillLink
                                     href={drill.avg_score}
                                     label={meta.metrics.avg_score.label}
@@ -232,9 +259,7 @@ export default function Technician({
                                 <CardTitle>{meta.metrics.avg_frt_minutes.label}</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-2xl font-bold">
-                                    {formatDecimal(data.avg_frt_minutes)}
-                                </p>
+                                <Figure>{formatMinutes(data.avg_frt_minutes)}</Figure>
                                 <DrillLink
                                     href={drill.avg_frt_minutes}
                                     label={meta.metrics.avg_frt_minutes.label}
@@ -246,26 +271,88 @@ export default function Technician({
                                 <CardTitle>{meta.metrics.active_workload.label}</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-2xl font-bold">{data.active_workload ?? 0}</p>
+                                <Figure unit="pekerjaan">
+                                    {formatNumber(data.active_workload ?? 0)}
+                                </Figure>
                                 <DrillLink
                                     href={drill.active_workload_spk}
-                                    label={`${meta.metrics.active_workload.label} (SPK)`}
+                                    label={meta.metrics.active_workload.label}
+                                    text="Lihat SPK"
                                 />
                                 <DrillLink
                                     href={drill.active_workload_tickets}
-                                    label={`${meta.metrics.active_workload.label} (tiket)`}
+                                    label={meta.metrics.active_workload.label}
+                                    text="Lihat tiket"
                                 />
                             </CardContent>
                         </Card>
                     </div>
                 ) : (
-                    !isSelf && (
+                    !isSelf &&
+                    (noTechnicians || !ranking || ranking.length === 0 ? (
                         <p className="text-sm text-muted-foreground">
-                            {noTechnicians
-                                ? 'Tidak ada teknisi yang bisa dipilih.'
-                                : 'Pilih teknisi untuk melihat laporan.'}
+                            Tidak ada teknisi yang bisa dipilih.
                         </p>
-                    )
+                    ) : (
+                        <Card>
+                            <CardContent className="space-y-4 pt-6">
+                                <div className="min-w-0">
+                                    <p className="font-medium">Peringkat teknisi</p>
+                                    <p className="text-sm text-muted-foreground">
+                                        Menurut jumlah SPK dan tiket yang selesai pada periode.
+                                        Pilih satu teknisi untuk melihat rinciannya.
+                                    </p>
+                                </div>
+                                <Table>
+                                    <THead>
+                                        <TR>
+                                            <TH>Peringkat</TH>
+                                            <TH>Teknisi</TH>
+                                            <TH className="text-right">SPK selesai</TH>
+                                            <TH className="text-right">Tiket diselesaikan</TH>
+                                            <TH className="text-right">Kepatuhan SLA</TH>
+                                            <TH className="text-right">Respons pertama</TH>
+                                            <TH className="text-right">Skor evaluasi</TH>
+                                            <TH className="text-right">Beban aktif</TH>
+                                        </TR>
+                                    </THead>
+                                    <TBody>
+                                        {ranking.map((row) => (
+                                            <TR key={row.id}>
+                                                <TD className="tabular-nums">{row.rank}</TD>
+                                                <TD>
+                                                    <Link
+                                                        href={detailUrl(row.id)}
+                                                        className="rounded-sm font-medium text-primary-text underline underline-offset-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-hidden"
+                                                    >
+                                                        {row.name}
+                                                    </Link>
+                                                </TD>
+                                                <TD className="text-right tabular-nums">
+                                                    {formatNumber(row.spk_completed)}
+                                                </TD>
+                                                <TD className="text-right tabular-nums">
+                                                    {formatNumber(row.tickets_resolved)}
+                                                </TD>
+                                                <TD className="text-right tabular-nums">
+                                                    {formatPercent(row.sla_compliance_pct)}
+                                                </TD>
+                                                <TD className="text-right whitespace-nowrap tabular-nums">
+                                                    {formatMinutes(row.avg_frt_minutes)}
+                                                </TD>
+                                                <TD className="text-right tabular-nums">
+                                                    {formatDecimal(row.avg_score)}
+                                                </TD>
+                                                <TD className="text-right tabular-nums">
+                                                    {formatNumber(row.active_workload)}
+                                                </TD>
+                                            </TR>
+                                        ))}
+                                    </TBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    ))
                 )}
                 {showMetrics && data && charts && (
                     <TechnicianCharts

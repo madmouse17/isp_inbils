@@ -41,8 +41,11 @@ class StockReceiveRequest extends FormRequest
         return [
             'product_id' => ['required', Rule::exists('products', 'id')->where('company_id', $companyId)],
             'location_id' => ['required', Rule::exists('locations', 'id')->where('company_id', $companyId)],
-            'quantity' => ['required', 'numeric', 'min:0.01'],
+            'quantity' => ['required', 'numeric', 'min:0.01', 'max:1000000000'],
             'note' => ['nullable', 'string', 'max:500'],
+            'supplier_name' => ['nullable', 'string', 'max:150'],
+            'purchase_reference' => ['nullable', 'string', 'max:100'],
+            'unit_cost' => ['nullable', 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999999.99'],
             'reference_type' => ['nullable', 'required_with:reference_id', 'string', Rule::in(array_keys($referenceTypes))],
             'reference_id' => ['nullable', 'required_with:reference_type', 'integer', new PolymorphicBelongsToCompany($referenceTypes, 'reference_type')],
         ];

@@ -3,9 +3,6 @@
 namespace Modules\Ticketing\Http\Controllers\Api\V1\Technician;
 
 use App\Http\Controllers\Controller;
-use App\Services\Core\AuditService;
-use App\Support\FieldCheckIn;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Modules\Ticketing\Http\Requests\Api\V1\StartTicketRequest;
 use Modules\Ticketing\Http\Requests\ResolveTicketRequest;
@@ -28,20 +25,7 @@ class TicketController extends Controller
         $ticket = $this->ticket($id);
         $ticket->status === 'assigned' ? Gate::authorize('start', $ticket) : Gate::authorize('view', $ticket);
 
-        $validated = $request->validated();
-        $started = DB::transaction(function () use ($ticket, $validated): Ticket {
-            $started = TicketService::startWork($ticket);
-
-            if (($validated['check_in'] ?? []) !== []) {
-                $started->loadMissing(['location', 'subscription.installationAddress']);
-                AuditService::log('ticket', 'check_in', FieldCheckIn::properties(
-                    $validated['check_in'],
-                    FieldCheckIn::site($started->subscription?->installationAddress ?? $started->location),
-                ), $started);
-            }
-
-            return $started;
-        });
+        $started = TicketService::startWork($ticket, $request->validated('check_in'));
 
         return new TechnicianTicketResource($this->detail($started));
     }

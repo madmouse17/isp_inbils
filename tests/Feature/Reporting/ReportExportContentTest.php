@@ -76,9 +76,9 @@ class ReportExportContentTest extends TestCase
             $this->assertEquals($value, (float) $figures[$metric], "{$metric} in the file");
         }
 
-        $this->assertEquals(1, (float) $figures['Sebaran aset / available']);
-        $this->assertEquals(2, (float) $figures['Sebaran aset / installed']);
-        $this->assertEquals(1, (float) $figures['Sebaran aset / retired']);
+        $this->assertEquals(1, (float) $figures['Sebaran aset / Tersedia']);
+        $this->assertEquals(2, (float) $figures['Sebaran aset / Terpasang']);
+        $this->assertEquals(1, (float) $figures['Sebaran aset / Dipensiunkan']);
 
         // What the file says is what the page says.
         $this->assertEquals($screen->inertiaProps('data.mrr'), (float) $figures['MRR']);
@@ -97,9 +97,9 @@ class ReportExportContentTest extends TestCase
 
         $this->assertSame('Posisi saat ini: filter periode tidak berlaku', $records['MRR|']['Cakupan']);
         $this->assertSame('Periode: 2026-01-01 sampai 2026-01-31', $records['Pendapatan terbayar|']['Cakupan']);
-        $this->assertSame('date_from=2026-01-01; date_to=2026-01-31', $records['MRR|']['Filter']);
+        $this->assertSame('Tanggal mulai: 2026-01-01; Tanggal akhir: 2026-01-31', $records['MRR|']['Filter']);
         $this->assertSame('v1', $records['MRR|']['Versi']);
-        $this->assertSame('currency', $records['MRR|']['Satuan']);
+        $this->assertSame('Rupiah', $records['MRR|']['Satuan']);
 
         $unfiltered = collect($this->csvRecords($this->get(route('admin.reports.business.export'))))
             ->keyBy(fn (array $record): string => $record['Metrik'].'|'.$record['Rincian']);
@@ -155,9 +155,9 @@ class ReportExportContentTest extends TestCase
         $this->actingAs($this->admin);
 
         $all = $this->csvFigures($this->get(route('admin.reports.asset.export', self::JANUARY)));
-        $this->assertEquals(1, (float) $all['Sebaran status / available']);
-        $this->assertEquals(2, (float) $all['Sebaran status / installed']);
-        $this->assertEquals(1, (float) $all['Sebaran status / retired']);
+        $this->assertEquals(1, (float) $all['Sebaran status / Tersedia']);
+        $this->assertEquals(2, (float) $all['Sebaran status / Terpasang']);
+        $this->assertEquals(1, (float) $all['Sebaran status / Dipensiunkan']);
         $this->assertEquals(3, (float) $all['Aset per lokasi / POP Central']);
         $this->assertEquals(1, (float) $all['Aset per lokasi / POP East']);
         $this->assertEquals(1, (float) $all['Pemasangan aset']);            // N1 inside January, N2 a day early
@@ -166,7 +166,7 @@ class ReportExportContentTest extends TestCase
 
         // v1: the type filter narrows the status distribution only.
         $routers = $this->csvFigures($this->get(route('admin.reports.asset.export', [...self::JANUARY, 'asset_type' => 'router'])));
-        $this->assertEquals(1, (float) $routers['Sebaran status / installed']);
+        $this->assertEquals(1, (float) $routers['Sebaran status / Terpasang']);
         $this->assertEquals(2, (float) $routers['Terhubung ke pelanggan']);
         $this->assertEquals(3, (float) $routers['Aset per lokasi / POP Central']);
     }

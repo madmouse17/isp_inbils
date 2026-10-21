@@ -161,7 +161,8 @@ test('manager hierarchy uses canonical report filters and capability navigation'
 
         await loginAs(page, 'manager');
         await page.goto('/admin/reports/technician');
-        await expect(page.getByText('Pilih teknisi untuk melihat laporan.')).toBeVisible();
+        // Without a pick the page ranks every technician of the manager's unit, and the period can be run at once.
+        await expect(page.getByText('Peringkat teknisi', { exact: true })).toBeVisible();
         // Laporan and Kinerja Teknisi both exist here: only the longer href is current.
         const sidebar = page.locator('aside');
         await expect(sidebar.getByRole('link', { name: 'Laporan', exact: true })).toHaveCount(1);
@@ -174,7 +175,7 @@ test('manager hierarchy uses canonical report filters and capability navigation'
                 .locator('details')
                 .filter({ has: page.locator('summary', { hasText: 'Keuangan & Laporan' }) }),
         ).toHaveJSProperty('open', true);
-        await expect(page.getByRole('button', { name: 'Tampilkan', exact: true })).toBeDisabled();
+        await expect(page.getByRole('button', { name: 'Tampilkan', exact: true })).toBeEnabled();
         await selectSearchOption(page, 'Teknisi', 'Demo Technician');
         await typeDateRange(
             page,

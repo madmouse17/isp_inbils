@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, router } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { AlertTriangle } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
@@ -9,21 +9,37 @@ import {
     Button,
     Card,
     CardContent,
+    DateRangePicker,
+    EmptyCell,
+    EnumBadge,
+    ExportMenu,
+    Input,
     Modal,
+    Tab,
+    TabList,
+    TabPanel,
+    Tabs,
     Textarea,
 } from '@/Components/ui';
 import {
     DataTable,
+    NativeSelect,
     PageHeader,
     RefundAttemptDialog,
     type DataTableColumn,
     type RefundTarget,
 } from '@/Components/composite';
+import { ConfirmDialog } from '@/Components/composite/ConfirmDialog';
 import { BlockedBadge, SubscriptionBlockModal } from '@/Components/composite/NetworkAccessBadges';
 import { useCompany } from '@/hooks/useCompany';
 import { useServerTable } from '@/hooks/useServerTable';
-import { formatRupiah } from '@/lib/format';
+import { useTableQuery } from '@/hooks/useTableQuery';
+import { todayInZone } from '@/lib/dateRange';
+import { formatDate, formatRupiah } from '@/lib/format';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
+import { effectiveInvoiceStatus, INVOICE_STATUS } from '@/lib/statuses';
+import type { PageProps } from '@/types';
+import type { ReceivableInvoice, ReceivableInvoiceFilters } from '@/types/billing';
 
 interface SubRef {
     id: string;
@@ -62,10 +78,257 @@ interface PaymentException {
     updated_at: string;
 }
 
+type ReceivableTab = 'invoice' | 'customer';
+
+/** The words of the customer table's own query string: a link from before the tabs carries them and means that table. */
+const CUSTOMER_TABLE_KEYS = ['sort', 'sort_by', 'direction', 'sort_dir', 'per_page', 'page'];
+
+/** The tab is the URL's: `?tab=`, else the table whose words the query holds, else the invoices. */
+function tabFromUrl(url: string): ReceivableTab {
+    const query = new URLSearchParams(url.split('?')[1] ?? '');
+    const asked = query.get('tab');
+
+    if (asked === 'customer' || asked === 'invoice') return asked;
+
+    return CUSTOMER_TABLE_KEYS.some((key) => query.has(key)) ? 'customer' : 'invoice';
+}
+
+const BUCKET_OPTIONS = [
+    { value: '', label: 'Semua umur' },
+    { value: 'current', label: 'Belum jatuh tempo' },
+    { value: 'b1_30', label: '1-30 hari' },
+    { value: 'b31_60', label: '31-60 hari' },
+    { value: 'b61_90', label: '61-90 hari' },
+    { value: 'b90_plus', label: '>90 hari' },
+];
+
+interface InvoicesTabProps {
+    invoices: PaginationLike<ReceivableInvoice>;
+    filters: ReceivableInvoiceFilters;
+    can: { remind: boolean; export: boolean };
+}
+
+/** The open invoices one by one, oldest due date first: what a collector works through (F5-U03). */
+function InvoicesTab({ invoices, filters, can }: InvoicesTabProps) {
+    const company = useCompany();
+    const errors = usePage<PageProps>().props.errors;
+    const today = todayInZone(company?.timezone);
+    const [target, setTarget] = useState<ReceivableInvoice | null>(null);
+    const [sending, setSending] = useState(false);
+    const { params, setMany, processing } = useTableQuery(
+        {
+            search: filters.search ?? '',
+            bucket: filters.bucket ?? '',
+            due_from: filters.due_from ?? '',
+            due_to: filters.due_to ?? '',
+            invoices_page: '',
+        },
+        { only: ['invoices', 'invoiceFilters'] },
+    );
+    const pagination = toPagination(invoices);
+    const hasFilters = Boolean(params.search || params.bucket || params.due_from || params.due_to);
+
+    const columns: DataTableColumn<ReceivableInvoice>[] = [
+        {
+            key: 'number',
+            header: 'Tagihan',
+            cell: (row) => (
+                <Link
+                    href={route('admin.invoices.show', row.id)}
+                    className="font-medium text-primary-text hover:underline"
+                >
+                    {row.number}
+                </Link>
+            ),
+        },
+        {
+            key: 'customer',
+            header: 'Pelanggan',
+            cell: (row) =>
+                row.customer ? (
+                    <div>
+                        <div className="font-medium">{row.customer.name}</div>
+                        <div className="text-xs text-muted-foreground">{row.customer.code}</div>
+                    </div>
+                ) : (
+                    <EmptyCell />
+                ),
+        },
+        {
+            key: 'due_date',
+            header: 'Jatuh tempo',
+            cell: (row) => formatDate(row.due_date, company),
+        },
+        {
+            key: 'age',
+            header: 'Umur',
+            cell: (row) =>
+                row.days_overdue > 0 ? (
+                    <span className="text-destructive-text">Lewat {row.days_overdue} hari</span>
+                ) : (
+                    <span className="text-muted-foreground">Belum jatuh tempo</span>
+                ),
+        },
+        {
+            key: 'status',
+            header: 'Status',
+            cell: (row) => (
+                <EnumBadge
+                    map={INVOICE_STATUS}
+                    value={effectiveInvoiceStatus(row.status, row.due_date, today)}
+                />
+            ),
+        },
+        {
+            key: 'total',
+            header: 'Total',
+            className: 'text-right tabular-nums',
+            headerClassName: 'text-right',
+            cell: (row) => formatRupiah(row.total, company),
+        },
+        {
+            key: 'sisa',
+            header: 'Sisa',
+            className: 'text-right font-semibold tabular-nums',
+            headerClassName: 'text-right',
+            cell: (row) => formatRupiah(row.sisa, company),
+        },
+        {
+            key: 'actions',
+            header: 'Aksi',
+            cell: (row) => {
+                if (!can.remind || !row.can_remind) return <EmptyCell />;
+                if (row.reminded_today) {
+                    return (
+                        <span className="text-sm text-muted-foreground">
+                            Pengingat terkirim hari ini
+                        </span>
+                    );
+                }
+
+                return (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setTarget(row)}
+                    >
+                        Kirim pengingat
+                        <span className="sr-only"> untuk tagihan {row.number}</span>
+                    </Button>
+                );
+            },
+        },
+    ];
+
+    const remind = () => {
+        if (!target) return;
+        // A full visit, not a partial one: the answer carries the toast ("Pengingat dikirim ..." or why it was refused).
+        router.post(
+            route('admin.invoices.remind', target.id),
+            {},
+            {
+                preserveScroll: true,
+                onStart: () => setSending(true),
+                onSuccess: () => setTarget(null),
+                onFinish: () => setSending(false),
+            },
+        );
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:flex-wrap md:items-end">
+                <div className="min-w-48 flex-1">
+                    <Input
+                        id="receivable-search"
+                        label="Cari tagihan"
+                        value={params.search ?? ''}
+                        onChange={(e) => setMany({ search: e.target.value, invoices_page: null })}
+                        placeholder="Nomor tagihan atau pelanggan"
+                        error={errors.search}
+                    />
+                </div>
+                <NativeSelect
+                    id="receivable-bucket"
+                    label="Umur"
+                    value={params.bucket ?? ''}
+                    options={BUCKET_OPTIONS}
+                    onChange={(e) => setMany({ bucket: e.target.value, invoices_page: null })}
+                    error={errors.bucket}
+                    wrapperClassName="md:w-52"
+                />
+                <div className="w-full md:w-80">
+                    <DateRangePicker
+                        id="receivable-due"
+                        label="Jatuh tempo"
+                        error={errors.due_from ?? errors.due_to}
+                        value={{ from: params.due_from || null, to: params.due_to || null }}
+                        onChange={(range) =>
+                            setMany({ due_from: range.from, due_to: range.to, invoices_page: null })
+                        }
+                    />
+                </div>
+                <ExportMenu
+                    exportUrl={route('admin.billing.receivables.export')}
+                    params={{
+                        search: params.search,
+                        bucket: params.bucket,
+                        due_from: params.due_from,
+                        due_to: params.due_to,
+                    }}
+                    canExport={can.export}
+                    formats={['csv', 'pdf']}
+                />
+            </div>
+            <DataTable
+                columns={columns}
+                data={invoices.data}
+                pagination={pagination}
+                onPageChange={(page) => setMany({ invoices_page: page })}
+                loading={processing}
+                itemLabel="tagihan"
+                emptyTitle="Tidak ada tagihan terbuka"
+                emptyDescription="Tagihan yang belum lunas muncul di sini, yang paling lama jatuh tempo lebih dulu."
+                hasFilters={hasFilters}
+                onResetFilters={() =>
+                    setMany({
+                        search: '',
+                        bucket: '',
+                        due_from: '',
+                        due_to: '',
+                        invoices_page: null,
+                    })
+                }
+            />
+            <ConfirmDialog
+                open={target !== null}
+                title={target ? `Kirim pengingat untuk ${target.number}?` : ''}
+                description="Pelanggan menerima pengingat di aplikasi Inbils, juga lewat WhatsApp bila aktif. Satu tagihan hanya bisa diingatkan sekali per hari."
+                details={
+                    target
+                        ? [
+                              `Pelanggan: ${target.customer?.name ?? '-'}`,
+                              `Sisa: ${formatRupiah(target.sisa, company)}`,
+                              `Jatuh tempo: ${formatDate(target.due_date, company)}`,
+                          ]
+                        : undefined
+                }
+                confirmLabel="Kirim pengingat"
+                processing={sending}
+                onConfirm={remind}
+                onClose={() => setTarget(null)}
+            />
+        </div>
+    );
+}
+
 export default function Receivables({
     rows,
     totals,
     filters,
+    invoices,
+    invoiceFilters,
     paymentExceptions,
     autoReactivate,
     can,
@@ -73,12 +336,21 @@ export default function Receivables({
     rows: PaginationLike<Row>;
     totals: Omit<Row, 'customer_id' | 'customer' | 'subscriptions'>;
     filters: Filters;
-    can: { suspend: boolean; block: boolean; refund: boolean };
+    invoices: PaginationLike<ReceivableInvoice>;
+    invoiceFilters: ReceivableInvoiceFilters;
+    can: {
+        suspend: boolean;
+        block: boolean;
+        refund: boolean;
+        remind: boolean;
+        export: boolean;
+    };
     paymentExceptions: { count: number; items: PaymentException[] };
     /** Whether a paid-up customer is switched back on by itself; the isolir dialog tells which way. */
     autoReactivate: boolean;
 }) {
     const company = useCompany();
+    const { url } = usePage<PageProps>();
     const [suspending, setSuspending] = useState<SubRef | null>(null);
     const [blocking, setBlocking] = useState<SubRef | null>(null);
     const [reason, setReason] = useState('');
@@ -316,25 +588,46 @@ export default function Receivables({
                         </Card>
                     ))}
                 </section>
-                <Card>
-                    <CardContent className="pt-6">
-                        <DataTable
-                            columns={columns}
-                            data={pagination.data ?? []}
-                            pagination={pagination}
-                            rowKey="customer_id"
-                            sortBy={filters.sort_by}
-                            sortDir={filters.sort_dir}
-                            onSort={onSort}
-                            onPageChange={onPageChange}
-                            onPerPageChange={onPerPageChange}
-                            loading={table.processing}
-                            itemLabel="pelanggan"
-                            emptyTitle="Tidak ada tunggakan"
-                            emptyDescription="Tagihan yang belum lunas di perusahaan ini akan muncul di sini."
-                        />
-                    </CardContent>
-                </Card>
+                <Tabs
+                    value={tabFromUrl(url)}
+                    onValueChange={(next) =>
+                        // No request: only the address changes, so a reload or a shared link opens the same table.
+                        router.replace({
+                            url: route('admin.billing.receivables', { tab: next }, false),
+                            preserveScroll: true,
+                            preserveState: true,
+                        })
+                    }
+                >
+                    <TabList aria-label="Tampilan tunggakan">
+                        <Tab value="invoice">Per tagihan</Tab>
+                        <Tab value="customer">Per pelanggan</Tab>
+                    </TabList>
+                    <TabPanel value="invoice">
+                        <InvoicesTab invoices={invoices} filters={invoiceFilters} can={can} />
+                    </TabPanel>
+                    <TabPanel value="customer">
+                        <Card>
+                            <CardContent className="pt-6">
+                                <DataTable
+                                    columns={columns}
+                                    data={pagination.data ?? []}
+                                    pagination={pagination}
+                                    rowKey="customer_id"
+                                    sortBy={filters.sort_by}
+                                    sortDir={filters.sort_dir}
+                                    onSort={onSort}
+                                    onPageChange={onPageChange}
+                                    onPerPageChange={onPerPageChange}
+                                    loading={table.processing}
+                                    itemLabel="pelanggan"
+                                    emptyTitle="Tidak ada tunggakan"
+                                    emptyDescription="Tagihan yang belum lunas di perusahaan ini akan muncul di sini."
+                                />
+                            </CardContent>
+                        </Card>
+                    </TabPanel>
+                </Tabs>
                 <SubscriptionBlockModal target={blocking} onClose={() => setBlocking(null)} />
                 <RefundAttemptDialog target={refundTarget} onClose={() => setRefundTarget(null)} />
                 <Modal

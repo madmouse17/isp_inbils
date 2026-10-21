@@ -683,6 +683,120 @@ final class MetricRegistry
                     self::TICKET_CATEGORY_NAME,
                 ],
             ),
+            new MetricDefinition(
+                report: ReportType::Sla,
+                key: 'by_technician',
+                label: 'Tiket selesai per teknisi',
+                definition: 'Tiket selesai pada periode dan kategori terpilih, dan kepatuhan SLA-nya, untuk setiap penangan tiket.',
+                formula: 'Per penangan tiket (tickets.assigned_to; nama dari tickets.assignee_name_snapshot, atau users.name selama tiket belum ditutup): '
+                    .'COUNT tiket dari Tiket selesai, COUNT yang memiliki resolved_at <= sla_deadline, COUNT yang memiliki resolved_at > sla_deadline, '
+                    .'rate = ROUND(100 * compliant / total, 1), dan ROUND(AVG(TIMESTAMPDIFF(MINUTE, created_at, first_response_at))) pada tiket yang memiliki first_response_at.',
+                unit: MetricUnit::Breakdown,
+                dateBasis: DateBasis::Period,
+                sources: [
+                    'tickets.assigned_to',
+                    'tickets.assignee_name_snapshot',
+                    'users.name',
+                    'tickets.resolved_at',
+                    'tickets.sla_deadline',
+                    'tickets.first_response_at',
+                    'tickets.category_id',
+                ],
+                dateColumn: 'tickets.resolved_at',
+                caveats: [
+                    'Tiket yang belum punya penangan menjadi satu baris tersendiri.',
+                    'Pengguna yang tidak boleh melihat semua teknisi hanya membaca nama teknisi dalam cakupan laporan Teknisi mereka; penangan lainnya digabung menjadi satu baris "Penangan lain", sehingga baris tetap berjumlah sama dengan Tiket selesai.',
+                    'Tiket yang sudah ditutup memakai nama penangan saat ditutup, sehingga mengganti nama pengguna tidak memindahkan tiket lama.',
+                    'Tiket tanpa batas SLA tidak pernah dianggap sesuai SLA maupun melanggar.',
+                    $periodRule,
+                ],
+            ),
+            new MetricDefinition(
+                report: ReportType::Sla,
+                key: 'by_priority',
+                label: 'Tiket selesai per prioritas',
+                definition: 'Tiket selesai pada periode dan kategori terpilih, dan kepatuhan SLA-nya, untuk setiap prioritas tiket.',
+                formula: 'Per prioritas tiket (tickets.priority), dari yang paling mendesak: COUNT tiket dari Tiket selesai, COUNT yang memiliki resolved_at <= sla_deadline, '
+                    .'COUNT yang memiliki resolved_at > sla_deadline, rate = ROUND(100 * compliant / total, 1), '
+                    .'dan ROUND(AVG(TIMESTAMPDIFF(MINUTE, created_at, first_response_at))) pada tiket yang memiliki first_response_at.',
+                unit: MetricUnit::Breakdown,
+                dateBasis: DateBasis::Period,
+                sources: [
+                    'tickets.priority',
+                    'tickets.resolved_at',
+                    'tickets.sla_deadline',
+                    'tickets.first_response_at',
+                    'tickets.category_id',
+                ],
+                dateColumn: 'tickets.resolved_at',
+                caveats: [
+                    'Tiket berprioritas mendesak mendapat batas SLA setengah dari biasanya; batas itu sudah tersimpan pada tiket.',
+                    'Tiket tanpa batas SLA tidak pernah dianggap sesuai SLA maupun melanggar.',
+                    $periodRule,
+                ],
+            ),
+            new MetricDefinition(
+                report: ReportType::Sla,
+                key: 'by_source',
+                label: 'Tiket selesai per sumber target',
+                definition: 'Tiket selesai pada periode dan kategori terpilih, dan kepatuhan SLA-nya, menurut asal target SLA tiket: tingkat SLA paket langganan, atau kategori tiket.',
+                formula: 'Per tingkat SLA (tickets.subscription_id, service_subscriptions.service_package_version_id, service_package_versions.sla_tier_id, sla_tiers.name); '
+                    .'tiket tanpa langganan menjadi satu baris yang targetnya dari kategori tiket. Setiap baris: COUNT tiket dari Tiket selesai, COUNT yang memiliki resolved_at <= sla_deadline, '
+                    .'COUNT yang memiliki resolved_at > sla_deadline, rate = ROUND(100 * compliant / total, 1), '
+                    .'dan ROUND(AVG(TIMESTAMPDIFF(MINUTE, created_at, first_response_at))) pada tiket yang memiliki first_response_at.',
+                unit: MetricUnit::Breakdown,
+                dateBasis: DateBasis::Period,
+                sources: [
+                    'tickets.subscription_id',
+                    'service_subscriptions.service_package_version_id',
+                    'service_package_versions.sla_tier_id',
+                    'sla_tiers.name',
+                    'tickets.resolved_at',
+                    'tickets.sla_deadline',
+                    'tickets.first_response_at',
+                    'tickets.category_id',
+                ],
+                dateColumn: 'tickets.resolved_at',
+                caveats: [
+                    'Sumbernya dibaca dari langganan tiket saat laporan dibuka: bila langganan berpindah ke versi paket lain sesudah tiket dibuat, tiket lama ikut tingkat SLA yang baru, walau batas SLA-nya sudah tersimpan.',
+                    'Nama tingkat SLA adalah nama saat ini: mengganti nama tingkat memindahkan tiket lama ke nama baru.',
+                    'Tiket tanpa batas SLA tidak pernah dianggap sesuai SLA maupun melanggar.',
+                    $periodRule,
+                ],
+            ),
+            new MetricDefinition(
+                report: ReportType::Sla,
+                key: 'csat_average',
+                label: 'Kepuasan pelanggan',
+                definition: 'Rata-rata nilai 1 sampai 5 yang diberikan pelanggan pada tiket yang selesai.',
+                formula: 'ROUND(AVG(tickets.customer_rating), 1) pada tiket dengan customer_rated_at antara Dari 00:00:00 dan Sampai 23:59:59 '
+                    .'dan category_id = kategori yang dipilih bila ada.',
+                unit: MetricUnit::Rating,
+                dateBasis: DateBasis::Period,
+                sources: ['tickets.customer_rating', 'tickets.customer_rated_at', 'tickets.category_id'],
+                dateColumn: 'tickets.customer_rated_at',
+                caveats: [
+                    'Mengikuti hari penilaian, bukan hari tiket selesai: tiket yang selesai sebelum periode tetapi dinilai di dalamnya ikut dihitung.',
+                    'Tiket yang belum dinilai tidak dihitung dan tidak dianggap bernilai nol.',
+                    'Kosong bila belum ada penilaian pada periode itu.',
+                    'Rentang berlaku bila Dari, Sampai, atau keduanya diisi (hanya Dari: sejak hari itu; hanya Sampai: sampai hari itu); bila kosong, semua penilaian dipakai.',
+                ],
+            ),
+            new MetricDefinition(
+                report: ReportType::Sla,
+                key: 'csat_count',
+                label: 'Jumlah penilaian pelanggan',
+                definition: 'Jumlah tiket yang dinilai pelanggan pada periode dan kategori terpilih.',
+                formula: 'COUNT tiket dengan customer_rated_at antara Dari 00:00:00 dan Sampai 23:59:59 dan category_id = kategori yang dipilih bila ada.',
+                unit: MetricUnit::Count,
+                dateBasis: DateBasis::Period,
+                sources: ['tickets.customer_rated_at', 'tickets.category_id'],
+                dateColumn: 'tickets.customer_rated_at',
+                caveats: [
+                    'Mengikuti hari penilaian, bukan hari tiket selesai.',
+                    'Rentang berlaku bila Dari, Sampai, atau keduanya diisi (hanya Dari: sejak hari itu; hanya Sampai: sampai hari itu); bila kosong, semua penilaian dipakai.',
+                ],
+            ),
         ];
     }
 

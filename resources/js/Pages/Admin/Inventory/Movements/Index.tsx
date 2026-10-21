@@ -12,20 +12,10 @@ import { Input } from '@/Components/ui/Input';
 import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { useCompany } from '@/hooks/useCompany';
 import { useTableQuery } from '@/hooks/useTableQuery';
-import { formatDateTime, formatNumber } from '@/lib/format';
+import { formatDateTime, formatNumber, formatRupiah } from '@/lib/format';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
 import { optionsOf, STOCK_MOVEMENT_TYPE } from '@/lib/statuses';
-
-type MovementRow = {
-    id: string;
-    movement_type: string;
-    quantity: number | string;
-    note?: string | null;
-    created_at: string | null;
-    product?: { id: string; name: string; sku?: string | null } | null;
-    from_location?: { id: string; name: string } | null;
-    to_location?: { id: string; name: string } | null;
-};
+import type { StockMovement as MovementRow } from '@/types/inventory';
 
 type Paginator<T> = PaginationLike<T>;
 
@@ -115,6 +105,12 @@ export default function MovementsIndex({
                 cell: (row) => formatNumber(row.quantity),
             },
             {
+                key: 'balance_after',
+                header: 'Saldo setelah',
+                className: 'text-right tabular-nums',
+                cell: (row) => formatNumber(row.balance_after),
+            },
+            {
                 key: 'from',
                 header: 'Dari',
                 cell: (row) => row.from_location?.name ?? <EmptyCell />,
@@ -125,9 +121,35 @@ export default function MovementsIndex({
                 cell: (row) => row.to_location?.name ?? <EmptyCell />,
             },
             {
+                key: 'actor',
+                header: 'Oleh',
+                cell: (row) => row.actor?.name ?? <EmptyCell />,
+            },
+            {
                 key: 'note',
                 header: 'Catatan',
-                cell: (row) => row.note || <EmptyCell />,
+                cell: (row) => {
+                    const receipt = [
+                        row.supplier_name ? `Pemasok: ${row.supplier_name}` : null,
+                        row.purchase_reference ? `No. faktur: ${row.purchase_reference}` : null,
+                        row.unit_cost !== null && row.unit_cost !== undefined
+                            ? `Harga satuan: ${formatRupiah(row.unit_cost, company)}`
+                            : null,
+                    ].filter((line): line is string => line !== null);
+
+                    if (!row.note && receipt.length === 0) return <EmptyCell />;
+
+                    return (
+                        <div>
+                            {row.note ? <div>{row.note}</div> : null}
+                            {receipt.map((line) => (
+                                <div key={line} className="text-xs text-muted-foreground">
+                                    {line}
+                                </div>
+                            ))}
+                        </div>
+                    );
+                },
             },
             {
                 key: 'created_at',

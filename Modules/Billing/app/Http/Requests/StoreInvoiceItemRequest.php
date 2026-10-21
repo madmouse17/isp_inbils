@@ -37,7 +37,7 @@ class StoreInvoiceItemRequest extends FormRequest
             'quantity' => ['required', 'numeric', 'min:0.01'],
             'unit_price' => ['required', 'numeric', 'min:0'],
             'discount_amount' => ['nullable', 'numeric', 'min:0'],
-            'tax_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            // No tax_rate: the line takes the PPN of the company (BillingService::addItem), whatever a request names.
         ];
     }
 
@@ -50,7 +50,6 @@ class StoreInvoiceItemRequest extends FormRequest
             'quantity' => 'kuantitas',
             'unit_price' => 'harga satuan',
             'discount_amount' => 'diskon',
-            'tax_rate' => 'pajak',
         ];
     }
 

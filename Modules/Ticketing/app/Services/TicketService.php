@@ -10,9 +10,11 @@ use App\Models\User;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
+use App\Support\FieldCheckIn;
 use App\Support\Notifications\StaffRecipients;
 use App\Support\OptimisticLock;
 use App\Support\RecordNotFound;
+use App\Support\ServiceHours;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -24,6 +26,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 use Modules\NetworkAsset\Models\NetworkAsset;
+use Modules\Service\Models\SLATier;
 use Modules\SPK\Models\WorkOrder;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
@@ -120,8 +123,8 @@ class TicketService
     }
 
     /**
-     * When the ticket must get its first response and its resolution, counted in calendar hours from its creation
-     * (from now while it is not saved yet).
+     * When the ticket must get its first response and its resolution, counted from its creation (from now while it is not
+     * saved yet): in calendar hours, or in the open hours of the company for a tier on the business calendar (K11).
      * Priority urgent halves both targets, rounded up.
      *
      * @return array{response: ?CarbonImmutable, resolution: CarbonImmutable}
@@ -131,7 +134,12 @@ class TicketService
         $target = self::slaTarget($ticket);
         $urgent = self::isUrgent($ticket);
         $from = ($ticket->created_at ?? now())->toImmutable();
-        $within = static fn (int $hours): CarbonImmutable => $from->addHours($urgent ? (int) ceil($hours / 2) : $hours);
+        $open = self::openHours($target);
+        $within = static function (int $hours) use ($from, $urgent, $open): CarbonImmutable {
+            $hours = $urgent ? (int) ceil($hours / 2) : $hours;
+
+            return $open === null ? $from->addHours($hours) : ServiceHours::add($from, $hours * 60, $open['hours'], $open['timezone']);
+        };
 
         return [
             'response' => $target['response_hours'] === null ? null : $within($target['response_hours']),
@@ -141,25 +149,34 @@ class TicketService
 
     /**
      * Where the targets of the ticket come from, as the ticket page words them: an SLA tier or a category, the hours it
-     * sets, and whether priority urgent halves them. The hours are the live ones of the tier or category, so a category
-     * edited after the ticket was made can differ from the deadline stored on the ticket.
+     * sets, whether priority urgent halves them, and the calendar they are counted in. The hours are the live ones of the
+     * tier or category, so a category edited after the ticket was made can differ from the deadline stored on the ticket.
+     * The calendar is `business` only while the company has set its service hours: a tier that asks for them without them
+     * counts 24 hours, and so does the deadline.
      *
-     * @return array{type: 'tier'|'category', name: string, response_hours: ?int, resolution_hours: int, urgent_halved: bool, calendar?: '24h'|'business'}
+     * @return array{type: 'tier'|'category', name: string, response_hours: ?int, resolution_hours: int, urgent_halved: bool, calendar: '24h'|'business'}
      */
     public static function deadlineSource(Ticket $ticket): array
     {
         $target = self::slaTarget($ticket);
 
-        return [...$target, 'urgent_halved' => self::isUrgent($ticket)];
+        return [
+            'type' => $target['type'],
+            'name' => $target['name'],
+            'response_hours' => $target['response_hours'],
+            'resolution_hours' => $target['resolution_hours'],
+            'urgent_halved' => self::isUrgent($ticket),
+            'calendar' => self::openHours($target) === null ? SLATier::CALENDAR_24H : SLATier::CALENDAR_BUSINESS,
+        ];
     }
 
     /**
      * The targets a ticket is held to: those of the SLA tier of the package version its subscription was sold under,
      * else those of its category. The version keeps its tier after the package moves on and after the tier is
      * deactivated, since deactivating only stops new sales. Tiers and subscriptions of another company never load,
-     * so they never lend their targets.
+     * so they never lend their targets. A category always counts calendar hours; a tier says which calendar it counts.
      *
-     * @return array{type: 'tier'|'category', name: string, response_hours: ?int, resolution_hours: int}
+     * @return array{type: 'tier'|'category', name: string, response_hours: ?int, resolution_hours: int, calendar: '24h'|'business'}
      */
     private static function slaTarget(Ticket $ticket): array
     {
@@ -167,7 +184,7 @@ class TicketService
         $tier = $ticket->subscription?->packageVersion?->slaTier;
 
         if ($tier !== null) {
-            return ['type' => 'tier', 'name' => $tier->name, 'response_hours' => $tier->response_time_hours, 'resolution_hours' => $tier->resolution_time_hours];
+            return ['type' => 'tier', 'name' => $tier->name, 'response_hours' => $tier->response_time_hours, 'resolution_hours' => $tier->resolution_time_hours, 'calendar' => $tier->calendar];
         }
 
         return [
@@ -175,7 +192,27 @@ class TicketService
             'name' => $ticket->category->name,
             'response_hours' => $ticket->category->default_response_hours,
             'resolution_hours' => $ticket->category->default_sla_hours,
+            'calendar' => SLATier::CALENDAR_24H,
         ];
+    }
+
+    /**
+     * The service hours a target is counted in, with the company's time zone they are written in: only for a tier on the
+     * business calendar of a company that has set them. Null is plain calendar hours.
+     *
+     * @param  array{calendar: string}  $target
+     * @return array{hours: array<string, mixed>, timezone: string}|null
+     */
+    private static function openHours(array $target): ?array
+    {
+        if ($target['calendar'] !== SLATier::CALENDAR_BUSINESS) {
+            return null;
+        }
+
+        $company = CompanyService::current();
+        $hours = ServiceHours::of($company);
+
+        return $hours === null ? null : ['hours' => $hours, 'timezone' => $company->timezone ?: (string) config('app.timezone')];
     }
 
     /** Priority urgent, or no priority yet on a category whose default is urgent. Expects the category loaded. */
@@ -273,22 +310,40 @@ class TicketService
         });
     }
 
-    public static function startWork(Ticket $ticket): Ticket
+    /**
+     * "Mulai": the handler starts the work. The check-in of a technician in the field comes with it; one farther from the site
+     * than the company allows needs the reason they gave (K10), and without one nothing is written.
+     *
+     * @param  array<string, mixed>|null  $checkIn
+     */
+    public static function startWork(Ticket $ticket, ?array $checkIn = null): Ticket
     {
         $expectedStatus = $ticket->status;
         self::assertAssignedActor($ticket, 'ticket.start');
 
-        return DB::transaction(function () use ($ticket, $expectedStatus) {
+        return DB::transaction(function () use ($ticket, $expectedStatus, $checkIn) {
             $ticket = self::lockedTicket($ticket->id);
             self::assertCompany($ticket);
             self::assertAssignedActor($ticket, 'ticket.start');
             self::throwStatusConflictIfChanged($ticket, $expectedStatus, 'assigned', 'Konflik: status tiket sudah diubah oleh pengguna lain.');
             abort_if($ticket->status !== 'assigned', 422, 'Tiket harus berstatus ditugaskan untuk bisa dimulai.');
+
+            $record = null;
+            if ($checkIn !== null && $checkIn !== []) {
+                // The site is the installation address of the subscription, else the location of the ticket.
+                $ticket->loadMissing(['location', 'subscription.installationAddress']);
+                $record = FieldCheckIn::forStart($checkIn, FieldCheckIn::site($ticket->subscription->installationAddress ?? $ticket->location));
+            }
+
             // A public reply may have answered the customer before the handler pressed Mulai: then that reply stays the first response.
             $firstResponse = $ticket->first_response_at === null ? ['first_response_at' => now(), 'first_response_source' => 'start'] : [];
             $ticket->update(['status' => 'on_progress', ...$firstResponse]);
 
             AuditService::log('ticket', 'started', ['code' => $ticket->code], $ticket);
+
+            if ($record !== null) {
+                AuditService::log('ticket', 'check_in', $record, $ticket);
+            }
 
             self::notifyCustomer($ticket, 'started');
 

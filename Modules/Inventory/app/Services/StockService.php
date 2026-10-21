@@ -21,12 +21,13 @@ use Modules\SPK\Models\WorkOrderItem;
 
 class StockService
 {
-    public static function receive(int $productId, int $locationId, float $quantity, ?string $note = null, ?string $refType = null, ?int $refId = null): StockMovement
+    /** @param  ?string  $unitCost  the price of one unit as typed ("12500.50"), never a float; with the supplier and the purchase reference it only describes a goods receipt and changes no quantity. */
+    public static function receive(int $productId, int $locationId, float $quantity, ?string $note = null, ?string $refType = null, ?int $refId = null, ?string $supplierName = null, ?string $purchaseReference = null, ?string $unitCost = null): StockMovement
     {
         abort_if($quantity <= 0, 422, 'Jumlah penerimaan harus lebih dari 0.');
         self::assertProductLocation($productId, $locationId);
 
-        return DB::transaction(function () use ($productId, $locationId, $quantity, $note, $refType, $refId) {
+        return DB::transaction(function () use ($productId, $locationId, $quantity, $note, $refType, $refId, $supplierName, $purchaseReference, $unitCost) {
             self::assertProductLocation($productId, $locationId);
             self::assertReference($refType, $refId);
             if ($movement = self::existingMovement($productId, $locationId, 'receive', $refType, $refId)) {
@@ -51,13 +52,18 @@ class StockService
                 'reference_id' => $refId,
                 'note' => $note,
                 'created_by' => Auth::id(),
+                'supplier_name' => $supplierName,
+                'purchase_reference' => $purchaseReference,
+                'unit_cost' => $unitCost,
             ]);
 
-            AuditService::log('inventory', 'stock_received', [
+            AuditService::log('inventory', 'stock_received', array_filter([
                 'product_id' => $productId,
                 'location_id' => $locationId,
                 'quantity' => $quantity,
-            ]);
+                'supplier_name' => $supplierName,
+                'purchase_reference' => $purchaseReference,
+            ], static fn (mixed $value): bool => $value !== null));
 
             return $movement;
         }, 3);

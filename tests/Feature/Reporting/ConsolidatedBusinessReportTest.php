@@ -386,9 +386,9 @@ class ConsolidatedBusinessReportTest extends TestCase
 
         $this->assertSame('Posisi saat ini: filter periode tidak berlaku', $records['MRR|']['Cakupan']);
         $this->assertSame('Periode: 2026-01-01 sampai 2026-01-31', $records['Pendapatan terbayar|']['Cakupan']);
-        $this->assertSame('date_from=2026-01-01; date_to=2026-01-31', $records['MRR|']['Filter']);
+        $this->assertSame('Tanggal mulai: 2026-01-01; Tanggal akhir: 2026-01-31', $records['MRR|']['Filter']);
         $this->assertSame('v1', $records['MRR|']['Versi']);
-        $this->assertSame('currency', $records['MRR|']['Satuan']);
+        $this->assertSame('Rupiah', $records['MRR|']['Satuan']);
     }
 
     public function test_the_file_is_a_csv_download_named_for_the_report(): void

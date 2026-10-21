@@ -43,7 +43,15 @@ test('@company-settings Simpan stays in view, unsaved changes are marked, and th
     await test.step('a section link brings its card into view and names it in the address', async () => {
         const nav = page.getByRole('navigation', { name: 'Bagian pengaturan' });
         // "Format tanggal" is listed only while the company has date formats stored, so it is not named here.
-        for (const name of ['Tagihan', 'Penangguhan otomatis', 'Peta', 'WhatsApp', 'Keamanan']) {
+        for (const name of [
+            'Tagihan',
+            'Penangguhan otomatis',
+            'Lapangan',
+            'Peta',
+            'Jam layanan',
+            'WhatsApp',
+            'Keamanan',
+        ]) {
             await expect(nav.getByRole('link', { name, exact: true })).toBeVisible();
         }
         // No link points at a card that is not on the page.
@@ -201,4 +209,54 @@ test('@company-settings a user who administers nothing is never asked to turn on
     await loginAs(page, 'staff');
 
     await expect(page.getByRole('region', { name: 'Keamanan akun' })).toHaveCount(0);
+});
+
+test('@company-settings the check-in limit and the service hours are on the page, and a bad value is refused on its own field', async ({
+    page,
+}) => {
+    await loginAs(page, 'admin');
+    const props = (await inertiaProps(page, SETTINGS_URL)).props ?? {};
+    const hoursSet = Object.values(props.serviceHours ?? {}).some(Boolean);
+
+    await page.goto(SETTINGS_URL);
+    const limit = page.getByLabel('Jarak check-in maksimal (meter)');
+    const monday = page.getByRole('group', { name: 'Senin' });
+    // Exact: the clear and open buttons of a time field are named "Hapus jam: Dari" and "Buka daftar jam: Dari", so a substring match finds three elements.
+    const opens = monday.getByLabel('Dari', { exact: true });
+    const closes = monday.getByLabel('Sampai', { exact: true });
+
+    await test.step('the limit shows what is stored, 500 until one is saved', async () => {
+        await expect(limit).toHaveValue(String(props.settings?.checkin_max_distance_m ?? 500));
+    });
+
+    await test.step('every day is listed, a closed one hides its times, and the warning names the empty week', async () => {
+        for (const day of ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']) {
+            await expect(page.getByRole('group', { name: day })).toBeVisible();
+        }
+        await expect(
+            page.getByText('Jam layanan belum diisi; tenggat dihitung 24 jam.'),
+        ).toHaveCount(hoursSet ? 0 : 1);
+
+        const closed = monday.getByRole('checkbox', { name: 'Tutup' });
+        if (await closed.isChecked()) {
+            await expect(opens).toHaveCount(0);
+            await closed.click();
+        }
+        await expect(opens).toHaveValue('08:00');
+        await expect(closes).toHaveValue('17:00');
+    });
+
+    await test.step('a limit under 50 metres and a day that closes before it opens are refused, and nothing is saved', async () => {
+        await limit.fill('10');
+        await closes.fill('07:00');
+        await closes.press('Tab');
+        await page.getByRole('button', { name: 'Simpan', exact: true }).click();
+
+        await expect(page.getByText('Jarak check-in paling dekat 50 meter.')).toBeVisible();
+        await expect(page.getByText('Jam tutup harus setelah jam buka.')).toBeVisible();
+        await expect(page.getByText('Pengaturan perusahaan diperbarui.')).toHaveCount(0);
+
+        await page.reload();
+        await expect(limit).toHaveValue(String(props.settings?.checkin_max_distance_m ?? 500));
+    });
 });

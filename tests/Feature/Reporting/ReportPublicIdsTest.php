@@ -197,7 +197,7 @@ class ReportPublicIdsTest extends TestCase
             ->where('report.href', fn (string $href) => $this->queryOf($href) === $query));
 
         $figure = collect($this->csvRecords($this->get(route('admin.reports.technician.export', $query))))->first();
-        $this->assertSame('technician_id='.$this->technician->public_id.'; date_from=2026-01-01; date_to=2026-01-31', $figure['Filter']);
+        $this->assertSame('Teknisi: Teknisi Satu; Tanggal mulai: 2026-01-01; Tanggal akhir: 2026-01-31', $figure['Filter']);
     }
 
     public function test_the_audit_file_names_the_entry_the_actor_and_the_subject_by_public_id(): void

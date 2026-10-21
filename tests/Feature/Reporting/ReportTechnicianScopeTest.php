@@ -3,6 +3,7 @@
 namespace Tests\Feature\Reporting;
 
 use App\Models\Core\Company;
+use App\Models\Core\Customer;
 use App\Models\Core\EmployeeEvaluation;
 use App\Models\Core\EmployeeProfile;
 use App\Models\Core\OrganizationUnit;
@@ -214,7 +215,7 @@ class ReportTechnicianScopeTest extends TestCase
         $this->assertEquals(2, (float) $figures['Tiket diselesaikan']);
         $this->assertEquals(2, (float) $figures['Beban kerja aktif']);
         $this->assertEquals(3.0, (float) $figures['Rata-rata skor evaluasi']);     // scores 4 and 2 in January; the 1 of February is out
-        $this->assertEquals(2, (float) $figures['SPK per jenis / installation']);
+        $this->assertEquals(2, (float) $figures['SPK per jenis / Instalasi']);
         $this->assertEquals(2, (float) $figures['Tiket per kategori / Support']);
 
         $this->assertEquals($screen->inertiaProps('data.avg_score'), (float) $figures['Rata-rata skor evaluasi']);
@@ -271,6 +272,26 @@ class ReportTechnicianScopeTest extends TestCase
         $response = $this->get(route('admin.reports.sla.drill', ['metric' => 'total_resolved', ...self::JANUARY]));
 
         $this->assertSame(0, $response->inertiaProps('tie_out.rows'));
+    }
+
+    public function test_a_portal_account_that_also_opens_reports_lists_only_the_tickets_of_its_own_customer(): void
+    {
+        // Roles stack: the customer role gives portal.access, the other one the web and the report.
+        $portal = $this->userIn(['report.sla.view', 'ticket.view']);
+        $this->grantRole($portal, 'customer');
+        $own = Customer::factory()->create(['company_id' => $this->companyId, 'user_id' => $portal->id]);
+        $category = $this->worldCategory($this->companyId, 'Portal', 'PRT');
+        $mine = $this->worldTicket($this->companyId, $category, '2026-01-20 08:00:00', null, '2026-01-20 09:00:00', '2026-01-20 10:00:00');
+        $mine->forceFill(['customer_id' => $own->id])->save();
+        $this->worldTicket($this->companyId, $category, '2026-01-21 08:00:00', null, '2026-01-21 09:00:00', '2026-01-21 10:00:00');
+
+        $this->actingAs($portal);
+        $response = $this->get(route('admin.reports.sla.drill', ['metric' => 'total_resolved', ...self::JANUARY]));
+
+        $this->assertSame(1, $response->inertiaProps('tie_out.rows'), 'the ticket of another customer is not theirs to list');
+        $this->assertSame($mine->public_id, $response->inertiaProps('rows.data.0.id'));
+        $this->assertTrue($response->inertiaProps('tie_out.restricted'));
+        $this->assertNull($response->inertiaProps('tie_out.matches'), 'a part of the figure cannot prove it');
     }
 
     // ---------------------------------------------------------------------------------------------

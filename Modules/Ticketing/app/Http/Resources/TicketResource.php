@@ -10,7 +10,6 @@ use App\Models\Core\EmployeeEvaluation;
 use App\Support\FieldCheckIn;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Arr;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Services\TicketService;
 
@@ -73,8 +72,9 @@ class TicketResource extends JsonResource
             'customer_rating' => $this->when($show, fn (): ?array => $this->customer_rated_at === null ? null : ['value' => $this->customer_rating, 'comment' => $this->customer_rating_comment, 'rated_at' => $this->customer_rated_at]),
             // Show page only: naming the source loads the subscription's package and tier.
             'deadline_source' => $this->when($show, fn (): array => TicketService::deadlineSource($this->resource)),
-            // Show page only: the page words the check-in itself, and the technician's own coordinates stay out of it.
-            'check_in' => $this->when($show, fn (): ?array => ($record = FieldCheckIn::recordFor($this->resource, 'ticket')) === null ? null : Arr::only($record, ['status', 'distance_m', 'accuracy_m', 'reason'])),
+            // Show page only: the page words the check-in itself, and the technician's own coordinates stay out of it. Never for a portal
+            // account, whatever else its roles open: the far reason is an internal note.
+            'check_in' => $this->when($show && ! $request->user()?->can('portal.access'), fn (): ?array => FieldCheckIn::pageSummary(FieldCheckIn::recordFor($this->resource, 'ticket'))),
             // Show page only: lists and exports skip the per-row policy checks. A button shows only for what the click would do.
             'can' => $this->when($show, fn (): array => [
                 'start' => (bool) $request->user()?->can('start', $this->resource),

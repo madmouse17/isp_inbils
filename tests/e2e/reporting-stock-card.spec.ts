@@ -43,6 +43,8 @@ test.describe('@smoke stock card reporting', () => {
         await expect(
             page.getByText('Pilih barang lalu tekan Tampilkan untuk melihat pergerakan stok.'),
         ).toBeVisible();
+        // Before a product is chosen the page offers the ones whose stock moved last.
+        await expect(page.getByRole('heading', { name: 'Barang terakhir bergerak' })).toBeVisible();
 
         const productPicker = page.getByRole('combobox', { name: 'Barang' });
         await selectSearchOption(page, 'Barang', 'E2E-STOCK-PRODUCT');

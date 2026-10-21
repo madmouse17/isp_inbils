@@ -84,7 +84,7 @@ class InvoiceSendGuardTest extends TestCase
             ->assertSessionHas('success', 'Item ditambahkan.');
 
         $item = $draft->items()->sole();
-        $this->assertSame('50000.00', $draft->fresh()->total);
+        $this->assertSame('55500.00', $draft->fresh()->total, '50.000 and the 11% PPN of the company, which the line takes whatever a request names');
 
         $this->delete(route('admin.invoices.items.destroy', [$draft, $item]))->assertRedirect()->assertSessionHas('success', 'Item dihapus.');
         $this->assertSame(0, $draft->items()->count());
