@@ -155,7 +155,7 @@ class InventoryRequestWorkflowTest extends TestCase
         ]);
 
         $req = InventoryRequest::wherePublicId($publicId)->firstOrFail();
-        $this->assertSame('REQ-'.now('Asia/Jakarta')->format('Ymd').'-0001', $req->code);
+        $this->assertSame('REQ-'.now('Asia/Jakarta')->format('Y').'-00001', $req->code);
 
         // 2. Submit Draft
         $submitResponse = $this->actingAs($this->technician)
@@ -172,23 +172,23 @@ class InventoryRequestWorkflowTest extends TestCase
         Notification::assertNotSentTo($this->staffWarehouse, InventoryRequestSubmittedNotification::class);
     }
 
-    public function test_request_codes_come_from_the_engine_and_restart_each_day(): void
+    public function test_request_codes_come_from_the_engine_and_restart_each_year(): void
     {
         $payload = [
             'warehouse_location_id' => $this->warehouseA->public_id,
-            'reason' => 'Kebutuhan kode harian',
+            'reason' => 'Kebutuhan kode tahunan',
             'submit' => false,
             'items' => [['product_id' => $this->cableProduct->public_id, 'quantity_requested' => 1]],
         ];
         $codes = [];
 
-        foreach (['2026-10-13 09:00:00', '2026-10-13 10:00:00', '2026-10-14 09:00:00'] as $moment) {
+        foreach (['2026-10-13 09:00:00', '2026-10-14 10:00:00', '2027-01-04 09:00:00'] as $moment) {
             $this->travelTo($moment);
             $publicId = $this->actingAs($this->technician)->postJson(route('admin.inventory.requests.store'), $payload)->assertStatus(201)->json('data.id');
             $codes[] = InventoryRequest::wherePublicId($publicId)->firstOrFail()->code;
         }
 
-        $this->assertSame(['REQ-20261013-0001', 'REQ-20261013-0002', 'REQ-20261014-0001'], $codes);
+        $this->assertSame(['REQ-2026-00001', 'REQ-2026-00002', 'REQ-2027-00001'], $codes);
     }
 
     public function test_maker_checker_rule_requester_cannot_approve_or_reject_own_request(): void
@@ -264,21 +264,21 @@ class InventoryRequestWorkflowTest extends TestCase
 
         Notification::assertSentTo($this->technician, InventoryRequestApprovedNotification::class);
 
-        // 3. Staff Gudang Menyiapkan Barang (Preparing)
+        // 3. Staff Gudang Menyiapkan Barang: satu aksi membawa permintaan langsung ke siap diambil (F8-U04)
         $prepareRes = $this->actingAs($this->staffWarehouse)
             ->postJson(route('admin.inventory.requests.prepare', $req));
 
-        $prepareRes->assertStatus(200);
-        $this->assertEquals('preparing', $req->fresh()->status);
+        $prepareRes->assertStatus(200)->assertJsonPath('data.status', 'ready_for_pickup');
+        $req->refresh();
+        $this->assertEquals('ready_for_pickup', $req->status);
+        $this->assertSame([$this->staffWarehouse->id, $this->staffWarehouse->id], [$req->prepared_by, $req->ready_by]);
 
-        // 4. Staff Gudang Menandai Siap Diambil (Ready for Pickup)
-        $readyRes = $this->actingAs($this->staffWarehouse)
-            ->postJson(route('admin.inventory.requests.ready', $req));
+        Notification::assertSentToTimes($this->technician, InventoryRequestReadyNotification::class, 1);
 
-        $readyRes->assertStatus(200);
-        $this->assertEquals('ready_for_pickup', $req->fresh()->status);
-
-        Notification::assertSentTo($this->technician, InventoryRequestReadyNotification::class);
+        // Tidak ada langkah "siap diambil" kedua: statusnya sudah siap diambil
+        $this->actingAs($this->staffWarehouse)
+            ->postJson(route('admin.inventory.requests.ready', $req))
+            ->assertStatus(403);
 
         // 5. Staff Gudang Menyerahkan Barang (Issue)
         // Pemohon (teknisi) tidak boleh issue barangnya sendiri
@@ -497,13 +497,12 @@ class InventoryRequestWorkflowTest extends TestCase
 
         Notification::assertSentTo($this->technician, InventoryRequestApprovedNotification::class);
 
-        // 4. Prepare
-        $prepareRes = $this->actingAs($this->staffWarehouse)
-            ->postJson(route('admin.inventory.requests.prepare', $req));
-        $prepareRes->assertStatus(200);
+        // 4. Prepare, as a request left preparing before the one-step action existed: the first step only
+        $this->actingAs($this->staffWarehouse);
+        InventoryRequestService::prepare($req, $this->staffWarehouse);
         $this->assertEquals('preparing', $req->fresh()->status);
 
-        // 5. Ready for pickup
+        // 5. Ready for pickup: the step that still finishes such a request
         $readyRes = $this->actingAs($this->staffWarehouse)
             ->postJson(route('admin.inventory.requests.ready', $req));
         $readyRes->assertStatus(200);
@@ -732,9 +731,8 @@ class InventoryRequestWorkflowTest extends TestCase
         $res = $this->actingAs($this->staffWarehouse)->postJson(route('admin.inventory.requests.issue', $req));
         $this->assertTrue(in_array($res->status(), [403, 422], true));
 
-        // Transisi normal: prepare -> ready -> issue
+        // Transisi normal: prepare (sampai siap diambil) -> issue
         $this->actingAs($this->staffWarehouse)->postJson(route('admin.inventory.requests.prepare', $req))->assertStatus(200);
-        $this->actingAs($this->staffWarehouse)->postJson(route('admin.inventory.requests.ready', $req))->assertStatus(200);
         $this->actingAs($this->staffWarehouse)->postJson(route('admin.inventory.requests.issue', $req))->assertStatus(200);
 
         // Duplicate issue kedua kali -> ditolak
@@ -822,15 +820,13 @@ class InventoryRequestWorkflowTest extends TestCase
             ->postJson(route('admin.inventory.requests.prepare', $req));
         $resPrepare->assertStatus(403);
 
-        // Staff gudang prepare & ready
+        // Staff gudang prepare: satu aksi sampai siap diambil
         $this->actingAs($this->staffWarehouse)->postJson(route('admin.inventory.requests.prepare', $req))->assertStatus(200);
 
         // Teknisi mencoba mark ready -> 403 Forbidden
         $resReady = $this->actingAs($this->technician)
             ->postJson(route('admin.inventory.requests.ready', $req));
         $resReady->assertStatus(403);
-
-        $this->actingAs($this->staffWarehouse)->postJson(route('admin.inventory.requests.ready', $req))->assertStatus(200);
 
         // Teknisi mencoba issue langsung -> 403 Forbidden
         $resIssue = $this->actingAs($this->technician)
@@ -1028,7 +1024,6 @@ class InventoryRequestWorkflowTest extends TestCase
             ->assertStatus(403);
 
         $this->actingAs($this->staffWarehouse)->postJson(route('admin.inventory.requests.prepare', $req))->assertStatus(200);
-        $this->actingAs($this->staffWarehouse)->postJson(route('admin.inventory.requests.ready', $req))->assertStatus(200);
 
         $this->actingAs($this->managerApprover)
             ->postJson(route('admin.inventory.requests.issue', $req))
@@ -1045,7 +1040,6 @@ class InventoryRequestWorkflowTest extends TestCase
         $this->actingAs($this->adminUser)->postJson(route('admin.inventory.requests.prepare', $req))->assertStatus(403);
 
         $this->actingAs($this->staffWarehouse)->postJson(route('admin.inventory.requests.prepare', $req))->assertStatus(200);
-        $this->actingAs($this->staffWarehouse)->postJson(route('admin.inventory.requests.ready', $req))->assertStatus(200);
 
         $this->actingAs($this->adminUser)->postJson(route('admin.inventory.requests.issue', $req))->assertStatus(403);
         $this->assertEquals('ready_for_pickup', $req->fresh()->status);
@@ -1065,7 +1059,6 @@ class InventoryRequestWorkflowTest extends TestCase
         );
 
         $this->actingAs($this->staffWarehouse)->postJson(route('admin.inventory.requests.prepare', $req))->assertStatus(200);
-        $this->actingAs($this->staffWarehouse)->postJson(route('admin.inventory.requests.ready', $req))->assertStatus(200);
 
         $this->assertMakerCheckerAbort(
             'Maker-checker: penyetujui tidak boleh melakukan serah terima barang.',

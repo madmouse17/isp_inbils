@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
@@ -10,6 +10,7 @@ import {
     CardHeader,
     CardTitle,
     Checkbox,
+    DatePicker,
     EmptyCell,
     EnumBadge,
     Input,
@@ -35,13 +36,15 @@ import {
     type IndonesiaRegionValue,
 } from '@/Components/composite';
 import type { AcquirerOption } from '@/types/models';
+import type { QueueUserOption } from '@/types';
 import { packageGroupOptions, type PackageGroup } from '@/lib/packageGroups';
 import { LOCATION_TYPE, WORK_ORDER_STATUS, labelOf } from '@/lib/statuses';
 import { useMapDefault } from '@/hooks/useMapDefault';
 import { DropPortSelect } from '@/Components/composite/odn/DropPortSelect';
 import type { DropPortOption } from '@/types/ipam-odn';
 import { SuggestionChip } from '@/Components/composite/SuggestionChip';
-import { lowestFreeDropPort, nearestLocation, toGeoPoint } from '@/lib/suggest';
+import { haversineKm, lowestFreeDropPort, nearestLocation, toGeoPoint } from '@/lib/suggest';
+import { candidateOptions } from '@/Pages/Admin/Dispatch/components/AssignDialog';
 
 interface AddressInput {
     label: string;
@@ -86,6 +89,18 @@ interface LocationOption {
     lng: number | string | null;
 }
 
+/** What the geocoder gives for an address, with the street line `OpenStreetMapGeocoder` adds to the shared type. */
+type GeocodedAddress = GeocodeResult & { street?: string };
+
+/** A free drop port as the server sends it: the picker's option and the ODP it is on. */
+interface DropPortChoice extends DropPortOption {
+    odp_name: string;
+    free_ports: number;
+    total_ports: number;
+    lat: number | null;
+    lng: number | null;
+}
+
 interface CustomerForm {
     code: string;
     name: string;
@@ -100,6 +115,8 @@ interface CustomerForm {
     whatsapp_opt_in: boolean;
     /** Local select state; sent as `acquired_by_user_id` only with the assign capability. */
     acquirer_id: string;
+    /** Local select state; sent as `assign_technician_id` only with the assign capability. */
+    assign_technician_id: string;
     addresses: AddressInput[];
     contacts: ContactInput[];
     subscription: {
@@ -112,6 +129,8 @@ interface CustomerForm {
         notes: string;
         /** The free ODP port chosen for the drop; sent as `odn_port_id` only when one is chosen. */
         odn_port_id: string;
+        /** The visit day of the installation SPK; sent as `scheduled_date` only when one is chosen. */
+        scheduled_date: string;
     };
 }
 
@@ -124,11 +143,13 @@ interface CreateProps {
     regions: IndonesiaRegionOptions;
     geocodeResults?: GeocodeResult[];
     geocodeIndex?: number;
-    can: { assignAcquirer: boolean; assignDrop: boolean };
+    can: { assignAcquirer: boolean; assignDrop: boolean; assignTechnician: boolean };
     acquirerOptions: AcquirerOption[];
     acquirerDefaultId: string | null;
     /** Free ports under the serving POP, found by typing an ODP code (`dropPort_search`); odn.assign only. */
-    dropPortOptions?: DropPortOption[];
+    dropPortOptions?: DropPortChoice[];
+    /** The technicians "Tugaskan sekarang" offers, with the work each holds; empty without spk.assign. */
+    technicians?: QueueUserOption[];
 }
 
 const emptyAddress = (): AddressInput => ({
@@ -156,6 +177,15 @@ const emptyContact = (): ContactInput => ({
     notes: '',
 });
 
+/** "850 m" under a kilometre, else "1,4 km": how far an ODP stands from the installation address. */
+function formatDistance(km: number): string {
+    const meters = Math.round(km * 1000);
+
+    return meters < 1000
+        ? `${meters} m`
+        : `${km.toLocaleString('id-ID', { maximumFractionDigits: 1 })} km`;
+}
+
 export default function Create({
     codeSequence,
     packages,
@@ -166,12 +196,17 @@ export default function Create({
     acquirerOptions,
     acquirerDefaultId,
     dropPortOptions,
+    technicians = [],
     geocodeResults = [],
     geocodeIndex,
 }: CreateProps) {
     const mapDefault = useMapDefault();
     const [tab, setTab] = useState('customer');
     const [geocodeSearchingIndex, setGeocodeSearchingIndex] = useState<number | null>(null);
+    // "Sama dengan data pelanggan": the primary contact follows the customer's own data until it is edited.
+    const [contactSameAsCustomer, setContactSameAsCustomer] = useState(true);
+    // The street line the geocoder filled into each address, by index: a later pick replaces it, a typed address stays.
+    const geocodedStreets = useRef<Record<number, string>>({});
     const { data, setData, post, transform, processing, errors } = useForm<CustomerForm>({
         code: '',
         name: '',
@@ -184,6 +219,7 @@ export default function Create({
         is_active: true,
         whatsapp_opt_in: false,
         acquirer_id: acquirerDefaultId === null ? '' : String(acquirerDefaultId),
+        assign_technician_id: '',
         addresses: [
             {
                 ...emptyAddress(),
@@ -202,8 +238,21 @@ export default function Create({
             contract_months: '',
             notes: '',
             odn_port_id: '',
+            scheduled_date: '',
         },
     });
+    // The primary contact is the customer's data while "Sama dengan data pelanggan" is on: one typing for a person who
+    // registers a customer. The contact person's name wins when the customer data names one.
+    const contacts = data.contacts.map((contact) =>
+        contactSameAsCustomer && contact.is_primary
+            ? {
+                  ...contact,
+                  name: data.contact_person.trim() || data.name,
+                  phone: data.phone,
+                  email: data.email,
+              }
+            : contact,
+    );
     const formErrors = errors as Record<string, string | undefined>;
     const customerErrors = formErrors as Partial<
         Record<
@@ -295,11 +344,19 @@ export default function Create({
         );
     };
 
-    const selectGeocodeResult = (index: number, result: GeocodeResult) => {
+    const selectGeocodeResult = (index: number, result: GeocodedAddress) => {
+        // The street line follows the pick unless the person wrote their own: what an earlier pick filled may be replaced.
+        const street = result.street ?? '';
+        const written = data.addresses[index].address;
+        const takesStreet =
+            street !== '' && (written.trim() === '' || written === geocodedStreets.current[index]);
+        if (takesStreet) geocodedStreets.current[index] = street;
+
         const addresses = data.addresses.map((address, current) =>
             current === index
                 ? {
                       ...address,
+                      ...(takesStreet ? { address: street } : {}),
                       postal_code: result.postal_code,
                       lat: Number(result.lat).toFixed(7),
                       lng: Number(result.lng).toFixed(7),
@@ -324,6 +381,15 @@ export default function Create({
         if (removed.is_installation_point && addresses[0]) {
             addresses[0].is_installation_point = true;
         }
+        // The streets the geocoder filled move with their addresses.
+        geocodedStreets.current = Object.fromEntries(
+            Object.entries(geocodedStreets.current)
+                .filter(([key]) => Number(key) !== index)
+                .map(([key, street]) => [
+                    Number(key) > index ? Number(key) - 1 : Number(key),
+                    street,
+                ]),
+        );
         setData('addresses', addresses);
     };
 
@@ -332,18 +398,28 @@ export default function Create({
         key: Key,
         value: ContactInput[Key],
     ) => {
+        // Typing into the mirrored contact makes it its own: the copied values stay and the box clears.
+        if (contacts[index].is_primary) setContactSameAsCustomer(false);
         setData(
             'contacts',
-            data.contacts.map((contact, current) =>
+            contacts.map((contact, current) =>
                 current === index ? { ...contact, [key]: value } : contact,
             ),
         );
     };
 
+    const toggleContactSameAsCustomer = (checked: boolean) => {
+        // Off keeps the copied values to edit; on lets the customer's data take over again.
+        if (!checked) setData('contacts', contacts);
+        setContactSameAsCustomer(checked);
+    };
+
     const selectPrimaryContact = (index: number) => {
+        // The contact that mirrored keeps its copied values and stops following the customer data.
+        setContactSameAsCustomer(false);
         setData(
             'contacts',
-            data.contacts.map((contact, current) => ({
+            contacts.map((contact, current) => ({
                 ...contact,
                 is_primary: current === index,
             })),
@@ -351,12 +427,13 @@ export default function Create({
     };
 
     const removeContact = (index: number) => {
-        const removed = data.contacts[index];
-        const contacts = data.contacts
+        const removed = contacts[index];
+        const remaining = contacts
             .filter((_, current) => current !== index)
             .map((contact) => ({ ...contact }));
-        if (removed.is_primary && contacts[0]) contacts[0].is_primary = true;
-        setData('contacts', contacts);
+        if (removed.is_primary && remaining[0]) remaining[0].is_primary = true;
+        if (removed.is_primary) setContactSameAsCustomer(false);
+        setData('contacts', remaining);
     };
 
     // The server orders `packageGroups` for the type it was loaded with; the toggle re-orders here.
@@ -407,14 +484,23 @@ export default function Create({
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
-        transform(({ acquirer_id, code, ...values }) => {
-            // Without a chosen port the request carries no odn_port_id at all, exactly as before.
-            const { odn_port_id, ...subscription } = values.subscription;
+        transform(({ acquirer_id, assign_technician_id, code, ...values }) => {
+            // Without a chosen port or visit day the request carries neither key at all, exactly as before.
+            const { odn_port_id, scheduled_date, ...subscription } = values.subscription;
             const payload = {
                 ...values,
+                // The primary contact as the form shows it: the customer's data while "Sama dengan data pelanggan" is on.
+                contacts,
                 // A locked code is generated by the server; sending it would be rejected.
                 ...(codeSequence.manual ? { code } : {}),
-                subscription: odn_port_id === '' ? subscription : { ...subscription, odn_port_id },
+                subscription: {
+                    ...subscription,
+                    ...(odn_port_id === '' ? {} : { odn_port_id }),
+                    ...(scheduled_date === '' ? {} : { scheduled_date }),
+                },
+                ...(can.assignTechnician && assign_technician_id !== ''
+                    ? { assign_technician_id }
+                    : {}),
             };
 
             return can.assignAcquirer
@@ -431,7 +517,11 @@ export default function Create({
                     setTab('addresses');
                 } else if (keys.some((key) => key === 'contacts' || key.startsWith('contacts.'))) {
                     setTab('contacts');
-                } else if (keys.some((key) => key.startsWith('subscription.'))) {
+                } else if (
+                    keys.some(
+                        (key) => key.startsWith('subscription.') || key === 'assign_technician_id',
+                    )
+                ) {
                     setTab('subscription');
                 } else {
                     setTab('customer');
@@ -456,6 +546,34 @@ export default function Create({
     // Free ports are listed after an ODP code is typed; the suggestion is the lowest one of that ODP.
     const freePort =
         data.subscription.serving_pop_id === '' ? null : lowestFreeDropPort(dropPortOptions);
+    // The ports as the picker lists them: the ODP nearest the installation address first, each with its ODP's name, how many
+    // of its ports are free and how far it is. Without coordinates, no distance and the server's order.
+    const dropPortChoices =
+        dropPortOptions === undefined
+            ? undefined
+            : dropPortOptions
+                  .map((option) => {
+                      const point = installationGeo ? toGeoPoint(option.lat, option.lng) : null;
+                      const km =
+                          installationGeo && point ? haversineKm(installationGeo, point) : null;
+
+                      return { option, km };
+                  })
+                  .sort((a, b) =>
+                      a.km === b.km ? 0 : a.km === null ? 1 : b.km === null ? -1 : a.km - b.km,
+                  )
+                  .map(({ option, km }) => ({
+                      value: option.value,
+                      label: option.label,
+                      description: [
+                          option.odp_name,
+                          `${option.free_ports}/${option.total_ports} port kosong`,
+                          km === null ? null : formatDistance(km),
+                          option.description,
+                      ]
+                          .filter(Boolean)
+                          .join(' · '),
+                  }));
 
     return (
         <AdminLayout title="Buat Pelanggan">
@@ -748,7 +866,7 @@ export default function Create({
                                                 {formErrors.contacts}
                                             </p>
                                         ) : null}
-                                        {data.contacts.map((contact, index) => (
+                                        {contacts.map((contact, index) => (
                                             <Card key={index}>
                                                 <CardHeader className="space-y-0 flex-row items-center justify-between">
                                                     <CardTitle>Kontak {index + 1}</CardTitle>
@@ -763,6 +881,23 @@ export default function Create({
                                                     </Button>
                                                 </CardHeader>
                                                 <CardContent className="grid gap-4 md:grid-cols-2">
+                                                    {contact.is_primary && (
+                                                        <div className="space-y-1 md:col-span-2">
+                                                            <Switch
+                                                                label="Sama dengan data pelanggan"
+                                                                checked={contactSameAsCustomer}
+                                                                onCheckedChange={
+                                                                    toggleContactSameAsCustomer
+                                                                }
+                                                            />
+                                                            <p className="text-xs text-muted-foreground">
+                                                                Memakai narahubung bila diisi,
+                                                                telepon, dan email dari tab Data
+                                                                pelanggan. Mengubah isian di bawah
+                                                                melepasnya.
+                                                            </p>
+                                                        </div>
+                                                    )}
                                                     <Input
                                                         id={`contact-${index}-name`}
                                                         label="Nama"
@@ -907,7 +1042,7 @@ export default function Create({
                                                             odn_port_id: value,
                                                         })
                                                     }
-                                                    options={dropPortOptions}
+                                                    options={dropPortChoices}
                                                     unavailable={
                                                         data.subscription.serving_pop_id === ''
                                                             ? 'Pilih POP layanan untuk melihat port kosongnya.'
@@ -1030,10 +1165,68 @@ export default function Create({
                                                     <dd>
                                                         <EnumBadge
                                                             map={WORK_ORDER_STATUS}
-                                                            value="generated"
+                                                            value={
+                                                                can.assignTechnician &&
+                                                                data.assign_technician_id !== ''
+                                                                    ? 'assigned'
+                                                                    : 'generated'
+                                                            }
                                                         />
                                                     </dd>
                                                 </dl>
+                                                <div className="space-y-4 mt-4 border-t pt-4">
+                                                    <div>
+                                                        <p className="font-medium">
+                                                            {can.assignTechnician
+                                                                ? 'Tugaskan sekarang'
+                                                                : 'Jadwal kunjungan'}
+                                                        </p>
+                                                        <p className="text-sm text-muted-foreground">
+                                                            {can.assignTechnician
+                                                                ? 'Opsional. Isi bila pemasangan sudah disepakati; kosongkan untuk menugaskan nanti dari antrean Penugasan.'
+                                                                : 'Opsional. Kosongkan bila belum disepakati.'}
+                                                        </p>
+                                                    </div>
+                                                    <div className="grid gap-4 md:grid-cols-2">
+                                                        {can.assignTechnician && (
+                                                            <SearchSelect
+                                                                id="subscription-technician"
+                                                                label="Teknisi"
+                                                                value={data.assign_technician_id}
+                                                                onChange={(value) =>
+                                                                    setData(
+                                                                        'assign_technician_id',
+                                                                        value,
+                                                                    )
+                                                                }
+                                                                options={candidateOptions(
+                                                                    technicians,
+                                                                )}
+                                                                placeholder="Cari teknisi"
+                                                                emptyText="Tidak ada teknisi aktif yang cocok."
+                                                                error={
+                                                                    formErrors.assign_technician_id
+                                                                }
+                                                            />
+                                                        )}
+                                                        <DatePicker
+                                                            id="subscription-scheduled-date"
+                                                            label="Tanggal kunjungan"
+                                                            value={data.subscription.scheduled_date}
+                                                            onChange={(value) =>
+                                                                setData('subscription', {
+                                                                    ...data.subscription,
+                                                                    scheduled_date: value,
+                                                                })
+                                                            }
+                                                            error={
+                                                                formErrors[
+                                                                    'subscription.scheduled_date'
+                                                                ]
+                                                            }
+                                                        />
+                                                    </div>
+                                                </div>
                                             </CardContent>
                                         </Card>
                                     </div>

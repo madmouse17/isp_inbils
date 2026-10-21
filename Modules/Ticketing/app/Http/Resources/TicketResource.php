@@ -11,7 +11,6 @@ use App\Support\FieldCheckIn;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Arr;
-use Modules\NetworkAsset\Http\Resources\NetworkAssetResource;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Services\TicketService;
 
@@ -61,14 +60,17 @@ class TicketResource extends JsonResource
             ...$this->lifecycleAttributes(),
             'category' => new TicketCategoryResource($this->whenLoaded('category')),
             'customer' => $this->whenLoaded('customer', fn (): CustomerResource|array => $this->customerFor($request, $detail)),
-            'subscription' => new SubscriptionResource($this->whenLoaded('subscription')),
-            'network_asset' => new NetworkAssetResource($this->whenLoaded('networkAsset')),
+            // What a ticket shows of its subscription and its asset: enough to name and link them, not the records.
+            'subscription' => $this->whenLoaded('subscription', fn (): ?array => SubscriptionResource::summary($this->subscription)),
+            'network_asset' => $this->whenLoaded('networkAsset', fn (): ?array => $this->networkAsset === null ? null : ['id' => $this->networkAsset->public_id, 'code' => $this->networkAsset->code, 'name' => $this->networkAsset->name]),
             'location' => new LocationResource($this->whenLoaded('location')),
             // A name is all a page shows of the handler; the full user record would carry roles, 2FA state and policy checks per row.
             'assignee' => $this->whenLoaded('assignee', fn (): array => ['id' => $this->assignee->public_id, 'name' => $this->assignee->name]),
             'comments' => TicketCommentResource::collection($this->whenLoaded('comments')),
             // Show page only: the list does not read them, and a file list costs a media and an uploader query per row.
             'attachments' => $this->when($show, fn () => MediaResource::collection($this->getMedia('attachments'))),
+            // Show page only: what the customer rated the ticket, once they did.
+            'customer_rating' => $this->when($show, fn (): ?array => $this->customer_rated_at === null ? null : ['value' => $this->customer_rating, 'comment' => $this->customer_rating_comment, 'rated_at' => $this->customer_rated_at]),
             // Show page only: naming the source loads the subscription's package and tier.
             'deadline_source' => $this->when($show, fn (): array => TicketService::deadlineSource($this->resource)),
             // Show page only: the page words the check-in itself, and the technician's own coordinates stay out of it.
@@ -80,6 +82,8 @@ class TicketResource extends JsonResource
                 'resolve' => (bool) $request->user()?->can('resolve', $this->resource),
                 'spawn_spk' => $this->mayShowSpawnSpk($request),
                 'comment' => $this->mayComment($request),
+                'reopen' => (bool) $request->user()?->can('reopen', $this->resource),
+                'assign_self' => $this->mayAssignSelf($request),
                 'evaluate' => $this->mayEvaluate($request),
             ]),
         ];
@@ -91,6 +95,14 @@ class TicketResource extends JsonResource
         return in_array($this->status, ['assigned', 'on_progress'], true)
             && $this->spawned_spk_id === null
             && (bool) $request->user()?->can('spawnSpk', $this->resource);
+    }
+
+    /** "Tugaskan ke saya" is offered on a ticket nobody has yet, to someone the ticket may be given to. */
+    private function mayAssignSelf(Request $request): bool
+    {
+        return $this->status === 'open'
+            && $this->assigned_to === null
+            && (bool) $request->user()?->can('assignSelf', $this->resource);
     }
 
     /** A closed ticket takes no comment, and the form behind the button asks for the permission to comment. */

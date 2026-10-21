@@ -13,7 +13,6 @@ use Modules\Inventory\Models\Stock;
 use Modules\Inventory\Models\Unit;
 use Modules\Inventory\Services\InventoryRequestService;
 use Modules\Inventory\Services\StockService;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
 
@@ -51,7 +50,7 @@ class StockQuantityPrecisionTest extends TestCase
     {
         $this->stockAt($this->from, '100.10', '100.00');
 
-        $this->assertShort(fn () => StockService::issue($this->product->id, $this->from->id, 0.11), 'Stok Kabel Drop di WH-A tersisa 0,1 m, dibutuhkan 0,11 m.');
+        $this->assertShort(fn () => StockService::issue($this->product->id, $this->from->id, 0.11), 'Stok Kabel Drop di WH-A tidak cukup: tersedia 0,1 m, diminta 0,11 m.');
 
         StockService::issue($this->product->id, $this->from->id, 0.10);
 
@@ -62,7 +61,7 @@ class StockQuantityPrecisionTest extends TestCase
     {
         $this->stockAt($this->from, '100.10', '100.00');
 
-        $this->assertShort(fn () => StockService::transfer($this->product->id, $this->from->id, $this->to->id, 0.11), 'Stok Kabel Drop di WH-A tersisa 0,1 m, dibutuhkan 0,11 m.');
+        $this->assertShort(fn () => StockService::transfer($this->product->id, $this->from->id, $this->to->id, 0.11), 'Stok Kabel Drop di WH-A tidak cukup: tersedia 0,1 m, diminta 0,11 m.');
 
         StockService::transfer($this->product->id, $this->from->id, $this->to->id, 0.10);
 
@@ -74,7 +73,7 @@ class StockQuantityPrecisionTest extends TestCase
     {
         $this->stockAt($this->from, '100.10', '100.00');
 
-        $this->assertShort(fn () => StockService::reserve($this->product->id, $this->from->id, 0.11), 'Stok Kabel Drop di WH-A tersisa 0,1 m, dibutuhkan 0,11 m.');
+        $this->assertShort(fn () => StockService::reserve($this->product->id, $this->from->id, 0.11), 'Stok Kabel Drop di WH-A tidak cukup: tersedia 0,1 m, diminta 0,11 m.');
 
         StockService::reserve($this->product->id, $this->from->id, 0.10);
 
@@ -97,7 +96,7 @@ class StockQuantityPrecisionTest extends TestCase
     {
         $this->stockAt($this->from, '100.10', '100.00');
 
-        $this->assertShort(fn () => StockService::stockMovement($this->product->id, $this->from->id, null, 'issue', 0.11), 'Stok Kabel Drop di WH-A tersisa 0,1 m, dibutuhkan 0,11 m.');
+        $this->assertShort(fn () => StockService::stockMovement($this->product->id, $this->from->id, null, 'issue', 0.11), 'Stok Kabel Drop di WH-A tidak cukup: tersedia 0,1 m, diminta 0,11 m.');
 
         StockService::stockMovement($this->product->id, $this->from->id, null, 'issue', 0.10);
         $this->assertSame(['100.00', '100.00'], $this->stockOf($this->from));
@@ -127,13 +126,7 @@ class StockQuantityPrecisionTest extends TestCase
         $requester = User::factory()->create(['company_id' => $this->user->company_id]);
 
         $tooMuch = $this->submittedRequest($requester, 0.11);
-        try {
-            InventoryRequestService::approve($tooMuch, $this->user);
-            $this->fail('A cent over the available stock cannot be approved.');
-        } catch (HttpException $e) {
-            $this->assertSame(422, $e->getStatusCode());
-            $this->assertSame("Stok tidak mencukupi untuk {$this->product->sku} di {$this->from->code}. Tersedia: 0.1, Diminta: 0.11.", $e->getMessage());
-        }
+        $this->assertShort(fn () => InventoryRequestService::approve($tooMuch, $this->user), 'Stok Kabel Drop di WH-A tidak cukup: tersedia 0,1 m, diminta 0,11 m.');
         $this->assertSame(['100.10', '100.00'], $this->stockOf($this->from));
 
         InventoryRequestService::approve($this->submittedRequest($requester, 0.10), $this->user);

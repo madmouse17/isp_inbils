@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
@@ -16,6 +16,7 @@ import {
     EmptyCell,
     EnumBadge,
     FileUpload,
+    Input,
     Modal,
     NativeSelect,
     Progress,
@@ -32,8 +33,9 @@ import { useNow } from '@/hooks/useNow';
 import { targetHoursText } from '@/lib/deadline';
 import { formatDateTime } from '@/lib/format';
 import { PRIORITY, TICKET_SOURCE, TICKET_STATUS } from '@/lib/statuses';
-import type { PageProps } from '@/types';
-import type { TicketCustomer, TicketDeadlineSource } from '@/types/ticketing';
+import { candidateOptions } from '@/Pages/Admin/Dispatch/components/AssignDialog';
+import type { PageProps, QueueUserOption } from '@/types';
+import type { TicketCustomer, TicketCustomerRating, TicketDeadlineSource } from '@/types/ticketing';
 import { checkInText, type CheckInRecord } from './components/checkIn';
 
 interface TData {
@@ -52,6 +54,8 @@ interface TData {
         resolve: boolean;
         spawn_spk: boolean;
         comment: boolean;
+        reopen: boolean;
+        assign_self: boolean;
         evaluate: boolean;
     };
     is_sla_breached: boolean;
@@ -65,6 +69,7 @@ interface TData {
     reopened_at?: string | null;
     closed_at?: string | null;
     resolution_note?: string | null;
+    customer_rating?: TicketCustomerRating | null;
     check_in?: CheckInRecord | null;
     category?: { name: string; code: string } | null;
     customer?: TicketCustomer | null;
@@ -89,32 +94,38 @@ interface TData {
         original_name?: string | null;
         mime_type?: string | null;
         uploaded_by?: string | null;
+        caption?: string | null;
         created_at: string;
     }[];
 }
 
 interface ShowProps extends Record<string, unknown> {
     ticket: { data: TData };
-    /** Who the ticket can go to; empty unless the actor may assign or reassign. */
-    handlers: { id: string; name: string; email: string }[];
+    /** Who the ticket can go to, with the work each holds; empty unless the actor may assign or reassign. */
+    handlers: QueueUserOption[];
 }
 
-type ActionModal = 'assign' | 'resolve' | 'close' | 'spawnSpk' | 'comment';
+type ActionModal = 'assign' | 'resolve' | 'close' | 'reopen' | 'spawnSpk' | 'comment';
 
 const ACTION_TITLE: Record<ActionModal, (code: string) => string> = {
     assign: () => 'Tugaskan tiket',
     resolve: () => 'Selesaikan tiket',
     close: (code) => `Tutup tiket ${code}?`,
+    reopen: (code) => `Buka kembali tiket ${code}?`,
     spawnSpk: () => 'Buat SPK dari tiket',
     comment: () => 'Tambah komentar',
 };
 
-const CLOSE_DESCRIPTION = 'Tiket yang selesai ditutup permanen. Pastikan kendala sudah tuntas.';
+const CLOSE_DESCRIPTION = 'Pelanggan tidak bisa membalas lagi; tiket masuk laporan.';
+
+const REOPEN_DESCRIPTION =
+    'Tiket kembali ditangani, pelanggan diberi tahu, dan target waktunya tidak dihitung ulang.';
 
 const ACTION_CONFIRM: Record<ActionModal, string> = {
     assign: 'Tugaskan',
     resolve: 'Selesaikan',
     close: 'Tutup tiket',
+    reopen: 'Buka kembali',
     spawnSpk: 'Buat SPK',
     comment: 'Kirim komentar',
 };
@@ -187,14 +198,24 @@ export default function Show({ ticket, handlers }: ShowProps) {
     const [actionModal, setActionModal] = useState<ActionModal | null>(null);
     const [confirmingStart, setConfirmingStart] = useState(false);
     const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+    const [caption, setCaption] = useState('');
     const [uploading, setUploading] = useState(false);
     const [uploadPercentage, setUploadPercentage] = useState(0);
     const { data, setData, post, processing, reset, errors, clearErrors, transform } = useForm({
         handler_id: '',
         resolution_note: '',
+        reason: '',
         body: '',
         is_internal: false,
     });
+
+    // The page opens on its title, so a keyboard or screen-reader user starts at what the page is about.
+    useEffect(() => {
+        const heading = document.querySelector<HTMLElement>('main h1');
+        heading?.setAttribute('tabindex', '-1');
+        heading?.classList.add('outline-hidden');
+        heading?.focus({ preventScroll: true });
+    }, [t.id]);
 
     const doAction = (e: FormEvent) => {
         e.preventDefault();
@@ -203,6 +224,7 @@ export default function Show({ ticket, handlers }: ShowProps) {
             assign: 'admin.tickets.assign',
             resolve: 'admin.tickets.resolve',
             close: 'admin.tickets.close',
+            reopen: 'admin.tickets.reopen',
             spawnSpk: 'admin.tickets.spawn-spk',
             comment: 'admin.tickets.comments.store',
         };
@@ -249,7 +271,28 @@ export default function Show({ ticket, handlers }: ShowProps) {
             },
         );
 
-    // Server-side keys (conflict, expected_*) are not part of the form's data shape.
+    const [assigningSelf, setAssigningSelf] = useState(false);
+    const assignToMe = () =>
+        router.post(
+            route('admin.tickets.assign-self', t.id),
+            {},
+            {
+                preserveScroll: true,
+                onStart: () => setAssigningSelf(true),
+                onFinish: () => setAssigningSelf(false),
+                // Somebody may have taken the ticket first: say so, and show who has it now.
+                onError: (assignErrors) => {
+                    toast({
+                        title: 'Tiket gagal ditugaskan.',
+                        description: Object.values(assignErrors)[0],
+                        variant: 'danger',
+                    });
+                    router.reload({ only: ['ticket', 'handlers'] });
+                },
+            },
+        );
+
+    // Server-side keys (conflict, status, expected_*) are not part of the form's data shape.
     const serverErrors: Record<string, string | undefined> = errors;
     const staleError =
         serverErrors.conflict ??
@@ -262,6 +305,7 @@ export default function Show({ ticket, handlers }: ShowProps) {
 
         const formData = new FormData();
         formData.append('file', attachmentFile);
+        if (caption.trim() !== '') formData.append('caption', caption.trim());
 
         setUploading(true);
         setUploadPercentage(0);
@@ -269,15 +313,17 @@ export default function Show({ ticket, handlers }: ShowProps) {
             forceFormData: true,
             onProgress: (event) => setUploadPercentage(event?.percentage ?? 0),
             onSuccess: (page) => {
-                // A refused write redirects back with flash.error: that toast is the answer, no success one.
+                // The server's flash is the one message: a success toast, or the refusal when a write is refused.
                 if ((page.props as PageProps).flash.error) return;
                 setAttachmentFile(null);
-                toast({ title: 'Lampiran berhasil diunggah.', variant: 'success' });
+                setCaption('');
             },
-            onError: () =>
+            onError: (uploadErrors) =>
                 toast({
                     title: 'Lampiran gagal diunggah.',
-                    description: 'Periksa jenis berkas yang diizinkan dan ukuran maksimal 10 MB.',
+                    description:
+                        Object.values(uploadErrors)[0] ??
+                        'Berkas harus JPG, PNG, atau PDF dengan ukuran paling besar 10 MB.',
                     variant: 'danger',
                 }),
             onFinish: () => setUploading(false),
@@ -389,6 +435,18 @@ export default function Show({ ticket, handlers }: ShowProps) {
                                     <div className="md:col-span-2">
                                         <Detail label="Catatan penyelesaian">
                                             {t.resolution_note}
+                                        </Detail>
+                                    </div>
+                                )}
+                                {t.customer_rating && (
+                                    <div className="md:col-span-2">
+                                        <Detail label="Penilaian pelanggan">
+                                            {t.customer_rating.value} dari 5
+                                            {t.customer_rating.comment && (
+                                                <span className="block font-normal text-muted-foreground">
+                                                    {t.customer_rating.comment}
+                                                </span>
+                                            )}
                                         </Detail>
                                     </div>
                                 )}
@@ -514,6 +572,16 @@ export default function Show({ ticket, handlers }: ShowProps) {
                                         Tugaskan
                                     </Button>
                                 )}
+                                {t.can?.assign_self && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        loading={assigningSelf}
+                                        onClick={assignToMe}
+                                    >
+                                        Tugaskan ke saya
+                                    </Button>
+                                )}
                                 {t.can?.start && (
                                     <Button type="button" onClick={() => setConfirmingStart(true)}>
                                         Mulai
@@ -527,6 +595,15 @@ export default function Show({ ticket, handlers }: ShowProps) {
                                 {t.can?.close && (
                                     <Button type="button" onClick={() => setActionModal('close')}>
                                         Tutup
+                                    </Button>
+                                )}
+                                {t.can?.reopen && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setActionModal('reopen')}
+                                    >
+                                        Buka kembali
                                     </Button>
                                 )}
                                 {t.can?.spawn_spk && (
@@ -609,41 +686,53 @@ export default function Show({ ticket, handlers }: ShowProps) {
                         <CardTitle>Lampiran</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                        <form
-                            onSubmit={uploadAttachment}
-                            className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start"
-                        >
-                            <FileUpload
-                                label="Lampiran"
-                                value={attachmentFile}
-                                onChange={setAttachmentFile}
-                                acceptedFileTypes={[
-                                    'image/jpeg',
-                                    'image/png',
-                                    'application/pdf',
-                                    'text/plain',
-                                    'application/msword',
-                                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                                ]}
-                                required
-                            />
-                            <div className="self-end">
-                                <Button
-                                    type="submit"
-                                    disabled={!attachmentFile || uploading}
-                                    loading={uploading}
-                                >
-                                    Unggah
-                                </Button>
-                            </div>
-                            {uploading && (
-                                <Progress
-                                    className="sm:col-span-2"
-                                    label="Mengunggah lampiran"
-                                    value={uploadPercentage}
-                                />
-                            )}
-                        </form>
+                        {closed ? (
+                            <p className="text-sm text-muted-foreground">
+                                Tiket sudah ditutup. Lampiran baru tidak bisa ditambahkan.
+                            </p>
+                        ) : (
+                            <form
+                                onSubmit={uploadAttachment}
+                                className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start"
+                            >
+                                <div className="space-y-3">
+                                    <FileUpload
+                                        label="Lampiran"
+                                        value={attachmentFile}
+                                        onChange={setAttachmentFile}
+                                        acceptedFileTypes={[
+                                            'image/jpeg',
+                                            'image/png',
+                                            'application/pdf',
+                                        ]}
+                                    />
+                                    <Input
+                                        label="Keterangan (opsional)"
+                                        hint="Terlihat oleh pelanggan"
+                                        value={caption}
+                                        onChange={(e) => setCaption(e.target.value)}
+                                        maxLength={200}
+                                        disabled={uploading}
+                                    />
+                                </div>
+                                <div className="self-end">
+                                    <Button
+                                        type="submit"
+                                        disabled={!attachmentFile || uploading}
+                                        loading={uploading}
+                                    >
+                                        Unggah
+                                    </Button>
+                                </div>
+                                {uploading && (
+                                    <Progress
+                                        className="sm:col-span-2"
+                                        label="Mengunggah lampiran"
+                                        value={uploadPercentage}
+                                    />
+                                )}
+                            </form>
+                        )}
                         <div className="grid gap-2 sm:grid-cols-2">
                             {(t.attachments ?? []).map((a) => (
                                 <div key={a.id} className="rounded-lg border border-border p-3">
@@ -656,6 +745,9 @@ export default function Show({ ticket, handlers }: ShowProps) {
                                             customerUserId={customerUserId}
                                         />
                                     </div>
+                                    {a.caption && (
+                                        <p className="mt-1 text-sm text-foreground">{a.caption}</p>
+                                    )}
                                     <p className="text-xs text-muted-foreground">
                                         {formatDateTime(a.created_at, company)}
                                     </p>
@@ -706,11 +798,7 @@ export default function Show({ ticket, handlers }: ShowProps) {
                                 label="Petugas"
                                 value={data.handler_id}
                                 onChange={(value) => setData('handler_id', value)}
-                                options={handlers.map((handler) => ({
-                                    value: String(handler.id),
-                                    label: handler.name,
-                                    description: handler.email,
-                                }))}
+                                options={candidateOptions(handlers)}
                                 placeholder="Cari petugas"
                                 emptyText="Tidak ada petugas yang cocok."
                                 error={errors.handler_id}
@@ -726,6 +814,29 @@ export default function Show({ ticket, handlers }: ShowProps) {
                                 required
                                 rows={3}
                             />
+                        )}
+                        {actionModal === 'reopen' && (
+                            <>
+                                <p className="text-sm text-muted-foreground">
+                                    {REOPEN_DESCRIPTION}
+                                </p>
+                                {serverErrors.status && (
+                                    <Alert variant="destructive">
+                                        <AlertDescription>{serverErrors.status}</AlertDescription>
+                                    </Alert>
+                                )}
+                                <Textarea
+                                    label="Alasan"
+                                    value={data.reason}
+                                    onChange={(e) => setData('reason', e.target.value)}
+                                    error={errors.reason}
+                                    hint="Tulis apa yang masih bermasalah, paling sedikit 5 karakter."
+                                    required
+                                    minLength={5}
+                                    maxLength={500}
+                                    rows={3}
+                                />
+                            </>
                         )}
                         {actionModal === 'comment' && (
                             <>

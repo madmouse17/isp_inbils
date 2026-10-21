@@ -22,6 +22,10 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * An order this install never made (a merchant shared with another project) is acknowledged and logged, never answered
  * with an error: Midtrans retries every non-2xx answer, so a 404 would be repeated for ever.
+ *
+ * Every call leaves a trace: one `midtrans.callback` log line, the refused ones included (a wrong or rotated server key
+ * turns every genuine callback into a 403), and, once the signature has proved the sender and the attempt is known, one
+ * audit row on the attempt. Neither keeps the signature, the amount or anything else of the body besides four short statuses.
  */
 class MidtransWebhookController extends Controller
 {
@@ -31,7 +35,16 @@ class MidtransWebhookController extends Controller
     public function __invoke(Request $request, MidtransGateway $gateway, PaymentAttemptService $attempts): Response
     {
         $notification = $request->json()->all();
+        $response = $this->answer($request, $notification, $gateway, $attempts);
 
+        Log::info('midtrans.callback', [...PaymentAttemptService::callbackSummary($notification), 'http' => $response->getStatusCode()]);
+
+        return $response;
+    }
+
+    /** @param  array<string, mixed>  $notification */
+    private function answer(Request $request, array $notification, MidtransGateway $gateway, PaymentAttemptService $attempts): Response
+    {
         // Nothing is written, and Midtrans is not called, before the sender has proved who it is.
         if (! is_string($notification['signature_key'] ?? null)) {
             return response()->noContent(403);
@@ -83,9 +96,12 @@ class MidtransWebhookController extends Controller
         } catch (MidtransGatewayException|InvalidArgumentException $e) {
             // 503 makes Midtrans retry; the reconciliation command is the backstop.
             Log::warning('midtrans.webhook_unverified', ['order_id' => $attempt->order_id, 'reason' => $e->getMessage()]);
+            $attempts->recordCallback($attempt, $notification, 503);
 
             return response()->noContent(503);
         }
+
+        $attempts->recordCallback($attempt, $notification, 200);
 
         return response('OK');
     }

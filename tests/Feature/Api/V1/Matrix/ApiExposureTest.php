@@ -4,6 +4,7 @@ namespace Tests\Feature\Api\V1\Matrix;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use Modules\Ticketing\Models\Ticket;
 use Tests\TestCase;
 
 /**
@@ -53,6 +54,10 @@ class ApiExposureTest extends TestCase
             'POST technician/work-orders/{wo}/start' => $this->api('POST', 'technician/work-orders/'.$this->ids['customer_work_order'].'/start', token: $this->technicianToken)->assertOk(),
             'POST technician/tickets/{id}/comments' => $this->api('POST', 'technician/tickets/'.$this->ids['technician_ticket'].'/comments', ['body' => 'On my way'], $this->technicianToken)->assertCreated(),
         ];
+
+        // "Masalah sudah beres?" answers for a resolved ticket; the ticket of the world is open.
+        Ticket::query()->wherePublicId($this->ids['customer_ticket'])->update(['status' => 'resolved', 'resolved_at' => now()]);
+        $answers['POST customer/tickets/{id}/confirmation'] = $this->api('POST', 'customer/tickets/'.$this->ids['customer_ticket'].'/confirmation', ['rating' => 5, 'comment' => 'Cepat'], $this->customerToken)->assertOk();
 
         foreach ($answers as $call => $response) {
             $this->assertLessThan(300, $response->status(), $call);

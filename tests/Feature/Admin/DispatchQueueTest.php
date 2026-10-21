@@ -999,4 +999,71 @@ class DispatchQueueTest extends TestCase
             'assigned_to' => null,
         ]);
     }
+
+    public function test_handlers_and_technicians_carry_their_workload_and_no_email(): void
+    {
+        Notification::fake();
+        $company = Company::factory()->create(['is_active' => true]);
+        $dispatcher = User::factory()->create(['company_id' => $company->id, 'email_verified_at' => now(), 'is_active' => true]);
+        $dispatcher->givePermissionTo(['ticket.assign', 'spk.assign']);
+        [$idle, $busy] = [$this->workerNamed($company, 'Ani Longgar'), $this->workerNamed($company, 'Budi Sibuk')];
+
+        // Budi holds two tickets that are not resolved and one SPK that is not done; the resolved ticket and the completed SPK are not work any more.
+        foreach (['assigned', 'on_progress', 'resolved'] as $status) {
+            $this->makeOpenTicket($company, $dispatcher)->forceFill(['status' => $status, 'assigned_to' => $busy->id])->save();
+        }
+        $this->makeUnassignedSpk($company, $dispatcher)->forceFill(['status' => 'assigned', 'assigned_to' => $busy->id])->save();
+        $this->makeUnassignedSpk($company, $dispatcher)->forceFill(['status' => 'completed', 'assigned_to' => $busy->id])->save();
+
+        $props = $this->actingAs($dispatcher)->get(route('admin.dispatch.index'))->assertOk()->viewData('page')['props'];
+        $expected = [
+            ['id' => $idle->public_id, 'name' => 'Ani Longgar', 'load' => 0],
+            ['id' => $busy->public_id, 'name' => 'Budi Sibuk', 'load' => 3],
+        ];
+
+        $this->assertSame($expected, $props['handlers']);
+        $this->assertSame($expected, $props['technicians']);
+        $this->assertStringNotContainsString('@', (string) json_encode([$props['handlers'], $props['technicians']]), 'a name and a workload are what the choice needs');
+    }
+
+    public function test_the_workload_costs_the_same_however_many_people_there_are(): void
+    {
+        Notification::fake();
+        $company = Company::factory()->create(['is_active' => true]);
+        $dispatcher = User::factory()->create(['company_id' => $company->id, 'email_verified_at' => now(), 'is_active' => true]);
+        $dispatcher->givePermissionTo(['ticket.assign', 'spk.assign']);
+        $this->makeOpenTicket($company, $dispatcher)->forceFill(['status' => 'assigned', 'assigned_to' => $this->workerNamed($company, 'Satu')->id])->save();
+        $this->actingAs($dispatcher);
+        $request = Request::create('/admin/dispatch');
+        $request->setUserResolver(fn () => $dispatcher);
+        $cost = function () use ($request): int {
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            DispatchQueueQuery::eligibleHandlers($request);
+            DispatchQueueQuery::eligibleTechnicians($request);
+            $count = count(DB::getQueryLog());
+            DB::disableQueryLog();
+
+            return $count;
+        };
+
+        $cost();
+        $few = $cost();
+        foreach (['Dua', 'Tiga', 'Empat', 'Lima'] as $name) {
+            $this->makeOpenTicket($company, $dispatcher)->forceFill(['status' => 'on_progress', 'assigned_to' => $this->workerNamed($company, $name)->id])->save();
+        }
+
+        $this->assertCount(5, DispatchQueueQuery::eligibleHandlers($request));
+        $this->assertSame($few, $cost(), 'one query for the people and one grouped count for each kind of work');
+    }
+
+    /** An active employee who can work both tickets and SPKs. */
+    private function workerNamed(Company $company, string $name): User
+    {
+        $worker = User::factory()->create(['company_id' => $company->id, 'is_active' => true, 'name' => $name]);
+        $worker->givePermissionTo(['ticket.start', 'spk.start']);
+        EmployeeProfile::factory()->create(['company_id' => $company->id, 'user_id' => $worker->id, 'status' => 'active']);
+
+        return $worker;
+    }
 }

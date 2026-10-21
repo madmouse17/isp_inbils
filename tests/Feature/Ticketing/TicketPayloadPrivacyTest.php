@@ -6,12 +6,15 @@ namespace Tests\Feature\Ticketing;
 
 use App\Models\Core\Customer;
 use App\Models\Core\CustomerAddress;
+use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\Ticketing\Http\Resources\TicketCommentResource;
+use Modules\Ticketing\Http\Resources\TicketResource;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Models\TicketComment;
@@ -166,6 +169,24 @@ class TicketPayloadPrivacyTest extends TestCase
 
         $this->assertSame($before, $after, 'eight comments cost what two comments cost');
         $this->assertCount(8, $this->props($this->admin, route('admin.tickets.show', $this->ticket))['ticket']['data']['comments']);
+    }
+
+    public function test_the_ticket_page_names_the_subscription_and_the_asset_without_embedding_their_records(): void
+    {
+        $customer = Customer::query()->sole();
+        $subscription = ServiceSubscription::factory()->create(['company_id' => $this->admin->company_id, 'customer_id' => $customer->id, 'status' => 'active']);
+        $this->ticket->forceFill(['subscription_id' => $subscription->id])->save();
+
+        $page = $this->props($this->admin, route('admin.tickets.show', $this->ticket))['ticket']['data'];
+
+        $this->assertSame(['id' => $subscription->public_id, 'code' => $subscription->code], $page['subscription'], 'a name to show and an id to link, not the record');
+        $this->assertNull($page['network_asset']);
+
+        $asset = (new NetworkAsset(['code' => 'AST-1', 'name' => 'Router tepi']))->forceFill(['public_id' => '01JABCDEFGHJKMNPQRSTVWXYZ0', 'serial_number' => 'SN-RAHASIA', 'ip_address' => '10.1.1.1']);
+        $resource = (new TicketResource($this->ticket->setRelation('networkAsset', $asset)))->resolve(Request::create('/'));
+
+        $this->assertSame(['id' => '01JABCDEFGHJKMNPQRSTVWXYZ0', 'code' => 'AST-1', 'name' => 'Router tepi'], $resource['network_asset']);
+        $this->assertStringNotContainsString('SN-RAHASIA', (string) json_encode($resource));
     }
 
     /** A verified, active user of the company, holding $role when one is named. */

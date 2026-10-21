@@ -27,6 +27,7 @@ class CustomerAccessLinkController extends Controller
 
         CustomerService::sendAccessLink($user);
 
-        return back()->with('success', 'Link akses dikirim ke '.$user->email.'.');
+        // The mail is queued: until a worker sends it, only the promise is true.
+        return back()->with('success', 'Tautan akses akan dikirim ke '.$user->email.'.');
     }
 }

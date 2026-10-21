@@ -3,7 +3,6 @@ import { Badge, Card, CardContent, CardHeader, CardTitle, StatCard } from '@/Com
 import { formatDateTime, formatNumber } from '@/lib/format';
 import type { Company } from '@/types';
 import type { DashboardAdminStats } from '@/types/dashboard';
-import { activityText } from './activityText';
 
 interface AdminOverviewProps {
     admin: DashboardAdminStats;
@@ -55,7 +54,10 @@ export function AdminOverview({ admin, company }: AdminOverviewProps) {
                     </CardHeader>
                     <CardContent>
                         {admin.recentActivity.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">Belum ada aktivitas.</p>
+                            <p className="text-sm text-muted-foreground">
+                                Belum ada aktivitas. Setiap perubahan data di perusahaan ini akan
+                                tercatat di sini.
+                            </p>
                         ) : (
                             <ul className="space-y-3">
                                 {admin.recentActivity.map((activity) => (
@@ -64,7 +66,7 @@ export function AdminOverview({ admin, company }: AdminOverviewProps) {
                                         className="rounded-lg border border-border p-3"
                                     >
                                         <p className="text-sm font-medium wrap-break-word text-foreground">
-                                            {activityText(activity)}
+                                            {activity.text}
                                         </p>
                                         <p className="text-xs text-muted-foreground">
                                             {formatDateTime(activity.created_at, company)}

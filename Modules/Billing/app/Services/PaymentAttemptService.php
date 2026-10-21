@@ -9,6 +9,7 @@ use App\Support\Money;
 use App\Support\Notifications\StaffRecipients;
 use App\Support\RecordNotFound;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -22,12 +23,14 @@ use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\Payment;
 use Modules\Billing\Models\PaymentAttempt;
 use Modules\Billing\Notifications\PaymentAttemptExceptionNotification;
+use Spatie\Activitylog\Models\Activity;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * Online payment attempts: create-or-reuse for the customer, the one settlement path shared by the Midtrans
- * webhook and the reconciliation command, the closing of pages an invoice change left unpayable (closeOpenFor) and
- * the mark finance puts on money that went back outside Inbils (markRefunded).
+ * webhook and the reconciliation command, the closing of pages an invoice change left unpayable (closeOpenFor), the
+ * closing of one page by staff (cancel), the trail of every verified callback (recordCallback) and the mark finance
+ * puts on money that went back outside Inbils (markRefunded).
  *
  * Lock order is always invoice row first, attempt row second, so a Pay click and a notification
  * for the same invoice can never deadlock.
@@ -52,6 +55,15 @@ class PaymentAttemptService
 
     /** Why Inbils closed a page itself; billing staff read it in the invoice's online payments panel. */
     private const CLOSED_REASON = 'Tagihan dibayar atau dibatalkan saat halaman pembayaran masih terbuka.';
+
+    /** Why a page is closed when staff closed it themselves. */
+    private const CANCELLED_BY_STAFF = 'Dibatalkan oleh staf dari halaman tagihan.';
+
+    /** How many callbacks of one attempt the invoice page lists. */
+    private const TRAIL_LENGTH = 5;
+
+    /** The longest status or order id the trail and the log keep of a notification: Midtrans' own values are far shorter. */
+    private const TRAIL_TEXT_LENGTH = 64;
 
     public function __construct(private readonly MidtransGateway $gateway) {}
 
@@ -122,6 +134,38 @@ class PaymentAttemptService
     }
 
     /**
+     * Staff close a payment page that is still open. It is closed here and Midtrans is asked from the queue, after the
+     * commit, to cancel the transaction, so a customer who still holds the page cannot pay it (the same path as
+     * closeOpenFor, for one page). A payment that arrives for it anyway is booked like any other while the invoice still owes
+     * that amount (settle()); only one that billing refuses lands as an exception staff are told about.
+     *
+     * @throws ValidationException when the page is not pending any more, or the gateway is off and Midtrans cannot be asked
+     */
+    public function cancel(PaymentAttempt $attempt): PaymentAttempt
+    {
+        if (! $this->gateway->isEnabled()) {
+            throw ValidationException::withMessages(['cancel' => 'Pembayaran online sedang tidak aktif, jadi pembatalan tidak bisa dikirim ke Midtrans.']);
+        }
+
+        return DB::transaction(function () use ($attempt): PaymentAttempt {
+            // Invoice first, attempt second, like every writer of the two: a notification that settles this page commits before the check below or waits for it.
+            Invoice::withoutCompany()->whereKey($attempt->invoice_id)->lockForUpdate()->firstOrFail();
+            $attempt = PaymentAttempt::withoutCompany()->whereKey($attempt->id)->lockForUpdate()->firstOrFail();
+            RecordNotFound::abortUnless($attempt->company_id === (int) CompanyService::currentId());
+
+            if ($attempt->status !== PaymentAttempt::STATUS_PENDING) {
+                throw ValidationException::withMessages(['cancel' => 'Hanya pembayaran yang masih menunggu yang bisa dibatalkan.']);
+            }
+
+            $attempt->update(['status' => PaymentAttempt::STATUS_CANCELLED_LOCALLY, 'status_reason' => self::CANCELLED_BY_STAFF]);
+            $this->audit($attempt, 'cancel_requested');
+            $this->queueCancel($attempt);
+
+            return $attempt;
+        }, 3);
+    }
+
+    /**
      * Apply a Midtrans status of the attempt: a notification already re-fetched from the Status API, or
      * the Status API answer itself. Idempotent: once a payment is linked, replays change nothing.
      *
@@ -161,6 +205,40 @@ class PaymentAttemptService
                 default => $attempt,
             };
         }, 3);
+    }
+
+    /**
+     * The trail of one verified callback: what Midtrans said and what Inbils answered. One row per delivery, replays
+     * included, because the invoice page lists them. The row keeps four short statuses and the attempt's own ids and
+     * amount; the signature, the gross amount of the notification and anything the buyer typed stay out.
+     *
+     * @param  array<string, mixed>  $notification
+     */
+    public function recordCallback(PaymentAttempt $attempt, array $notification, int $http): void
+    {
+        $seen = self::callbackSummary($notification);
+
+        $this->audit($attempt, 'callback_received', $seen, extra: ['status_code' => $seen['status_code'], 'http' => $http]);
+    }
+
+    /**
+     * The short, cut-down view of a notification that the log line and the trail keep. Only strings come through, and
+     * none longer than TRAIL_TEXT_LENGTH: a notification is JSON from the network, and the fields outside its signature
+     * (`transaction_status`, `fraud_status`) are whatever the sender wrote.
+     *
+     * @param  array<string, mixed>  $notification
+     * @return array{order_id: string|null, transaction_status: string|null, status_code: string|null, fraud_status: string|null}
+     */
+    public static function callbackSummary(array $notification): array
+    {
+        $text = fn (string $key): ?string => is_string($notification[$key] ?? null) ? Str::limit($notification[$key], self::TRAIL_TEXT_LENGTH, '') : null;
+
+        return [
+            'order_id' => $text('order_id'),
+            'transaction_status' => $text('transaction_status'),
+            'status_code' => $text('status_code'),
+            'fraud_status' => $text('fraud_status'),
+        ];
     }
 
     /** The attempt's page has expired and Midtrans has no transaction for it. */
@@ -208,6 +286,40 @@ class PaymentAttemptService
 
             return $attempt;
         }, 3);
+    }
+
+    /**
+     * Set the last callbacks of each attempt (newest first, TRAIL_LENGTH at most) as the `callbacks` relation of the
+     * attempts of one invoice page: one query for all of them. MySQL ranks the rows per attempt (a window function, so
+     * MySQL 8 or later, as the stack runs), so an attempt that was replayed a thousand times costs five rows, and a flood
+     * on one attempt cannot push the others out of the list.
+     *
+     * @param  EloquentCollection<int, PaymentAttempt>  $attempts
+     * @return EloquentCollection<int, PaymentAttempt>
+     */
+    public static function loadCallbackTrail(EloquentCollection $attempts): EloquentCollection
+    {
+        // Most invoices never had an online attempt: nothing to rank, so no query.
+        if ($attempts->isEmpty()) {
+            return $attempts;
+        }
+
+        $ranked = Activity::query()
+            ->select(['id', 'subject_id', 'properties', 'created_at'])
+            ->selectRaw('row_number() over (partition by subject_id order by id desc) as trail_rank')
+            ->where('log_name', 'payment_attempt')
+            ->where('description', 'callback_received')
+            ->where('subject_type', (new PaymentAttempt())->getMorphClass())
+            ->whereIn('subject_id', $attempts->modelKeys());
+
+        $trail = Activity::query()
+            ->fromSub($ranked, 'ranked')
+            ->where('trail_rank', '<=', self::TRAIL_LENGTH)
+            ->orderByDesc('id')
+            ->get()
+            ->groupBy('subject_id');
+
+        return $attempts->each(fn (PaymentAttempt $attempt) => $attempt->setRelation('callbacks', $trail->get($attempt->id, new EloquentCollection())));
     }
 
     /**
@@ -418,7 +530,7 @@ class PaymentAttemptService
      * Ids and amounts only: never keys, headers or the raw payload. A refund adds the reference and the note staff typed.
      *
      * @param  array<string, mixed>|null  $payload
-     * @param  array<string, string>  $extra
+     * @param  array<string, string|int|null>  $extra
      */
     private function audit(PaymentAttempt $attempt, string $event, ?array $payload = null, ?string $reason = null, array $extra = []): void
     {

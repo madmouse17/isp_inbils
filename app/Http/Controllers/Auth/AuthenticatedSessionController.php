@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Concerns\OpensSession;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Services\Core\SettingService;
 use App\Services\Core\TwoFactorService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,6 +26,11 @@ class AuthenticatedSessionController extends Controller
         return Inertia::render('Auth/Login', [
             'canResetPassword' => Route::has('password.request'),
             'status' => session('status'),
+            // Set once by NewPasswordController after a customer saved a password: the sign-in is in the app.
+            'customerHandoff' => session()->has('customer_handoff') ? [
+                'email' => session('customer_handoff'),
+                'appUrl' => SettingService::playStoreUrl('customer'),
+            ] : null,
         ]);
     }
 

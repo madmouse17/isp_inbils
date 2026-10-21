@@ -89,10 +89,10 @@ export interface DashboardNotification {
     detail_url: string | null;
 }
 
+/** One entry of the recent activity: the server words it (`AuditEventText`), the page shows it as is. */
 export interface DashboardActivityItem {
     id: string;
-    log_name: string | null;
-    description: string;
+    text: string;
     created_at: string | null;
 }
 

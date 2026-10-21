@@ -38,7 +38,8 @@ class ProductPickerTest extends TestCase
         $response = $this->api('GET', 'technician/products', token: $this->issueToken($technician, 'technician'))->assertOk();
 
         $this->assertSame(['Cable Tie', 'Drop Cable', 'Patch Cord'], array_column($response->json('data'), 'name'));
-        $this->assertSame(['id', 'sku', 'name', 'unit', 'available'], array_keys($response->json('data.1')));
+        $this->assertSame(['id', 'sku', 'name', 'unit', 'category', 'available'], array_keys($response->json('data.1')));
+        $this->assertSame(['id' => $drop->category->public_id, 'name' => $drop->category->name], $response->json('data.1.category'), 'the picker groups the list by category');
         $this->assertNull($response->json('data.1.available'), 'a picker that names no warehouse says nothing about stock');
         $this->assertSame(['DC-001', 'mtr', $drop->public_id], [$response->json('data.1.sku'), $response->json('data.1.unit'), $response->json('data.1.id')]);
         $this->assertSame('pcs', $response->json('data.0.unit'));
@@ -153,8 +154,8 @@ class ProductPickerTest extends TestCase
         $response = $this->api('GET', 'technician/warehouses', token: $this->issueToken($technician, 'technician'))->assertOk();
 
         $this->assertSame([
-            ['id' => $alpha->public_id, 'name' => 'Gudang Alpha', 'code' => 'GD-A', 'last_used' => false],
-            ['id' => $zulu->public_id, 'name' => 'Gudang Zulu', 'code' => 'GD-Z', 'last_used' => false],
+            ['id' => $alpha->public_id, 'name' => 'Gudang Alpha', 'code' => 'GD-A', 'last_used' => false, 'available_products' => 1],
+            ['id' => $zulu->public_id, 'name' => 'Gudang Zulu', 'code' => 'GD-Z', 'last_used' => false, 'available_products' => 1],
         ], $response->json('data'));
         $this->assertSame(['data'], array_keys($response->json()));
     }

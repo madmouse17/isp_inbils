@@ -47,6 +47,7 @@ test.describe('@smoke ops and api containment', () => {
             'cache',
             'database',
             'failed_jobs',
+            'mail',
             'queue',
             'scheduler',
             'storage_link',

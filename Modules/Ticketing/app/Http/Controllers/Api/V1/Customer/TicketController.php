@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
+use Modules\Ticketing\Http\Requests\Api\V1\ConfirmCustomerTicketRequest;
 use Modules\Ticketing\Http\Requests\Api\V1\ListCustomerTicketsRequest;
 use Modules\Ticketing\Http\Requests\Api\V1\StoreCustomerTicketRequest;
 use Modules\Ticketing\Http\Resources\Api\V1\CustomerTicketResource;
@@ -47,14 +48,7 @@ class TicketController extends Controller
     public function show(Request $request, string $id): CustomerTicketResource
     {
         $ticket = $this->ticketsFor($request)
-            ->with([
-                'category:id,public_id,name',
-                'subscription:id,public_id,code',
-                'assignee:id,name',
-                'comments' => fn ($query) => $query->where('is_internal', false)->orderBy('created_at')->orderBy('id'),
-                'comments.author:id,name',
-                'media',
-            ])
+            ->with($this->detailRelations())
             ->wherePublicId($id)
             ->firstOrFail();
 
@@ -63,6 +57,35 @@ class TicketController extends Controller
         return new CustomerTicketResource($ticket);
     }
 
+    /**
+     * "Masalah sudah beres?" (K14): the customer rates a resolved ticket, which closes it, or a closed one that was never rated.
+     * Only the customer's own ticket (a stranger's id is a 404) and only with the permission to rate. The answer is the ticket as the
+     * detail shows it, so the app redraws from it.
+     */
+    public function confirmation(ConfirmCustomerTicketRequest $request, string $id): CustomerTicketResource
+    {
+        $ticket = $this->ticketsFor($request)->wherePublicId($id)->firstOrFail();
+        Gate::authorize('confirm', $ticket);
+
+        $confirmed = TicketService::confirmByCustomer($ticket, $request->integer('rating'), $request->validated('comment'));
+
+        return new CustomerTicketResource($confirmed->load($this->detailRelations()));
+    }
+
+    /** @return array<int|string, mixed> */
+    private function detailRelations(): array
+    {
+        return [
+            'category:id,public_id,name',
+            'subscription:id,public_id,code',
+            'assignee:id,name',
+            'comments' => fn ($query) => $query->where('is_internal', false)->orderBy('created_at')->orderBy('id'),
+            'comments.author:id,name',
+            'media',
+        ];
+    }
+
+    /** @return Builder<Ticket> */
     private function ticketsFor(Request $request): Builder
     {
         $customer = $request->attributes->get(EnsureCustomerAccess::CUSTOMER_ATTRIBUTE);

@@ -21,11 +21,13 @@ interface CreateProps extends Record<string, unknown> {
     employeeOptions?: RemoteOption[];
     ticketOptions?: RemoteOption[];
     workOrderOptions?: RemoteOption[];
-    /** From "Evaluasi teknisi" on a closed ticket: the ticket and its handler, ready to be rated. */
+    /** From "Evaluasi teknisi" on a closed ticket: the ticket and its handler, ready to be rated, and the customer's rating of it. */
     prefill?: {
         employee: RemoteOption | null;
         reference_type: 'Ticket';
         reference: RemoteOption;
+        /** What the customer rated the ticket in the app (1 to 5); null when they did not. */
+        customer_rating: number | null;
     } | null;
 }
 
@@ -41,7 +43,7 @@ export default function Create({
         reference_id: prefill?.reference.value ?? '',
         // Empty on purpose: the score is the evaluator's judgement, so the form never suggests one.
         score: '',
-        customer_rating: '',
+        customer_rating: prefill?.customer_rating == null ? '' : String(prefill.customer_rating),
         comment: '',
     });
     const scoreInput = useRef<HTMLInputElement>(null);

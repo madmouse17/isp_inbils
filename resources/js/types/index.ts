@@ -91,6 +91,8 @@ export interface CompanyMembership {
 /** Where the company the user acts in sits in the group, as the server shares it. */
 export interface CompanyHierarchy {
     parent_company_id: string | null;
+    /** The Head of the effective company; null for a Head or a standalone company. `can_switch`: the user may go there. */
+    parent: { id: string; name: string; can_switch: boolean } | null;
     /** `report.consolidated.view` and the effective company is a Head with an active subsidiary. */
     can_consolidate: boolean;
 }
@@ -161,6 +163,13 @@ export interface Paginated<T> {
 /** Canonical entity id used across list/detail routes: the record's public ULID. */
 export type Id = string;
 
+/** What an approval moves, one product: its quantity in its own unit (null when the product has none). */
+export interface ApprovalSummaryMaterial {
+    product: string;
+    quantity: number;
+    unit: string | null;
+}
+
 export interface ApprovalInboxItem {
     id: string;
     domain: string;
@@ -177,8 +186,9 @@ export interface ApprovalInboxItem {
     scheduled_date: string | null;
     summary: {
         label: string;
-        quantity: number;
         count: number;
+        /** One line per product. Never added together: 18 m of cable and 2 pcs of connectors are not 20 of anything. */
+        materials: ApprovalSummaryMaterial[];
     };
     actions: {
         approve: boolean;
@@ -311,5 +321,6 @@ export interface QueueDomainOption {
 export interface QueueUserOption {
     id: string;
     name: string;
-    email: string;
+    /** Open tickets plus active SPKs the user handles now; the handler pickers show it as "{n} pekerjaan aktif". */
+    load: number;
 }

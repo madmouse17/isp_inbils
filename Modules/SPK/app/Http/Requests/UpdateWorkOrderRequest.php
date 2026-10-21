@@ -11,6 +11,7 @@ use App\Support\OptimisticLock;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
+use Modules\SPK\Services\SpkService;
 
 class UpdateWorkOrderRequest extends FormRequest
 {
@@ -31,6 +32,9 @@ class UpdateWorkOrderRequest extends FormRequest
     public function rules(): array
     {
         $companyId = CompanyService::currentId();
+        // The visit day cannot be moved into the past (K16, as in the assign dialog). The day the SPK already has may stay:
+        // the edit page sends it back untouched, and a plan whose day went by could not be saved at all.
+        $keepsVisitDay = $this->input('scheduled_date') === $this->route('wo')?->scheduled_date?->toDateString();
 
         return [
             'title' => ['required', 'string', 'max:255'],
@@ -39,9 +43,21 @@ class UpdateWorkOrderRequest extends FormRequest
             'subscription_id' => ['nullable', 'integer', Rule::exists('service_subscriptions', 'id')->where('company_id', $companyId)->withoutTrashed()],
             'location_id' => ['nullable', Rule::exists('locations', 'id')->where('company_id', $companyId)],
             'priority' => ['nullable', 'string', 'in:low,medium,high,urgent'],
-            'scheduled_date' => ['nullable', 'date_format:Y-m-d'],
+            'scheduled_date' => ['bail', 'nullable', 'date_format:Y-m-d', Rule::when(! $keepsVisitDay, ['after_or_equal:'.SpkService::earliestVisitDate()])],
             OptimisticLock::FIELD => OptimisticLock::rules(),
         ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return ['scheduled_date.after_or_equal' => 'Tanggal kunjungan tidak boleh sebelum hari ini.'];
+    }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return ['scheduled_date' => 'tanggal kunjungan'];
     }
 
     public function after(): array

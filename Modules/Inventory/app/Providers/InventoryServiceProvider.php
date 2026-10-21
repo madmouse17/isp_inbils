@@ -43,7 +43,7 @@ class InventoryServiceProvider extends ModuleServiceProvider
 
         $registry = $this->app->make(NumberSequenceRegistry::class);
         $registry->register(
-            new NumberSequenceDefinition('inventory_request', 'Permintaan Barang', 'inventory_requests', 'code', 255, 'REQ', '{PREFIX}-{YYYY}{MM}{DD}-{SEQ:4}', ResetPeriod::Daily),
+            new NumberSequenceDefinition('inventory_request', 'Permintaan Barang', 'inventory_requests', 'code', 255, 'REQ', '{PREFIX}-{YYYY}-{SEQ:5}', ResetPeriod::Yearly),
         );
         $registry->register(
             new NumberSequenceDefinition('product', 'Barang (SKU)', 'products', 'sku', 255, 'PRD', '{PREFIX}-{SEQ:5}', defaultAllowManual: true),

@@ -329,7 +329,7 @@ class MidtransWebhookTest extends TestCase
 
         $this->postJson('/webhooks/midtrans', $this->midtransPayload($attempt, ['order_id' => str_repeat('x', 100)]))->assertOk();
 
-        Log::shouldHaveReceived('info')->once()->with('midtrans.foreign_order', ['order_id' => str_repeat('x', 64), 'verified' => false]);
+        Log::shouldHaveReceived('info')->with('midtrans.foreign_order', ['order_id' => str_repeat('x', 64), 'verified' => false])->once();
     }
 
     public function test_only_a_json_body_is_read(): void
@@ -364,7 +364,7 @@ class MidtransWebhookTest extends TestCase
         $this->assertContains('throttle:midtrans-webhook', $route->gatherMiddleware());
     }
 
-    public function test_unsigned_junk_is_throttled_but_signed_notifications_never_are(): void
+    public function test_unsigned_junk_is_throttled_but_a_signed_notification_still_gets_through(): void
     {
         $attempt = $this->attemptFor();
         $junk = [...$this->midtransPayload($attempt), 'signature_key' => 'bad'];

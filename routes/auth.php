@@ -30,7 +30,9 @@ Route::middleware('guest')->group(function () {
     Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
         ->name('password.reset');
 
+    // Six a minute per address, apart from the forgot-password bucket: a reset guess is a request that can be repeated for ever.
     Route::post('reset-password', [NewPasswordController::class, 'store'])
+        ->middleware('throttle:6,1,password-reset')
         ->name('password.store');
 
     Route::get('two-factor-challenge', [TwoFactorChallengeController::class, 'create'])

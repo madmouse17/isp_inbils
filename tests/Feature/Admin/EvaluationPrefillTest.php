@@ -50,6 +50,7 @@ class EvaluationPrefillTest extends TestCase
                     'employee' => ['value' => $technician->public_id, 'label' => 'Teknisi Sendiri', 'description' => $technician->email],
                     'reference_type' => 'Ticket',
                     'reference' => ['value' => $ticket->public_id, 'label' => 'TKT-EVAL', 'description' => 'Internet mati'],
+                    'customer_rating' => null,
                 ]));
     }
 
@@ -86,8 +87,18 @@ class EvaluationPrefillTest extends TestCase
 
         $keys = array_keys($props['prefill']);
         sort($keys);
-        $this->assertSame(['employee', 'reference', 'reference_type'], $keys, 'the evaluator gives the score: the page offers none');
+        $this->assertSame(['customer_rating', 'employee', 'reference', 'reference_type'], $keys, 'the evaluator gives the score: the page offers none');
         $this->assertArrayNotHasKey('score', $props);
+    }
+
+    public function test_the_rating_the_customer_gave_the_ticket_comes_with_the_prefill(): void
+    {
+        $ticket = $this->ticket(['assigned_to' => $this->employee('Teknisi Sendiri')->id, 'customer_rating' => 4, 'customer_rating_comment' => 'Cepat', 'customer_rated_at' => now()]);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.evaluations.create', ['ticket' => $ticket->public_id]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('prefill.customer_rating', 4));
     }
 
     public function test_a_handler_the_form_cannot_rate_leaves_the_employee_to_be_picked(): void

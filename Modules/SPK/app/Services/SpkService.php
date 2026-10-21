@@ -142,9 +142,19 @@ class SpkService
         }, 3);
     }
 
-    public static function assign(WorkOrder $wo, int $technicianId, int $assignedBy, mixed $expectedAssignedTo = self::MISSING_EXPECTED_ASSIGNED_TO, mixed $expectedUpdatedAt = self::MISSING_EXPECTED_UPDATED_AT): WorkOrder
+    /** The first day a visit can be planned for: today on the company's calendar, not the server's (the app clock is UTC). */
+    public static function earliestVisitDate(): string
     {
-        return DB::transaction(function () use ($wo, $technicianId, $assignedBy, $expectedAssignedTo, $expectedUpdatedAt) {
+        return now(CompanyService::current()?->timezone ?: config('app.timezone'))->toDateString();
+    }
+
+    /**
+     * Gives the SPK to a technician, or hands it to another one. `$scheduledDate` (`Y-m-d`) is the visit day the dispatcher
+     * names with the assignment; without one the SPK keeps the date it has. The caller has checked that it is not in the past.
+     */
+    public static function assign(WorkOrder $wo, int $technicianId, int $assignedBy, mixed $expectedAssignedTo = self::MISSING_EXPECTED_ASSIGNED_TO, mixed $expectedUpdatedAt = self::MISSING_EXPECTED_UPDATED_AT, ?string $scheduledDate = null): WorkOrder
+    {
+        return DB::transaction(function () use ($wo, $technicianId, $assignedBy, $expectedAssignedTo, $expectedUpdatedAt, $scheduledDate) {
             abort_if(
                 $expectedAssignedTo === self::MISSING_EXPECTED_ASSIGNED_TO
                 || $expectedUpdatedAt === self::MISSING_EXPECTED_UPDATED_AT,
@@ -222,6 +232,9 @@ class SpkService
                 $changes['en_route_at'] = null;
                 $changes['started_at'] = null;
                 $changes['submitted_at'] = null;
+            }
+            if ($scheduledDate !== null) {
+                $changes['scheduled_date'] = $scheduledDate;
             }
             $wo->update($changes);
 

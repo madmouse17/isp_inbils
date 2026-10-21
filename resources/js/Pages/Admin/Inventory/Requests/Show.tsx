@@ -6,7 +6,6 @@ import {
     CheckCircle2,
     Clock,
     Package,
-    Truck,
     XCircle,
     RotateCcw,
     Send,
@@ -39,12 +38,8 @@ import { useCompany } from '@/hooks/useCompany';
 import { usePermission } from '@/hooks/usePermission';
 import type { PageProps } from '@/types';
 import type { InventoryRequestRow, MaterialReturnCaseRow } from '@/types/inventory';
-import {
-    INVENTORY_REQUEST_SOURCE,
-    INVENTORY_REQUEST_STATUS,
-    MATERIAL_RETURN_STATUS,
-    labelOf,
-} from '@/lib/statuses';
+import { INVENTORY_REQUEST_STATUS, MATERIAL_RETURN_STATUS, labelOf } from '@/lib/statuses';
+import { SourceRef } from './components/SourceRef';
 
 interface Props {
     request: {
@@ -258,8 +253,6 @@ export default function InventoryRequestsShow({ request, stockAvailable }: Props
     const [dialogOpen, setDialogOpen] = useState<
         | 'submit'
         | 'approve'
-        | 'prepare'
-        | 'ready'
         | 'issue'
         | 'reject'
         | 'cancel'
@@ -371,7 +364,16 @@ export default function InventoryRequestsShow({ request, stockAvailable }: Props
             });
     };
 
-    const timelineSteps = [
+    // The path the request took. A rejected or cancelled request ends on that step, with who decided and when, so the flow
+    // does not show steps it never reached (F8-D11).
+    const timelineSteps: Array<{
+        key: string;
+        title: string;
+        actor?: string;
+        timestamp: string | null;
+        done: boolean;
+        stopped?: 'danger' | 'neutral';
+    }> = [
         {
             key: 'draft',
             title: 'Draf',
@@ -386,170 +388,218 @@ export default function InventoryRequestsShow({ request, stockAvailable }: Props
             timestamp: r.submitted_at ?? null,
             done: r.status !== 'draft',
         },
-        {
-            key: 'approved_reserved',
-            title: 'Disetujui & Direservasi',
-            actor: r.approver?.name,
-            timestamp: r.approved_at ?? null,
-            done: ['approved_reserved', 'preparing', 'ready_for_pickup', 'issued'].includes(
-                r.status,
-            ),
-        },
-        {
-            key: 'preparing',
-            title: 'Sedang Disiapkan Gudang',
-            actor: r.preparer?.name,
-            timestamp: r.prepared_at ?? null,
-            done: ['preparing', 'ready_for_pickup', 'issued'].includes(r.status),
-        },
-        {
-            key: 'ready_for_pickup',
-            title: 'Siap Diambil',
-            actor: r.ready_user?.name,
-            timestamp: r.ready_at ?? null,
-            done: ['ready_for_pickup', 'issued'].includes(r.status),
-        },
-        {
-            key: 'issued',
-            title: 'Selesai Diserahkan',
-            actor: r.issuer?.name,
-            timestamp: r.issued_at ?? null,
-            done: r.status === 'issued',
-        },
+        ...(r.status === 'rejected'
+            ? [
+                  {
+                      key: 'rejected',
+                      title: 'Ditolak',
+                      actor: r.rejecter?.name,
+                      timestamp: r.rejected_at ?? null,
+                      done: true,
+                      stopped: 'danger' as const,
+                  },
+              ]
+            : r.status === 'cancelled'
+              ? [
+                    {
+                        key: 'cancelled',
+                        title: 'Dibatalkan',
+                        actor: r.canceller?.name,
+                        timestamp: r.cancelled_at ?? null,
+                        done: true,
+                        stopped: 'neutral' as const,
+                    },
+                ]
+              : [
+                    {
+                        key: 'approved_reserved',
+                        title: 'Disetujui & Direservasi',
+                        actor: r.approver?.name,
+                        timestamp: r.approved_at ?? null,
+                        done: [
+                            'approved_reserved',
+                            'preparing',
+                            'ready_for_pickup',
+                            'issued',
+                        ].includes(r.status),
+                    },
+                    {
+                        key: 'preparing',
+                        title: 'Disiapkan',
+                        actor: r.preparer?.name,
+                        timestamp: r.prepared_at ?? null,
+                        done: ['preparing', 'ready_for_pickup', 'issued'].includes(r.status),
+                    },
+                    {
+                        key: 'ready_for_pickup',
+                        title: 'Siap diambil',
+                        actor: r.ready_user?.name,
+                        timestamp: r.ready_at ?? null,
+                        done: ['ready_for_pickup', 'issued'].includes(r.status),
+                    },
+                    {
+                        key: 'issued',
+                        title: 'Diserahkan',
+                        actor: r.issuer?.name,
+                        timestamp: r.issued_at ?? null,
+                        done: r.status === 'issued',
+                    },
+                ]),
     ];
+
+    // The pick list: where each line is taken from, while the goods are still to be set aside or collected (F8-U04).
+    const showPickList = ['approved_reserved', 'preparing', 'ready_for_pickup'].includes(r.status);
 
     return (
         <AdminLayout title={`Permintaan Barang ${r.code}`}>
             <div className="mx-auto space-y-6 max-w-5xl">
-                <PageHeader
-                    title={`Permintaan Barang ${r.code}`}
-                    description={`Diajukan oleh ${r.requester?.name ?? 'Pemohon'} pada ${formatDate(r.created_at, company)}`}
-                    actions={
-                        <div className="flex items-center gap-2">
-                            <Button
-                                asChild
-                                variant="outline"
-                                size="sm"
-                                leftIcon={<ArrowLeft className="size-4" />}
-                            >
-                                <Link href={route('admin.inventory.requests.index')}>Kembali</Link>
-                            </Button>
-
-                            {/* Lifecycle Action Buttons */}
-                            {r.can?.submit && (
+                {/* One line for the title: the buttons wrap beside it instead of squeezing it onto two (F8-D08). */}
+                <div className="md:[&_h1]:whitespace-nowrap">
+                    <PageHeader
+                        title={`Permintaan Barang ${r.code}`}
+                        description={`Diajukan oleh ${r.requester?.name ?? 'Pemohon'} pada ${formatDate(r.created_at, company)}`}
+                        actions={
+                            <div className="flex items-center gap-2">
                                 <Button
+                                    asChild
+                                    variant="outline"
                                     size="sm"
-                                    variant="primary"
-                                    onClick={() => {
-                                        setActionError(null);
-                                        setDialogOpen('submit');
-                                    }}
-                                    disabled={actionLoading}
-                                    className="gap-1.5"
+                                    leftIcon={<ArrowLeft className="size-4" />}
                                 >
-                                    <Send className="h-4 w-4" />
-                                    Ajukan ke Gudang
+                                    <Link href={route('admin.inventory.requests.index')}>
+                                        Kembali
+                                    </Link>
                                 </Button>
-                            )}
 
-                            {r.can?.approve && (
-                                <Button
-                                    size="sm"
-                                    variant="primary"
-                                    onClick={() => {
-                                        setActionError(null);
-                                        setDialogOpen('approve');
-                                    }}
-                                    disabled={actionLoading}
-                                    className="gap-1.5"
-                                >
-                                    <CheckCircle2 className="h-4 w-4" />
-                                    Setujui & Reservasi Stok
-                                </Button>
-                            )}
+                                {/* Lifecycle Action Buttons */}
+                                {r.can?.submit && (
+                                    <Button
+                                        size="sm"
+                                        variant="primary"
+                                        onClick={() => {
+                                            setActionError(null);
+                                            setDialogOpen('submit');
+                                        }}
+                                        disabled={actionLoading}
+                                        className="gap-1.5"
+                                    >
+                                        <Send className="h-4 w-4" />
+                                        Ajukan ke Gudang
+                                    </Button>
+                                )}
 
-                            {r.can?.reject && (
-                                <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() => {
-                                        setActionError(null);
-                                        setDialogOpen('reject');
-                                    }}
-                                    disabled={actionLoading}
-                                    className="gap-1.5"
-                                >
-                                    <XCircle className="h-4 w-4" />
-                                    Tolak Permintaan
-                                </Button>
-                            )}
+                                {r.can?.approve && (
+                                    <Button
+                                        size="sm"
+                                        variant="primary"
+                                        onClick={() => {
+                                            setActionError(null);
+                                            setDialogOpen('approve');
+                                        }}
+                                        disabled={actionLoading}
+                                        className="gap-1.5"
+                                    >
+                                        <CheckCircle2 className="h-4 w-4" />
+                                        Setujui & Reservasi Stok
+                                    </Button>
+                                )}
 
-                            {r.can?.prepare && (
-                                <Button
-                                    size="sm"
-                                    variant="primary"
-                                    onClick={() => {
-                                        setActionError(null);
-                                        setDialogOpen('prepare');
-                                    }}
-                                    disabled={actionLoading}
-                                    className="gap-1.5"
-                                >
-                                    <Package className="h-4 w-4" />
-                                    Mulai Penyiapan Barang
-                                </Button>
-                            )}
+                                {r.can?.reject && (
+                                    <Button
+                                        size="sm"
+                                        variant="destructive"
+                                        onClick={() => {
+                                            setActionError(null);
+                                            setDialogOpen('reject');
+                                        }}
+                                        disabled={actionLoading}
+                                        className="gap-1.5"
+                                    >
+                                        <XCircle className="h-4 w-4" />
+                                        Tolak Permintaan
+                                    </Button>
+                                )}
 
-                            {r.can?.ready && (
-                                <Button
-                                    size="sm"
-                                    variant="primary"
-                                    onClick={() => {
-                                        setActionError(null);
-                                        setDialogOpen('ready');
-                                    }}
-                                    disabled={actionLoading}
-                                    className="gap-1.5"
-                                >
-                                    <Truck className="h-4 w-4" />
-                                    Tandai Siap Diambil
-                                </Button>
-                            )}
+                                {/* "Siapkan barang": one action, no dialog; the confirmation stays with the hand-over (F8-U04). */}
+                                {(r.can?.prepare || r.can?.ready) && (
+                                    <Button
+                                        size="sm"
+                                        variant="primary"
+                                        onClick={() =>
+                                            handleAction(
+                                                route(
+                                                    r.can?.prepare
+                                                        ? 'admin.inventory.requests.prepare'
+                                                        : 'admin.inventory.requests.ready',
+                                                    r.id,
+                                                ),
+                                            )
+                                        }
+                                        disabled={actionLoading}
+                                        className="gap-1.5"
+                                    >
+                                        <Package className="h-4 w-4" />
+                                        Siapkan barang
+                                    </Button>
+                                )}
 
-                            {r.can?.issue && (
-                                <Button
-                                    size="sm"
-                                    variant="primary"
-                                    onClick={() => {
-                                        setActionError(null);
-                                        setDialogOpen('issue');
-                                    }}
-                                    disabled={actionLoading}
-                                    className="gap-1.5"
-                                >
-                                    <CheckCircle2 className="h-4 w-4" />
-                                    Serah Terima & Kurangi Stok
-                                </Button>
-                            )}
+                                {r.can?.issue && (
+                                    <Button
+                                        size="sm"
+                                        variant="primary"
+                                        onClick={() => {
+                                            setActionError(null);
+                                            setDialogOpen('issue');
+                                        }}
+                                        disabled={actionLoading}
+                                        className="gap-1.5"
+                                    >
+                                        <CheckCircle2 className="h-4 w-4" />
+                                        Serah terima
+                                    </Button>
+                                )}
 
-                            {r.can?.cancel && (
-                                <Button
-                                    size="sm"
-                                    variant="destructive-outline"
-                                    onClick={() => {
-                                        setActionError(null);
-                                        setDialogOpen('cancel');
-                                    }}
-                                    disabled={actionLoading}
-                                    className="gap-1.5"
-                                >
-                                    <XCircle className="h-4 w-4" />
-                                    Batalkan Permintaan
-                                </Button>
-                            )}
-                        </div>
-                    }
-                />
+                                {r.can?.cancel && (
+                                    <Button
+                                        size="sm"
+                                        variant="destructive-outline"
+                                        onClick={() => {
+                                            setActionError(null);
+                                            setDialogOpen('cancel');
+                                        }}
+                                        disabled={actionLoading}
+                                        className="gap-1.5"
+                                    >
+                                        <XCircle className="h-4 w-4" />
+                                        Batalkan Permintaan
+                                    </Button>
+                                )}
+                            </div>
+                        }
+                    />
+                </div>
+
+                {/* Nobody here can decide it yet: say who does, instead of leaving a page without a button (F4-U12). */}
+                {r.status === 'submitted' && !r.can?.approve && (
+                    <div
+                        role="status"
+                        className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 p-3 text-sm text-foreground"
+                    >
+                        <Clock className="h-4 w-4 shrink-0 text-primary-text" aria-hidden="true" />
+                        <span>Menunggu persetujuan Manajer/Admin</span>
+                    </div>
+                )}
+
+                {/* No dialog is open for the one-click actions, so their refusal is shown here. */}
+                {actionError && dialogOpen === null && (
+                    <div
+                        role="alert"
+                        aria-live="assertive"
+                        className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive-text"
+                    >
+                        {actionError}
+                    </div>
+                )}
 
                 {/* Status & Banner Alerts */}
                 {r.status === 'rejected' && (
@@ -591,17 +641,30 @@ export default function InventoryRequestsShow({ request, stockAvailable }: Props
                                 <div
                                     key={step.key}
                                     className={`flex flex-col rounded-lg border p-3 text-xs ${
-                                        step.done
-                                            ? 'border-success/50 bg-success/5 font-medium text-foreground'
-                                            : 'border-border bg-muted/20 text-muted-foreground'
+                                        step.stopped === 'danger'
+                                            ? 'border-destructive/50 bg-destructive/5 font-medium text-foreground'
+                                            : step.stopped === 'neutral'
+                                              ? 'border-border bg-muted/40 font-medium text-foreground'
+                                              : step.done
+                                                ? 'border-success/50 bg-success/5 font-medium text-foreground'
+                                                : 'border-border bg-muted/20 text-muted-foreground'
                                     }`}
                                 >
                                     <div className="mb-1 flex items-center gap-1.5">
-                                        <div
-                                            className={`size-2 rounded-full ${
-                                                step.done ? 'bg-success' : 'bg-muted-foreground/40'
-                                            }`}
-                                        />
+                                        {step.stopped ? (
+                                            <XCircle
+                                                className="size-3.5 shrink-0"
+                                                aria-hidden="true"
+                                            />
+                                        ) : (
+                                            <div
+                                                className={`size-2 rounded-full ${
+                                                    step.done
+                                                        ? 'bg-success'
+                                                        : 'bg-muted-foreground/40'
+                                                }`}
+                                            />
+                                        )}
                                         <span className="font-semibold">{step.title}</span>
                                     </div>
                                     {step.actor && (
@@ -636,6 +699,7 @@ export default function InventoryRequestsShow({ request, stockAvailable }: Props
                                     <THead>
                                         <TR>
                                             <TH>Barang</TH>
+                                            {showPickList && <TH>Ambil dari</TH>}
                                             <TH className="text-right">Jumlah Diminta</TH>
                                             <TH className="text-right">Jumlah Disetujui</TH>
                                             <TH className="text-right">Jumlah Diserahkan</TH>
@@ -655,6 +719,14 @@ export default function InventoryRequestsShow({ request, stockAvailable }: Props
                                                             </div>
                                                         )}
                                                     </TD>
+                                                    {showPickList && (
+                                                        <TD className="text-xs">
+                                                            {item.source_location?.name ??
+                                                                r.warehouse_location?.name ?? (
+                                                                    <EmptyCell />
+                                                                )}
+                                                        </TD>
+                                                    )}
                                                     <TD className="text-right font-medium">
                                                         {formatNumber(item.quantity_requested)}{' '}
                                                         {unit}
@@ -826,7 +898,7 @@ export default function InventoryRequestsShow({ request, stockAvailable }: Props
                                                 <THead>
                                                     <TR>
                                                         <TH>Barang</TH>
-                                                        <TH className="text-right">Dikeluarkan</TH>
+                                                        <TH className="text-right">Diserahkan</TH>
                                                         <TH className="text-right">Dipakai Riil</TH>
                                                         <TH className="text-right">
                                                             Sisa Diharapkan
@@ -1004,10 +1076,7 @@ export default function InventoryRequestsShow({ request, stockAvailable }: Props
                                         <span className="block text-muted-foreground">
                                             Rujukan:
                                         </span>
-                                        <span className="rounded bg-muted/60 px-1.5 py-0.5 font-mono font-medium text-foreground">
-                                            {labelOf(INVENTORY_REQUEST_SOURCE, r.source_type)} #
-                                            {r.source_id}
-                                        </span>
+                                        <SourceRef request={r} />
                                     </div>
                                 )}
 
@@ -1252,81 +1321,6 @@ export default function InventoryRequestsShow({ request, stockAvailable }: Props
                     </AlertDialogContent>
                 </AlertDialog>
 
-                {/* 4. Prepare Dialog */}
-                <AlertDialog
-                    open={dialogOpen === 'prepare'}
-                    onOpenChange={(open) => !open && setDialogOpen(null)}
-                >
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Mulai Penyiapan Barang di Gudang?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Status permintaan akan berubah menjadi &ldquo;
-                                {labelOf(INVENTORY_REQUEST_STATUS, 'preparing')}&rdquo; agar teknisi
-                                tahu barang sedang dikumpulkan.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        {actionError && (
-                            <div
-                                role="alert"
-                                aria-live="assertive"
-                                className="mb-2 rounded border border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive-text"
-                            >
-                                {actionError}
-                            </div>
-                        )}
-                        <AlertDialogFooter>
-                            <AlertDialogCancel disabled={actionLoading}>Batal</AlertDialogCancel>
-                            <AlertDialogAction
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    handleAction(route('admin.inventory.requests.prepare', r.id));
-                                }}
-                                disabled={actionLoading}
-                            >
-                                {actionLoading ? 'Memproses...' : 'Ya, Mulai Penyiapan'}
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-
-                {/* 5. Ready Dialog */}
-                <AlertDialog
-                    open={dialogOpen === 'ready'}
-                    onOpenChange={(open) => !open && setDialogOpen(null)}
-                >
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Tandai Barang Siap Diambil?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Notifikasi akan dikirimkan kepada teknisi/pemohon bahwa barang fisik
-                                telah siap di meja serah-terima gudang.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        {actionError && (
-                            <div
-                                role="alert"
-                                aria-live="assertive"
-                                className="mb-2 rounded border border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive-text"
-                            >
-                                {actionError}
-                            </div>
-                        )}
-                        <AlertDialogFooter>
-                            <AlertDialogCancel disabled={actionLoading}>Batal</AlertDialogCancel>
-                            <AlertDialogAction
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    handleAction(route('admin.inventory.requests.ready', r.id));
-                                }}
-                                disabled={actionLoading}
-                            >
-                                {actionLoading ? 'Memproses...' : 'Tandai Siap Diambil'}
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-
                 {/* 6. Issue Dialog */}
                 <AlertDialog
                     open={dialogOpen === 'issue'}
@@ -1360,7 +1354,7 @@ export default function InventoryRequestsShow({ request, stockAvailable }: Props
                                 }}
                                 disabled={actionLoading}
                             >
-                                {actionLoading ? 'Menyerahkan...' : 'Konfirmasi Serah Terima'}
+                                {actionLoading ? 'Menyerahkan...' : 'Konfirmasi serah terima'}
                             </AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
@@ -1450,12 +1444,19 @@ export default function InventoryRequestsShow({ request, stockAvailable }: Props
                                 >
                                     <div className="flex justify-between font-semibold">
                                         <span>{line.product_name ?? 'Barang'}</span>
-                                        <span>Dikeluarkan: {formatNumber(line.issued_qty)}</span>
+                                        <span>Diserahkan: {formatNumber(line.issued_qty)}</span>
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
-                                            <Label className="text-xs">Dipakai Aktual</Label>
+                                            <Label
+                                                htmlFor={`declare-${line.id}-used`}
+                                                className="text-xs"
+                                            >
+                                                Dipakai Aktual
+                                            </Label>
                                             <Input
+                                                id={`declare-${line.id}-used`}
+                                                aria-label={`Dipakai aktual, ${line.product_name ?? 'barang'}`}
                                                 type="number"
                                                 step="any"
                                                 min="0"
@@ -1474,8 +1475,15 @@ export default function InventoryRequestsShow({ request, stockAvailable }: Props
                                             />
                                         </div>
                                         <div>
-                                            <Label className="text-xs">Sisa Dikembalikan</Label>
+                                            <Label
+                                                htmlFor={`declare-${line.id}-return`}
+                                                className="text-xs"
+                                            >
+                                                Sisa Dikembalikan
+                                            </Label>
                                             <Input
+                                                id={`declare-${line.id}-return`}
+                                                aria-label={`Sisa dikembalikan, ${line.product_name ?? 'barang'}`}
                                                 type="number"
                                                 step="any"
                                                 min="0"

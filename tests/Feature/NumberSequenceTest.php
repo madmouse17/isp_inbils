@@ -164,7 +164,7 @@ class NumberSequenceTest extends TestCase
             'subscription' => ['Langganan', 'service_subscriptions', 'code', 'SUB', '{PREFIX}-{YYYY}-{SEQ:5}', ResetPeriod::Never, false],
             'network_asset' => ['Aset Jaringan', 'network_assets', 'code', 'NA', '{PREFIX}-{YYYY}-{SEQ:5}', ResetPeriod::Never, false],
             'ticket' => ['Tiket', 'tickets', 'code', 'TKT', '{PREFIX}-{YYYY}-{SEQ:5}', ResetPeriod::Yearly, false],
-            'inventory_request' => ['Permintaan Barang', 'inventory_requests', 'code', 'REQ', '{PREFIX}-{YYYY}{MM}{DD}-{SEQ:4}', ResetPeriod::Daily, false],
+            'inventory_request' => ['Permintaan Barang', 'inventory_requests', 'code', 'REQ', '{PREFIX}-{YYYY}-{SEQ:5}', ResetPeriod::Yearly, false],
             'customer' => ['Pelanggan', 'customers', 'code', 'CUS', '{PREFIX}-{SEQ:5}', ResetPeriod::Never, false],
             'employee' => ['Karyawan', 'employee_profiles', 'employee_number', 'EMP', '{PREFIX}-{SEQ:4}', ResetPeriod::Never, false],
             'product' => ['Barang (SKU)', 'products', 'sku', 'PRD', '{PREFIX}-{SEQ:5}', ResetPeriod::Never, true],
@@ -316,13 +316,15 @@ class NumberSequenceTest extends TestCase
 
     public function test_a_daily_sequence_restarts_at_midnight_of_the_company(): void
     {
+        $this->probe('probe_daily', 'REQ', '{PREFIX}-{YYYY}{MM}{DD}-{SEQ:4}', ResetPeriod::Daily);
+
         $this->at('2026-10-13 16:59:59');
-        $this->assertSame('REQ-20261013-0001', NumberSequenceService::generate('inventory_request'));
-        $this->assertSame('REQ-20261013-0002', NumberSequenceService::generate('inventory_request'));
+        $this->assertSame('REQ-20261013-0001', NumberSequenceService::generate('probe_daily'));
+        $this->assertSame('REQ-20261013-0002', NumberSequenceService::generate('probe_daily'));
 
         $this->at('2026-10-13 17:00:00');
-        $this->assertSame('REQ-20261014-0001', NumberSequenceService::generate('inventory_request'));
-        $this->assertSame('2026-10-14', $this->row('inventory_request')->period_key);
+        $this->assertSame('REQ-20261014-0001', NumberSequenceService::generate('probe_daily'));
+        $this->assertSame('2026-10-14', $this->row('probe_daily')->period_key);
     }
 
     public function test_a_monthly_sequence_restarts_at_the_new_month(): void
@@ -467,7 +469,7 @@ class NumberSequenceTest extends TestCase
         $product = $this->row('product');
         $this->assertTrue($product->allow_manual);
         $this->assertFalse($this->row('customer')->allow_manual);
-        $this->assertSame('2026-10-13', $this->row('inventory_request')->period_key);
+        $this->assertSame('2026', $this->row('inventory_request')->period_key);
         $this->assertNull($this->row('invoice')->period_key);
 
         NumberSequenceService::ensureAll($otherCompany->id);

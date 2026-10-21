@@ -210,7 +210,7 @@ class ReportRowExportTest extends TestCase
         $this->actingAs($this->admin);
 
         $records = $this->csvRecords($this->get(route('admin.reports.audit-log.export')));
-        $descriptions = array_column($records, 'Deskripsi');
+        $descriptions = array_column($records, 'Aksi');
 
         $this->assertContains('mine_one', $descriptions);
         $this->assertNotContains('theirs_one', $descriptions);
@@ -221,7 +221,8 @@ class ReportRowExportTest extends TestCase
         AuditService::log('billing', '=cmd|calc', []);
         AuditService::log('billing', '@SUM(A1)', []);
 
-        $descriptions = array_column($this->csvRecords($this->get(route('admin.reports.audit-log.export', ['log_name' => 'billing', 'sort_by' => 'id', 'sort_dir' => 'asc']))), 'Deskripsi');
+        // Aksi holds the stored code; Deskripsi is the dictionary's sentence, which always starts with a word.
+        $descriptions = array_column($this->csvRecords($this->get(route('admin.reports.audit-log.export', ['log_name' => 'billing', 'sort_by' => 'id', 'sort_dir' => 'asc']))), 'Aksi');
 
         $this->assertSame(["'=cmd|calc", "'@SUM(A1)"], $descriptions);
     }

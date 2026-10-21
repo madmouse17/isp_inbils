@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\Core\Customer;
 use App\Notifications\Channels\WhatsAppChannel;
 use App\Notifications\Contracts\SentByPlatform;
+use App\Support\MailBrand;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Password;
@@ -47,13 +48,14 @@ class CustomerAccountCreated extends WhatsAppNotification implements SentByPlatf
             'email' => $notifiable->getEmailForPasswordReset(),
         ], false));
         $minutes = (int) config('auth.passwords.'.config('auth.defaults.passwords').'.expire');
+        $isp = MailBrand::literal($this->companyName());
 
         return (new MailMessage())
             ->subject('Akun pelanggan Anda sudah dibuat')
-            ->greeting('Halo '.$notifiable->name.',')
-            ->line('Akun pelanggan Anda sudah dibuat. Atur kata sandi lewat tombol di bawah, lalu masuk di aplikasi Inbils Pelanggan dengan email ini.')
+            ->greeting('Halo '.MailBrand::literal($notifiable->name).',')
+            ->line('Akun pelanggan Anda di '.$isp.' sudah dibuat. Atur kata sandi lewat tombol di bawah, lalu masuk di aplikasi Inbils Pelanggan dengan email ini.')
             ->action('Atur kata sandi', $url)
-            ->line('Tautan ini berlaku '.$minutes.' menit. Jika sudah kedaluwarsa, minta petugas kami mengirim ulang tautan akses.')
+            ->line('Tautan ini berlaku '.$minutes.' menit. Jika sudah kedaluwarsa, minta petugas '.$isp.' mengirim ulang tautan akses.')
             ->line('Jika Anda tidak merasa mendaftar, abaikan email ini.');
     }
 

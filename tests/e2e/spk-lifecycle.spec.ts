@@ -16,6 +16,7 @@ import {
     e2eCustomerName,
     expectDetail,
     expectSpkState,
+    inertiaProps,
     loginAs,
     logout,
     selectSearchOption,
@@ -59,6 +60,18 @@ test.describe('@lifecycle SPK installation', () => {
         await expectSpkState(page, 'draft');
         await expectDetail(page, 'Pelanggan', e2eCustomerName);
 
+        // F4-D02: a plan has an "Ubah" page, and the visit day saved there is the SPK's day.
+        const plannedDay = await companyDay(page, 2);
+        await page.getByRole('link', { name: 'Ubah', exact: true }).click();
+        await expect(
+            page.getByRole('main').getByRole('heading', { name: 'Ubah SPK' }),
+        ).toBeVisible();
+        await typeDate(page, 'Tanggal kunjungan', plannedDay);
+        await page.getByRole('button', { name: 'Simpan', exact: true }).click();
+        await expect(page).toHaveURL(/\/admin\/spk$/);
+        await page.goto(spkUrl);
+        expect(await scheduledDay(page, spkUrl)).toContain(plannedDay);
+
         await page.getByRole('button', { name: 'Tambah item' }).click();
         const itemDialog = page.getByRole('dialog', { name: 'Tambah item' });
         // Fall back to the last dialog if the accessible title is not exposed yet.
@@ -81,8 +94,11 @@ test.describe('@lifecycle SPK installation', () => {
 
         await expect(page.getByRole('row').filter({ hasText: `item-${runId}` })).toBeVisible();
 
+        // K16: the dispatcher gives the visit day with the assignment; it replaces the planned one.
+        const visitDay = await companyDay(page, 3);
         await page.getByRole('button', { name: 'Tugaskan' }).click();
         await selectSearchOption(page, 'Teknisi', 'Demo Technician');
+        await typeDate(page, 'Tanggal kunjungan', visitDay);
         await page
             .getByRole('dialog', { name: 'Tugaskan SPK' })
             .getByRole('button', { name: 'Tugaskan' })
@@ -90,6 +106,11 @@ test.describe('@lifecycle SPK installation', () => {
 
         await expectSpkState(page, 'assigned');
         await expectDetail(page, 'Teknisi', 'Demo Technician');
+        // F4-D03: one message that names the SPK and the person.
+        await expect(
+            page.getByText(/^SPK-\d{4}-\d{5} ditugaskan ke Demo Technician\.$/).first(),
+        ).toBeVisible();
+        expect(await scheduledDay(page, spkUrl)).toContain(visitDay);
 
         const timeline = page.getByRole('list', { name: 'Tahap kunjungan' });
         await expect(timeline.getByRole('listitem')).toHaveCount(4);
@@ -233,4 +254,26 @@ async function typeDate(page: Page, label: string, iso: string) {
     const field = page.getByLabel(label, { exact: true });
     await field.fill(formatIsoAs(iso, format));
     await field.press('Tab');
+}
+
+/** The company-calendar day `offset` days from today as ISO `yyyy-mm-dd`: the server refuses a visit day before today. */
+async function companyDay(page: Page, offset: number): Promise<string> {
+    const zone = await page.evaluate(() => {
+        const raw = document.getElementById('app')?.getAttribute('data-page');
+        return raw ? (JSON.parse(raw).props?.company?.timezone as string | undefined) : undefined;
+    });
+
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: zone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(new Date(Date.now() + offset * 24 * 60 * 60 * 1000));
+}
+
+/** The `scheduled_date` the SPK page was rendered with (an ISO timestamp of that day). */
+async function scheduledDay(page: Page, spkUrl: string): Promise<string> {
+    const { props } = await inertiaProps(page, new URL(spkUrl).pathname);
+
+    return String(props?.workOrder?.data?.scheduled_date ?? '');
 }

@@ -36,7 +36,7 @@ class MaterialReturnService
 
         $query = MaterialReturnCase::withoutCompany()
             ->where('company_id', $companyId)
-            ->with(['technician', 'warehouseLocation', 'inventoryRequest', 'workOrder', 'lines.product']);
+            ->with(['technician', 'warehouseLocation', 'inventoryRequest', 'workOrder', 'lines.product.unit']);
 
         if (! $user->hasPermissionTo('inventory.return.view.all')) {
             $query->where('technician_id', $user->id);
@@ -198,7 +198,7 @@ class MaterialReturnService
             if ($idempotencyKey && $c->idempotency_key === $idempotencyKey) {
                 abort_if($c->payload_hash !== null && $c->payload_hash !== $payloadHash, 409, 'Konflik: kunci idempotensi sudah dipakai dengan data yang berbeda.');
 
-                return $c->fresh(['lines.product', 'events.actor', 'technician', 'warehouseLocation']);
+                return $c->fresh(['lines.product.unit', 'events.actor', 'technician', 'warehouseLocation']);
             }
 
             abort_unless(in_array($c->status, ['awaiting_declaration', 'correction_required'], true), 422, 'Status kasus pengembalian tidak mengizinkan deklarasi material.');
@@ -216,13 +216,14 @@ class MaterialReturnService
             /** @var Collection<int, MaterialReturnLine> $lines */
             $lines = $c->lines()->lockForUpdate()->get()->keyBy('id');
             abort_if($lines->isEmpty(), 422, 'Kasus pengembalian tidak memiliki baris material.');
+            $products = self::productsOf($lines);
 
             $inputLines = collect($data['lines'])->keyBy('id');
             abort_unless($inputLines->count() === $lines->count(), 422, 'Seluruh baris material harus dideklarasikan secara lengkap.');
 
             foreach ($lines as $lineId => $line) {
                 $input = $inputLines->get($lineId);
-                abort_unless($input !== null, 422, "Data deklarasi untuk barang {$line->public_id} tidak ditemukan.");
+                abort_unless($input !== null, 422, 'Data deklarasi untuk '.self::nameOf($products, $line).' tidak ditemukan.');
 
                 $used = (float) ($input['actual_used_qty'] ?? 0);
                 $goodReturn = (float) ($input['declared_good_return_qty'] ?? 0);
@@ -230,14 +231,14 @@ class MaterialReturnService
 
                 abort_if($used < 0 || $goodReturn < 0 || $discrepancy < 0, 422, 'Nilai jumlah deklarasi tidak boleh negatif.');
 
-                $product = Product::withoutCompany()->find($line->product_id);
+                $product = $products->get($line->product_id);
                 abort_if($product && $product->type === 'asset', 422, 'Aset berserial tidak boleh dideklarasikan lewat pengembalian material massal.');
 
                 $issued = (float) $line->issued_qty;
                 $sumDeclared = round($used + $goodReturn + $discrepancy, 2);
 
                 if (abs($issued - $sumDeclared) > 0.001) {
-                    abort(422, "Jumlah tidak cocok pada baris {$line->public_id}: diserahkan ({$issued}) harus sama dengan terpakai ({$used}) + dikembalikan ({$goodReturn}) + selisih ({$discrepancy}).");
+                    abort(422, 'Jumlah tidak cocok untuk '.self::nameOf($products, $line).": diserahkan ({$issued}) harus sama dengan terpakai ({$used}) + dikembalikan ({$goodReturn}) + selisih ({$discrepancy}).");
                 }
 
                 $discrepancyCode = $input['discrepancy_code'] ?? null;
@@ -295,7 +296,7 @@ class MaterialReturnService
                 }
             });
 
-            return $c->fresh(['lines.product', 'events.actor', 'technician', 'warehouseLocation']);
+            return $c->fresh(['lines.product.unit', 'events.actor', 'technician', 'warehouseLocation']);
         }, 3);
     }
 
@@ -331,13 +332,14 @@ class MaterialReturnService
             $lines = $c->lines()->lockForUpdate()->get()->keyBy('id');
             $inputLines = collect($data['lines'])->keyBy('id');
             abort_unless($inputLines->count() === $lines->count(), 422, 'Verifikasi fisik seluruh baris barang harus dilakukan lengkap.');
+            $products = self::productsOf($lines);
 
             $hasException = false;
             $requestCode = $c->inventoryRequest?->code;
 
             foreach ($lines as $lineId => $line) {
                 $input = $inputLines->get($lineId);
-                abort_unless($input !== null, 422, "Data verifikasi fisik baris {$line->public_id} tidak ditemukan.");
+                abort_unless($input !== null, 422, 'Data verifikasi fisik untuk '.self::nameOf($products, $line).' tidak ditemukan.');
 
                 $acceptedGood = (float) ($input['accepted_good_return_qty'] ?? 0);
                 $damaged = (float) ($input['damaged_return_qty'] ?? 0);
@@ -351,16 +353,17 @@ class MaterialReturnService
                 $sumPhysical = round($used + $acceptedGood + $damaged + $lost + $other, 2);
 
                 if (abs($issued - $sumPhysical) > 0.001) {
-                    abort(422, "Jumlah tidak cocok pada baris {$line->public_id}: diserahkan ({$issued}) harus sama dengan terpakai ({$used}) + diterima ({$acceptedGood}) + rusak ({$damaged}) + hilang ({$lost}) + lainnya ({$other}).");
+                    abort(422, 'Jumlah tidak cocok untuk '.self::nameOf($products, $line).": diserahkan ({$issued}) harus sama dengan terpakai ({$used}) + diterima ({$acceptedGood}) + rusak ({$damaged}) + hilang ({$lost}) + lainnya ({$other}).");
                 }
 
                 if ($damaged > 0 || $lost > 0 || $other > 0) {
                     $hasException = true;
                 }
 
-                // Increment good physical stock ONLY for accepted_good_return_qty
+                // The goods come back to the shelf: booked as a return, not as a purchase receipt (F8-D10), so the movement
+                // list tells the two apart. Only accepted_good_return_qty raises the stock.
                 if ($acceptedGood > 0) {
-                    StockService::receive(
+                    StockService::returnStock(
                         $line->product_id,
                         $warehouseLocationId,
                         $acceptedGood,
@@ -428,7 +431,7 @@ class MaterialReturnService
                 });
             }
 
-            return $c->fresh(['lines.product', 'events.actor', 'technician', 'warehouseLocation', 'receiver', 'reconciler']);
+            return $c->fresh(['lines.product.unit', 'events.actor', 'technician', 'warehouseLocation', 'receiver', 'reconciler']);
         }, 3);
     }
 
@@ -483,7 +486,7 @@ class MaterialReturnService
                 $c->technician->notify(new MaterialReturnRejectedNotification($c->id, $reason, $companyId, $c->inventory_request_id));
             });
 
-            return $c->fresh(['lines.product', 'events.actor', 'technician', 'warehouseLocation', 'rejecter']);
+            return $c->fresh(['lines.product.unit', 'events.actor', 'technician', 'warehouseLocation', 'rejecter']);
         }, 3);
     }
 
@@ -542,7 +545,7 @@ class MaterialReturnService
                 CompleteSpkAction::reconcileUsedQuantitiesFromMaterialReturns($workOrder);
             }
 
-            return $c->fresh(['lines.product', 'events.actor', 'technician', 'warehouseLocation', 'resolver']);
+            return $c->fresh(['lines.product.unit', 'events.actor', 'technician', 'warehouseLocation', 'resolver']);
         }, 3);
     }
 
@@ -570,6 +573,23 @@ class MaterialReturnService
         $workOrderId = self::workOrderIdOf($case);
 
         return $workOrderId === null ? null : WorkOrder::withoutCompany()->where('company_id', $companyId)->lockForUpdate()->find($workOrderId);
+    }
+
+    /**
+     * The products of the lines in one query. A refusal names the product, not the opaque id of the line.
+     *
+     * @param  Collection<int, MaterialReturnLine>  $lines
+     * @return Collection<int, Product>
+     */
+    private static function productsOf(Collection $lines): Collection
+    {
+        return Product::withoutCompany()->whereIn('id', $lines->pluck('product_id'))->get()->keyBy('id');
+    }
+
+    /** @param  Collection<int, Product>  $products */
+    private static function nameOf(Collection $products, MaterialReturnLine $line): string
+    {
+        return $products->get($line->product_id)?->name ?? 'barang';
     }
 
     /**

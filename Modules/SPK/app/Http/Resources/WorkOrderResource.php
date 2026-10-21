@@ -6,7 +6,6 @@ use App\Http\Resources\CustomerResource;
 use App\Http\Resources\LocationResource;
 use App\Http\Resources\MediaResource;
 use App\Http\Resources\SubscriptionResource;
-use App\Http\Resources\UserResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -44,13 +43,14 @@ class WorkOrderResource extends JsonResource
             'technician_name_snapshot' => $this->technician_name_snapshot,
             'location_code_snapshot' => $this->location_code_snapshot,
             ...$this->lifecycleAttributes(),
-            'customer' => new CustomerResource($this->whenLoaded('customer')),
-            'subscription' => new SubscriptionResource($this->whenLoaded('subscription')),
+            'customer' => $this->whenLoaded('customer', fn (): ?array => CustomerResource::summary($this->customer)),
+            'subscription' => $this->whenLoaded('subscription', fn (): ?array => SubscriptionResource::summary($this->subscription)),
             'location' => new LocationResource($this->whenLoaded('location')),
-            'assignee' => new UserResource($this->whenLoaded('assignee')),
+            'assignee' => $this->whenLoaded('assignee', fn (): ?array => $this->assignee === null ? null : ['id' => $this->assignee->public_id, 'name' => $this->assignee->name]),
             'items' => WorkOrderItemResource::collection($this->whenLoaded('items')),
             'assignments' => WorkOrderAssignmentResource::collection($this->whenLoaded('assignments')),
-            'evidence' => MediaResource::collection($this->getMedia('evidence')),
+            // Only the detail page shows the photos; the list and the edit form would pay a media query per row for nothing.
+            'evidence' => $this->when($request->routeIs('admin.spk.show'), fn () => MediaResource::collection($this->getMedia('evidence'))),
         ];
     }
 }

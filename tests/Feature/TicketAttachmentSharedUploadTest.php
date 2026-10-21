@@ -35,7 +35,7 @@ class TicketAttachmentSharedUploadTest extends TestCase
         $this->actingAs($user);
 
         $ticket = $this->ticket($user);
-        $file = UploadedFile::fake()->create('ticket-note.txt', 12, 'text/plain');
+        $file = UploadedFile::fake()->createWithContent('ticket-note.pdf', "%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n");
 
         $this->post(route('admin.tickets.attachments.store', $ticket), ['file' => $file])
             ->assertRedirect();

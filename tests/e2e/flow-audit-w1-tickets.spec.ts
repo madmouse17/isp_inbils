@@ -69,9 +69,9 @@ test.describe('@flow-audit-w1 tickets', () => {
         await page
             .getByRole('button', { name: 'Seret berkas ke sini atau telusuri' })
             .setInputFiles({
-                name: 'forbidden-ticket-upload.txt',
-                mimeType: 'text/plain',
-                buffer: Buffer.from('denied E2E attachment'),
+                name: 'forbidden-ticket-upload.pdf',
+                mimeType: 'application/pdf',
+                buffer: Buffer.from('%PDF-1.4\ndenied E2E attachment\n%%EOF\n'),
             });
         await page.getByRole('button', { name: 'Unggah', exact: true }).click();
 

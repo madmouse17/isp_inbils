@@ -131,7 +131,7 @@ test.describe('@flow-audit-w1 operations', () => {
         await dialog.getByRole('button', { name: 'Setujui', exact: true }).click();
 
         const message =
-            'Stok Kabel Fiber Optic Single di AUDIT POP Bandung Timur tersisa 0 m, dibutuhkan 18 m.';
+            'Stok Kabel Fiber Optic Single di AUDIT POP Bandung Timur tidak cukup: tersedia 0 m, diminta 18 m.';
         const stockToast = page
             .getByLabel('Notifikasi')
             .getByRole('alert')

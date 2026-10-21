@@ -112,9 +112,22 @@ async function exerciseTable(page: Page, c: TableCase, testInfo: TestInfo) {
     ).toBeVisible();
     if (c.setup) await c.setup(page);
     if (c.search) {
+        // Returns loads rows with a client fetch; focus set before it lands is lost when rows swap to skeletons.
+        const settled =
+            c.name === 'Returns'
+                ? page.waitForResponse(
+                      (response) =>
+                          response.url().includes('/admin/inventory/returns?') &&
+                          response.url().includes(`search=${c.search?.value}`),
+                  )
+                : null;
         await page.getByLabel(c.search.label, { exact: true }).fill(c.search.value);
         if (c.submit) await page.getByRole('button', { name: c.submit, exact: true }).click();
         await expectQuery(page, c.search.key ?? 'search', c.search.value);
+        if (settled) {
+            await settled;
+            await expect(page.locator('table[aria-busy="true"]')).toHaveCount(0);
+        }
     }
     const filterLabels: Record<string, string[]> = {
         Products: ['Kategori', 'Status'],
@@ -431,7 +444,7 @@ test.describe('@datatable-c replacement matrix', () => {
                 await expect(
                     page.getByLabel('Baris per halaman', { exact: true }).locator('visible=true'),
                 ).toHaveValue('10');
-                await page.getByRole('tab', { name: /Antrean Pengembalian/ }).press('Enter');
+                await page.getByRole('tab', { name: /Pengembalian material/ }).press('Enter');
                 await expectQuery(page, 'tab', 'returns');
                 await expectQuerySnapshot(page, returnState);
                 await expect(page.locator('tbody:visible tr')).toHaveCount(11);

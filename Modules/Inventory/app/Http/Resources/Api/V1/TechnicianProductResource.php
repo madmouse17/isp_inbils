@@ -9,7 +9,8 @@ use Modules\Inventory\Models\Product;
 
 /**
  * A product in the technician app's picker: what to show and what to send back, no prices. Stock only as `available`,
- * and only for the warehouse the request named.
+ * and only for the warehouse the request named. `category` lets the picker group the list; the controller selects
+ * `category_id` and loads `category`, so nothing here is read lazily.
  *
  * @property Product $resource
  */
@@ -26,11 +27,10 @@ class TechnicianProductResource extends JsonResource
             'name' => $product->name,
             /** @var string|null */
             'unit' => data_get($product, 'unit.symbol') ?? data_get($product, 'unit.name'),
+            'category' => ['id' => $product->category->public_id, 'name' => $product->category->name],
             /**
              * What is free to ask for at the warehouse the request named (stock minus reserved, "0" when it holds none of
              * this product), as a decimal without trailing zeros. Null when the request named no warehouse.
-             *
-             * @var string|null
              */
             'available' => $this->available($product),
         ];

@@ -205,7 +205,7 @@ class ReportPublicIdsTest extends TestCase
         $activity = AuditService::log('billing', 'with_a_subject', ['note' => 'x'], $this->location);
         AuditService::log('billing', 'without_a_subject');
 
-        $file = fn (): array => collect($this->csvRecords($this->get(route('admin.reports.audit-log.export', ['log_name' => 'billing']))))->keyBy('Deskripsi')->all();
+        $file = fn (): array => collect($this->csvRecords($this->get(route('admin.reports.audit-log.export', ['log_name' => 'billing']))))->keyBy('Aksi')->all();
         $row = $file()['with_a_subject'];
 
         $this->assertSame($activity->public_id, $row['ID']);

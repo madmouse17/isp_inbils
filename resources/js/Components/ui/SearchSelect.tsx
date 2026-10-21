@@ -37,6 +37,13 @@ export interface SearchSelectProps {
     loading?: boolean;
     /** Characters to type before options show. Default 2 with `onSearch`, 0 without. */
     minChars?: number;
+    /**
+     * Server-side search only. Heading over the options listed before anything is typed (the server's recent
+     * rows); without it the list stays closed until `minChars` characters are typed. Pair it with `onOpen`.
+     */
+    recentHeading?: string;
+    /** The list was opened, so a server-side search can load what it shows before anything is typed. */
+    onOpen?: () => void;
     placeholder?: string;
     emptyText?: string;
     error?: string;
@@ -61,6 +68,8 @@ export function SearchSelect({
     onSearch,
     loading = false,
     minChars,
+    recentHeading,
+    onOpen,
     placeholder = 'Cari...',
     emptyText = 'Tidak ada hasil.',
     error,
@@ -86,7 +95,8 @@ export function SearchSelect({
     const threshold = minChars ?? (remote ? 2 : 0);
     const isOpen = open && !disabled;
     const needle = (query ?? '').trim().toLowerCase();
-    const ready = needle.length >= threshold;
+    const browsing = remote && recentHeading !== undefined && needle === '';
+    const ready = browsing || needle.length >= threshold;
 
     const chosen = useMemo(
         () =>
@@ -100,6 +110,11 @@ export function SearchSelect({
 
     const visible = useMemo(() => {
         if (!ready) return [];
+
+        // The recent rows are the answer to nothing typed; while they load, the last answer would be a wrong one.
+        if (browsing) {
+            return loading ? [] : options.map((option) => ({ ...option, group: recentHeading }));
+        }
 
         const matching =
             remote || needle === ''
@@ -119,7 +134,7 @@ export function SearchSelect({
         }
 
         return [...buckets.values()].flat();
-    }, [options, ready, remote, needle]);
+    }, [options, ready, remote, needle, browsing, loading, recentHeading]);
 
     // Consecutive options of one group, each with its index in `visible` (the keyboard order).
     const runs = useMemo(() => {
@@ -135,16 +150,23 @@ export function SearchSelect({
         return result;
     }, [visible]);
 
-    const activeIndex = Math.min(active, visible.length - 1);
+    // Nothing highlighted by hand: the chosen option is the starting point, so an open list shows it.
+    const selectedIndex =
+        needle === '' && value !== '' ? visible.findIndex((option) => option.value === value) : -1;
+    const activeIndex = active >= 0 ? Math.min(active, visible.length - 1) : selectedIndex;
     const listShown = isOpen && visible.length > 0;
 
+    // The list is in a portal that mounts one render after the field opens, so the option is not in the page yet when
+    // `listShown` turns true: the scroll waits for the list element itself.
+    const [listElement, setListElement] = useState<HTMLUListElement | null>(null);
+
     useEffect(() => {
-        if (listShown && activeIndex >= 0) {
+        if (listElement && activeIndex >= 0) {
             document
                 .getElementById(`${inputId}-option-${activeIndex}`)
                 ?.scrollIntoView({ block: 'nearest' });
         }
-    }, [listShown, activeIndex, inputId]);
+    }, [listElement, activeIndex, inputId]);
 
     const choose = (option: SearchSelectOption) => {
         setPicked(option);
@@ -160,9 +182,17 @@ export function SearchSelect({
         inputRef.current?.focus();
     };
 
+    const openList = () => {
+        if (!open) onOpen?.();
+        setOpen(true);
+    };
+
     const handleOpenChange = (next: boolean) => {
-        setOpen(next);
-        if (!next) setQuery(null);
+        if (next) openList();
+        else {
+            setOpen(false);
+            setQuery(null);
+        }
     };
 
     const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -171,7 +201,7 @@ export function SearchSelect({
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
             event.preventDefault();
             if (!isOpen) {
-                setOpen(true);
+                openList();
             } else if (visible.length > 0) {
                 const step = event.key === 'ArrowDown' ? 1 : -1;
                 // From no highlight, Down goes to the first option and Up to the last.
@@ -222,11 +252,11 @@ export function SearchSelect({
                             value={isOpen ? (query ?? '') : (chosen?.label ?? '')}
                             placeholder={isOpen && chosen ? chosen.label : placeholder}
                             disabled={disabled}
-                            onClick={() => setOpen(true)}
+                            onClick={openList}
                             onChange={(event) => {
                                 setQuery(event.target.value);
                                 setActive(event.target.value.trim() === '' ? -1 : 0);
-                                setOpen(true);
+                                openList();
                                 onSearch?.(event.target.value);
                             }}
                             onKeyDown={handleKeyDown}
@@ -298,7 +328,12 @@ export function SearchSelect({
                             </p>
                         )
                     ) : (
-                        <ul id={listId} role="listbox" aria-label={label ?? placeholder}>
+                        <ul
+                            ref={setListElement}
+                            id={listId}
+                            role="listbox"
+                            aria-label={label ?? placeholder}
+                        >
                             {runs.map((run, runIndex) => {
                                 const items = run.items.map(({ option, index }) => (
                                     <li

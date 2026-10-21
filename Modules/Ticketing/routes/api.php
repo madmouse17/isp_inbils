@@ -14,6 +14,7 @@ Route::middleware('api.customer')->prefix('customer')->name('customer.')->group(
     Route::post('tickets', [CustomerTicketController::class, 'store'])->name('tickets.store');
     Route::get('tickets/{id}', [CustomerTicketController::class, 'show'])->whereUlid('id')->name('tickets.show');
     Route::post('tickets/{id}/comments', CustomerTicketCommentController::class)->whereUlid('id')->name('tickets.comments.store');
+    Route::post('tickets/{id}/confirmation', [CustomerTicketController::class, 'confirmation'])->whereUlid('id')->name('tickets.confirmation');
     Route::post('tickets/{id}/attachments', [TicketAttachmentController::class, 'store'])->whereUlid('id')->middleware('throttle:api-upload')->name('tickets.attachments.store');
     Route::delete('tickets/{id}/attachments/{media}', [TicketAttachmentController::class, 'destroy'])->whereUlid(['id', 'media'])->name('tickets.attachments.destroy');
 });

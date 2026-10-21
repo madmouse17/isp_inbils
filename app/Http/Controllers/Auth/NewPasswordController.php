@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\EnsureCustomerAccess;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -43,15 +44,18 @@ class NewPasswordController extends Controller
         // Here we will attempt to reset the user's password. If it is successful we
         // will update the password on an actual user model and persist it to the
         // database. Otherwise we will parse the error and return the response.
+        $customer = false;
         $status = Password::reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
-            function ($user) use ($request) {
+            function ($user) use ($request, &$customer) {
                 $user->forceFill([
                     'password' => Hash::make($request->password),
                     'remember_token' => Str::random(60),
                 ])->save();
 
                 event(new PasswordReset($user));
+
+                $customer = EnsureCustomerAccess::customerFor($user) !== null;
             }
         );
 
@@ -59,11 +63,15 @@ class NewPasswordController extends Controller
         // the application's home authenticated view. If there is an error we can
         // redirect them back to where they came from with their error message.
         if ($status == Password::PASSWORD_RESET) {
-            return redirect()->route('login')->with('status', __($status));
+            // A customer has nothing to do on the web: the app is where the account lives (F4-U14).
+            return $customer
+                ? redirect()->route('login')->with('status', 'Kata sandi tersimpan. Masuk lewat aplikasi Inbils.')->with('customer_handoff', (string) $request->input('email'))
+                : redirect()->route('login')->with('status', __($status));
         }
 
+        // An unknown address gets the answer of a bad token: this page must not tell whether an email has an account.
         throw ValidationException::withMessages([
-            'email' => [trans($status)],
+            'email' => [trans($status === Password::INVALID_USER ? Password::INVALID_TOKEN : $status)],
         ]);
     }
 }

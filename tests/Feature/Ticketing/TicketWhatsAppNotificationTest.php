@@ -298,7 +298,7 @@ class TicketWhatsAppNotificationTest extends TestCase
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        new TicketCustomerUpdateNotification($this->company->id, 1, 'reopened');
+        new TicketCustomerUpdateNotification($this->company->id, 1, 'archived');
     }
 
     public function test_new_stages_send_no_whatsapp(): void
@@ -340,7 +340,7 @@ class TicketWhatsAppNotificationTest extends TestCase
             'ticket_assigned' => ['Petugas ditugaskan', "Petugas sudah ditugaskan untuk tiket {$code}."],
             'ticket_started' => ['Tiket mulai ditangani', "Petugas mulai menangani tiket {$code}."],
             'ticket_replied' => ['Balasan baru', "Petugas membalas tiket {$code}."],
-            'ticket_resolved' => ['Tiket selesai', "Tiket {$code} sudah diselesaikan. Masih bermasalah? Balas tiket ini."],
+            'ticket_resolved' => ["Tiket {$code} diselesaikan", 'Kabel diganti. Sudah beres?'],
             'ticket_closed' => ['Tiket ditutup', "Tiket {$code} sudah ditutup."],
         ];
 
@@ -352,7 +352,8 @@ class TicketWhatsAppNotificationTest extends TestCase
 
         foreach ($words as $type => [$title, $message]) {
             $row = $rows[$type];
-            $this->assertEquals(['type' => $type, 'ticket_id' => $ticket->public_id, 'ticket_code' => $code], $row->data, $type);
+            $expected = ['type' => $type, 'ticket_id' => $ticket->public_id, 'ticket_code' => $code] + ($type === 'ticket_resolved' ? ['resolution_excerpt' => 'Kabel diganti.'] : []);
+            $this->assertEquals($expected, $row->data, $type);
 
             $bell = (new NotificationResource($row))->resolve(HttpRequest::create('/api/v1/notifications'));
             $this->assertSame([$title, $message], [$bell['title'], $bell['message']], $type);

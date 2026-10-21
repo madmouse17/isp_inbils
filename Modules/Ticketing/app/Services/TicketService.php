@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Validation\ValidationException;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\SPK\Models\WorkOrder;
 use Modules\Ticketing\Models\Ticket;
@@ -30,6 +31,7 @@ use Modules\Ticketing\Models\TicketComment;
 use Modules\Ticketing\Notifications\TicketAssignedNotification;
 use Modules\Ticketing\Notifications\TicketCustomerUpdateNotification;
 use Modules\Ticketing\Notifications\TicketStaffNotification;
+use Spatie\Activitylog\Contracts\Activity as ActivityContract;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
@@ -41,6 +43,9 @@ class TicketService
 
     /** A ticket is still being worked in these statuses; a file may be withdrawn only until it leaves them. */
     private const OPEN_STATUSES = ['open', 'assigned', 'on_progress'];
+
+    /** Whoever holds one of these can be given a ticket to work: start it, resolve it, or check and close it. */
+    public const HANDLER_PERMISSIONS = ['ticket.start', 'ticket.resolve', 'ticket.close'];
 
     public static function create(array $data, int $createdBy): Ticket
     {
@@ -139,7 +144,7 @@ class TicketService
      * sets, and whether priority urgent halves them. The hours are the live ones of the tier or category, so a category
      * edited after the ticket was made can differ from the deadline stored on the ticket.
      *
-     * @return array{type: 'tier'|'category', name: string, response_hours: ?int, resolution_hours: int, urgent_halved: bool}
+     * @return array{type: 'tier'|'category', name: string, response_hours: ?int, resolution_hours: int, urgent_halved: bool, calendar?: '24h'|'business'}
      */
     public static function deadlineSource(Ticket $ticket): array
     {
@@ -225,13 +230,8 @@ class TicketService
                 abort(422, 'Kebijakan perusahaan melarang menugaskan diri sendiri.');
             }
 
-            $handler = User::query()
-                ->where('company_id', $ticket->company_id)
-                ->where('is_active', true)
-                ->where(function ($query) {
-                    $query->whereHas('permissions', fn ($permissionQuery) => $permissionQuery->whereIn('name', ['ticket.start', 'ticket.resolve', 'ticket.close']))
-                        ->orWhereHas('roles.permissions', fn ($permissionQuery) => $permissionQuery->whereIn('name', ['ticket.start', 'ticket.resolve', 'ticket.close']));
-                })
+            $handler = StaffRecipients::members((int) $ticket->company_id)
+                ->withPermissionIn(self::HANDLER_PERMISSIONS, (int) $ticket->company_id)
                 ->findOrFail($handlerId);
 
             $previousHandlerId = $ticket->assigned_to;
@@ -252,6 +252,24 @@ class TicketService
             }
 
             return $ticket->fresh();
+        });
+    }
+
+    /**
+     * "Tugaskan ke saya": an unassigned ticket goes to the actor. Read under the lock, so a ticket that somebody else took
+     * since the page was drawn is a 409 and never a quiet reassignment; the rest is the assignment of the dialog.
+     */
+    public static function assignSelf(Ticket $ticket, User $actor): Ticket
+    {
+        return DB::transaction(function () use ($ticket, $actor): Ticket {
+            $ticket = self::lockedTicket($ticket->id);
+            self::assertCompany($ticket);
+
+            if ($ticket->assigned_to !== null) {
+                throw new ConflictHttpException('Konflik penugasan: tiket ini sudah ditugaskan oleh pengguna lain.', null, 409);
+            }
+
+            return self::assign($ticket, $actor->id, $actor->id, null, $ticket->updated_at?->utc()->format('Y-m-d\\TH:i:s.v\\Z'));
         });
     }
 
@@ -348,10 +366,48 @@ class TicketService
     }
 
     /**
-     * A resolved ticket goes back to work: assigned when it still has a handler, else open. The resolution leaves the
-     * ticket and stays in the audit row; the targets are not restarted. Expects the ticket row locked by the caller.
+     * Staff bring a resolved or closed ticket back to work and say why (K13). The handler hears of it (dispatch, when the ticket
+     * has none or the handler is gone) and the customer is told that it is being worked on again. Whoever reopened it is not
+     * told of their own act.
      */
-    public static function reopen(Ticket $ticket, string $by): Ticket
+    public static function reopenByStaff(Ticket $ticket, User $actor, string $reason): Ticket
+    {
+        $reason = trim($reason);
+
+        return DB::transaction(function () use ($ticket, $actor, $reason): Ticket {
+            $ticket = self::lockedTicket($ticket->id);
+            self::assertCompany($ticket);
+
+            // The page that offered the button may be older than the ticket: only a finished ticket comes back.
+            if (! in_array($ticket->status, Ticket::FINISHED_STATUSES, true)) {
+                throw ValidationException::withMessages(['status' => 'Hanya tiket yang diselesaikan atau ditutup yang bisa dibuka kembali.']);
+            }
+
+            $reopening = self::reopen($ticket, 'staff', $reason, $actor);
+
+            $handler = self::currentHandler($ticket);
+            $watchers = $handler === null
+                ? StaffRecipients::holding((int) $ticket->company_id, 'ticket.assign', $actor->id)
+                : collect([$handler])->reject(fn (User $user): bool => $user->is($actor));
+
+            // The notice reads who and why from the audit row when it is sent: the queued payload keeps ids only.
+            Notification::send($watchers, new TicketStaffNotification($ticket->company_id, $ticket->id, 'reopened', 'staff', $reopening instanceof Model ? (int) $reopening->getKey() : null));
+            self::notifyCustomer($ticket, 'reopened');
+
+            return $ticket->fresh();
+        });
+    }
+
+    /**
+     * A finished ticket goes back to work: assigned when it still has a handler, else open. The resolution and the closing
+     * leave the ticket and stay in the audit row; the targets are not restarted and a rating the customer gave stays.
+     * Expects the ticket row locked by the caller.
+     *
+     * @param  string  $by  'customer' (a reply on a resolved ticket) or 'staff'
+     * @param  ?User  $actor  who reopened it, for the audit row; none: the signed-in user
+     * @return ?ActivityContract the audit row of the reopening
+     */
+    public static function reopen(Ticket $ticket, string $by, ?string $reason = null, ?User $actor = null): ?ActivityContract
     {
         $previousStatus = $ticket->status;
         $resolutionNote = $ticket->resolution_note;
@@ -360,16 +416,19 @@ class TicketService
             'status' => $ticket->assigned_to === null ? 'open' : 'assigned',
             'resolved_at' => null,
             'resolution_note' => null,
+            'closed_at' => null,
+            // A closed ticket keeps the names it closed with; open again, it follows the live records.
+            'category_name_snapshot' => null,
+            'assignee_name_snapshot' => null,
             'reopened_at' => now(),
         ]);
 
-        AuditService::log('ticket', 'reopened', [
+        return AuditService::log('ticket', 'reopened', [
             'previous_status' => $previousStatus,
             'resolution_note' => $resolutionNote,
             'by' => $by,
-        ], $ticket);
-
-        return $ticket;
+            ...($reason === null ? [] : ['reason' => $reason]),
+        ], $ticket, causer: $actor);
     }
 
     /**
@@ -381,9 +440,18 @@ class TicketService
     public static function staffWatching(Ticket $ticket): EloquentCollection
     {
         $dispatch = StaffRecipients::holding((int) $ticket->company_id, 'ticket.assign');
-        $handler = $ticket->assigned_to === null ? null : User::query()->where('is_active', true)->find($ticket->assigned_to);
+        $handler = self::currentHandler($ticket);
 
         return $handler === null ? $dispatch : $dispatch->push($handler)->unique('id')->values();
+    }
+
+    /**
+     * The handler of a ticket, while they are an active member of its company. `assigned_to` stays when a membership is
+     * revoked, and a user homed in another company must not hear what happens in this one.
+     */
+    private static function currentHandler(Ticket $ticket): ?User
+    {
+        return $ticket->assigned_to === null ? null : StaffRecipients::members((int) $ticket->company_id)->find($ticket->assigned_to);
     }
 
     /**
@@ -518,18 +586,65 @@ class TicketService
             self::assertCloser($ticket);
             self::throwStatusConflictIfChanged($ticket, $expectedStatus, 'resolved', 'Konflik: status tiket sudah diubah oleh pengguna lain.');
             abort_if($ticket->status !== 'resolved', 422, 'Tiket harus berstatus diselesaikan untuk bisa ditutup.');
-            // Read under the lock, with the status: a rename after this moment never reaches the closed ticket.
-            $ticket->loadMissing(['category', 'assignee']);
-            $ticket->update([
-                'status' => 'closed',
-                'closed_at' => now(),
-                'category_name_snapshot' => $ticket->category->name,
-                'assignee_name_snapshot' => $ticket->assignee?->name,
-            ]);
-
-            AuditService::log('ticket', 'closed', ['code' => $ticket->code], $ticket);
+            self::closeLocked($ticket);
 
             self::notifyCustomer($ticket, 'closed');
+
+            return $ticket->fresh();
+        });
+    }
+
+    /**
+     * Closes a resolved ticket whose row the caller holds locked, and keeps the names it closes with. $also goes into the same
+     * write (the rating, when the customer closes the ticket). Who may close, and whether the status allows it, is the caller's call.
+     *
+     * @param  array<string, mixed>  $also
+     */
+    private static function closeLocked(Ticket $ticket, array $also = []): void
+    {
+        // Read under the lock, with the status: a rename after this moment never reaches the closed ticket.
+        $ticket->loadMissing(['category', 'assignee']);
+        $ticket->update([
+            'status' => 'closed',
+            'closed_at' => now(),
+            'category_name_snapshot' => $ticket->category->name,
+            'assignee_name_snapshot' => $ticket->assignee?->name,
+            ...$also,
+        ]);
+
+        AuditService::log('ticket', 'closed', ['code' => $ticket->code], $ticket);
+    }
+
+    /**
+     * The customer's answer to "Masalah sudah beres?" (K14): a resolved ticket closes with the rating, a closed one that was never
+     * rated only takes it. A ticket is rated once, and the rating survives a reopening, so a ticket rated before it came back is
+     * not rated again. Nothing but a finished ticket is rated. Whose ticket it is, is the policy's to say.
+     */
+    public static function confirmByCustomer(Ticket $ticket, int $rating, ?string $comment): Ticket
+    {
+        self::assertCompany($ticket);
+
+        return DB::transaction(function () use ($ticket, $rating, $comment): Ticket {
+            $ticket = self::lockedTicket($ticket->id);
+
+            if (! in_array($ticket->status, Ticket::FINISHED_STATUSES, true)) {
+                throw new ApiException(422, 'ticket_not_resolved', 'Tiket belum diselesaikan.');
+            }
+
+            if ($ticket->customer_rated_at !== null) {
+                throw new ApiException(409, 'ticket_already_rated', 'Tiket ini sudah dinilai.');
+            }
+
+            $rated = ['customer_rating' => $rating, 'customer_rating_comment' => $comment, 'customer_rated_at' => now()];
+            $closes = $ticket->status === 'resolved';
+
+            if ($closes) {
+                self::closeLocked($ticket, $rated);
+            } else {
+                $ticket->update($rated);
+            }
+
+            AuditService::log('ticket', 'customer_confirmed', ['rating' => $rating, 'closed' => $closes], $ticket);
 
             return $ticket->fresh();
         });

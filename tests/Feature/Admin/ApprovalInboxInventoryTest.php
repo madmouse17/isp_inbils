@@ -18,8 +18,10 @@ use Modules\Inventory\Models\InventoryRequest;
 use Modules\Inventory\Models\InventoryRequestItem;
 use Modules\Inventory\Models\Product;
 use Modules\Inventory\Models\Stock;
+use Modules\Inventory\Models\Unit;
 use Modules\SPK\Database\Factories\WorkOrderFactory;
 use Modules\SPK\Models\WorkOrder;
+use Modules\SPK\Models\WorkOrderItem;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 use Tests\Traits\WithoutAppOnlyRedirect;
@@ -689,7 +691,8 @@ class ApprovalInboxInventoryTest extends TestCase
         // 24 + 1: the shared `canTechnicianReport` prop reads a manager's employee profile once per page.
         // + 1: the shared `company.map` prop reads the system map defaults in one query when the company set none.
         // + 1: CompanyService::canActIn() reads is_active of the home company once per request.
-        $this->assertLessThan(28, $queryCount, "Expected bounded query count, got {$queryCount} queries.");
+        // + 1: the unit of every product on the page, in one query for all rows (F4-D09: each material in its own unit).
+        $this->assertLessThan(29, $queryCount, "Expected bounded query count, got {$queryCount} queries.");
     }
 
     public function test_unified_approval_inbox_pagination_title_sorting_with_reason_zero_preserves_page_boundaries(): void
@@ -880,6 +883,98 @@ class ApprovalInboxInventoryTest extends TestCase
                 ->where('items.meta.total', 11)
                 ->where('items.meta.current_page', 2)
             );
+    }
+
+    public function test_the_material_impact_lists_each_product_in_its_own_unit_and_adds_none_together(): void
+    {
+        [$company, $manager] = $this->approver();
+        $technician = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
+        $warehouse = $this->warehouse($company);
+        [$cable, $connector, $tape] = $this->productsWithUnits($company, $warehouse, ['m', 'pcs', 'roll']);
+        $request = $this->inventoryRequest($company, $technician, $warehouse, $cable, ['code' => 'REQ-MAT-001']);
+        $request->items()->update(['quantity_requested' => 18]);
+        foreach ([[$connector, 2], [$tape, 5]] as [$product, $quantity]) {
+            InventoryRequestItem::create([
+                'company_id' => $company->id,
+                'inventory_request_id' => $request->id,
+                'product_id' => $product->id,
+                'quantity_requested' => $quantity,
+                'source_location_id' => $warehouse->id,
+            ]);
+        }
+
+        $this->actingAs($manager)
+            ->get(route('admin.approvals.index', ['domain' => 'inventory_request']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('items.data.0.summary.count', 3)
+                ->where('items.data.0.summary.label', "{$cable->name}, {$connector->name} (+1)")
+                // A whole number may travel as 18 or 18.0; the lines and their order are what is asserted.
+                ->where('items.data.0.summary.materials', fn ($materials) => $materials->toArray() == [
+                    ['product' => $cable->name, 'quantity' => 18, 'unit' => 'm'],
+                    ['product' => $connector->name, 'quantity' => 2, 'unit' => 'pcs'],
+                    ['product' => $tape->name, 'quantity' => 5, 'unit' => 'roll'],
+                ])
+                ->missing('items.data.0.summary.quantity')
+            );
+    }
+
+    public function test_the_spk_impact_is_listed_per_unit_too(): void
+    {
+        [$company, $manager] = $this->approver();
+        $creator = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
+        [$cable, $connector] = $this->productsWithUnits($company, $this->warehouse($company), ['m', 'pcs']);
+        $workOrder = $this->waitingSpk($company, $creator);
+        // What counts is the larger of the planned and the used quantity.
+        WorkOrderItem::create(['company_id' => $company->id, 'work_order_id' => $workOrder->id, 'product_id' => $cable->id, 'quantity_reserved' => 18, 'quantity_used' => 0]);
+        WorkOrderItem::create(['company_id' => $company->id, 'work_order_id' => $workOrder->id, 'product_id' => $connector->id, 'quantity_reserved' => 1, 'quantity_used' => 2]);
+
+        $this->actingAs($manager)
+            ->get(route('admin.approvals.index', ['domain' => 'spk']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('items.data.0.summary.count', 2)
+                ->where('items.data.0.summary.materials', fn ($materials) => $materials->toArray() == [
+                    ['product' => $cable->name, 'quantity' => 18, 'unit' => 'm'],
+                    ['product' => $connector->name, 'quantity' => 2, 'unit' => 'pcs'],
+                ])
+                ->missing('items.data.0.summary.quantity')
+            );
+    }
+
+    public function test_a_line_whose_unit_was_not_loaded_carries_none_and_costs_no_query(): void
+    {
+        [$company, $manager] = $this->approver();
+        $technician = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
+        $warehouse = $this->warehouse($company);
+        [$cable] = $this->productsWithUnits($company, $warehouse, ['m']);
+        $request = $this->inventoryRequest($company, $technician, $warehouse, $cable);
+        $http = Request::create('/admin/approvals');
+        $http->setUserResolver(fn () => $manager);
+
+        DB::enableQueryLog();
+        $row = (new ApprovalInboxItemResource($request))->toArray($http);
+        $units = collect(DB::getQueryLog())->filter(fn (array $query): bool => str_contains($query['query'], 'from `units`'))->count();
+        DB::disableQueryLog();
+
+        $this->assertSame([['product' => $cable->name, 'quantity' => 2.0, 'unit' => null]], $row['summary']['materials']);
+        $this->assertSame(0, $units);
+    }
+
+    /**
+     * Products that sit in the warehouse, each with a unit of its own and the given symbol.
+     *
+     * @param  list<string>  $symbols
+     * @return list<Product>
+     */
+    private function productsWithUnits(Company $company, Location $warehouse, array $symbols): array
+    {
+        return array_map(function (string $symbol) use ($company, $warehouse): Product {
+            $product = $this->product($company, $warehouse);
+            Unit::withoutCompany()->whereKey($product->unit_id)->update(['symbol' => $symbol]);
+
+            return $product;
+        }, $symbols);
     }
 
     private function approver(): array

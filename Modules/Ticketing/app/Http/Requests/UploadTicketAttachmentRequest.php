@@ -15,11 +15,15 @@ class UploadTicketAttachmentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'file' => [
-                'required', 'file', 'max:10240',
-                'mimes:jpg,jpeg,png,pdf,doc,docx,txt',
-                'mimetypes:image/jpeg,image/png,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            ],
+            // The files the apps may send too (StoreTicketAttachmentRequest): a photo or a PDF. The extension and the content both count.
+            'file' => ['required', 'file', 'max:10240', 'extensions:jpg,jpeg,png,pdf', 'mimes:jpg,jpeg,png,pdf', 'mimetypes:image/jpeg,image/png,application/pdf'],
+            'caption' => ['nullable', 'string', 'max:200'],
         ];
+    }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return ['caption' => 'keterangan'];
     }
 }

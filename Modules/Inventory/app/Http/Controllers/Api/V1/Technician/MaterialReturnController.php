@@ -70,7 +70,7 @@ class MaterialReturnController extends Controller
         return MaterialReturnCase::withoutCompany()
             ->where('company_id', CompanyService::idFor($request->user()))
             ->where('technician_id', $request->user()->id)
-            ->with(['inventoryRequest', 'workOrder', 'warehouseLocation', 'lines.product.unit']);
+            ->with(['inventoryRequest', 'workOrder.items', 'warehouseLocation', 'lines.product.unit']);
     }
 
     private function ownCase(Request $request, MaterialReturnCase $case): MaterialReturnCase
@@ -83,6 +83,6 @@ class MaterialReturnController extends Controller
 
     private function loadDetail(MaterialReturnCase $case): MaterialReturnCase
     {
-        return $case->load(['inventoryRequest', 'workOrder', 'warehouseLocation', 'lines.product.unit']);
+        return $case->load(['inventoryRequest', 'workOrder.items', 'warehouseLocation', 'lines.product.unit']);
     }
 }

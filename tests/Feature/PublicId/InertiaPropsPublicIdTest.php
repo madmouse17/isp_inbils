@@ -30,8 +30,8 @@ class InertiaPropsPublicIdTest extends TestCase
     /** Keys that end in `_id` or `_by` but are no record reference: a tax number, a gateway's own id, a column name, "type:public id". */
     private const NOT_RECORD_KEYS = ['tax_id', 'provider_message_id', 'external_id', 'transaction_id', 'order_id', 'va_number', 'composite_id', 'sort_by', 'group_by', 'order_by'];
 
-    /** Routes that answer a file, a fragment or a page that needs a state the demo data does not hold. */
-    private const SKIPPED = '/\.(export|pdf|download)$|\.drill|^admin\.(media\.show|components|inventory\.find|network-assets\.trace)$/';
+    /** Routes that answer a file, a fragment or a page that needs a state the demo data does not hold (the SLA preview wants a category in its query). */
+    private const SKIPPED = '/\.(export|pdf|download)$|\.drill|^admin\.(media\.show|components|inventory\.find|network-assets\.trace|tickets\.sla-preview)$/';
 
     public function test_no_page_of_the_demo_company_carries_an_integer_id(): void
     {

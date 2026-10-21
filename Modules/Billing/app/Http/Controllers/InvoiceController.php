@@ -248,7 +248,10 @@ class InvoiceController extends Controller
             'invoice' => new InvoiceResource($invoice),
             'onlinePayments' => [
                 'enabled' => $gateway->isEnabled(),
-                'attempts' => PaymentAttemptResource::collection($invoice->paymentAttempts()->latest('id')->limit(20)->get()),
+                // The newest twenty attempts, each with its last Midtrans callbacks: one query for all the trails.
+                'attempts' => PaymentAttemptResource::collection(PaymentAttemptService::loadCallbackTrail(
+                    $invoice->paymentAttempts()->with(['payment:id,public_id', 'resolver:id,name'])->latest('id')->limit(20)->get(),
+                )),
             ],
             'can' => [
                 'update' => $request->user()?->can('update', $invoice) ?? false,
@@ -257,6 +260,7 @@ class InvoiceController extends Controller
                 'record_payment' => $request->user()?->can('billing.payment.record') ?? false,
                 'reverse_payment' => $request->user()?->can('billing.payment.reverse') ?? false,
                 'refund' => $request->user()?->can('billing.payment.reverse') ?? false,
+                'receipt' => $request->user()?->can('billing.pdf.view') ?? false,
             ],
         ]);
     }
@@ -276,6 +280,28 @@ class InvoiceController extends Controller
             'bankInfo' => ($company?->settings ?? [])['bank_account_info'] ?? '',
             'terbilang' => Terbilang::make((float) $invoice->total),
         ])->download($invoice->number.'.pdf');
+    }
+
+    /**
+     * The receipt of a paid invoice (kuitansi): who paid what, when and how, with no bank block. It needs the invoice's
+     * own permission to be seen and the PDF permission to be printed, and only a paid invoice has one.
+     */
+    public function receipt(Invoice $invoice): Response
+    {
+        $this->ensureSameCompany($invoice);
+        Gate::authorize('view', $invoice);
+        Gate::authorize('billing.pdf.view');
+        abort_if($invoice->status !== 'paid', 422, 'Kuitansi hanya untuk tagihan yang sudah lunas.');
+
+        $invoice->load('subscription');
+
+        return Pdf::loadView('pdf.receipt', [
+            'invoice' => $invoice,
+            'payments' => $invoice->payments()->whereNull('cancelled_at')->orderBy('paid_at')->orderBy('id')->get(),
+            'party' => InvoiceParty::of($invoice),
+            'company' => CompanyService::current(),
+            'terbilang' => Terbilang::make((float) $invoice->paid_amount),
+        ])->download('Kuitansi-'.$invoice->number.'.pdf');
     }
 
     public function receivables(Request $request, ReceivablesQuery $query): InertiaResponse

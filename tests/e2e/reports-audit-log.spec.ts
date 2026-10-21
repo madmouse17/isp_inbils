@@ -51,7 +51,8 @@ test.describe('@smoke @audit-log UI report audit log', () => {
         // Verify Table Column Headers (Desktop)
         await expect(page.getByRole('columnheader', { name: 'Waktu' })).toBeVisible();
         await expect(page.getByRole('columnheader', { name: 'Modul' })).toBeVisible();
-        await expect(page.getByRole('columnheader', { name: 'Aksi' })).toBeVisible();
+        // The sentence replaced the raw action column
+        await expect(page.getByRole('columnheader', { name: 'Aksi' })).toHaveCount(0);
         await expect(page.getByRole('columnheader', { name: 'Deskripsi' })).toBeVisible();
         await expect(page.getByRole('columnheader', { name: 'Pelaku' })).toBeVisible();
         await expect(page.getByRole('columnheader', { name: 'Subjek' })).toBeVisible();
@@ -98,7 +99,7 @@ test.describe('@smoke @audit-log UI report audit log', () => {
         await expect(customerRows.first()).toBeVisible();
         for (const row of await customerRows.all()) {
             const searchedCells = await row
-                .locator('td:nth-child(n+2):nth-child(-n+5)')
+                .locator('td:nth-child(n+2):nth-child(-n+4)')
                 .allInnerTexts();
             expect(searchedCells.join(' ')).toMatch(/customer|pelanggan/i);
         }
@@ -107,7 +108,7 @@ test.describe('@smoke @audit-log UI report audit log', () => {
         await searchInput.fill('Demo Admin');
         await page.getByRole('button', { name: 'Terapkan filter' }).click();
         await expect(page).toHaveURL(/search=Demo(\+|%20)Admin/);
-        const causerCells = page.locator('tbody tr td:nth-child(5)');
+        const causerCells = page.locator('tbody tr td:nth-child(4)');
         await expect(causerCells.first()).toBeVisible();
         const causerTexts = await causerCells.allInnerTexts();
         for (const text of causerTexts) {
@@ -151,15 +152,16 @@ test.describe('@smoke @audit-log UI report audit log', () => {
         expect(descNames, 'Modul descending').toEqual([...descNames].sort().reverse());
         expect(descNames[0]).not.toEqual(ascNames[0]);
 
-        // Test sorting by description without depending on the first seeded value.
+        // The sentence is worded server-side, so its order is no order of the stored codes: the header is not a sort
         const descriptionHeader = page.getByRole('columnheader', { name: 'Deskripsi' });
-        await descriptionHeader.getByRole('button').click();
-        await expect(page).toHaveURL(/sort=description/);
-        const descriptionCells = page.locator('tbody tr td:nth-child(4)');
+        await expect(descriptionHeader.getByRole('button')).toHaveCount(0);
+        // Every entry reads as a sentence the server worded: no snake_case code in the description cells
+        const descriptionCells = page.locator('tbody tr td:nth-child(3)');
         await expect(descriptionCells.first()).toBeVisible();
-        const descriptions = await descriptionCells.allInnerTexts();
-        for (let i = 0; i < descriptions.length - 1; i++) {
-            expect(descriptions[i].localeCompare(descriptions[i + 1])).toBeLessThanOrEqual(0);
+        for (const text of await descriptionCells.allInnerTexts()) {
+            expect(text, 'description is a sentence, not an event code').not.toMatch(
+                /\b[a-z]+_[a-z_]+\b/,
+            );
         }
 
         // Test non-sortable headers: clicking 'Pelaku' or 'Subjek' does NOT set sort=causer or sort=subject

@@ -15,6 +15,7 @@ import {
     THead,
     TR,
 } from '@/Components/ui';
+import { usePermission } from '@/hooks/usePermission';
 import { formatDate, formatMoney } from '@/lib/format';
 import {
     INVOICE_STATUS,
@@ -95,6 +96,8 @@ export function CustomerRelatedTables({
     historyAccess = { billing: false, tickets: false, spk: false },
 }: CustomerRelatedTablesProps) {
     const [tab, setTab] = useState('addresses');
+    // The subscription pages ask for customer.subscription.view: without it the code stays a word, not a dead link.
+    const canOpenSubscription = usePermission().can('customer.subscription.view');
 
     return (
         <Tabs value={tab} onValueChange={setTab}>
@@ -201,16 +204,31 @@ export function CustomerRelatedTables({
                             <TH>Status</TH>
                             <TH>Biaya bulanan</TH>
                             <TH>Tanggal tagih</TH>
+                            {canOpenSubscription ? <TH>Aksi</TH> : null}
                         </TR>
                     </THead>
                     <TBody>
                         {subscriptions.length === 0 ? (
-                            <EmptyRow colSpan={5}>Belum ada langganan.</EmptyRow>
+                            <EmptyRow colSpan={canOpenSubscription ? 6 : 5}>
+                                Belum ada langganan.
+                            </EmptyRow>
                         ) : (
                             subscriptions.map((subscription) => (
                                 <TR key={subscription.id}>
                                     <TD className="font-mono text-sm whitespace-nowrap">
-                                        {subscription.code}
+                                        {canOpenSubscription ? (
+                                            <Link
+                                                href={route(
+                                                    'admin.subscriptions.show',
+                                                    subscription.id,
+                                                )}
+                                                className={DETAIL_LINK}
+                                            >
+                                                {subscription.code}
+                                            </Link>
+                                        ) : (
+                                            subscription.code
+                                        )}
                                     </TD>
                                     <TD>
                                         {subscription.package?.name ??
@@ -226,6 +244,19 @@ export function CustomerRelatedTables({
                                         {formatMoney(subscription.mrc_amount)}
                                     </TD>
                                     <TD>{subscription.billing_day}</TD>
+                                    {canOpenSubscription ? (
+                                        <TD>
+                                            <Link
+                                                href={route(
+                                                    'admin.subscriptions.show',
+                                                    subscription.id,
+                                                )}
+                                                className={DETAIL_LINK}
+                                            >
+                                                Kelola langganan
+                                            </Link>
+                                        </TD>
+                                    ) : null}
                                 </TR>
                             ))
                         )}

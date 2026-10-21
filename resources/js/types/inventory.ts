@@ -121,13 +121,27 @@ export interface InventoryRequestRow {
         id: string;
         name: string;
     } | null;
+    rejected_by?: string | null;
+    rejecter?: {
+        id: string;
+        name: string;
+    } | null;
+    cancelled_by?: string | null;
+    canceller?: {
+        id: string;
+        name: string;
+    } | null;
     source_type?: string | null;
     source_id?: string | null;
+    /** The code of that SPK or ticket: what people read. `source_id` is its public id, for the link. Null when the record is gone. */
+    source_code?: string | null;
     submitted_at?: string | null;
     approved_at?: string | null;
     prepared_at?: string | null;
     ready_at?: string | null;
     issued_at?: string | null;
+    rejected_at?: string | null;
+    cancelled_at?: string | null;
     created_at: string;
     items?: InventoryRequestItem[];
     can?: {

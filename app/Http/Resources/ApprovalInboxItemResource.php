@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Queries\Admin\ApprovalInboxQuery;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\Inventory\Models\InventoryRequest;
@@ -99,33 +100,10 @@ class ApprovalInboxItemResource extends JsonResource
      */
     private function summarizeWorkOrder(WorkOrder $wo): array
     {
-        $items = $wo->relationLoaded('items') ? $wo->items : null;
-
-        if ($items === null || $items->isEmpty()) {
-            return ['label' => 'Tidak ada item', 'quantity' => 0, 'count' => 0];
-        }
-
-        $totalQuantity = 0.0;
-        foreach ($items as $item) {
-            $reserved = (float) $item->quantity_reserved;
-            $used = (float) $item->quantity_used;
-            $totalQuantity += max($reserved, $used);
-        }
-
-        $labels = $items->take(2)->map(function ($item): string {
-            /** @var object|null $product */
-            $product = $item->product;
-
-            return (string) ($product->name ?? 'Produk tidak tersedia');
-        })->values()->all();
-
-        $suffix = $items->count() > 2 ? ' (+'.($items->count() - 2).')' : '';
-
-        return [
-            'label' => implode(', ', $labels).$suffix,
-            'quantity' => round($totalQuantity, 2),
-            'count' => $items->count(),
-        ];
+        return self::summarizeItems(
+            $wo->relationLoaded('items') ? $wo->items : null,
+            fn (Model $item): float => max((float) $item->getAttribute('quantity_reserved'), (float) $item->getAttribute('quantity_used')),
+        );
     }
 
     /**
@@ -135,30 +113,46 @@ class ApprovalInboxItemResource extends JsonResource
      */
     private function summarizeInventoryRequest(InventoryRequest $ir): array
     {
-        $items = $ir->relationLoaded('items') ? $ir->items : null;
+        return self::summarizeItems(
+            $ir->relationLoaded('items') ? $ir->items : null,
+            fn (Model $item): float => (float) ($item->getAttribute('quantity_requested') ?? 0),
+        );
+    }
 
-        if ($items === null || $items->isEmpty()) {
-            return ['label' => 'Tidak ada item', 'quantity' => 0, 'count' => 0];
+    /**
+     * What an approval moves: the names, and one line per product with its quantity in the product's own unit. The lines
+     * are never added together (F4-D09): 18 m of cable and 2 pcs of connectors are not 20 of anything. The queue queries
+     * load `product.unit`; a line whose unit is not loaded carries none rather than costing a query per product.
+     *
+     * @param  iterable<int, Model>|null  $items
+     * @param  callable(Model): float  $quantityOf
+     * @return array{label: string, count: int, materials: list<array{product: string, quantity: float, unit: string|null}>}
+     */
+    private static function summarizeItems(?iterable $items, callable $quantityOf): array
+    {
+        $items = collect($items);
+
+        if ($items->isEmpty()) {
+            return ['label' => 'Tidak ada item', 'count' => 0, 'materials' => []];
         }
 
-        $totalQuantity = 0.0;
-        foreach ($items as $item) {
-            $totalQuantity += (float) ($item->quantity_requested ?? 0);
-        }
-
-        $labels = $items->take(2)->map(function ($item): string {
+        $materials = $items->map(function (Model $item) use ($quantityOf): array {
             /** @var object|null $product */
-            $product = $item->product;
+            $product = $item->getAttribute('product');
+            $unit = $product instanceof Model && $product->relationLoaded('unit') ? $product->getRelation('unit') : null;
 
-            return (string) ($product->name ?? 'Produk tidak tersedia');
-        })->values()->all();
-
-        $suffix = $items->count() > 2 ? ' (+'.($items->count() - 2).')' : '';
+            return [
+                'product' => (string) ($product->name ?? 'Produk tidak tersedia'),
+                'quantity' => round($quantityOf($item), 2),
+                'unit' => $unit?->symbol ?? $unit?->name,
+            ];
+        });
+        $names = $materials->pluck('product');
 
         return [
-            'label' => implode(', ', $labels).$suffix,
-            'quantity' => round($totalQuantity, 2),
-            'count' => $items->count(),
+            'label' => $names->take(2)->implode(', ').($names->count() > 2 ? ' (+'.($names->count() - 2).')' : ''),
+            'count' => $materials->count(),
+            'materials' => $materials->values()->all(),
         ];
     }
 }

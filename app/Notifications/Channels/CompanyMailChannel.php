@@ -5,11 +5,8 @@ namespace App\Notifications\Channels;
 use App\Models\Core\Company;
 use App\Models\Core\CompanyIntegration;
 use App\Models\User;
-use App\Notifications\Contracts\SentByPlatform;
-use App\Services\Core\CompanyService;
 use App\Services\Core\IntegrationConfig;
-use Illuminate\Auth\Notifications\ResetPassword;
-use Illuminate\Auth\Notifications\VerifyEmail;
+use App\Support\MailBrand;
 use Illuminate\Contracts\Mail\Mailable;
 use Illuminate\Contracts\Mail\Mailer as MailerContract;
 use Illuminate\Mail\Mailer;
@@ -49,9 +46,11 @@ class CompanyMailChannel extends MailChannel
             return $message->send($this->mailer);
         }
 
-        return $this->mailerOf($notifiable, $notification, $message)->send(
+        $brand = MailBrand::for($notifiable, $notification);
+
+        return $this->mailerOf($notifiable, $notification, $message, $brand)->send(
             $this->buildView($message),
-            array_merge($message->data(), $this->additionalMessageData($notification)),
+            array_merge($message->data(), $this->additionalMessageData($notification), ['brand' => $brand]),
             $this->messageBuilder($notifiable, $notification, $message),
         );
     }
@@ -137,22 +136,31 @@ class CompanyMailChannel extends MailChannel
      * the app that mint such a link say so with SentByPlatform.
      *
      * A company's host that the policy refuses behaves as no integration at all (CompanyIntegration::allowsConnection).
+     *
+     * @param  array{name: string, logo_url: ?string}  $brand
      */
-    private function mailerOf(object $notifiable, Notification $notification, MailMessage $message): MailerContract
+    private function mailerOf(object $notifiable, Notification $notification, MailMessage $message, array $brand): MailerContract
     {
         if ($message->mailer !== null) {
             return $this->mailer->mailer($message->mailer);
         }
 
-        if ($notification instanceof SentByPlatform || $notification instanceof ResetPassword || $notification instanceof VerifyEmail) {
+        if (MailBrand::sentByPlatform($notification)) {
             return $this->mailer->mailer();
         }
 
-        $companyId = data_get($notification, 'companyId')
-            ?? CompanyService::currentId()
-            ?? data_get($notifiable, 'company_id');
-        $row = $companyId === null ? null : app(IntegrationConfig::class)->forCompany((int) $companyId, 'mail');
+        $companyId = MailBrand::companyId($notifiable, $notification);
+        $row = $companyId === null ? null : app(IntegrationConfig::class)->forCompany($companyId, 'mail');
 
-        return $row?->is_enabled === true && $row->allowsConnection() ? self::mailerFor($row) : $this->mailer->mailer();
+        if ($row?->is_enabled === true && $row->allowsConnection()) {
+            return self::mailerFor($row);
+        }
+
+        // The platform's address and mail server, the ISP's name: the customer sees who wrote, the DNS records stay the platform's.
+        if (empty($message->from)) {
+            $message->from((string) config('mail.from.address'), $brand['name']);
+        }
+
+        return $this->mailer->mailer();
     }
 }

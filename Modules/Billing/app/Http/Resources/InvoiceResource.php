@@ -11,7 +11,7 @@ use Modules\Billing\Models\Invoice;
 /** @mixin Invoice */
 class InvoiceResource extends JsonResource
 {
-    /** @return array<string, mixed> */
+    /** @return array<int|string, mixed> */
     public function toArray(Request $request): array
     {
         return [
@@ -33,7 +33,6 @@ class InvoiceResource extends JsonResource
             'total' => $this->total,
             'paid_amount' => $this->paid_amount,
             'sisa' => $this->sisa,
-            'notes' => $this->notes,
             'sent_at' => $this->sent_at,
             'cancelled_at' => $this->cancelled_at,
             'cancel_reason' => $this->cancel_reason,
@@ -41,12 +40,17 @@ class InvoiceResource extends JsonResource
             'created_at' => $this->created_at,
             // The party as printed when the invoice left draft; null for a draft, whose page shows the live customer.
             'customer_name_snapshot' => $this->customer_name_snapshot,
-            'customer_address_snapshot' => $this->customer_address_snapshot,
-            'customer_tax_id_snapshot' => $this->customer_tax_id_snapshot,
+            // Only the invoice's own pages print the party's address and tax id and the internal note: the list reads none of
+            // them, and a page that embeds invoices later gets none of them until it asks.
+            $this->mergeWhen($request->routeIs('admin.invoices.show', 'admin.invoices.edit'), fn (): array => [
+                'notes' => $this->notes,
+                'customer_address_snapshot' => $this->customer_address_snapshot,
+                'customer_tax_id_snapshot' => $this->customer_tax_id_snapshot,
+            ]),
             'package_name_snapshot' => $this->package_name_snapshot,
             ...$this->lifecycleAttributes(),
-            'customer' => new CustomerResource($this->whenLoaded('customer')),
-            'subscription' => new SubscriptionResource($this->whenLoaded('subscription')),
+            'customer' => $this->whenLoaded('customer', fn (): ?array => CustomerResource::summary($this->customer)),
+            'subscription' => $this->whenLoaded('subscription', fn (): ?array => SubscriptionResource::summary($this->subscription)),
             'items' => InvoiceItemResource::collection($this->whenLoaded('items')),
             'payments' => PaymentResource::collection($this->whenLoaded('payments')),
         ];

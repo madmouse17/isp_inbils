@@ -11,7 +11,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\SPK\Database\Factories\WorkOrderFactory;
 use Modules\SPK\Models\WorkOrder;
 use Tests\TestCase;
-use Tests\Traits\AsksInertiaForProps;
 use Tests\Traits\WithoutAppOnlyRedirect;
 
 /**
@@ -20,7 +19,6 @@ use Tests\Traits\WithoutAppOnlyRedirect;
  */
 class WorkOrderTechniciansPropTest extends TestCase
 {
-    use AsksInertiaForProps;
     use RefreshDatabase;
     use WithoutAppOnlyRedirect;
 
@@ -113,28 +111,6 @@ class WorkOrderTechniciansPropTest extends TestCase
         app()['cache']->forget('spatie.permission.cache');
 
         $this->assertCount(1, $this->actingAs($dispatcher->fresh())->get(route('admin.spk.show', $workOrder))->assertOk()->inertiaProps('technicians'));
-    }
-
-    public function test_the_edit_page_follows_the_same_rule(): void
-    {
-        $workOrder = $this->workOrder('draft', null);
-
-        // The edit page has no screen yet, so its props are read as the Inertia JSON a partial reload gets.
-        $this->assertSame(
-            [['id' => $this->technician->public_id, 'name' => 'Teknisi Satu', 'employee_number' => 'EMP-0007', 'organization' => 'Tim Lapangan', 'phone' => '08123456789', 'open_today' => 0]],
-            $this->actingAs($this->admin)
-                ->get(route('admin.spk.edit', $workOrder), $this->partialReload('Admin/SPK/Edit', 'technicians'))
-                ->assertOk()
-                ->json('props.technicians'),
-        );
-
-        $planner = $this->member('staff', 'Perencana');
-        $planner->givePermissionTo(['spk.view', 'spk.update']);
-
-        $this->assertSame([], $this->actingAs($planner->fresh())
-            ->get(route('admin.spk.edit', $workOrder), $this->partialReload('Admin/SPK/Edit', 'technicians'))
-            ->assertOk()
-            ->json('props.technicians'));
     }
 
     private function member(string $role, string $name): User

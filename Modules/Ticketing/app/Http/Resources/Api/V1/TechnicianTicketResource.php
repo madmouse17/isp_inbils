@@ -2,6 +2,8 @@
 
 namespace Modules\Ticketing\Http\Resources\Api\V1;
 
+use App\Models\Core\CustomerAddress;
+use App\Models\Core\Location;
 use App\Support\FieldCheckIn;
 use Illuminate\Http\Request;
 use Modules\Ticketing\Models\Ticket;
@@ -29,8 +31,30 @@ class TechnicianTicketResource extends CustomerTicketResource
                 'lat' => $this->location->lat === null ? null : (float) $this->location->lat,
                 'lng' => $this->location->lng === null ? null : (float) $this->location->lng,
             ] : null,
+            /**
+             * Where the technician goes: the installation address of the subscription (source 'installation'), else the location of the
+             * ticket (source 'pop'); null when it has neither. The check-in is measured against this same place, so the header and the
+             * distance never name two places. `location` above stays the POP.
+             */
+            'site' => $this->site(),
             'comments' => TechnicianTicketCommentResource::collection($this->whenLoaded('comments')),
-            'attachments' => TicketAttachmentResource::collection($this->whenLoaded('media', fn () => $this->resource->media->each->setRelation('model', $this->resource))),
+            'attachments' => $this->whenLoaded('media', fn () => TicketAttachmentResource::collection($this->resource->media->each->setRelation('model', $this->resource))),
         ]);
+    }
+
+    /** @return array{address: ?string, lat: ?float, lng: ?float, source: 'installation'|'pop'}|null */
+    private function site(): ?array
+    {
+        // The same pick as the check-in's (TicketController::start): the installation address, else the location.
+        $installation = $this->subscription?->installationAddress;
+        /** @var CustomerAddress|Location|null $place */
+        $place = $installation ?? $this->location;
+
+        return $place === null ? null : [
+            'address' => $place->address,
+            'lat' => $place->lat === null ? null : (float) $place->lat,
+            'lng' => $place->lng === null ? null : (float) $place->lng,
+            'source' => $installation === null ? 'pop' : 'installation',
+        ];
     }
 }

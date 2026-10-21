@@ -57,9 +57,10 @@ class ReportFilterUserScopeTest extends TestCase
         $this->assertSame(['guest_event_in_a'], array_column($descriptions, 'description'));
 
         $export = $this->get(route('admin.reports.audit-log.export', ['user_id' => $guest->public_id]))->assertOk()->streamedContent();
-        $this->assertStringContainsString('guest_event_in_a', $export);
-        $this->assertStringNotContainsString('admin_event_in_a', $export);
-        $this->assertStringNotContainsString('guest_event_at_head', $export);
+        // The export words a row as the page does (AuditEventText): an event the dictionary lacks reads as its log and its code with the underscores as spaces.
+        $this->assertStringContainsString('billing: guest event in a', $export);
+        $this->assertStringNotContainsString('admin event in a', $export);
+        $this->assertStringNotContainsString('guest event at head', $export);
     }
 
     public function test_the_audit_log_search_finds_the_activity_of_a_member_homed_in_another_company_by_name(): void

@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useId } from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -29,8 +29,9 @@ export function RadioGroup({
     children,
     className,
 }: RadioGroupProps) {
+    const generatedName = useId();
     const commit = onValueChange || onChange;
-    const groupName = name || `radio-${label?.toLowerCase().replace(/\s+/g, '-') || 'group'}`;
+    const groupName = name || generatedName;
 
     return (
         <RadioContext.Provider value={{ name: groupName, value, onValueChange: commit }}>

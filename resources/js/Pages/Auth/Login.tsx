@@ -9,18 +9,31 @@ import { Wordmark } from '@/Components/ui/Wordmark';
 import { Head, Link, useForm } from '@inertiajs/react';
 import type { FormEventHandler } from 'react';
 
+/** Opens the customer app on Android; with the app missing, Chrome sends the phone to its Play Store page. */
+const CUSTOMER_APP_INTENT =
+    'intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=id.inbils.customer;end';
+
 export default function Login({
     status,
     canResetPassword,
+    customerHandoff,
 }: {
     status?: string;
     canResetPassword: boolean;
+    /** Set right after a customer saved a password: the account lives in the app, not on this page. */
+    customerHandoff?: { email: string; appUrl: string | null } | null;
 }) {
     const { data, setData, post, processing, errors, reset } = useForm({
-        email: '',
+        email: customerHandoff?.email ?? '',
         password: '',
         remember: false as boolean,
     });
+
+    // The Play Store listing the owner set, else the Android intent (a link that does nothing is no use on a desktop).
+    const openAppUrl = customerHandoff
+        ? (customerHandoff.appUrl ??
+          (/Android/i.test(window.navigator.userAgent) ? CUSTOMER_APP_INTENT : null))
+        : null;
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -75,6 +88,19 @@ export default function Login({
                                 <Alert variant="success" className="mb-5">
                                     <AlertDescription>{status}</AlertDescription>
                                 </Alert>
+                            )}
+
+                            {openAppUrl && (
+                                <Button asChild variant="outline" className="mb-5 min-h-11 w-full">
+                                    <a
+                                        href={openAppUrl}
+                                        {...(customerHandoff?.appUrl
+                                            ? { target: '_blank', rel: 'noopener noreferrer' }
+                                            : {})}
+                                    >
+                                        Buka aplikasi Inbils
+                                    </a>
+                                </Button>
                             )}
 
                             <form onSubmit={submit} className="space-y-5">

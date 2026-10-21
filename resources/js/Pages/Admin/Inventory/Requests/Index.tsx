@@ -17,7 +17,6 @@ import { useServerTable } from '@/hooks/useServerTable';
 import { usePermission } from '@/hooks/usePermission';
 import { formatDate, formatDateTime, formatNumber } from '@/lib/format';
 import {
-    INVENTORY_REQUEST_SOURCE,
     INVENTORY_REQUEST_STATUS,
     MATERIAL_RETURN_STATUS,
     labelOf,
@@ -25,6 +24,7 @@ import {
 } from '@/lib/statuses';
 import type { Company, PaginationMeta } from '@/types';
 import type { InventoryRequestRow, MaterialReturnCaseRow } from '@/types/inventory';
+import { SourceRef } from './components/SourceRef';
 
 interface PaginatedData<T> {
     data: T[];
@@ -56,6 +56,7 @@ interface Props {
     badgeCounts?: {
         my_requests?: number | null;
         warehouse_queue?: number | null;
+        warehouse_actionable?: number | null;
     };
     can?: {
         create?: boolean;
@@ -257,13 +258,15 @@ export default function InventoryRequestsIndex({
             case 'draft':
                 return 'Ajukan Permintaan';
             case 'submitted':
-                return 'Persetujuan Gudang';
+                // Only a person who may approve has a next step here; for everyone else it is waiting, and on whom (F4-U12).
+                return row.can?.approve
+                    ? 'Setujui permintaan'
+                    : 'Menunggu persetujuan Manajer/Admin';
             case 'approved_reserved':
-                return 'Mulai Penyiapan Barang';
             case 'preparing':
-                return 'Tandai Siap Diambil';
+                return 'Siapkan barang';
             case 'ready_for_pickup':
-                return 'Serah Terima Barang';
+                return 'Serah terima';
             case 'issued':
                 return 'Selesai (Deklarasi Pemakaian / Pengembalian)';
             case 'rejected':
@@ -295,7 +298,7 @@ export default function InventoryRequestsIndex({
                     <div className="flex flex-col">
                         <Link
                             href={route('admin.inventory.requests.show', row.id)}
-                            className="font-medium text-primary-text hover:underline"
+                            className="font-medium whitespace-nowrap text-primary-text hover:underline"
                             aria-label={`Buka Permintaan ${row.code}`}
                         >
                             {row.code}
@@ -363,14 +366,8 @@ export default function InventoryRequestsIndex({
             {
                 key: 'source',
                 header: 'Rujukan',
-                cell: (row) => {
-                    if (!row.source_type || !row.source_id) return <EmptyCell />;
-                    return (
-                        <span className="rounded bg-muted/60 px-2 py-0.5 font-mono text-xs text-foreground">
-                            {labelOf(INVENTORY_REQUEST_SOURCE, row.source_type)} #{row.source_id}
-                        </span>
-                    );
-                },
+                cell: (row) =>
+                    row.source_type && row.source_id ? <SourceRef request={row} /> : <EmptyCell />,
             },
             {
                 key: 'next_action',
@@ -435,14 +432,14 @@ export default function InventoryRequestsIndex({
                             <Tab value="warehouse" className="gap-2">
                                 <Package className="h-4 w-4" />
                                 <span>Persiapan & Antrean Gudang</span>
-                                {badgeCounts.warehouse_queue !== null &&
-                                    badgeCounts.warehouse_queue !== undefined &&
-                                    badgeCounts.warehouse_queue > 0 && (
+                                {badgeCounts.warehouse_actionable !== null &&
+                                    badgeCounts.warehouse_actionable !== undefined &&
+                                    badgeCounts.warehouse_actionable > 0 && (
                                         <Badge
                                             variant="warning"
                                             className="ml-1 px-1.5 py-0 text-xs"
                                         >
-                                            {badgeCounts.warehouse_queue}
+                                            {badgeCounts.warehouse_actionable}
                                         </Badge>
                                     )}
                             </Tab>
@@ -458,7 +455,7 @@ export default function InventoryRequestsIndex({
                         {canViewReturns && (
                             <Tab value="returns" className="gap-2">
                                 <RefreshCw className="h-4 w-4" />
-                                <span>Antrean Pengembalian</span>
+                                <span>Pengembalian material</span>
                                 {(() => {
                                     let count = 0;
                                     if (canReceiveReturn || canResolveReturn) {
@@ -1054,7 +1051,7 @@ function RequestsTableView({
                                                         'admin.inventory.requests.show',
                                                         row.id,
                                                     )}
-                                                    className="text-base font-semibold text-primary-text hover:underline"
+                                                    className="text-base font-semibold whitespace-nowrap text-primary-text hover:underline"
                                                 >
                                                     {row.code}
                                                 </Link>
@@ -1085,14 +1082,7 @@ function RequestsTableView({
                                             </div>
                                             {row.source_type && row.source_id && (
                                                 <div>
-                                                    Rujukan:{' '}
-                                                    <span className="font-mono text-foreground">
-                                                        {labelOf(
-                                                            INVENTORY_REQUEST_SOURCE,
-                                                            row.source_type,
-                                                        )}{' '}
-                                                        #{row.source_id}
-                                                    </span>
+                                                    Rujukan: <SourceRef request={row} />
                                                 </div>
                                             )}
                                         </div>

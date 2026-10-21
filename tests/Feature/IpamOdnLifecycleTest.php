@@ -203,7 +203,16 @@ class IpamOdnLifecycleTest extends TestCase
         $this->get(route('admin.customers.create', ['serving_pop_id' => $this->net['pop']->public_id, 'dropPort_search' => 'ODP-A11']), $this->partialReload('Admin/Customers/Create', 'dropPortOptions'))
             ->assertOk()
             ->assertJsonCount(8, 'props.dropPortOptions')
-            ->assertJsonPath('props.dropPortOptions.0', ['value' => $this->outputs[0]->public_id, 'label' => 'ODP-A11 · 1:8 · port 1', 'description' => 'POP-A > RACK-A1 > SITE-A11']);
+            ->assertJsonPath('props.dropPortOptions.0', [
+                'value' => $this->outputs[0]->public_id,
+                'label' => 'ODP-A11 · 1:8 · port 1',
+                'description' => 'POP-A > RACK-A1 > SITE-A11',
+                'odp_name' => $this->net['odp']->name,
+                'free_ports' => 8,
+                'total_ports' => 8,
+                'lat' => null,
+                'lng' => null,
+            ]);
         $this->get(route('admin.customers.create', ['dropPort_search' => 'ODP-A11']), $this->partialReload('Admin/Customers/Create', 'dropPortOptions'))
             ->assertJsonPath('props.dropPortOptions', []);
     }

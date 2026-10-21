@@ -49,6 +49,7 @@ use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Http\Request;
+use Illuminate\Mail\Markdown;
 use Illuminate\Notifications\Channels\MailChannel;
 use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Support\Facades\Context;
@@ -139,6 +140,10 @@ class AppServiceProvider extends ServiceProvider
         // Resources emit the public id of each record they reference through its relation (`$this->customer?->public_id`);
         // with autoloading one list loads that relation once for all rows instead of once per row.
         Model::automaticallyEagerLoadRelationships();
+
+        // A value echoed into a mail view (a company name, a customer's title) becomes Markdown: a `[text](url)` in it would
+        // be a link the platform's own mail vouches for. This escapes the bracket and the angle brackets of every echoed value.
+        Markdown::withSecuredEncoding();
 
         Gate::policy(Company::class, CompanyPolicy::class);
         Gate::policy(Customer::class, CustomerPolicy::class);

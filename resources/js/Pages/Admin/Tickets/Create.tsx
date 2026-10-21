@@ -1,7 +1,8 @@
 import type { FormEvent } from 'react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, router, useForm } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
+import axios from 'axios';
+import { ArrowLeft, Clock } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
     Button,
@@ -16,7 +17,10 @@ import {
 } from '@/Components/ui';
 import { PageHeader, RemoteSearchSelect } from '@/Components/composite';
 import type { RemoteOption } from '@/Components/composite';
+import { useCompany } from '@/hooks/useCompany';
+import { formatDateTime } from '@/lib/format';
 import { optionsOf, PRIORITY, TICKET_SOURCE } from '@/lib/statuses';
+import type { TicketSlaPreview } from '@/types/ticketing';
 
 interface CreateProps extends Record<string, unknown> {
     categories: { data: { id: string; name: string; default_priority?: string }[] };
@@ -36,6 +40,7 @@ export default function Create({
     subscriptionOptions,
     networkAssetOptions,
 }: CreateProps) {
+    const company = useCompany();
     const { data, setData, post, processing, errors } = useForm({
         title: '',
         description: '',
@@ -49,7 +54,35 @@ export default function Create({
     });
     // The category's default priority fills the field until the person picks one.
     const [priorityPicked, setPriorityPicked] = useState(false);
+    // The category's name fills the title until the person writes their own.
+    const [titleEdited, setTitleEdited] = useState(false);
+    // The subscription the page picked itself (the customer has only one), which the picker shows before anything is searched.
+    const [pickedSubscription, setPickedSubscription] = useState<RemoteOption | null>(null);
+    const [preview, setPreview] = useState<TicketSlaPreview | null>(null);
+    const previewRequest = useRef(0);
     const selectedCategory = categories.data.find((c) => String(c.id) === data.category_id);
+
+    // What the ticket would be held to, from the category, subscription and priority picked so far. A newer question makes an
+    // older answer stale: it is ignored, never aborted (an aborted request counts as a failed one in the e2e watcher).
+    useEffect(() => {
+        if (!data.category_id) return;
+
+        const asked = ++previewRequest.current;
+        axios
+            .get<TicketSlaPreview>(route('admin.tickets.sla-preview'), {
+                params: {
+                    category_id: data.category_id,
+                    subscription_id: data.subscription_id || undefined,
+                    priority: data.priority,
+                },
+            })
+            .then((response) => {
+                if (previewRequest.current === asked) setPreview(response.data);
+            })
+            .catch(() => {
+                if (previewRequest.current === asked) setPreview(null);
+            });
+    }, [data.category_id, data.subscription_id, data.priority]);
 
     const pickCategory = (value: string) => {
         const category = categories.data.find((c) => String(c.id) === value);
@@ -58,6 +91,7 @@ export default function Create({
         setData((previous) => ({
             ...previous,
             category_id: value,
+            title: !titleEdited && category ? category.name : previous.title,
             priority:
                 !priorityPicked && priority && priority in PRIORITY ? priority : previous.priority,
         }));
@@ -78,7 +112,33 @@ export default function Create({
             subscription_id: '',
             network_asset_id: '',
         }));
-        narrowOptions(value, '', ['subscriptionOptions', 'networkAssetOptions']);
+        setPickedSubscription(null);
+
+        if (value === '') {
+            narrowOptions(value, '', ['subscriptionOptions', 'networkAssetOptions']);
+
+            return;
+        }
+
+        router.get(
+            route('admin.tickets.create'),
+            // `subscription_recent` asks for the customer's newest subscriptions: a customer who has only one gets it picked.
+            { customer_id: value, subscription_id: '', subscription_recent: 1 },
+            {
+                only: ['subscriptionOptions', 'networkAssetOptions'],
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                onSuccess: (page) => {
+                    const offered = page.props.subscriptionOptions as RemoteOption[] | undefined;
+                    if (offered?.length !== 1) return;
+
+                    setData((previous) => ({ ...previous, subscription_id: offered[0].value }));
+                    setPickedSubscription(offered[0]);
+                    narrowOptions(value, offered[0].value, ['networkAssetOptions']);
+                },
+            },
+        );
     };
 
     const pickSubscription = (value: string) => {
@@ -90,6 +150,9 @@ export default function Create({
         e.preventDefault();
         post(route('admin.tickets.store'));
     };
+
+    // The line belongs to the category now picked; with none picked an answer of an earlier pick is not shown.
+    const target = data.category_id ? preview : null;
 
     return (
         <AdminLayout title="Buat Tiket">
@@ -117,7 +180,10 @@ export default function Create({
                             <Input
                                 label="Judul"
                                 value={data.title}
-                                onChange={(e) => setData('title', e.target.value)}
+                                onChange={(e) => {
+                                    setTitleEdited(true);
+                                    setData('title', e.target.value);
+                                }}
                                 error={errors.title}
                                 required
                             />
@@ -169,6 +235,7 @@ export default function Create({
                                 field="subscription"
                                 label="Langganan"
                                 options={subscriptionOptions}
+                                selected={pickedSubscription}
                                 value={data.subscription_id}
                                 onChange={pickSubscription}
                                 placeholder="Cari kode langganan"
@@ -204,6 +271,23 @@ export default function Create({
                                 error={errors.description}
                                 rows={3}
                             />
+                            {target && (
+                                <p
+                                    role="status"
+                                    className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-foreground md:col-span-2"
+                                >
+                                    <Clock
+                                        className="size-4 shrink-0 text-muted-foreground"
+                                        aria-hidden="true"
+                                    />
+                                    <span>
+                                        {target.response_due
+                                            ? `Target respons ${formatDateTime(target.response_due, company)}`
+                                            : 'Tanpa target respons'}
+                                        {`, selesai ${formatDateTime(target.resolution_due, company)}`}
+                                    </span>
+                                </p>
+                            )}
                         </CardContent>
                     </Card>
                     <div className="flex justify-end gap-2">

@@ -70,7 +70,7 @@ const spkStatusLabels: Record<string, string> = {
     in_progress: 'Dikerjakan',
     waiting_review: 'Menunggu review',
     completed: 'Selesai',
-    rejected: 'Ditolak',
+    rejected: 'Dikembalikan',
     cancelled: 'Dibatalkan',
 };
 

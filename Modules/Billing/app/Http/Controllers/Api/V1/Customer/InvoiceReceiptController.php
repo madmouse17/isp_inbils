@@ -28,18 +28,17 @@ class InvoiceReceiptController extends Controller
         $invoice = Invoice::query()
             ->whereBelongsTo($customer)
             ->where('status', 'paid')
-            ->with(['subscription', 'items'])
+            ->with('subscription')
             ->wherePublicId($id)
             ->firstOrFail();
-        $company = CompanyService::current();
 
-        return Pdf::loadView('pdf.invoice', [
+        return Pdf::loadView('pdf.receipt', [
             'invoice' => $invoice,
             // The customer's tax id never goes to a customer app (SecretKeyWalkTest), so the receipt prints none.
             'party' => [...InvoiceParty::of($invoice), 'customer_tax_id' => null],
-            'company' => $company,
-            'bankInfo' => ($company?->settings ?? [])['bank_account_info'] ?? '',
-            'terbilang' => Terbilang::make((float) $invoice->total),
-        ])->download($invoice->number.'.pdf');
+            'payments' => $invoice->payments()->whereNull('cancelled_at')->orderBy('paid_at')->orderBy('id')->get(),
+            'company' => CompanyService::current(),
+            'terbilang' => Terbilang::make((float) $invoice->paid_amount),
+        ])->download('Kuitansi-'.$invoice->number.'.pdf');
     }
 }

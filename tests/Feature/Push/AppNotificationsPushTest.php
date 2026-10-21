@@ -114,10 +114,10 @@ class AppNotificationsPushTest extends TestCase
 
     public function test_a_ticket_assignment_reaches_the_technician_phone_next_to_the_mail_and_the_bell(): void
     {
-        $ticket = $this->ticket('TKT-17');
+        $ticket = Ticket::factory()->create(['company_id' => $this->company->id, 'code' => 'TKT-17', 'priority' => 'high', 'title' => 'Router mati', 'response_deadline' => null]);
         Notification::sendNow($this->technician, new TicketAssignedNotification($ticket->id, 'TKT-17', $this->company->id));
 
-        $data = $this->assertPushed('technician-install', 'Tiket ditugaskan', 'Tiket TKT-17 sudah ditugaskan kepada Anda.', 'ticket_assigned', 'ticket', $ticket->public_id);
+        $data = $this->assertPushed('technician-install', 'Tiket TKT-17 · Tinggi', 'Router mati.', 'ticket_assigned', 'ticket', $ticket->public_id);
         $this->assertSame($this->technician->notifications()->sole()->id, $data['notification_id']);
     }
 
@@ -180,7 +180,7 @@ class AppNotificationsPushTest extends TestCase
     {
         $invoice = $this->invoice();
         Notification::sendNow($this->customer, new InvoiceIssuedNotification($this->company->id, $invoice->id));
-        $this->assertPushed('customer-install', 'Tagihan baru', 'Tagihan baru sudah terbit. Buka notifikasi ini untuk melihat rinciannya.', 'invoice_issued', 'invoice', $invoice->public_id);
+        $this->assertPushed('customer-install', "Tagihan {$invoice->number}", "Tagihan {$invoice->number} sebesar Rp 250.000, jatuh tempo ".$invoice->due_date->locale('id')->translatedFormat('j M Y').'.', 'invoice_issued', 'invoice', $invoice->public_id);
 
         $this->multicasts = [];
         $payment = Payment::create([
@@ -188,7 +188,7 @@ class AppNotificationsPushTest extends TestCase
             'reference' => 'BANK-1', 'paid_at' => now(), 'received_by' => User::factory()->create(['company_id' => $this->company->id])->id,
         ]);
         Notification::sendNow($this->customer, new PaymentReceivedNotification($this->company->id, $payment->id));
-        $this->assertPushed('customer-install', 'Pembayaran diterima', 'Pembayaran Anda sudah kami terima.', 'payment_received', 'invoice', $invoice->public_id);
+        $this->assertPushed('customer-install', 'Pembayaran diterima', "Rp 100.000 untuk {$invoice->number} sudah kami terima. Terima kasih.", 'payment_received', 'invoice', $invoice->public_id);
     }
 
     public function test_the_reminders_tell_due_soon_from_overdue(): void
@@ -196,16 +196,16 @@ class AppNotificationsPushTest extends TestCase
         $invoice = $this->invoice();
 
         Notification::sendNow($this->customer, new InvoiceDueReminderNotification($this->company->id, $invoice->id, 'H-3'));
-        $this->assertPushed('customer-install', 'Tagihan segera jatuh tempo', 'Tagihan Anda jatuh tempo dalam 3 hari. Buka notifikasi ini untuk melihat rinciannya.', 'invoice_due_soon', 'invoice', $invoice->public_id);
+        $this->assertPushed('customer-install', "{$invoice->number} jatuh tempo 3 hari lagi", 'Sisa Rp 250.000. Bayar lewat aplikasi.', 'invoice_due_soon', 'invoice', $invoice->public_id);
 
         $this->multicasts = [];
         Notification::sendNow($this->customer, new InvoiceDueReminderNotification($this->company->id, $invoice->id, 'H-1'));
-        $this->assertSame('Tagihan Anda jatuh tempo besok. Buka notifikasi ini untuk melihat rinciannya.', $this->onlyPush()['data']['body']);
+        $this->assertSame(['title' => "{$invoice->number} jatuh tempo besok", 'body' => 'Sisa Rp 250.000. Bayar lewat aplikasi.'], array_intersect_key($this->onlyPush()['data'], ['title' => 1, 'body' => 1]));
 
         $this->multicasts = [];
         $invoice->update(['due_date' => now()->subDay()->toDateString()]);
         Notification::sendNow($this->customer, new InvoiceDueReminderNotification($this->company->id, $invoice->id, 'H+1'));
-        $this->assertPushed('customer-install', 'Tagihan sudah jatuh tempo', 'Tagihan Anda sudah lewat jatuh tempo. Segera lakukan pembayaran.', 'invoice_overdue', 'invoice', $invoice->public_id);
+        $this->assertPushed('customer-install', "{$invoice->number} lewat jatuh tempo", 'Sisa Rp 250.000 belum dibayar sejak '.now()->subDay()->locale('id')->translatedFormat('j M Y').'.', 'invoice_overdue', 'invoice', $invoice->public_id);
 
         $this->assertEqualsCanonicalizing(['invoice_due_soon', 'invoice_due_soon', 'invoice_overdue'], $this->customer->notifications->pluck('data.type')->all());
     }

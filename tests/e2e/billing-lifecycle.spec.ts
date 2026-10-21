@@ -138,7 +138,7 @@ test.describe('@lifecycle billing', () => {
         await pay1.getByLabel('Metode').selectOption('transfer');
         await pay1.getByLabel('Referensi').fill(partialRef);
         await pay1.getByRole('button', { name: 'Simpan', exact: true }).click();
-        await expectDetail(page, 'Status', 'Sebagian');
+        await expectDetail(page, 'Status', 'Dibayar sebagian');
         await expect(page.locator('p').filter({ hasText: 'Terbayar:' }).first()).toContainText(
             /Rp\s*40\.000/,
         );

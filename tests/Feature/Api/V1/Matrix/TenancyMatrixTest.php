@@ -29,7 +29,7 @@ class TenancyMatrixTest extends TestCase
     private function idRoutes(): array
     {
         $routes = array_values(array_filter($this->apiRoutes(), fn (LaravelRoute $route): bool => str_contains($route->uri(), '{')));
-        $this->assertCount(33, $routes, 'a route with an id was added or removed: add its owner row to BuildsMatrixWorld::realIds');
+        $this->assertCount(34, $routes, 'a route with an id was added or removed: add its owner row to BuildsMatrixWorld::realIds');
 
         foreach ($routes as $route) {
             $this->assertNotSame([], $this->realIds($this->shortName($route)), $route->uri().' has no owner fixture');
@@ -44,6 +44,7 @@ class TenancyMatrixTest extends TestCase
         return match (true) {
             str_ends_with($route->uri(), '/comments') => ['body' => 'Hello'],
             str_ends_with($route->uri(), '/resolve') => ['resolution_note' => 'Fixed on site'],
+            str_ends_with($route->uri(), '/confirmation') => ['rating' => 5],
             str_ends_with($route->uri(), '/declare') => ['lines' => [['id' => $this->ids['material_return_line'], 'actual_used_qty' => 1, 'declared_good_return_qty' => 0, 'declared_discrepancy_qty' => 0]]],
             default => [],
         };

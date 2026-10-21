@@ -8,7 +8,7 @@ export const WORK_ORDER_STATUS = {
     in_progress: { label: 'Dikerjakan', tone: 'info' },
     waiting_review: { label: 'Menunggu review', tone: 'warning' },
     completed: { label: 'Selesai', tone: 'success' },
-    rejected: { label: 'Ditolak', tone: 'danger' },
+    rejected: { label: 'Dikembalikan', tone: 'danger' },
     cancelled: { label: 'Dibatalkan', tone: 'neutral' },
 } satisfies StatusMap;
 

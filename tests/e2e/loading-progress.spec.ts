@@ -596,9 +596,9 @@ test.describe('@loading-progress upload', () => {
         await page.goto(`/admin/tickets/${ticketId}`);
         await expect(page.getByRole('main').getByRole('heading', { name: title })).toBeVisible();
         await page.locator('input[type="file"]').setInputFiles({
-            name: 'loading-progress.txt',
-            mimeType: 'text/plain',
-            buffer: Buffer.alloc(1_000_000, 'x'),
+            name: 'loading-progress.pdf',
+            mimeType: 'application/pdf',
+            buffer: Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.alloc(1_000_000, 'x')]),
         });
         const upload = page.getByRole('button', { name: 'Unggah', exact: true });
         await expect(upload).toBeEnabled();

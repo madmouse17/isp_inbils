@@ -45,7 +45,10 @@ class CancelMidtransTransactionJob implements ShouldQueue
         });
     }
 
-    /** The page stays closed here; a payment that still arrives for it lands as an exception, which billing staff are told about. */
+    /**
+     * The page stays closed here. A payment that still arrives for it is booked while the invoice owes that amount; it lands
+     * as an exception, which billing staff are told about, only when billing refuses it (the invoice was paid or cancelled meanwhile).
+     */
     public function failed(Throwable $e): void
     {
         Log::warning('midtrans.cancel_failed', ['order_id' => PaymentAttempt::withoutCompany()->whereKey($this->attemptId)->value('order_id')]);

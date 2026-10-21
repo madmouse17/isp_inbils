@@ -22,6 +22,8 @@ class TechnicianWarehouseResource extends JsonResource
             'code' => $this->resource->code,
             /** True for the warehouse of the caller's latest request: the picker of a new request starts there. */
             'last_used' => (bool) $this->resource->getAttribute('last_used'),
+            /** How many products are free to ask for here (stock minus reserved above zero), as the picker lists them. The picker starts at the warehouse that holds most. */
+            'available_products' => (int) $this->resource->getAttribute('available_products'),
         ];
     }
 }

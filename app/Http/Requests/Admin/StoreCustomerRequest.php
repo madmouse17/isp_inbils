@@ -7,6 +7,7 @@ use App\Models\Core\Customer;
 use App\Models\Core\Location;
 use App\Models\User;
 use App\Queries\Admin\CustomerAcquirerQuery;
+use App\Rules\IsActiveTechnician;
 use App\Rules\IsEligibleCustomerAcquirer;
 use App\Services\Core\CompanyService;
 use App\Services\Core\IndonesiaRegionService;
@@ -21,6 +22,7 @@ use Laravolt\Indonesia\Models\Province;
 use Laravolt\Indonesia\Models\Village;
 use Modules\NetworkAsset\Models\OdnPort;
 use Modules\Service\Models\ServicePackage;
+use Modules\SPK\Services\SpkService;
 
 class StoreCustomerRequest extends FormRequest
 {
@@ -35,6 +37,7 @@ class StoreCustomerRequest extends FormRequest
             'subscription.serving_pop_id' => Location::class,
             'subscription.odn_port_id' => OdnPort::class,
             'acquired_by_user_id' => User::class,
+            'assign_technician_id' => User::class,
         ];
     }
 
@@ -83,7 +86,7 @@ class StoreCustomerRequest extends FormRequest
             'contacts.*.email' => ['required', 'email', 'max:255'],
             'contacts.*.is_primary' => ['required', 'boolean'],
             'contacts.*.notes' => ['nullable', 'string'],
-            'subscription' => ['required', 'array:service_package_id,serving_pop_id,billing_day,mrc_amount,otc_installation_fee,contract_months,notes,odn_port_id'],
+            'subscription' => ['required', 'array:service_package_id,serving_pop_id,billing_day,mrc_amount,otc_installation_fee,contract_months,notes,odn_port_id,scheduled_date'],
             'subscription.service_package_id' => [
                 'required',
                 Rule::exists('service_packages', 'id')->where(fn ($query) => $query
@@ -103,21 +106,27 @@ class StoreCustomerRequest extends FormRequest
             'subscription.otc_installation_fee' => ['nullable', 'numeric', 'min:0'],
             'subscription.contract_months' => ['nullable', 'integer', 'min:1'],
             'subscription.notes' => ['nullable', 'string'],
+            'subscription.scheduled_date' => ['bail', 'nullable', 'date_format:Y-m-d', 'after_or_equal:'.SpkService::earliestVisitDate()],
             ...$this->acquirerRules(),
             ...$this->dropPortRules(),
+            ...$this->assignTechnicianRules(),
         ];
     }
 
     /** @return array<string, string> */
     public function attributes(): array
     {
-        return ['type' => 'tipe pelanggan'];
+        return ['type' => 'tipe pelanggan', 'subscription.scheduled_date' => 'tanggal kunjungan', 'assign_technician_id' => 'teknisi'];
     }
 
     /** @return array<string, string> an id that names no record answers as an employee who may not acquire does: nobody learns which */
     public function messages(): array
     {
-        return ['acquired_by_user_id.exists' => 'Pilih karyawan aktif yang berhak membuat pelanggan.'];
+        return [
+            'acquired_by_user_id.exists' => 'Pilih karyawan aktif yang berhak membuat pelanggan.',
+            'subscription.scheduled_date.after_or_equal' => 'Tanggal kunjungan tidak boleh sebelum hari ini.',
+            'assign_technician_id.prohibited' => 'Anda tidak punya izin menugaskan teknisi.',
+        ];
     }
 
     /**
@@ -150,6 +159,21 @@ class StoreCustomerRequest extends FormRequest
         }
 
         return ['subscription.odn_port_id' => ['nullable', 'integer', Rule::exists('odn_ports', 'id')->where('company_id', CompanyService::currentId())]];
+    }
+
+    /**
+     * "Tugaskan sekarang": a technician for the installation SPK, for holders of spk.assign only. Anyone else who sends the
+     * key is refused, so the SPK never gets a technician from a person who may not name one.
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    private function assignTechnicianRules(): array
+    {
+        if (! ($this->user()?->can('spk.assign') ?? false)) {
+            return ['assign_technician_id' => ['prohibited']];
+        }
+
+        return ['assign_technician_id' => ['nullable', 'bail', Rule::exists('users', 'id')->where('company_id', CompanyService::currentId()), new IsActiveTechnician()]];
     }
 
     /**
@@ -200,6 +224,14 @@ class StoreCustomerRequest extends FormRequest
                     $validator->errors()->add("addresses.{$index}.village_code", 'Provinsi, kota/kabupaten, kecamatan, dan kelurahan/desa tidak saling cocok.');
                 }
             });
+
+            // The company policy SpkService::assign enforces, as a message on the field instead of an error page after the form was sent.
+            if ($this->filled('assign_technician_id')
+                && ! $validator->errors()->has('assign_technician_id')
+                && (int) $this->input('assign_technician_id') === (int) $this->user()?->id
+                && data_get(CompanyService::current()?->settings, 'forbid_self_assignment')) {
+                $validator->errors()->add('assign_technician_id', 'Kebijakan perusahaan melarang menugaskan diri sendiri.');
+            }
         }];
     }
 }

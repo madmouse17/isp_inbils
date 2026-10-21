@@ -2,7 +2,7 @@
 
 namespace Modules\SPK\Http\Resources;
 
-use App\Http\Resources\UserResource;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -18,7 +18,9 @@ class WorkOrderAssignmentResource extends JsonResource
             'assigned_at' => $this->assigned_at,
             'unassigned_at' => $this->unassigned_at,
             'reason' => $this->reason,
-            'technician' => new UserResource($this->whenLoaded('technician')),
+            // A name and an id, like the SPK's own `assignee` and the ticket comments: the user resource would hand every
+            // `spk.view` holder each technician's email, 2FA state and roles, and cost a roles query per row.
+            'technician' => $this->whenLoaded('technician', fn (User $technician): array => ['id' => $technician->public_id, 'name' => $technician->name]),
         ];
     }
 }

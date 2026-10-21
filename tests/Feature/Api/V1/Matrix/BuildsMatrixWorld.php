@@ -316,7 +316,7 @@ trait BuildsMatrixWorld
             'customer.promo-banners.tap' => [$this->ids['promo_banner']],
             'customer.invoices.show', 'customer.invoices.pay' => [$this->ids['invoice']],
             'customer.invoices.receipt' => [$this->ids['paid_invoice']],
-            'customer.tickets.show', 'customer.tickets.comments.store', 'customer.tickets.attachments.store' => [$this->ids['customer_ticket']],
+            'customer.tickets.show', 'customer.tickets.comments.store', 'customer.tickets.confirmation', 'customer.tickets.attachments.store' => [$this->ids['customer_ticket']],
             'customer.tickets.attachments.destroy' => [$this->ids['customer_ticket'], $this->ids['customer_attachment']],
             'devices.destroy' => [$this->ids['customer_device']],
             'media.show' => [$this->ids['ticket_attachment']],

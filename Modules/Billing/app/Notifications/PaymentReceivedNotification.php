@@ -50,23 +50,24 @@ class PaymentReceivedNotification extends WhatsAppNotification
     }
 
     /**
-     * Read when the row is written: the payment's invoice number and the numbers of the bills still holding its
-     * subscription's reconnection, or nothing when none does.
+     * Read when the row is written: the invoice number and the amount, for the words of the bell, and the numbers of
+     * the bills still holding the subscription's reconnection, when some do.
      *
-     * @return array{invoice_number?: string, holding_invoice_numbers?: list<string>}
+     * @return array{invoice_number?: string, amount?: string, holding_invoice_numbers?: list<string>}
      */
     private function holds(): array
     {
         $payment = Payment::query()->find($this->paymentId);
         $invoice = $payment === null ? null : Invoice::query()->with('subscription')->find($payment->invoice_id);
 
-        if ($invoice?->subscription === null) {
+        if ($payment === null || $invoice === null) {
             return [];
         }
 
-        $holding = OverdueSuspensionService::holdingInvoices($invoice->subscription)->pluck('number')->all();
+        $holding = $invoice->subscription === null ? [] : OverdueSuspensionService::holdingInvoices($invoice->subscription)->pluck('number')->all();
 
-        return $holding === [] ? [] : ['invoice_number' => $invoice->number, 'holding_invoice_numbers' => $holding];
+        return ['invoice_number' => $invoice->number, 'amount' => (string) $payment->amount]
+            + ($holding === [] ? [] : ['holding_invoice_numbers' => $holding]);
     }
 
     protected function event(): string

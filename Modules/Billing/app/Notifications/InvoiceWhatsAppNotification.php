@@ -8,6 +8,8 @@ use Modules\Billing\Models\Invoice;
 
 /**
  * A WhatsApp message about one invoice that is still to be paid: carries its id only.
+ *
+ * @phpstan-import-type Payload from WhatsAppNotification
  */
 abstract class InvoiceWhatsAppNotification extends WhatsAppNotification
 {
@@ -23,6 +25,25 @@ abstract class InvoiceWhatsAppNotification extends WhatsAppNotification
     protected function appUrl(): string
     {
         return SettingService::playStoreUrl('customer') ?: route('login');
+    }
+
+    /**
+     * The bell and the push say which invoice, how much and by when (a row written before these keys keeps the generic
+     * text, NotificationResource).
+     *
+     * @param  Payload  $payload
+     * @return array<string, mixed>
+     */
+    protected function bell(array $payload): array
+    {
+        $invoice = Invoice::forCompany($this->companyId)->find($this->invoiceId);
+
+        return parent::bell($payload) + ($invoice === null ? [] : [
+            'invoice_number' => $invoice->number,
+            'total' => $invoice->total,
+            'outstanding' => $invoice->sisa,
+            'due_date' => $invoice->due_date->toDateString(),
+        ]);
     }
 
     /**

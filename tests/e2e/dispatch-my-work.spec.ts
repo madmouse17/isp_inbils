@@ -1,7 +1,8 @@
 import type { APIRequestContext, Locator, Page, Request, Route } from '@playwright/test';
 import { apiLogin } from './support/api';
+import { companyDateFormat, formatIsoAs } from './support/dateRange';
 import { expect, test } from './support/fixtures';
-import { loginAs, logout, selectSearchOption } from './support/demo';
+import { inertiaProps, loginAs, logout, selectSearchOption } from './support/demo';
 
 function staleAssignmentBody(route: Route): string {
     const request = route.request();
@@ -182,7 +183,9 @@ test.describe('@lifecycle dispatch-my-work', () => {
         await expect(page.getByRole('table').getByText('E2E Dispatch Ticket')).toBeVisible();
         await expect(page.getByRole('table').getByText('E2E Dispatch SPK')).toBeVisible();
 
-        const assignFromQueue = async (title: string, assigneeLabel: string) => {
+        // K16: an SPK takes the visit day with its technician; a ticket has none.
+        const visitDay = await companyDay(page, 2);
+        const assignFromQueue = async (title: string, assigneeLabel: string, day?: string) => {
             const row = page.getByRole('row').filter({ hasText: title }).first();
             await expect(row).toBeVisible();
 
@@ -197,12 +200,15 @@ test.describe('@lifecycle dispatch-my-work', () => {
             await expect(dialog.getByText(title, { exact: true })).toBeVisible();
 
             await selectSearchOption(page, assigneeLabel, 'Demo Technician');
+            if (day) await typeDate(page, 'Tanggal kunjungan', day);
             await dialog.getByRole('button', { name: 'Simpan penugasan' }).click();
             await expect(dialog).toBeHidden();
+            // F4-D03: the message names the item and the person.
+            await expect(page.getByText(/ditugaskan ke Demo Technician\.$/).first()).toBeVisible();
         };
 
         await assignFromQueue('E2E Dispatch Ticket', 'Pilih petugas tiket');
-        await assignFromQueue('E2E Dispatch SPK', 'Pilih teknisi lapangan');
+        await assignFromQueue('E2E Dispatch SPK', 'Pilih teknisi lapangan', visitDay);
 
         // The technician works in the app, its own API client: the admin page stays signed in, and the
         // assigned items show up in the app's My Work API.
@@ -226,6 +232,13 @@ test.describe('@lifecycle dispatch-my-work', () => {
         await page.goto('/admin/dispatch?status=assigned');
         const spkRow = page.getByRole('row').filter({ hasText: 'E2E Dispatch SPK' }).first();
         await expect(spkRow.getByText('Dalam perjalanan')).toBeVisible();
+
+        const queue = await inertiaProps(page, '/admin/dispatch?status=assigned');
+        const queued = (
+            queue.props?.items?.data as
+                Array<{ title: string; scheduled_date?: string | null }> | undefined
+        )?.find((item) => item.title === 'E2E Dispatch SPK');
+        expect(queued?.scheduled_date, 'the visit day given with the assignment').toBe(visitDay);
     });
 
     test('keeps ordinary assignment validation retryable', async ({ page, request }) => {
@@ -533,3 +546,26 @@ test.describe('@lifecycle dispatch-my-work', () => {
         }
     });
 });
+
+/** Type a day into a DatePicker in the company format and commit it with Tab. */
+async function typeDate(page: Page, label: string, iso: string) {
+    const format = await companyDateFormat(page);
+    const field = page.getByLabel(label, { exact: true });
+    await field.fill(formatIsoAs(iso, format));
+    await field.press('Tab');
+}
+
+/** The company-calendar day `offset` days from today as ISO `yyyy-mm-dd`: the server refuses a visit day before today. */
+async function companyDay(page: Page, offset: number): Promise<string> {
+    const zone = await page.evaluate(() => {
+        const raw = document.getElementById('app')?.getAttribute('data-page');
+        return raw ? (JSON.parse(raw).props?.company?.timezone as string | undefined) : undefined;
+    });
+
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: zone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(new Date(Date.now() + offset * 24 * 60 * 60 * 1000));
+}

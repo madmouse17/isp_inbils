@@ -163,7 +163,7 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
         await expect(page.getByRole('main').getByRole('heading', { name: title })).toBeVisible();
         await expectDetail(page, 'Status', 'Terbuka');
 
-        await page.getByRole('button', { name: 'Tugaskan' }).click();
+        await page.getByRole('button', { name: 'Tugaskan', exact: true }).click();
         const assignDialog = page.getByRole('dialog', { name: 'Tugaskan tiket' });
         await selectSearchOption(page, 'Petugas', 'Demo Technician');
         await assignDialog.getByRole('button', { name: 'Tugaskan' }).click();

@@ -10,11 +10,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Modules\Billing\Models\Invoice;
 use Modules\SPK\Models\WorkOrder;
 use Modules\Ticketing\Models\Ticket;
+use Modules\Ticketing\Notifications\TicketAssignedNotification;
 
 /**
  * @mixin DatabaseNotification
@@ -35,7 +37,7 @@ class NotificationResource extends JsonResource
         'subscription_isolated', 'subscription_reactivated', 'subscriptions_isolated_summary',
         'inventory_request_submitted', 'inventory_request_approved', 'inventory_request_ready', 'inventory_request_rejected',
         'material_return_declared', 'material_return_exception', 'material_return_rejected',
-        'announcement_published', 'push_test',
+        'announcement_published', 'customer_document_expiring', 'push_test',
         'unknown',
     ];
 
@@ -54,6 +56,7 @@ class NotificationResource extends JsonResource
         'spk_submitted' => 'work_order',
         'invoice_draft_pending' => 'invoice',
         'subscriptions_isolated_summary' => 'receivables',
+        'customer_document_expiring' => 'customer',
     ];
 
     /** @return array<string, mixed> */
@@ -72,7 +75,7 @@ class NotificationResource extends JsonResource
              * with `title` and `message` as they are. `invoice_reminder` is only on rows written before `invoice_due_soon`
              * and `invoice_overdue` replaced it.
              *
-             * @var 'invoice_issued'|'invoice_reminder'|'invoice_due_soon'|'invoice_overdue'|'payment_received'|'ticket_created'|'ticket_assigned'|'ticket_started'|'ticket_replied'|'ticket_resolved'|'ticket_closed'|'ticket_customer_replied'|'ticket_reopened'|'ticket_sla_breached'|'ticket_first_response_due'|'spk_scheduled'|'spk_scheduled_customer'|'spk_approved'|'spk_rejected'|'spk_submitted'|'technician_en_route'|'visit_completed'|'billing_schedule_failed'|'payment_attempt_exception'|'invoice_draft_pending'|'subscription_isolated'|'subscription_reactivated'|'subscriptions_isolated_summary'|'inventory_request_submitted'|'inventory_request_approved'|'inventory_request_ready'|'inventory_request_rejected'|'material_return_declared'|'material_return_exception'|'material_return_rejected'|'announcement_published'|'push_test'|'unknown'
+             * @var 'invoice_issued'|'invoice_reminder'|'invoice_due_soon'|'invoice_overdue'|'payment_received'|'ticket_created'|'ticket_assigned'|'ticket_started'|'ticket_replied'|'ticket_resolved'|'ticket_closed'|'ticket_customer_replied'|'ticket_reopened'|'ticket_sla_breached'|'ticket_first_response_due'|'spk_scheduled'|'spk_scheduled_customer'|'spk_approved'|'spk_rejected'|'spk_submitted'|'technician_en_route'|'visit_completed'|'billing_schedule_failed'|'payment_attempt_exception'|'invoice_draft_pending'|'subscription_isolated'|'subscription_reactivated'|'subscriptions_isolated_summary'|'inventory_request_submitted'|'inventory_request_approved'|'inventory_request_ready'|'inventory_request_rejected'|'material_return_declared'|'material_return_exception'|'material_return_rejected'|'announcement_published'|'customer_document_expiring'|'push_test'|'unknown'
              */
             'type' => $type,
             'title' => $this->title($type, $customerNotification, $data),
@@ -88,19 +91,19 @@ class NotificationResource extends JsonResource
     private function title(string $type, bool $customerNotification, array $data): string
     {
         return match ($type) {
-            'invoice_issued' => 'Tagihan baru',
+            'invoice_issued' => $this->invoiceTitle($type, $data) ?? 'Tagihan baru',
             'invoice_reminder' => 'Pengingat jatuh tempo',
-            'invoice_due_soon' => 'Tagihan segera jatuh tempo',
-            'invoice_overdue' => 'Tagihan sudah jatuh tempo',
+            'invoice_due_soon' => $this->invoiceTitle($type, $data) ?? 'Tagihan segera jatuh tempo',
+            'invoice_overdue' => $this->invoiceTitle($type, $data) ?? 'Tagihan sudah jatuh tempo',
             'payment_received' => 'Pembayaran diterima',
             'ticket_created' => $customerNotification ? 'Tiket dibuat' : 'Tiket baru',
-            'ticket_assigned' => $customerNotification ? 'Petugas ditugaskan' : 'Tiket ditugaskan',
+            'ticket_assigned' => $customerNotification ? 'Petugas ditugaskan' : ($this->assignedTitle($data) ?? 'Tiket ditugaskan'),
             'ticket_started' => 'Tiket mulai ditangani',
             'ticket_replied' => 'Balasan baru',
-            'ticket_resolved' => 'Tiket selesai',
+            'ticket_resolved' => $this->resolvedTitle($data) ?? 'Tiket selesai',
             'ticket_closed' => 'Tiket ditutup',
             'ticket_customer_replied' => 'Pelanggan membalas',
-            'ticket_reopened' => 'Tiket dibuka kembali',
+            'ticket_reopened' => $this->reopenedTitle($customerNotification, $data) ?? 'Tiket dibuka kembali',
             'ticket_sla_breached' => ($data['kind'] ?? null) === 'response' ? 'Batas respons terlewat' : 'SLA tiket terlampaui',
             'ticket_first_response_due' => ($data['state'] ?? null) === 'breached' ? 'Batas respons pertama terlewat' : 'Respons pertama segera jatuh tempo',
             'spk_scheduled' => 'SPK baru ditugaskan',
@@ -124,6 +127,7 @@ class NotificationResource extends JsonResource
             'material_return_exception' => 'Pengembalian material bermasalah',
             'material_return_rejected' => 'Pengembalian material ditolak',
             'announcement_published' => 'Pengumuman baru',
+            'customer_document_expiring' => $this->documentTitle($data) ?? 'Dokumen pelanggan segera habis',
             'push_test' => 'Notifikasi uji',
             default => 'Notifikasi baru',
         };
@@ -135,25 +139,26 @@ class NotificationResource extends JsonResource
         $requestCode = is_string($data['request_code'] ?? null) ? $data['request_code'] : null;
 
         return match ($type) {
-            'invoice_issued' => 'Tagihan baru sudah terbit. Buka notifikasi ini untuk melihat rinciannya.',
+            'invoice_issued' => $this->invoiceMessage($type, $data) ?? 'Tagihan baru sudah terbit. Buka notifikasi ini untuk melihat rinciannya.',
             'invoice_reminder' => 'Tagihan Anda perlu dibayar. Buka notifikasi ini untuk melihat rinciannya.',
-            'invoice_due_soon' => ($data['stage'] ?? null) === 'H-1'
+            'invoice_due_soon' => $this->invoiceMessage($type, $data) ?? (($data['stage'] ?? null) === 'H-1'
                 ? 'Tagihan Anda jatuh tempo besok. Buka notifikasi ini untuk melihat rinciannya.'
-                : 'Tagihan Anda jatuh tempo dalam 3 hari. Buka notifikasi ini untuk melihat rinciannya.',
-            'invoice_overdue' => 'Tagihan Anda sudah lewat jatuh tempo. Segera lakukan pembayaran.',
+                : 'Tagihan Anda jatuh tempo dalam 3 hari. Buka notifikasi ini untuk melihat rinciannya.'),
+            'invoice_overdue' => $this->invoiceMessage($type, $data) ?? 'Tagihan Anda sudah lewat jatuh tempo. Segera lakukan pembayaran.',
             'payment_received' => $this->paymentReceivedMessage($data),
             'ticket_created' => $customerNotification
                 ? ($ticketCode ? "Tiket {$ticketCode} sudah tercatat dan menunggu penanganan." : 'Tiket Anda sudah tercatat dan menunggu penanganan.')
                 : $this->newTicketMessage($ticketCode, $data),
             'ticket_assigned' => $customerNotification
                 ? ($ticketCode ? "Petugas sudah ditugaskan untuk tiket {$ticketCode}." : 'Petugas sudah ditugaskan untuk tiket Anda.')
-                : ($ticketCode ? "Tiket {$ticketCode} sudah ditugaskan kepada Anda." : 'Sebuah tiket sudah ditugaskan kepada Anda.'),
+                : ($this->assignedMessage($data) ?? ($ticketCode ? "Tiket {$ticketCode} sudah ditugaskan kepada Anda." : 'Sebuah tiket sudah ditugaskan kepada Anda.')),
             'ticket_started' => $ticketCode ? "Petugas mulai menangani tiket {$ticketCode}." : 'Petugas mulai menangani tiket Anda.',
             'ticket_replied' => $ticketCode ? "Petugas membalas tiket {$ticketCode}." : 'Petugas membalas tiket Anda.',
-            'ticket_resolved' => ($ticketCode ? "Tiket {$ticketCode} sudah diselesaikan." : 'Tiket Anda sudah diselesaikan.').' Masih bermasalah? Balas tiket ini.',
+            'ticket_resolved' => $this->resolvedMessage($data) ?? (($ticketCode ? "Tiket {$ticketCode} sudah diselesaikan." : 'Tiket Anda sudah diselesaikan.').' Masih bermasalah? Balas tiket ini.'),
             'ticket_closed' => $ticketCode ? "Tiket {$ticketCode} sudah ditutup." : 'Tiket Anda sudah ditutup.',
             'ticket_customer_replied' => $ticketCode ? "Pelanggan membalas tiket {$ticketCode}." : 'Pelanggan membalas sebuah tiket.',
-            'ticket_reopened' => ($ticketCode ? "Pelanggan membalas tiket {$ticketCode} yang sudah diselesaikan" : 'Pelanggan membalas tiket yang sudah diselesaikan').', jadi tiket dibuka kembali.',
+            'ticket_reopened' => $this->reopenedMessage($customerNotification, $ticketCode, $data)
+                ?? (($ticketCode ? "Pelanggan membalas tiket {$ticketCode} yang sudah diselesaikan" : 'Pelanggan membalas tiket yang sudah diselesaikan').', jadi tiket dibuka kembali.'),
             'ticket_sla_breached' => ($data['kind'] ?? null) === 'response'
                 ? ($ticketCode ? "Tiket {$ticketCode} belum direspons melewati batas SLA." : 'Sebuah tiket belum direspons melewati batas SLA.')
                 : ($ticketCode ? "Tiket {$ticketCode} melewati batas penyelesaian SLA." : 'Sebuah tiket melewati batas penyelesaian SLA.'),
@@ -202,6 +207,7 @@ class NotificationResource extends JsonResource
             'announcement_published' => is_string($data['title'] ?? null)
                 ? (string) $data['title']
                 : 'Ada pengumuman baru untuk layanan Anda.',
+            'customer_document_expiring' => $this->documentMessage($data),
             'push_test' => is_string($data['company_name'] ?? null)
                 ? "Notifikasi uji dari {$data['company_name']}."
                 : 'Notifikasi uji dari server.',
@@ -213,15 +219,166 @@ class NotificationResource extends JsonResource
     private function paymentReceivedMessage(array $data): string
     {
         $holding = $this->strings($data['holding_invoice_numbers'] ?? null);
+        $number = $this->text($data['invoice_number'] ?? null);
+        $amount = $this->rupiah($data['amount'] ?? null);
+        $rich = $number !== null && $amount !== null;
 
-        if ($holding === []) {
-            return 'Pembayaran Anda sudah kami terima.';
+        $received = match (true) {
+            $rich => "{$amount} untuk {$number} sudah kami terima.",
+            $number !== null && $holding !== [] => "Pembayaran {$number} sudah kami terima.",
+            default => 'Pembayaran Anda sudah kami terima.',
+        };
+
+        return match (true) {
+            $holding !== [] => $received.' Layanan aktif kembali setelah '.implode(', ', $holding).' dilunasi.',
+            $rich => $received.' Terima kasih.',
+            default => $received,
+        };
+    }
+
+    /**
+     * "Tagihan INV-1", "INV-1 jatuh tempo besok", "INV-1 lewat jatuh tempo"; null for a row written before the data
+     * keys existed, which keeps the generic text.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function invoiceTitle(string $type, array $data): ?string
+    {
+        $number = $this->text($data['invoice_number'] ?? null);
+
+        if ($number === null) {
+            return null;
         }
 
-        $number = is_string($data['invoice_number'] ?? null) ? $data['invoice_number'] : null;
+        if ($type === 'invoice_issued') {
+            return "Tagihan {$number}";
+        }
 
-        return ($number === null ? 'Pembayaran Anda sudah kami terima.' : "Pembayaran {$number} sudah kami terima.")
-            .' Layanan aktif kembali setelah '.implode(', ', $holding).' dilunasi.';
+        if ($type === 'invoice_overdue') {
+            return "{$number} lewat jatuh tempo";
+        }
+
+        $when = match ($data['stage'] ?? null) {
+            'H-3' => '3 hari lagi',
+            'H-1' => 'besok',
+            default => $this->dateLabel($data['due_date'] ?? null),
+        };
+
+        return $when === null ? null : "{$number} jatuh tempo {$when}";
+    }
+
+    /** @param array<string, mixed> $data */
+    private function invoiceMessage(string $type, array $data): ?string
+    {
+        $number = $this->text($data['invoice_number'] ?? null);
+        $total = $this->rupiah($data['total'] ?? null);
+        $outstanding = $this->rupiah($data['outstanding'] ?? null);
+        $due = $this->dateLabel($data['due_date'] ?? null);
+
+        return match (true) {
+            $number === null => null,
+            $type === 'invoice_issued' && $total !== null && $due !== null => "Tagihan {$number} sebesar {$total}, jatuh tempo {$due}.",
+            $type === 'invoice_due_soon' && $outstanding !== null => "Sisa {$outstanding}. Bayar lewat aplikasi.",
+            $type === 'invoice_overdue' && $outstanding !== null && $due !== null => "Sisa {$outstanding} belum dibayar sejak {$due}.",
+            default => null,
+        };
+    }
+
+    /** @param array<string, mixed> $data */
+    private function assignedTitle(array $data): ?string
+    {
+        $code = $this->text($data['ticket_code'] ?? null);
+        $priority = is_string($data['priority'] ?? null) ? (TicketAssignedNotification::PRIORITY_LABELS[$data['priority']] ?? null) : null;
+
+        return $code !== null && $priority !== null ? "Tiket {$code} · {$priority}" : null;
+    }
+
+    /** @param array<string, mixed> $data */
+    private function assignedMessage(array $data): ?string
+    {
+        $title = $this->text($data['title'] ?? null);
+        $due = $this->text($data['response_due_local'] ?? null);
+
+        return $title === null ? null : ($due === null ? "{$title}." : "{$title}. Respons sebelum {$due}.");
+    }
+
+    /** @param array<string, mixed> $data */
+    private function resolvedTitle(array $data): ?string
+    {
+        $code = $this->text($data['ticket_code'] ?? null);
+
+        return $code !== null && $this->text($data['resolution_excerpt'] ?? null) !== null ? "Tiket {$code} diselesaikan" : null;
+    }
+
+    /** @param array<string, mixed> $data */
+    private function resolvedMessage(array $data): ?string
+    {
+        $excerpt = $this->text($data['resolution_excerpt'] ?? null);
+
+        return $excerpt === null ? null : "{$excerpt} Sudah beres?";
+    }
+
+    /** @param array<string, mixed> $data */
+    private function reopenedTitle(bool $customerNotification, array $data): ?string
+    {
+        $code = $this->text($data['ticket_code'] ?? null);
+
+        return $code !== null && ! $customerNotification && ($data['by'] ?? null) === 'staff' ? "Tiket {$code} dibuka kembali" : null;
+    }
+
+    /**
+     * The customer hears that the ticket is back in work; staff hear who reopened it and why. Null for the old
+     * text: a customer's own reply reopened it.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function reopenedMessage(bool $customerNotification, ?string $ticketCode, array $data): ?string
+    {
+        if ($customerNotification) {
+            return ($ticketCode ? "Tiket {$ticketCode}" : 'Tiket Anda').' dibuka kembali dan akan ditangani lagi.';
+        }
+
+        $actor = $this->text($data['actor_name'] ?? null);
+
+        if (($data['by'] ?? null) !== 'staff' || $actor === null) {
+            return null;
+        }
+
+        $reason = $this->text($data['reason'] ?? null);
+
+        return $reason === null ? "Oleh {$actor}." : "Oleh {$actor}: {$reason}";
+    }
+
+    /** @param array<string, mixed> $data */
+    private function documentTitle(array $data): ?string
+    {
+        $type = $this->text($data['document_type'] ?? null);
+        $customer = $this->text($data['customer_name'] ?? null);
+
+        return $type === null ? null : 'Dokumen '.$type.($customer === null ? '' : ' '.Str::limit($customer, 60, '')).' segera habis';
+    }
+
+    /** @param array<string, mixed> $data */
+    private function documentMessage(array $data): string
+    {
+        $until = $this->dateLabel($data['expires_at'] ?? null);
+
+        return $until === null ? 'Periksa dokumen pelanggan yang akan kedaluwarsa.' : "Berlaku sampai {$until}.";
+    }
+
+    private function text(mixed $value): ?string
+    {
+        return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    /** "21 Okt 2026" from a stored Y-m-d date; null for anything else. */
+    private function dateLabel(mixed $date): ?string
+    {
+        if (! is_string($date) || preg_match('/^\d{4}-\d{2}-\d{2}/', $date) !== 1) {
+            return null;
+        }
+
+        return Carbon::parse(substr($date, 0, 10))->locale('id')->translatedFormat('j M Y');
     }
 
     /** @param array<string, mixed> $data */
@@ -350,6 +507,7 @@ class NotificationResource extends JsonResource
             'ticket' => $this->recordUrl(Ticket::forCompany($companyId), $data['ticket_id'] ?? null, $user, 'admin.tickets.show', 'ticket'),
             'work_order' => $this->recordUrl(WorkOrder::forCompany($companyId), $data['work_order_id'] ?? null, $user, 'admin.spk.show', 'wo'),
             'invoice' => $this->recordUrl(Invoice::forCompany($companyId), $data['invoice_id'] ?? null, $user, 'admin.invoices.show', 'invoice'),
+            'customer' => $this->recordUrl(Customer::forCompany($companyId), $data['customer_id'] ?? null, $user, 'admin.customers.show', 'customer'),
             default => $user->can('billing.view') ? route('admin.billing.receivables') : null,
         };
     }

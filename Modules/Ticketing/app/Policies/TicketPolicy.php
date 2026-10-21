@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Services\Core\CompanyService;
 use Illuminate\Auth\Access\Response;
 use Modules\Ticketing\Models\Ticket;
+use Modules\Ticketing\Services\TicketService;
 
 /**
  * A denial that comes from WHERE the ticket is (another company's, another customer's, another handler's) answers
@@ -116,6 +117,23 @@ class TicketPolicy
         return $ticket->assigned_to !== null && $user->can('ticket.reassign');
     }
 
+    /**
+     * "Tugaskan ke saya": the actor takes an unassigned ticket for themselves. They may assign, and are someone the ticket can
+     * be given to (a handler holds one of the permissions that work a ticket), unless the company forbids assigning yourself.
+     * Whether the ticket is still unassigned is read under the lock (TicketService::assignSelf), so a stale page gets a 409.
+     */
+    public function assignSelf(User $user, Ticket $ticket): Response|bool
+    {
+        if (! $this->sameCompany($user, $ticket)) {
+            return Response::denyAsNotFound();
+        }
+
+        return $user->is_active
+            && $user->can('ticket.assign')
+            && $user->canAny(TicketService::HANDLER_PERMISSIONS)
+            && ! data_get(CompanyService::current(), 'settings.forbid_self_assignment', false);
+    }
+
     public function start(User $user, Ticket $ticket): Response|bool
     {
         return $this->mayStart($user, $ticket) ?: $this->refusal($user, $ticket);
@@ -130,6 +148,22 @@ class TicketPolicy
     public function close(User $user, Ticket $ticket): Response|bool
     {
         return $this->mayClose($user, $ticket) ?: $this->refusal($user, $ticket);
+    }
+
+    /** Staff bring a resolved or closed ticket back to work (K13): the permission, and a ticket that is finished. */
+    public function reopen(User $user, Ticket $ticket): Response|bool
+    {
+        return $this->mayReopen($user, $ticket) ?: $this->refusal($user, $ticket);
+    }
+
+    /** A customer confirms that a resolved ticket is fixed, or rates a closed one: their own ticket, and the permission to rate. */
+    public function confirm(User $user, Ticket $ticket): Response|bool
+    {
+        if (! $this->sameCompany($user, $ticket) || ! $this->isCustomerUser($user) || ! $this->ownsTicket($user, $ticket)) {
+            return Response::denyAsNotFound();
+        }
+
+        return $user->can('evaluation.customer.submit');
     }
 
     public function spawnSpk(User $user, Ticket $ticket): Response|bool
@@ -160,6 +194,14 @@ class TicketPolicy
             && $ticket->status === 'resolved'
             && (int) $ticket->assigned_to !== (int) $user->id
             && $user->can('ticket.close');
+    }
+
+    private function mayReopen(User $user, Ticket $ticket): bool
+    {
+        return $this->sameCompany($user, $ticket)
+            && $user->is_active
+            && in_array($ticket->status, Ticket::FINISHED_STATUSES, true)
+            && $user->can('ticket.reopen');
     }
 
     /** What the user is told when an ability is refused: nothing they could not already see of the ticket. */

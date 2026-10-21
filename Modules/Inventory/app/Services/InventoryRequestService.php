@@ -7,7 +7,6 @@ use App\Models\User;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
-use App\Support\Money;
 use App\Support\Notifications\StaffRecipients;
 use App\Support\PublicId;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -18,7 +17,6 @@ use Illuminate\Support\Facades\Notification;
 use Modules\Inventory\Models\InventoryRequest;
 use Modules\Inventory\Models\InventoryRequestItem;
 use Modules\Inventory\Models\Product;
-use Modules\Inventory\Models\Stock;
 use Modules\Inventory\Notifications\InventoryRequestApprovedNotification;
 use Modules\Inventory\Notifications\InventoryRequestReadyNotification;
 use Modules\Inventory\Notifications\InventoryRequestRejectedNotification;
@@ -103,7 +101,8 @@ class InventoryRequestService
     }
 
     /**
-     * Get badge counts for user actionable tabs without leaking cross-tenant data.
+     * Get badge counts for user actionable tabs without leaking cross-tenant data. `warehouse_queue` is everything in
+     * the four queue statuses; `warehouse_actionable` is what this person can act on now (see actionableQueueCount).
      *
      * @return array<string, int|null>
      */
@@ -128,7 +127,44 @@ class InventoryRequestService
         return [
             'my_requests' => $myCount,
             'warehouse_queue' => $warehouseQueueCount,
+            'warehouse_actionable' => self::actionableQueueCount($user),
         ];
+    }
+
+    /**
+     * How many requests of the warehouse queue this person can act on now: approve or reject one that waits, prepare an
+     * approved one, hand over one that is ready. A request that waits for someone else, or that the maker-checker rules
+     * keep from this person (the requester never decides or hands over, the approver never prepares or hands over), is
+     * not counted. It follows InventoryRequestPolicy in SQL, so it costs one query however long the queue is. Null when
+     * the person may do none of those things, as `warehouse_queue` is.
+     */
+    public static function actionableQueueCount(User $user): ?int
+    {
+        $canDecide = $user->hasPermissionTo('inventory.request.approve') || $user->hasPermissionTo('inventory.request.reject');
+        $canPrepare = $user->hasPermissionTo('inventory.request.prepare');
+        $canIssue = $user->hasPermissionTo('inventory.request.issue');
+
+        if (! $canDecide && ! $canPrepare && ! $canIssue) {
+            return null;
+        }
+
+        // The approver column is empty until approval: a plain `!=` would drop those rows, so the NULL is named.
+        $approverIsAnother = fn (Builder $query) => $query->whereNull('approved_by')->orWhere('approved_by', '!=', $user->id);
+
+        return InventoryRequest::withoutCompany()
+            ->where('company_id', CompanyService::currentId() ?? CompanyService::idFor($user))
+            ->where(function (Builder $queue) use ($user, $canDecide, $canPrepare, $canIssue, $approverIsAnother): void {
+                $queue
+                    ->when($canDecide, fn (Builder $q) => $q->orWhere(fn (Builder $r) => $r->where('status', 'submitted')->where('requested_by', '!=', $user->id)))
+                    ->when($canPrepare, fn (Builder $q) => $q
+                        ->orWhere(fn (Builder $r) => $r->where('status', 'approved_reserved')->where($approverIsAnother))
+                        ->orWhere('status', 'preparing'))
+                    ->when($canIssue, fn (Builder $q) => $q->orWhere(fn (Builder $r) => $r
+                        ->where('status', 'ready_for_pickup')
+                        ->where('requested_by', '!=', $user->id)
+                        ->where($approverIsAnother)));
+            })
+            ->count();
     }
 
     /**
@@ -292,22 +328,6 @@ class InventoryRequestService
                 );
                 abort_unless(! empty($sourceLocationId), 422, 'Lokasi gudang sumber wajib ditentukan untuk reservasi.');
 
-                // A plain read keeps the friendly message (SKU, location, available, requested). It takes no lock: reserve()
-                // below locks Product, Location, then the stock row and checks again, and a stock lock taken first inverts that order.
-                $stock = Stock::withoutCompany()
-                    ->where('company_id', $companyId)
-                    ->where('product_id', $item->product_id)
-                    ->where('location_id', $sourceLocationId)
-                    ->first();
-
-                $available = $stock ? Money::sub($stock->quantity, $stock->reserved_quantity) : '0';
-                if (Money::compare($available, $approvedQty) < 0) {
-                    $product = Product::withoutCompany()->find($item->product_id);
-                    $location = Location::withoutCompany()->find($sourceLocationId);
-                    $availableQuantity = (float) $available;
-                    abort(422, "Stok tidak mencukupi untuk {$product?->sku} di {$location?->code}. Tersedia: {$availableQuantity}, Diminta: {$approvedQty}.");
-                }
-
                 // Reserve using StockService
                 StockService::reserve(
                     $item->product_id,
@@ -413,6 +433,16 @@ class InventoryRequestService
 
             return $req->fresh(['items.product', 'items.sourceLocation', 'requester', 'warehouseLocation', 'readyUser']);
         }, 3);
+    }
+
+    /**
+     * The warehouse sets the goods aside and tells the requester in one step (F8-U04): approved, then ready for pickup.
+     * Both steps are recorded, as when they are taken one after the other; a request already preparing is finished by
+     * markReady() alone.
+     */
+    public static function prepareForPickup(InventoryRequest $request, User $preparer): InventoryRequest
+    {
+        return DB::transaction(fn (): InventoryRequest => self::markReady(self::prepare($request, $preparer), $preparer), 3);
     }
 
     /**

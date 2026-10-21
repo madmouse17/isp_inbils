@@ -247,6 +247,28 @@ test.describe('@lifecycle ticket', () => {
         await expect(main.getByText('Pilih nilai 1 sampai 5.')).toBeVisible();
         await expect(page).toHaveURL(/\/admin\/evaluations\/create/);
     });
+
+    test('the manager reopens the closed ticket with a reason and it goes back to its handler', async ({
+        page,
+    }) => {
+        await loginAs(page, 'manager');
+        const ticketId = await findTicketId(page, `E2E ticket lifecycle ${runId}`);
+        await settleAppChunks(page);
+        await page.goto(`/admin/tickets/${ticketId}`);
+        await expectDetail(page, 'Status', 'Ditutup');
+
+        const main = page.getByRole('main');
+        await main.getByRole('button', { name: 'Buka kembali', exact: true }).click();
+        const reopenDialog = page.getByRole('dialog', { name: 'Buka kembali tiket' });
+        await reopenDialog.getByLabel('Alasan').fill(`E2E ${runId}: pelanggan melapor lagi`);
+        await reopenDialog.getByRole('button', { name: 'Buka kembali', exact: true }).click();
+
+        await expect(reopenDialog).toBeHidden({ timeout: 15_000 });
+        await expectDetail(page, 'Status', 'Ditugaskan');
+        await expect(main.getByText(/^Dibuka kembali \d/)).toBeVisible();
+        // The ticket is open again: the closed notice and the closed state of the page are gone.
+        await expect(main.getByText('Tiket sudah ditutup.')).toHaveCount(0);
+    });
 });
 
 /** Read the value paired with a definition-list label on the Show page. */
@@ -258,7 +280,7 @@ async function detailValue(page: Page, label: string) {
 
 /** Assign the open ticket on the Show page to the named handler. */
 async function assignToHandlerViaUi(page: Page, handlerName: string) {
-    await page.getByRole('button', { name: 'Tugaskan' }).click();
+    await page.getByRole('button', { name: 'Tugaskan', exact: true }).click();
     const assignDialog = page.getByRole('dialog', { name: 'Tugaskan tiket' });
     await selectSearchOption(page, 'Petugas', handlerName);
     await assignDialog.getByRole('button', { name: 'Tugaskan' }).click();

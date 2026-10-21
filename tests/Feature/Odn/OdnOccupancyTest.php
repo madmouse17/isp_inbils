@@ -207,7 +207,7 @@ class OdnOccupancyTest extends TestCase
 
         $this->assertSame(['ODP-A11 · 1:4 · port 3', 'ODP-A11 · 1:4 · port 4', 'ODP-A11 · 1:2 · port 1', 'ODP-A11 · 1:2 · port 2'], array_column($options, 'label'));
         $this->assertSame(['POP-A > RACK-A1 > SITE-A11'], array_values(array_unique(array_column($options, 'description'))));
-        $this->assertSame(['value', 'label', 'description'], array_keys($options[0]));
+        $this->assertSame(['value', 'label', 'description', 'odp_name', 'free_ports', 'total_ports', 'lat', 'lng'], array_keys($options[0]));
     }
 
     public function test_drop_port_options_narrow_to_what_was_typed(): void

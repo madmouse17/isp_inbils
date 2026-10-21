@@ -51,7 +51,7 @@ class ApprovalInboxQuery
             ->where('status', 'waiting_review');
 
         if ($withRelations) {
-            $query->with(['assignee:id,public_id,name', 'items.product:id,public_id,name']);
+            $query->with(['assignee:id,public_id,name', 'items.product:id,public_id,name,unit_id', 'items.product.unit:id,name,symbol']);
         }
 
         return self::applyMakerCheckerEligibility($query, $user);

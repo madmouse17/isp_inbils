@@ -82,8 +82,9 @@ class NotificationsTest extends TestCase
         Notification::sendNow($customer, new InvoiceIssuedNotification((int) $customer->company_id, $invoice->id));
 
         $row = $customer->notifications()->sole();
-        $this->assertSame(['type' => 'invoice_issued', 'invoice_id' => $invoice->public_id], $row->data);
-        foreach ([$customer->phone, $customer->name, $invoice->number, (string) $invoice->total] as $private) {
+        $this->assertEqualsCanonicalizing(['type', 'invoice_id', 'invoice_number', 'total', 'outstanding', 'due_date'], array_keys($row->data), 'the number, the amounts and the date say what the bell says; nothing else');
+        $this->assertEquals(['type' => 'invoice_issued', 'invoice_id' => $invoice->public_id, 'invoice_number' => 'INV-2026-0001'], array_intersect_key($row->data, ['type' => 1, 'invoice_id' => 1, 'invoice_number' => 1]));
+        foreach ([$customer->phone, $customer->name] as $private) {
             $this->assertStringNotContainsString((string) $private, json_encode($row->data, JSON_THROW_ON_ERROR));
         }
 

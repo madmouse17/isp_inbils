@@ -49,11 +49,14 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property ?Carbon $first_response_at
  * @property ?string $first_response_source 'reply' (a public staff comment) or 'start' (the Mulai button); null until the first response
  * @property ?Carbon $resolved_at
- * @property ?Carbon $reopened_at when a customer reply last brought the resolved ticket back
+ * @property ?Carbon $reopened_at when the ticket was last brought back to work: a customer's reply on a resolved ticket, or staff reopening a finished one
  * @property ?Carbon $closed_at
  * @property ?string $resolution_note
- * @property ?string $category_name_snapshot the category name as it was when the ticket closed; null until then
- * @property ?string $assignee_name_snapshot the handler name as it was when the ticket closed; null until then
+ * @property ?string $category_name_snapshot the category name as it was when the ticket closed; null until then (and again once it is reopened)
+ * @property ?string $assignee_name_snapshot the handler name as it was when the ticket closed; null until then (and again once it is reopened)
+ * @property ?int $customer_rating 1 to 5, given by the customer of a finished ticket; null until rated (an absent rating is not a zero)
+ * @property ?string $customer_rating_comment what the customer wrote with the rating
+ * @property ?Carbon $customer_rated_at
  * @property int $created_by
  * @property ?Carbon $created_at
  * @property ?Carbon $updated_at
@@ -89,7 +92,8 @@ class Ticket extends Model implements HasMedia
         'company_id', 'code', 'title', 'description', 'source', 'category_id', 'status', 'priority',
         'customer_id', 'subscription_id', 'network_asset_id', 'location_id',
         'assigned_to', 'spawned_spk_id', 'sla_deadline', 'response_deadline', 'first_response_at', 'first_response_source',
-        'resolved_at', 'reopened_at', 'closed_at', 'resolution_note', 'category_name_snapshot', 'assignee_name_snapshot', 'created_by',
+        'resolved_at', 'reopened_at', 'closed_at', 'resolution_note', 'category_name_snapshot', 'assignee_name_snapshot',
+        'customer_rating', 'customer_rating_comment', 'customer_rated_at', 'created_by',
     ];
 
     protected $casts = [
@@ -100,6 +104,8 @@ class Ticket extends Model implements HasMedia
         'reopened_at' => 'datetime',
         'response_breached_notified_at' => 'datetime',
         'closed_at' => 'datetime',
+        'customer_rating' => 'integer',
+        'customer_rated_at' => 'datetime',
     ];
 
     /** The parents of a ticket are history: one deleted since still shows (spec .scratch/master-lifecycle D6). */

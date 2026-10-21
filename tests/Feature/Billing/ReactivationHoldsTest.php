@@ -189,7 +189,7 @@ class ReactivationHoldsTest extends TestCase
         $this->assertSame('suspended', $this->freshSubscription($subscription)->status, 'INV-MID still holds the isolation');
         $notice = $this->noticesByInvoice($token)[$first->public_id];
         $this->assertSame('payment_received', $notice['type']);
-        $this->assertSame('Pembayaran INV-OLD sudah kami terima. Layanan aktif kembali setelah INV-MID dilunasi.', $notice['message']);
+        $this->assertSame('Rp 100.000 untuk INV-OLD sudah kami terima. Layanan aktif kembali setelah INV-MID dilunasi.', $notice['message']);
         $stored = $this->storedNotice($customer, $first);
         $this->assertSame(['INV-MID'], $stored['holding_invoice_numbers']);
         $this->assertSame('INV-OLD', $stored['invoice_number']);
@@ -197,7 +197,7 @@ class ReactivationHoldsTest extends TestCase
         CompanyService::runAs($this->company->id, fn () => BillingService::recordPayment($second, 100000, 'transfer', 'BANK-2'));
 
         $this->assertSame('active', $this->freshSubscription($subscription)->status, 'the last holder paid: the service is back');
-        $this->assertSame('Pembayaran Anda sudah kami terima.', $this->noticesByInvoice($token)[$second->public_id]['message']);
+        $this->assertSame('Rp 100.000 untuk INV-MID sudah kami terima. Terima kasih.', $this->noticesByInvoice($token)[$second->public_id]['message']);
         $this->assertArrayNotHasKey('holding_invoice_numbers', $this->storedNotice($customer, $second));
     }
 
@@ -209,7 +209,7 @@ class ReactivationHoldsTest extends TestCase
 
         CompanyService::runAs($this->company->id, fn () => BillingService::recordPayment($invoice, 100000, 'transfer', 'BANK-3'));
 
-        $this->assertSame('Pembayaran Anda sudah kami terima.', $this->noticesByInvoice($token)[$invoice->public_id]['message']);
-        $this->assertSame(['type', 'invoice_id'], array_keys($this->storedNotice($customer, $invoice)));
+        $this->assertSame("Rp 100.000 untuk {$invoice->number} sudah kami terima. Terima kasih.", $this->noticesByInvoice($token)[$invoice->public_id]['message']);
+        $this->assertEqualsCanonicalizing(['type', 'invoice_id', 'invoice_number', 'amount'], array_keys($this->storedNotice($customer, $invoice)));
     }
 }

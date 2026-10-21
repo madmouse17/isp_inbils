@@ -21,7 +21,8 @@ export interface NativeSelectProps extends React.SelectHTMLAttributes<HTMLSelect
 // ponytail: plain <select> ceiling for short, fixed option lists. Lists read from the database use SearchSelect.
 export const NativeSelect = React.forwardRef<HTMLSelectElement, NativeSelectProps>(
     ({ label, error, hint, options, children, className, wrapperClassName, id, ...props }, ref) => {
-        const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
+        const generatedId = React.useId();
+        const inputId = id || generatedId;
         return (
             <div className={cn('w-full', wrapperClassName)}>
                 {label && (

@@ -19,6 +19,10 @@ export interface Ticket {
         resolve: boolean;
         spawn_spk: boolean;
         comment: boolean;
+        /** Staff may bring this resolved or closed ticket back to work, with a reason. */
+        reopen: boolean;
+        /** The person may take this unassigned ticket for themselves ("Tugaskan ke saya"). */
+        assign_self: boolean;
         evaluate: boolean;
     };
     spawned_spk_id?: string | null;
@@ -34,6 +38,8 @@ export interface Ticket {
     is_response_breached?: boolean;
     /** Show page only. */
     deadline_source?: TicketDeadlineSource;
+    /** Show page only: what the customer rated the ticket in the app; null until they did. */
+    customer_rating?: TicketCustomerRating | null;
     created_by: string;
     created_at?: string;
     category?: { id: string; name: string; code: string } | null;
@@ -64,7 +70,26 @@ export interface TicketAttachmentEntry {
     mime_type?: string | null;
     size_bytes?: number | null;
     uploaded_by: string | null;
+    /** What the uploader wrote with the file. */
+    caption?: string | null;
     created_at: string;
+    uploaded_at?: string;
+}
+
+/** The customer's rating of a finished ticket (1 to 5) and what they wrote with it. */
+export interface TicketCustomerRating {
+    value: number;
+    comment: string | null;
+    rated_at: string;
+}
+
+/** The answer of `admin.tickets.sla-preview`: what a ticket with this category, subscription and priority would be held to. */
+export interface TicketSlaPreview {
+    /** `null` when the category or tier sets no response target. */
+    response_due: string | null;
+    resolution_due: string;
+    source: TicketDeadlineSource;
+    calendar: '24h' | 'business';
 }
 
 /** Where the targets of a ticket come from: an SLA tier or a category (`TicketService::deadlineSource()`). */

@@ -159,11 +159,12 @@ class EvaluationController extends Controller
     }
 
     /**
-     * The form as a closed ticket opens it: the ticket and its handler, ready to be rated. Anything else (no ticket asked
+     * The form as a closed ticket opens it: the ticket and its handler, ready to be rated, and the rating the customer gave the
+     * ticket in the app (null when they did not), so the evaluator does not retype it. Anything else (no ticket asked
      * for, one that is unknown, of another company, unfinished or unassigned) is the plain form, never an error. A handler
      * the form cannot rate (gone, inactive, not evaluable) leaves the employee to be picked.
      *
-     * @return array{employee: array{value: string, label: string, description: string}|null, reference_type: 'Ticket', reference: array{value: string, label: string, description: string}}|null
+     * @return array{employee: array{value: string, label: string, description: string}|null, reference_type: 'Ticket', reference: array{value: string, label: string, description: string}, customer_rating: int|null}|null
      */
     private function ticketPrefill(Request $request): ?array
     {
@@ -182,6 +183,7 @@ class EvaluationController extends Controller
             'employee' => $this->employeeOption($this->employeeQuery(), $ticket->assignee?->public_id),
             'reference_type' => 'Ticket',
             'reference' => ['value' => $ticket->public_id, 'label' => $ticket->code, 'description' => $ticket->title],
+            'customer_rating' => $ticket->customer_rating,
         ];
     }
 

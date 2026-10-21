@@ -521,4 +521,46 @@ test.describe('@smoke @head-company head company', () => {
             page.getByRole('button', { name: `Ganti perusahaan, saat ini: ${subsidiary}` }),
         ).toBeVisible();
     });
+
+    test('a subsidiary shows a ribbon that names it and leads back to its head', async ({
+        page,
+    }) => {
+        await loginAs(page, 'admin');
+        const ribbon = page.getByRole('region', { name: 'Perusahaan induk' });
+        await expect(ribbon).toHaveCount(0);
+
+        await switchTo(page, subsidiary);
+        await expect(ribbon).toContainText(`Sedang di anak perusahaan ${subsidiary}`);
+
+        await ribbon.getByRole('button', { name: /^Kembali ke induk/ }).click();
+        await expect(
+            page.getByRole('status').filter({ hasText: `Sekarang bekerja di ${head}.` }),
+        ).toBeVisible();
+        await expect(ribbon).toHaveCount(0);
+    });
+
+    test('the switcher is disabled and busy while a switch is on its way, and takes the focus back after', async ({
+        page,
+    }) => {
+        await loginAs(page, 'admin');
+        await page.route('**/admin/company/switch', async (route) => {
+            await page.waitForTimeout(1_000);
+            await route.continue();
+        });
+
+        const switcher = page.getByRole('button', { name: switcherName });
+        await switcher.click();
+        await page.getByRole('menuitemradio', { name: new RegExp(`^${subsidiary}`) }).click();
+
+        await expect(switcher).toBeDisabled();
+        await expect(switcher).toHaveAttribute('aria-busy', 'true');
+        await expect(
+            page.getByRole('button', { name: `Ganti perusahaan, saat ini: ${subsidiary}` }),
+        ).toBeEnabled();
+        await expect(switcher).toHaveAttribute('aria-busy', 'false');
+        await expect(switcher).toBeFocused();
+
+        await page.unroute('**/admin/company/switch');
+        await switchTo(page, head);
+    });
 });

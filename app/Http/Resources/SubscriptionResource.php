@@ -11,6 +11,16 @@ use Modules\Service\Http\Resources\ServicePackageVersionResource;
 /** @mixin ServiceSubscription */
 class SubscriptionResource extends JsonResource
 {
+    /**
+     * What another record shows of its subscription: enough to name and link it.
+     *
+     * @return array{id: string, code: string}|null
+     */
+    public static function summary(?ServiceSubscription $subscription): ?array
+    {
+        return $subscription === null ? null : ['id' => $subscription->public_id, 'code' => $subscription->code];
+    }
+
     /** @return array<string, mixed> */
     public function toArray(Request $request): array
     {
@@ -43,7 +53,7 @@ class SubscriptionResource extends JsonResource
                 $this->relationLoaded('servicePackage') && $this->servicePackage?->relationLoaded('latestVersion'),
                 fn (): bool => (int) $this->servicePackage->latestVersion?->id === (int) $this->service_package_version_id,
             ),
-            'customer' => new CustomerResource($this->whenLoaded('customer')),
+            'customer' => $this->whenLoaded('customer', fn (): ?array => CustomerResource::summary($this->customer)),
             'installation_address' => new CustomerAddressResource($this->whenLoaded('installationAddress')),
             'serving_pop' => new LocationResource($this->whenLoaded('servingPop')),
             'created_at' => $this->created_at,

@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\Core\Company;
 use App\Models\Core\CustomerAddress;
 use App\Models\Core\Location;
+use App\Services\Core\CompanyMembershipService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Modules\Service\Database\Factories\ServicePackageFactory;
@@ -85,5 +87,29 @@ class SuggestionPropsTest extends TestCase
         $this->get(route('admin.subscriptions.network-account.show', $subscription))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page->where('subscription.customer.code', $subscription->customer->code));
+    }
+
+    public function test_a_head_company_has_no_parent_in_the_shared_hierarchy(): void
+    {
+        $this->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('companyHierarchy.parent', null));
+    }
+
+    public function test_a_subsidiary_names_its_parent_and_offers_the_way_back_only_to_a_member(): void
+    {
+        $head = Company::factory()->create(['is_active' => true, 'name' => 'Induk Satu']);
+        $this->company->forceFill(['parent_company_id' => $head->id])->save();
+
+        $this->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('companyHierarchy.parent', ['id' => $head->public_id, 'name' => 'Induk Satu', 'can_switch' => false]));
+
+        app(CompanyMembershipService::class)->grant($this->admin, $head);
+
+        $this->get(route('admin.dashboard'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('companyHierarchy.parent', ['id' => $head->public_id, 'name' => 'Induk Satu', 'can_switch' => true]));
     }
 }

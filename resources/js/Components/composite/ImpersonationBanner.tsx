@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import axios, { isAxiosError } from 'axios';
 import { router, usePage } from '@inertiajs/react';
@@ -15,6 +15,7 @@ import {
     Input,
     useToast,
 } from '@/Components/ui';
+import { useToastInset } from '@/Components/ui/Toast';
 import { formatCountdown, secondsLeft } from './impersonationCountdown';
 
 /** Shared Inertia prop `impersonation` (ActiveImpersonation::toProp); null outside a support session. */
@@ -155,6 +156,8 @@ function ActiveBanner({ impersonation }: { impersonation: ImpersonationProp }) {
     const [confirming, setConfirming] = useState(false);
     const [busy, setBusy] = useState(false);
     const remaining = useCountdown(impersonation.expires_at);
+    const bar = useRef<HTMLDivElement>(null);
+    useToastInset('--support-banner-height', bar);
     const writable = impersonation.mode === 'write';
 
     useEffect(() => {
@@ -164,6 +167,7 @@ function ActiveBanner({ impersonation }: { impersonation: ImpersonationProp }) {
 
     return (
         <div
+            ref={bar}
             role="region"
             aria-label="Akses dukungan"
             className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-amber-300 bg-amber-100 px-4 py-2 text-sm text-amber-950 md:px-6 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"

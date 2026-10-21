@@ -145,7 +145,7 @@ test('a payment sent twice is booked once: the second tab gets a toast, a double
     const sentFirst = await fillPayment(page, '30000', twice);
     const sentSecond = await fillPayment(second, '30000', twice);
     await save(sentFirst).click();
-    await expectDetail(page, 'Status', 'Sebagian');
+    await expectDetail(page, 'Status', 'Dibayar sebagian');
     await save(sentSecond).click();
     await expect(toast(second, DUPLICATE_TOAST)).toBeVisible();
 

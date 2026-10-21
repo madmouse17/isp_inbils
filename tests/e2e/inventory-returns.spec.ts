@@ -79,7 +79,6 @@ async function declaredReturn(
     await postSteps(page, 'manager', [`/admin/inventory/requests/${requestId}/approve`]);
     await postSteps(page, 'staff', [
         `/admin/inventory/requests/${requestId}/prepare`,
-        `/admin/inventory/requests/${requestId}/ready`,
         `/admin/inventory/requests/${requestId}/issue`,
     ]);
 

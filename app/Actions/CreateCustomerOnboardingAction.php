@@ -9,10 +9,12 @@ use App\Services\Core\CompanyService;
 use App\Services\Core\CustomerService;
 use App\Services\Core\NumberSequenceService;
 use App\Services\Core\SubscriptionService;
+use App\Support\OptimisticLock;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Modules\NetworkAsset\Services\OdnService;
 use Modules\SPK\Models\WorkOrder;
+use Modules\SPK\Services\SpkService;
 
 class CreateCustomerOnboardingAction
 {
@@ -22,6 +24,9 @@ class CreateCustomerOnboardingAction
         return DB::transaction(function () use ($data, $creator): Customer {
             $subscriptionData = Arr::pull($data, 'subscription');
             $odnPortId = Arr::pull($subscriptionData, 'odn_port_id');
+            // The visit day belongs to the installation SPK, not to the subscription.
+            $scheduledDate = Arr::pull($subscriptionData, 'scheduled_date');
+            $assignTechnicianId = Arr::pull($data, 'assign_technician_id');
             $acquirerInput = Arr::only($data, ['acquired_by_user_id']);
             unset($data['acquired_by_user_id']);
             $whatsAppOptIn = filter_var(Arr::pull($data, 'whatsapp_opt_in', false), FILTER_VALIDATE_BOOLEAN);
@@ -59,7 +64,13 @@ class CreateCustomerOnboardingAction
                 'source' => 'subscription',
                 'priority' => 'medium',
                 'created_by' => $creator->id,
+                'scheduled_date' => $scheduledDate,
             ]);
+
+            // "Tugaskan sekarang": the same assignment the Penugasan queue makes, inside this transaction, so a refusal leaves no customer behind.
+            if ($assignTechnicianId !== null) {
+                SpkService::assign($workOrder, (int) $assignTechnicianId, $creator->id, null, OptimisticLock::version($workOrder->refresh()));
+            }
 
             AuditService::log('customer', 'onboarded', [
                 'customer_id' => $customer->id,

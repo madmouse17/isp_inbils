@@ -4,16 +4,24 @@ namespace App\Queries\Admin;
 
 use App\Models\User;
 use App\Services\Core\CompanyService;
+use App\Support\Notifications\StaffRecipients;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
 use Modules\SPK\Models\WorkOrder;
 use Modules\Ticketing\Models\Ticket;
+use Modules\Ticketing\Services\TicketService;
 
 class DispatchQueueQuery
 {
     public const SORTABLE = ['created_at', 'code', 'title', 'priority', 'status'];
 
     public const PER_PAGE_OPTIONS = [10, 25, 50];
+
+    /** What counts as work a person holds now (the workload of the pickers): a ticket not yet resolved, an SPK not yet done. */
+    private const ACTIVE_TICKET_STATUSES = ['assigned', 'on_progress'];
+
+    private const ACTIVE_SPK_STATUSES = ['assigned', 'in_progress'];
 
     public static function isEligible(?object $user): bool
     {
@@ -302,7 +310,10 @@ class DispatchQueueQuery
     }
 
     /**
-     * @return array<int, array{id: string, name: string, email: string}>
+     * Who a ticket can be given to: the active members of the company who hold a permission that works a ticket, each with the
+     * work they hold now, for the picker to show and to suggest by. No email: a name and a workload are what the choice needs.
+     *
+     * @return array<int, array{id: string, name: string, load: int}>
      */
     public static function eligibleHandlers(Request $request): array
     {
@@ -312,22 +323,23 @@ class DispatchQueueQuery
         }
 
         $companyId = CompanyService::idFor($user);
+        if ($companyId === null) {
+            return [];
+        }
 
-        return User::query()
-            ->where('company_id', $companyId)
-            ->where('is_active', true)
-            ->where(function (Builder $query) {
-                $query->whereHas('permissions', fn (Builder $pq) => $pq->whereIn('name', ['ticket.start', 'ticket.resolve', 'ticket.close']))
-                    ->orWhereHas('roles.permissions', fn (Builder $pq) => $pq->whereIn('name', ['ticket.start', 'ticket.resolve', 'ticket.close']));
-            })
-            ->orderBy('name')
-            ->get(['id', 'public_id', 'name', 'email'])
-            ->map(fn (User $user): array => ['id' => (string) $user->public_id, 'name' => $user->name, 'email' => $user->email])
-            ->all();
+        return self::withLoad(
+            StaffRecipients::members($companyId)
+                ->withPermissionIn(TicketService::HANDLER_PERMISSIONS, $companyId)
+                ->orderBy('users.name')
+                ->get(['users.id', 'users.public_id', 'users.name']),
+            $companyId,
+        );
     }
 
     /**
-     * @return array<int, array{id: string, name: string, email: string}>
+     * Who an SPK can be given to: active technicians of the company, with the work each holds now.
+     *
+     * @return array<int, array{id: string, name: string, load: int}>
      */
     public static function eligibleTechnicians(Request $request): array
     {
@@ -337,20 +349,55 @@ class DispatchQueueQuery
         }
 
         $companyId = CompanyService::idFor($user);
+        if ($companyId === null) {
+            return [];
+        }
 
-        return User::query()
-            ->where('company_id', $companyId)
-            ->where('is_active', true)
-            ->whereHas('employeeProfile', fn (Builder $profileQuery) => $profileQuery
+        return self::withLoad(
+            User::query()
                 ->where('company_id', $companyId)
-                ->where('status', 'active'))
-            ->where(function (Builder $query) {
-                $query->whereHas('permissions', fn (Builder $pq) => $pq->whereIn('name', ['spk.start', 'spk.submit']))
-                    ->orWhereHas('roles.permissions', fn (Builder $pq) => $pq->whereIn('name', ['spk.start', 'spk.submit']));
-            })
-            ->orderBy('name')
-            ->get(['id', 'public_id', 'name', 'email'])
-            ->map(fn (User $user): array => ['id' => (string) $user->public_id, 'name' => $user->name, 'email' => $user->email])
+                ->where('is_active', true)
+                ->whereHas('employeeProfile', fn (Builder $profileQuery) => $profileQuery
+                    ->where('company_id', $companyId)
+                    ->where('status', 'active'))
+                ->withPermissionIn(['spk.start', 'spk.submit'], $companyId)
+                ->orderBy('name')
+                ->get(['id', 'public_id', 'name']),
+            $companyId,
+        );
+    }
+
+    /**
+     * The work each person holds now: the tickets assigned to them that are not resolved plus the SPKs assigned to them that are
+     * not done. One grouped query for each kind whatever the number of people, on the `(company_id, assigned_to)` indexes.
+     *
+     * @param  EloquentCollection<int, User>  $people
+     * @return array<int, array{id: string, name: string, load: int}>
+     */
+    private static function withLoad(EloquentCollection $people, int $companyId): array
+    {
+        $ids = $people->modelKeys();
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $count = static fn (Builder $query, array $statuses) => $query
+            ->whereIn('assigned_to', $ids)
+            ->whereIn('status', $statuses)
+            ->selectRaw('assigned_to, count(*) as total')
+            ->groupBy('assigned_to')
+            ->pluck('total', 'assigned_to');
+
+        $tickets = $count(Ticket::forCompany($companyId), self::ACTIVE_TICKET_STATUSES);
+        $spks = $count(WorkOrder::forCompany($companyId), self::ACTIVE_SPK_STATUSES);
+
+        return $people
+            ->map(fn (User $person): array => [
+                'id' => (string) $person->public_id,
+                'name' => $person->name,
+                'load' => (int) ($tickets[$person->id] ?? 0) + (int) ($spks[$person->id] ?? 0),
+            ])
             ->all();
     }
 

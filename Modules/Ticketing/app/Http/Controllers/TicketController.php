@@ -17,6 +17,7 @@ use App\Support\PublicId;
 use App\Support\RecordNotFound;
 use App\Support\SearchOptions;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -24,7 +25,9 @@ use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\Ticketing\Http\Requests\AssignTicketRequest;
+use Modules\Ticketing\Http\Requests\ReopenTicketRequest;
 use Modules\Ticketing\Http\Requests\ResolveTicketRequest;
+use Modules\Ticketing\Http\Requests\SlaPreviewTicketRequest;
 use Modules\Ticketing\Http\Requests\StoreTicketCommentRequest;
 use Modules\Ticketing\Http\Requests\StoreTicketRequest;
 use Modules\Ticketing\Http\Requests\UpdateTicketRequest;
@@ -207,6 +210,27 @@ class TicketController extends Controller
         ]);
     }
 
+    /**
+     * What a ticket with this category (and subscription, and priority) would be held to, for the create form before anything is
+     * saved: the deadlines and the source the ticket gets when it is made.
+     */
+    public function slaPreview(SlaPreviewTicketRequest $request): JsonResponse
+    {
+        Gate::authorize('create', Ticket::class);
+
+        $ticket = new Ticket($request->safe()->only(['category_id', 'subscription_id', 'priority']));
+        $deadlines = TicketService::computeDeadlines($ticket);
+        $source = TicketService::deadlineSource($ticket);
+
+        return response()->json([
+            'response_due' => $deadlines['response']?->toIso8601String(),
+            'resolution_due' => $deadlines['resolution']->toIso8601String(),
+            'source' => $source,
+            // Every target counts calendar hours until a tier can count the company's service hours.
+            'calendar' => $source['calendar'] ?? '24h',
+        ]);
+    }
+
     public function store(StoreTicketRequest $request): RedirectResponse
     {
         Gate::authorize('store', Ticket::class);
@@ -307,6 +331,25 @@ class TicketController extends Controller
         return back()->with('success', 'Tiket berhasil ditugaskan.');
     }
 
+    /** "Tugaskan ke saya": the actor takes an unassigned ticket. Somebody else being quicker is a 409, as for the dialog. */
+    public function assignSelf(Request $request, Ticket $ticket): RedirectResponse
+    {
+        $this->ensureSameCompany($ticket);
+        Gate::authorize('assignSelf', $ticket);
+
+        try {
+            TicketService::assignSelf($ticket, $request->user());
+        } catch (HttpException $exception) {
+            if ($request->header('X-Inertia') && $exception->getStatusCode() === 409) {
+                return back()->withErrors(['conflict' => $exception->getMessage()]);
+            }
+
+            throw $exception;
+        }
+
+        return back()->with('success', "Tiket {$ticket->code} ditugaskan ke Anda.");
+    }
+
     public function start(Ticket $ticket): RedirectResponse
     {
         $this->ensureSameCompany($ticket);
@@ -360,6 +403,16 @@ class TicketController extends Controller
         return back()->with('success', 'Tiket ditutup.');
     }
 
+    public function reopen(ReopenTicketRequest $request, Ticket $ticket): RedirectResponse
+    {
+        $this->ensureSameCompany($ticket);
+        Gate::authorize('reopen', $ticket);
+
+        TicketService::reopenByStaff($ticket, $request->user(), $request->validated('reason'));
+
+        return back()->with('success', "Tiket {$ticket->code} dibuka kembali.");
+    }
+
     public function spawnSpk(Request $request, Ticket $ticket): RedirectResponse
     {
         $this->ensureSameCompany($ticket);
@@ -393,7 +446,7 @@ class TicketController extends Controller
         TicketService::addAttachment(
             $ticket,
             $request->user(),
-            ['file' => $file],
+            ['file' => $file, 'caption' => $request->validated('caption')],
             // The same file twice on one ticket is one attachment, however far apart the two posts are.
             hash('sha256', (string) hash_file('sha256', $file->getRealPath())),
         );

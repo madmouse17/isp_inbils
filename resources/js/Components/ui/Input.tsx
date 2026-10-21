@@ -17,7 +17,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     ({ className, type, label, error, hint, leftIcon, reveal = true, id, ...props }, ref) => {
         const [revealed, setRevealed] = React.useState(false);
         const hasReveal = type === 'password' && reveal;
-        const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
+        const generatedId = React.useId();
+        const inputId = id || generatedId;
         const describedBy = error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined;
 
         return (

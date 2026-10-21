@@ -4,7 +4,7 @@ import type { StatusMap } from './types';
 export const INVOICE_STATUS = {
     draft: { label: 'Draf', tone: 'neutral' },
     sent: { label: 'Belum dibayar', tone: 'info' },
-    partial: { label: 'Sebagian', tone: 'warning' },
+    partial: { label: 'Dibayar sebagian', tone: 'warning' },
     paid: { label: 'Lunas', tone: 'success' },
     overdue: { label: 'Lewat jatuh tempo', tone: 'danger' },
     cancelled: { label: 'Dibatalkan', tone: 'neutral' },

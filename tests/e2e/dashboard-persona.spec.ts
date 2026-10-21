@@ -152,6 +152,8 @@ test('@dashboard-persona admin block contents visible only for admin', async ({ 
         adminRegion.getByRole('heading', { name: 'Aktivitas terbaru', level: 2 }),
     ).toBeVisible();
     await expect(adminRegion.getByRole('heading', { name: 'Modul', level: 2 })).toBeVisible();
+    // The recent activity is worded by the server: no event code such as `stock_received` reaches the block
+    await expect(adminRegion).not.toHaveText(/\b[a-z]+_[a-z]+(_[a-z]+)*\b/);
 
     // Check one module link exists
     await expect(adminRegion.getByRole('link').first()).toBeVisible();

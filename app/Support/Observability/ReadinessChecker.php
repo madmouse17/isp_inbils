@@ -38,6 +38,7 @@ final class ReadinessChecker
             'scheduler' => $this->scheduler(),
             'backup' => $this->backup(),
             'storage_link' => $this->storageLink(),
+            'mail' => $this->mail(),
         ];
 
         $status = $this->aggregate($checks);
@@ -162,6 +163,21 @@ final class ReadinessChecker
         } catch (Throwable) {
             return 'unknown';
         }
+    }
+
+    /**
+     * K22: a production sender left on a placeholder domain (the example.env default) means every reset link and invoice
+     * mail leaves from an address nobody owns. Only production is judged: elsewhere the sender is a stand-in by design.
+     */
+    private function mail(): string
+    {
+        if (! app()->environment('production')) {
+            return 'unknown';
+        }
+
+        $address = strtolower(trim((string) config('mail.from.address')));
+
+        return $address === '' || str_ends_with($address, 'example.com') || str_ends_with($address, '.local') ? 'fail' : 'ok';
     }
 
     /**

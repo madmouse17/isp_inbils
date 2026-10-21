@@ -5,6 +5,7 @@ namespace Modules\Reporting\Queries;
 use App\Models\User;
 use App\Services\Core\CompanyService;
 use App\Services\Platform\PlatformAuditService;
+use App\Support\AuditEventText;
 use App\Support\SupportActionText;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -90,8 +91,9 @@ class AuditLogQuery
                     });
             };
             $supportCodes = SupportActionText::codesMatching($term);
+            $sentences = AuditEventText::codesMatching($term);
 
-            $query->where(function (Builder $sub) use ($term, $matchingMembers, $supportCodes) {
+            $query->where(function (Builder $sub) use ($term, $matchingMembers, $supportCodes, $sentences) {
                 $sub->where('description', 'like', "%{$term}%")
                     ->orWhere('log_name', 'like', "%{$term}%")
                     ->orWhere('event', 'like', "%{$term}%")
@@ -110,6 +112,11 @@ class AuditLogQuery
                                     });
                             });
                     });
+
+                // Any other row reads as the dictionary's sentence, not as its code: match that sentence too.
+                foreach ($sentences as $log => $descriptions) {
+                    $sub->orWhere(fn (Builder $pair) => $pair->where('log_name', $log)->whereIn('description', $descriptions));
+                }
             });
         }
 

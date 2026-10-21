@@ -6,9 +6,11 @@ import {
     AlertDescription,
     AlertTitle,
     Button,
+    DatePicker,
     EnumBadge,
     SearchSelect,
 } from '@/Components/ui';
+import type { SearchSelectOption } from '@/Components/ui';
 import {
     Dialog,
     DialogContent,
@@ -18,11 +20,43 @@ import {
     DialogTitle,
 } from '@/Components/ui/dialog';
 import { useCompany } from '@/hooks/useCompany';
+import { todayInZone } from '@/lib/dateRange';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { labelOf, PRIORITY, WORK_ITEM_DOMAIN } from '@/lib/statuses';
 import type { DispatchItem, QueueUserOption } from '@/types';
 import { formatAge } from '../../MyWork/components/utils';
 import { getItemImpact, getItemWhyNeedAction, getNextStatusInfo } from './utils';
+
+/**
+ * The people a ticket or an SPK can be given to, as the pickers list them: the least busy first, each with the work they hold
+ * now. When the loads differ, those with the least work carry the suggestion; when all are alike nobody does.
+ */
+export function candidateOptions(candidates: QueueUserOption[]): SearchSelectOption[] {
+    const sorted = [...candidates].sort(
+        (a, b) => a.load - b.load || a.name.localeCompare(b.name, 'id'),
+    );
+    const least = sorted[0]?.load;
+    const suggest = sorted.length > 1 && least !== sorted[sorted.length - 1].load;
+
+    return sorted.map((candidate) => ({
+        value: String(candidate.id),
+        label: `${candidate.name} · ${candidate.load} pekerjaan aktif`,
+        description: suggest && candidate.load === least ? 'Paling sedikit pekerjaan' : undefined,
+    }));
+}
+
+/**
+ * The visit day an assignment starts from: the one the SPK has, unless it is past (the server refuses a past day, so the
+ * person picks a new one). Without a day the field stays empty and the SPK keeps what it has.
+ */
+export function visitDateDefault(
+    scheduled: string | null | undefined,
+    timezone: string | null | undefined,
+): string {
+    const day = scheduled?.slice(0, 10) ?? '';
+
+    return /^\d{4}-\d{2}-\d{2}$/.test(day) && day >= todayInZone(timezone) ? day : '';
+}
 
 interface AssignDialogProps {
     open: boolean;
@@ -104,6 +138,11 @@ function AssignDialogInner({
     const [selectedAssigneeId, setSelectedAssigneeId] = useState<string>(
         item.assigned_to ? String(item.assigned_to) : '',
     );
+    // Only an SPK has a visit day.
+    const [visitDate, setVisitDate] = useState(() =>
+        isTicket ? '' : visitDateDefault(item.scheduled_date, company?.timezone),
+    );
+    const [dateError, setDateError] = useState<string | null>(null);
     const [assigneeError, setAssigneeError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [serverError, setServerError] = useState<string | null>(null);
@@ -128,6 +167,7 @@ function AssignDialogInner({
         }
 
         setAssigneeError(null);
+        setDateError(null);
         setServerError(null);
         setReloadError(null);
         setIsConflict(false);
@@ -141,6 +181,7 @@ function AssignDialogInner({
             assignee_id: trimmedAssigneeId,
             expected_assigned_to: item.assigned_to ?? null,
             expected_updated_at: item.updated_at ?? null,
+            ...(!isTicket && visitDate !== '' ? { scheduled_date: visitDate } : {}),
         };
 
         router.post(route('admin.dispatch.assign'), payload, {
@@ -157,8 +198,15 @@ function AssignDialogInner({
                 onSuccess?.();
             },
             onError: (errors: Record<string, string>) => {
-                const first = Object.values(errors)[0] as string | undefined;
-                setServerError(first || 'Gagal menyimpan penugasan. Periksa input lalu coba lagi.');
+                // The visit day's refusal belongs under its field; the alert keeps whatever else the server said.
+                setDateError(errors.scheduled_date ?? null);
+                const first = Object.entries(errors).find(([key]) => key !== 'scheduled_date')?.[1];
+                setServerError(
+                    first ||
+                        (errors.scheduled_date
+                            ? null
+                            : 'Gagal menyimpan penugasan. Periksa input lalu coba lagi.'),
+                );
                 setIsConflict(Boolean(errors.conflict));
                 setReloadError(null);
             },
@@ -300,11 +348,7 @@ function AssignDialogInner({
                                 setAssigneeError(null);
                             }}
                             error={assigneeError ?? undefined}
-                            options={candidateList.map((c) => ({
-                                value: String(c.id),
-                                label: c.name,
-                                description: c.email,
-                            }))}
+                            options={candidateOptions(candidateList)}
                             placeholder={`Cari ${roleLabel.toLowerCase()}`}
                             emptyText="Tidak ada yang cocok."
                             disabled={submitting || isConflict || isReloading}
@@ -316,6 +360,20 @@ function AssignDialogInner({
                             </p>
                         )}
                     </div>
+
+                    {!isTicket && (
+                        <DatePicker
+                            label="Tanggal kunjungan"
+                            value={visitDate}
+                            onChange={(value) => {
+                                setVisitDate(value);
+                                setDateError(null);
+                            }}
+                            error={dateError ?? undefined}
+                            hint="Opsional. Kosong berarti jadwal SPK tidak berubah."
+                            disabled={submitting || isConflict || isReloading}
+                        />
+                    )}
 
                     {/* Error / Conflict Alert */}
                     {serverError && (

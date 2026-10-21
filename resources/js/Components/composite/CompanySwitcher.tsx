@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
 import { Building2, ChevronsUpDown } from 'lucide-react';
 import { Button, Spinner } from '@/Components/ui';
@@ -25,6 +25,7 @@ interface CompanySwitcherProps {
 export function CompanySwitcher({ onSwitched }: CompanySwitcherProps) {
     const { canSwitch, companies = [] } = usePage<PageProps>().props;
     const [switching, setSwitching] = useState(false);
+    const triggerRef = useRef<HTMLButtonElement>(null);
     const current = companies.find((company) => company.is_current);
 
     if (!canSwitch || !current) {
@@ -41,7 +42,11 @@ export function CompanySwitcher({ onSwitched }: CompanySwitcherProps) {
             { company_id: companyId },
             {
                 onStart: () => setSwitching(true),
-                onFinish: () => setSwitching(false),
+                onFinish: () => {
+                    setSwitching(false);
+                    // The disabled trigger could not take the focus back when the menu closed.
+                    window.setTimeout(() => triggerRef.current?.focus());
+                },
                 onSuccess: () => onSwitched?.(),
             },
         );
@@ -53,7 +58,9 @@ export function CompanySwitcher({ onSwitched }: CompanySwitcherProps) {
                 <Button
                     type="button"
                     variant="outline"
-                    // Not `loading`: a disabled trigger cannot take back focus when the menu closes.
+                    ref={triggerRef}
+                    // A disabled trigger takes no click, so a second switch cannot start; the focus comes back below.
+                    disabled={switching}
                     aria-busy={switching}
                     leftIcon={
                         switching ? (

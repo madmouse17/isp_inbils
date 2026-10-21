@@ -75,6 +75,8 @@ class InventoryRequestResource extends JsonResource
 
             'source_type' => $this->source_type,
             'source_id' => $this->sourcePublicId(),
+            // sourcePublicId() has loaded the record by now: the code is what people read, the id only builds the link.
+            'source_code' => $this->relationLoaded('source') ? $this->getRelation('source')?->getAttribute('code') : null,
 
             'submitted_at' => $this->submitted_at?->toISOString(),
             'approved_at' => $this->approved_at?->toISOString(),

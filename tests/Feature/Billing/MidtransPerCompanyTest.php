@@ -222,7 +222,7 @@ class MidtransPerCompanyTest extends TestCase
         // is acknowledged (a merchant shared by two projects must not be retried for ever) and nothing is touched.
         $this->postJson($this->webhookOf($this->a), $this->midtransPayload($attemptB, key: self::KEY_A))->assertOk()->assertSee('OK');
 
-        Log::shouldHaveReceived('info')->once()->with('midtrans.foreign_order', ['order_id' => $attemptB->order_id, 'verified' => true]);
+        Log::shouldHaveReceived('info')->with('midtrans.foreign_order', ['order_id' => $attemptB->order_id, 'verified' => true])->once();
         Http::assertNothingSent();
         $this->assertSame(0, Payment::withoutCompany()->count());
         $this->assertSame('pending', $this->fresh($attemptB)->status);
@@ -242,7 +242,7 @@ class MidtransPerCompanyTest extends TestCase
         // And the key of another company does not pass for this one.
         $this->postJson($this->webhookOf($this->a), $this->midtransPayload($attemptA, ['order_id' => 'OTHER-PROJECT-0001'], self::KEY_B))->assertForbidden();
 
-        Log::shouldHaveReceived('info')->once()->with('midtrans.foreign_order', ['order_id' => 'OTHER-PROJECT-0001', 'verified' => true]);
+        Log::shouldHaveReceived('info')->with('midtrans.foreign_order', ['order_id' => 'OTHER-PROJECT-0001', 'verified' => true])->once();
         Http::assertNothingSent();
         $this->assertSame(0, Payment::withoutCompany()->count());
         $this->assertSame(0, Activity::query()->where('log_name', 'payment_attempt')->count());
@@ -475,5 +475,39 @@ class MidtransPerCompanyTest extends TestCase
         $this->postJson($this->webhookOf($this->b), $this->midtransPayload($attemptB, key: self::KEY_B))->assertOk();
         $this->postJson('/webhooks/midtrans', $this->midtransPayload($attemptA, key: self::KEY_A))->assertOk();
         $this->assertSame(2, Payment::withoutCompany()->count());
+    }
+
+    public function test_another_companys_order_signed_with_ones_own_key_cannot_use_up_its_callback_allowance(): void
+    {
+        $attemptA = $this->attemptFor($this->a);
+        $this->midtransSettles($attemptA);
+        // A company writes its own server key, so it can sign anything, and A's order id is printed on A's customer receipt.
+        $crossSigned = $this->midtransPayload($attemptA, key: self::KEY_B);
+
+        // The signature verifies on B's URL but the order is not B's: that is junk, 30 a minute per address, and never the bucket of A's order.
+        for ($i = 0; $i < 12; $i++) {
+            $this->postJson($this->webhookOf($this->b), $crossSigned)->assertOk();
+        }
+
+        // The genuine callbacks of that order keep their whole allowance of ten a minute, and still stop at the eleventh.
+        for ($i = 0; $i < 10; $i++) {
+            $this->postJson($this->webhookOf($this->a), $this->midtransPayload($attemptA, key: self::KEY_A))->assertOk();
+        }
+        $this->postJson($this->webhookOf($this->a), $this->midtransPayload($attemptA, key: self::KEY_A))->assertStatus(429);
+        $this->assertSame(1, Payment::withoutCompany()->count(), 'the replays booked nothing more');
+    }
+
+    public function test_an_invented_order_id_signed_with_ones_own_key_gets_no_allowance_of_its_own(): void
+    {
+        $invented = fn (int $n): array => $this->signMidtransPayload([
+            'order_id' => 'INB-INVENTED-'.$n, 'status_code' => '200', 'gross_amount' => '1.00', 'transaction_status' => 'settlement',
+        ], self::KEY_B);
+
+        // A fresh order id per call used to open a fresh, never-full bucket each time: one address could call without limit.
+        for ($n = 1; $n <= 30; $n++) {
+            $this->postJson($this->webhookOf($this->b), $invented($n))->assertOk();
+        }
+
+        $this->postJson($this->webhookOf($this->b), $invented(31))->assertStatus(429);
     }
 }

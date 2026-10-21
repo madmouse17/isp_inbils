@@ -28,7 +28,7 @@ import { cn } from '@/lib/utils';
 import type { ApprovalInboxItem } from '@/types';
 import { checkInText, type CheckInRecord } from '../../Tickets/components/checkIn';
 import { formatAge } from '../../MyWork/components/utils';
-import { getItemCompositeId } from './utils';
+import { getItemCompositeId, materialQuantity } from './utils';
 
 export interface RefreshQueueResult {
     success: boolean;
@@ -524,18 +524,26 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                     <h4 className="text-sm font-semibold text-muted-foreground">
                         Dampak material dan penggunaan barang
                     </h4>
-                    <p className="text-sm font-medium text-foreground">{item.summary.label}</p>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <span>
-                            Jenis item:{' '}
-                            <strong className="text-foreground">{item.summary.count}</strong>
-                        </span>
-                        <span>
-                            Total kuantitas:{' '}
-                            <strong className="text-foreground">{item.summary.quantity}</strong>{' '}
-                            unit
-                        </span>
-                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        Jenis item:{' '}
+                        <strong className="text-foreground">{item.summary.count}</strong>
+                    </p>
+                    {/* Each product in its own unit: 18 m of cable and 2 pcs of connectors are not 20 of anything. */}
+                    <ul className="space-y-1 text-sm">
+                        {(item.summary.materials ?? []).map((material, index) => (
+                            <li
+                                key={`${material.product}-${index}`}
+                                className="flex items-baseline justify-between gap-3"
+                            >
+                                <span className="min-w-0 font-medium break-words text-foreground">
+                                    {material.product}
+                                </span>
+                                <span className="shrink-0 text-foreground tabular-nums">
+                                    {materialQuantity(material)}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
                     <p className="pt-1 text-xs text-muted-foreground">
                         {isInventory
                             ? 'Persetujuan akan mencadangkan stok di gudang dan mengubah status menjadi Disetujui.'

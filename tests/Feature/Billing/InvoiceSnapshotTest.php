@@ -298,7 +298,8 @@ class InvoiceSnapshotTest extends TestCase
         $this->renameParty($subscription);
 
         $parties = [];
-        View::composer('pdf.invoice', function ($view) use (&$parties): void {
+        // The staff PDF is the invoice; what the customer app downloads is the receipt (kuitansi), which prints the same party.
+        View::composer(['pdf.invoice', 'pdf.receipt'], function ($view) use (&$parties): void {
             $parties[] = $view->getData()['party'];
         });
 

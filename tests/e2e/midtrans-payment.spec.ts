@@ -22,6 +22,7 @@ import {
     loginAs,
     logout,
     selectSearchOption,
+    unique,
 } from './support/demo';
 import { companyDateFormat, formatIsoAs } from './support/dateRange';
 import { apiLogin } from './support/api';
@@ -196,7 +197,9 @@ async function issueInvoice(page: Page): Promise<InvoiceRow> {
     const due = page.getByLabel('Jatuh tempo', { exact: true });
     await due.fill(formatIsoAs(isoDay(14), format));
     await due.press('Tab');
-    await page.getByLabel('Catatan').fill('Midtrans mocked payment');
+    // The duplicate-submit guard refuses an identical write inside 10 seconds, and the tests of this file issue one
+    // invoice each in a row: a note of its own keeps each of them a different write.
+    await page.getByLabel('Catatan').fill(unique('Midtrans mocked payment'));
     await page.getByRole('button', { name: 'Simpan', exact: true }).click();
     await expect(page).toHaveURL(/\/admin\/invoices$/);
 
@@ -350,12 +353,29 @@ test.describe('@lifecycle midtrans payment (mocked gateway)', () => {
         await loginAs(page, 'admin');
         await page.goto(`/admin/invoices/${invoice.id}`);
         await expectDetail(page, 'Status', 'Lunas');
-        await expect(page.getByRole('row').filter({ hasText: 'midtrans' })).toHaveCount(1);
+        // The attempt row names Midtrans too (its notification history), so the payment is the row with the active state.
+        await expect(
+            page.getByRole('row').filter({ hasText: 'midtrans' }).filter({ hasText: 'Aktif' }),
+        ).toHaveCount(1);
         await expect(page.getByRole('heading', { name: 'Pembayaran online' })).toBeVisible();
         const attemptRow = page.getByRole('row').filter({ hasText: `e2e-trx-${orderId}` });
         await expect(attemptRow).toHaveCount(1);
         await expect(attemptRow).toContainText('Lunas');
-        await expect(attemptRow).toContainText('bank_transfer');
+        await expect(attemptRow).toContainText('Transfer bank');
+
+        // The receipt (kuitansi) of a paid invoice is a PDF, offered to who may print it.
+        await expect(page.getByRole('button', { name: 'Unduh kuitansi' })).toBeVisible();
+        const receipt = await page.request.get(`/admin/invoices/${invoice.id}/receipt`);
+        expect(receipt.status()).toBe(200);
+        expect(receipt.headers()['content-type']).toContain('application/pdf');
+        expect((await receipt.body()).subarray(0, 4).toString()).toBe('%PDF');
+
+        // Every verified delivery is on the attempt: the three real ones, not the forged one.
+        await attemptRow.getByText('Riwayat notifikasi Midtrans').click();
+        await expect(attemptRow.getByRole('listitem')).toHaveCount(3);
+        await expect(attemptRow.getByRole('listitem').first()).toContainText(
+            'settlement · dijawab 200',
+        );
     });
 
     test('money that does not match the attempt is quarantined and shown to staff', async ({
@@ -394,9 +414,75 @@ test.describe('@lifecycle midtrans payment (mocked gateway)', () => {
         await expectDetail(page, 'Status', 'Belum dibayar');
         const attemptRow = page.getByRole('row').filter({ hasText: `e2e-trx-${orderId}` });
         await expect(attemptRow).toContainText('Perlu dicek');
-        await expect(attemptRow).toContainText('gross_amount');
+        await expect(attemptRow).toContainText('tidak sama dengan jumlah percobaan ini');
+        await expect(attemptRow).not.toContainText('gross_amount');
         await expect(
             page.getByRole('row').filter({ hasText: 'midtrans' }).filter({ hasText: 'Aktif' }),
         ).toHaveCount(0);
+    });
+
+    test('staff close an open payment page from the invoice and the row says so', async ({
+        page,
+        request,
+    }) => {
+        const invoice = await issueInvoice(page);
+        await logout(page);
+        const api = await apiLogin(request, 'customer');
+        const started = await api.post(`customer/invoices/${invoice.id}/pay`);
+        expect(started.status()).toBe(200);
+
+        await loginAs(page, 'admin');
+        await page.goto(`/admin/invoices/${invoice.id}`);
+
+        // A page nobody has paid yet: waiting, and Midtrans has called about it never.
+        const open = page.getByRole('row').filter({ hasText: 'Menunggu' });
+        await expect(open).toHaveCount(1);
+        await expect(open).toContainText('Tidak ada notifikasi tercatat');
+        await open.getByRole('button', { name: 'Batalkan di Midtrans' }).click();
+        const dialog = page.getByRole('alertdialog', { name: /Batalkan pembayaran online/ });
+        await expect(dialog).toContainText(/Rp\s*100\.000/);
+        await dialog.getByRole('button', { name: 'Batalkan di Midtrans' }).click();
+
+        await expect(
+            page.getByRole('status').filter({ hasText: 'Pembatalan dikirim ke Midtrans.' }),
+        ).toBeVisible();
+        const closed = page.getByRole('row').filter({ hasText: 'Ditutup' });
+        await expect(closed).toHaveCount(1);
+        await expect(closed).toContainText('Dibatalkan oleh staf dari halaman tagihan.');
+        await expect(page.getByRole('button', { name: 'Batalkan di Midtrans' })).toHaveCount(0);
+    });
+
+    test('the finish page words the outcome from the address and repeats nothing of it', async ({
+        page,
+    }) => {
+        const cases: [string, string][] = [
+            ['?order_id=INB-NOT-SHOWN&transaction_status=settlement', 'Pembayaran berhasil'],
+            ['?transaction_status=capture', 'Pembayaran berhasil'],
+            ['?transaction_status=pending', 'Menunggu pembayaran'],
+            ['?order_id=INB-NOT-SHOWN&transaction_status=cancel', 'Pembayaran tidak berhasil'],
+            ['?transaction_status=expire', 'Pembayaran tidak berhasil'],
+            ['?transaction_status=%3Cb%3Ex%3C%2Fb%3E', 'Pembayaran sedang diproses'],
+            ['', 'Pembayaran sedang diproses'],
+        ];
+
+        for (const [query, heading] of cases) {
+            await page.goto(`/pembayaran/selesai${query}`);
+            await expect(page.getByRole('heading', { name: heading, level: 1 })).toBeVisible();
+            await expect(page.getByText('INB-NOT-SHOWN')).toHaveCount(0);
+        }
+
+        // At 320px the way back to the app is one 44px button and nothing spills sideways.
+        await page.setViewportSize({ width: 320, height: 800 });
+        await page.goto('/pembayaran/selesai?transaction_status=settlement');
+        const app = page.getByRole('link', { name: 'Buka aplikasi Inbils' });
+        await expect(app).toHaveAttribute(
+            'href',
+            'https://play.google.com/store/apps/details?id=id.inbils.customer',
+        );
+        expect((await app.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+        const overflow = await page.evaluate(
+            () => document.documentElement.scrollWidth - window.innerWidth,
+        );
+        expect(overflow).toBeLessThanOrEqual(0);
     });
 });

@@ -5,11 +5,10 @@ namespace Modules\Reporting\Exports;
 use App\Models\PlatformAdmin;
 use App\Models\User;
 use App\Services\Core\CompanyService;
-use App\Services\Platform\PlatformAuditService;
+use App\Support\AuditEventText;
 use App\Support\AuditProperties;
 use App\Support\ExportQuery;
 use App\Support\RecordNotFound;
-use App\Support\SupportActionText;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -19,7 +18,6 @@ use Modules\Reporting\Exceptions\ConsolidationRefusedException;
 use Modules\Reporting\Http\Requests\ConsolidatedReportRequest;
 use Modules\Reporting\Http\Requests\ReportDrillExportRequest;
 use Modules\Reporting\Http\Requests\ReportExportRequest;
-use Modules\Reporting\Http\Resources\AuditLogResource;
 use Modules\Reporting\Queries\AuditLogQuery;
 use Modules\Reporting\Queries\ConsolidatedBusinessQuery;
 use Modules\Reporting\Queries\ReportFilters;
@@ -181,11 +179,11 @@ final class ReportExporter
             event: $request->input('event'),
             sortField: (string) ($request->input('sort_by') ?? $request->input('sort') ?? 'created_at'),
             sortDirection: (string) ($request->input('sort_dir') ?? $request->input('direction') ?? 'desc'),
-        )->afterQuery(fn (EloquentCollection $activities) => AuditLogResource::loadSubjects($activities));
+        )->afterQuery(fn (EloquentCollection $activities) => AuditEventText::annotate($activities));
 
         $columns = [
             'ID' => 'id', 'Waktu' => 'time', 'Modul' => 'module', 'Aksi' => 'event', 'Deskripsi' => 'description',
-            'Pelaku' => 'actor', 'ID pelaku' => 'actor_id', 'Jenis subjek' => 'subject_type', 'ID subjek' => 'subject_id',
+            'Pelaku' => 'actor', 'ID pelaku' => 'actor_id', 'Subjek' => 'subject', 'Jenis subjek' => 'subject_type', 'ID subjek' => 'subject_id',
         ];
         $withProperties = $request->exportFormat() === 'csv';
         if ($withProperties) {
@@ -193,17 +191,20 @@ final class ReportExporter
             $columns['Properti'] = 'properties';
         }
 
-        $map = static function (Activity $activity) use ($withProperties): array {
+        // One zone on every surface: the company's, as the page shows it.
+        $timezone = TimeBuckets::timezoneOf(null);
+        $map = static function (Activity $activity) use ($withProperties, $timezone): array {
             $causer = $activity->causer;
             $platformCauser = $causer instanceof PlatformAdmin;
             $row = [
                 'ID' => $activity->public_id,
-                'Waktu' => $activity->created_at?->toDateTimeString(),
+                'Waktu' => $activity->created_at?->copy()->setTimezone($timezone)->toDateTimeString(),
                 'Modul' => $activity->log_name,
                 'Aksi' => $activity->event,
-                'Deskripsi' => $activity->log_name === PlatformAuditService::SUPPORT_LOG ? SupportActionText::for($activity) : $activity->description,
+                'Deskripsi' => AuditEventText::text($activity),
                 'Pelaku' => $platformCauser ? 'Tim dukungan Inbils' : ($causer instanceof User ? $causer->name : ($activity->causer_id ? 'Pengguna dihapus' : 'Sistem')),
                 'ID pelaku' => $causer instanceof User ? $causer->public_id : null,
+                'Subjek' => $activity->getAttribute('subject_label'),
                 'Jenis subjek' => $activity->subject_type,
                 'ID subjek' => $activity->relationLoaded('subject') ? $activity->subject?->getAttribute('public_id') : null,
             ];

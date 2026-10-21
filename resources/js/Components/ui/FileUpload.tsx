@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import type { FilePondFile } from 'filepond';
 import { FilePond } from 'react-filepond';
 import { cn } from '@/lib/utils';
@@ -37,7 +38,7 @@ export function FileUpload({
     previewName = 'Berkas saat ini',
     previewType,
 }: FileUploadProps) {
-    const inputId = label?.toLowerCase().replace(/\s+/g, '-');
+    const inputId = useId();
     const fileType = previewType ?? inferMimeType(previewUrl);
     const canPreviewImage = previewUrl && fileType?.startsWith('image/');
 

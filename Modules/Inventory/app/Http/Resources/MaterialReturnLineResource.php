@@ -33,7 +33,7 @@ class MaterialReturnLineResource extends JsonResource
                 'code' => $this->product->sku,
                 'sku' => $this->product->sku,
                 'type' => $this->product->type,
-                'unit' => $this->product->unit->name ?? null,
+                'unit' => $this->product->unit?->symbol ?? $this->product->unit?->name,
             ]),
             'issued_qty' => (float) $this->issued_qty,
             'actual_used_qty' => (float) $this->actual_used_qty,

@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import React, {
+    createContext,
+    useContext,
+    useState,
+    useCallback,
+    useLayoutEffect,
+    useRef,
+} from 'react';
 import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -19,6 +26,32 @@ export function useToast() {
     const ctx = useContext(ToastContext);
     if (!ctx) throw new Error('useToast must be used within ToastProvider');
     return ctx;
+}
+
+/**
+ * A bar pinned to the top of the viewport (the support banner, the subsidiary ribbon) tells the toaster how tall it
+ * is through a CSS variable, so a toast opens below the bar and never covers its buttons.
+ */
+export function useToastInset(
+    variable: '--support-banner-height' | '--parent-ribbon-height',
+    ref: React.RefObject<HTMLElement | null>,
+) {
+    useLayoutEffect(() => {
+        const bar = ref.current;
+        if (!bar) return;
+
+        const root = document.documentElement.style;
+        const publish = () => root.setProperty(variable, `${bar.offsetHeight}px`);
+        publish();
+        // The bar wraps onto more lines on a narrow screen, so its height is not fixed.
+        const observer = new ResizeObserver(publish);
+        observer.observe(bar);
+
+        return () => {
+            observer.disconnect();
+            root.removeProperty(variable);
+        };
+    }, [variable, ref]);
 }
 
 /*
@@ -126,7 +159,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
                 aria-label="Notifikasi"
                 data-toast-region
                 onPointerDown={(event) => event.stopPropagation()}
-                className="pointer-events-none fixed top-4 right-4 z-60 flex flex-col gap-2"
+                className="pointer-events-none fixed top-[calc(1rem+var(--support-banner-height,0px)+var(--parent-ribbon-height,0px))] right-4 z-60 flex flex-col gap-2"
             >
                 {messages.map((m) => (
                     <div key={m.id} className="pointer-events-auto">

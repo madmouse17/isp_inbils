@@ -1,7 +1,7 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { Link, router, useForm } from '@inertiajs/react';
-import { AlertTriangle, ArrowLeft } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ChevronRight } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
     Alert,
@@ -61,10 +61,30 @@ interface InvoiceSnapshots {
     package_name_snapshot?: string | null;
 }
 
+/** What Midtrans called about one attempt: when it came, what it said and what Inbils answered. */
+interface AttemptCallback {
+    at: string | null;
+    transaction_status: string | null;
+    status_code: string | null;
+    fraud_status: string | null;
+    /** The status code Inbils answered with. */
+    http: number | null;
+}
+
+/** The attempt as this page gets it: the resource adds the Indonesian labels and the last callbacks. */
+interface OnlineAttempt extends InvoicePaymentAttempt {
+    reason_label: string | null;
+    method_label: string | null;
+    callbacks: AttemptCallback[];
+}
+
 interface ShowProps extends Record<string, unknown> {
     invoice: { data: Invoice & InvoiceSnapshots };
-    onlinePayments: { enabled: boolean; attempts: { data: InvoicePaymentAttempt[] } };
-    can: InvoiceCan;
+    onlinePayments: { enabled: boolean; attempts: { data: OnlineAttempt[] } };
+    can: InvoiceCan & {
+        /** Download the receipt of a paid invoice: `billing.pdf.view`. */
+        receipt: boolean;
+    };
 }
 
 // Staff record these; `midtrans` is written only by the payment gateway (RecordPaymentRequest).
@@ -111,6 +131,9 @@ export default function Show({ invoice, onlinePayments, can }: ShowProps) {
     const [removing, setRemoving] = useState(false);
     const [sendOpen, setSendOpen] = useState(false);
     const [sending, setSending] = useState(false);
+    const [cancelTarget, setCancelTarget] = useState<OnlineAttempt | null>(null);
+    const [cancelling, setCancelling] = useState(false);
+    const [cancelError, setCancelError] = useState<string>();
     const { data, setData, post, processing, reset, errors, clearErrors } = useForm({
         amount: '',
         method: 'cash',
@@ -193,6 +216,30 @@ export default function Show({ invoice, onlinePayments, can }: ShowProps) {
         });
     };
 
+    const closeCancelDialog = () => {
+        setCancelTarget(null);
+        setCancelError(undefined);
+    };
+
+    // The server refuses a page that is no longer pending (`cancel` error); the dialog keeps the refusal next to the choice.
+    const cancelAttempt = () => {
+        if (!cancelTarget) return;
+        router.post(
+            route('admin.payment-attempts.cancel', cancelTarget.id),
+            {},
+            {
+                preserveScroll: true,
+                onStart: () => {
+                    setCancelling(true);
+                    setCancelError(undefined);
+                },
+                onSuccess: closeCancelDialog,
+                onError: (formErrors) => setCancelError(formErrors.cancel),
+                onFinish: () => setCancelling(false),
+            },
+        );
+    };
+
     return (
         <AdminLayout title={`Tagihan ${inv.number}`}>
             <div className="space-y-6">
@@ -219,6 +266,21 @@ export default function Show({ invoice, onlinePayments, can }: ShowProps) {
                             >
                                 Unduh PDF
                             </Button>
+                            {inv.status === 'paid' && can.receipt && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        window.open(
+                                            route('admin.invoices.receipt', inv.id),
+                                            '_blank',
+                                        )
+                                    }
+                                >
+                                    Unduh kuitansi
+                                </Button>
+                            )}
                         </>
                     }
                 />
@@ -585,11 +647,11 @@ export default function Show({ invoice, onlinePayments, can }: ShowProps) {
                                                         map={PAYMENT_ATTEMPT_STATUS}
                                                         value={a.status}
                                                     />
-                                                    {a.status_reason && (
+                                                    {a.reason_label && (
                                                         <p
                                                             className={`mt-1 max-w-xs text-xs ${a.status === 'exception' ? 'text-destructive-text' : 'text-muted-foreground'}`}
                                                         >
-                                                            Alasan: {a.status_reason}
+                                                            Alasan: {a.reason_label}
                                                         </p>
                                                     )}
                                                     {a.refund && (
@@ -629,11 +691,74 @@ export default function Show({ invoice, onlinePayments, can }: ShowProps) {
                                                             Tandai dikembalikan
                                                         </Button>
                                                     )}
+                                                    {onlinePayments.enabled &&
+                                                        a.status === 'pending' &&
+                                                        can.record_payment && (
+                                                            <Button
+                                                                type="button"
+                                                                variant="destructive-outline"
+                                                                size="sm"
+                                                                className="mt-2"
+                                                                onClick={() => setCancelTarget(a)}
+                                                            >
+                                                                Batalkan di Midtrans
+                                                                <span className="sr-only">
+                                                                    {' '}
+                                                                    untuk pembayaran{' '}
+                                                                    {formatRupiah(
+                                                                        a.amount,
+                                                                        company,
+                                                                    )}
+                                                                </span>
+                                                            </Button>
+                                                        )}
+                                                    {a.callbacks.length === 0 ? (
+                                                        <p className="mt-2 max-w-xs text-xs text-muted-foreground">
+                                                            Tidak ada notifikasi tercatat.
+                                                        </p>
+                                                    ) : (
+                                                        <details className="group mt-1 max-w-xs text-xs">
+                                                            <summary className="inline-flex min-h-11 cursor-pointer items-center gap-1 rounded-sm font-medium text-foreground underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden sm:min-h-8">
+                                                                <ChevronRight
+                                                                    className="size-4 transition-transform group-open:rotate-90 motion-reduce:transition-none"
+                                                                    aria-hidden="true"
+                                                                />
+                                                                Riwayat notifikasi Midtrans
+                                                            </summary>
+                                                            <ul className="space-y-1 text-muted-foreground">
+                                                                {a.callbacks.map(
+                                                                    (callback, index) => (
+                                                                        <li
+                                                                            key={`${callback.at}-${index}`}
+                                                                            className="tabular-nums"
+                                                                        >
+                                                                            Diterima{' '}
+                                                                            {formatDateTime(
+                                                                                callback.at,
+                                                                                company,
+                                                                            )}{' '}
+                                                                            ·{' '}
+                                                                            {callback.transaction_status ??
+                                                                                'tanpa status'}{' '}
+                                                                            · dijawab{' '}
+                                                                            {callback.http ?? '-'}
+                                                                        </li>
+                                                                    ),
+                                                                )}
+                                                            </ul>
+                                                            {a.callbacks.length >= 5 && (
+                                                                <p className="mt-1 text-muted-foreground">
+                                                                    Notifikasi yang lebih lama tidak
+                                                                    ditampilkan.
+                                                                </p>
+                                                            )}
+                                                        </details>
+                                                    )}
                                                 </TD>
                                                 <TD className="font-medium">
                                                     {formatRupiah(a.amount, company)}
                                                 </TD>
-                                                <TD>{a.payment_type ?? <EmptyCell />}</TD>
+                                                <TD>{a.method_label ?? <EmptyCell />}</TD>
                                                 <TD className="font-mono text-xs break-all">
                                                     {a.transaction_id ?? <EmptyCell />}
                                                 </TD>
@@ -866,6 +991,29 @@ export default function Show({ invoice, onlinePayments, can }: ShowProps) {
                 </Modal>
 
                 <RefundAttemptDialog target={refundTarget} onClose={() => setRefundTarget(null)} />
+
+                <ConfirmDialog
+                    open={cancelTarget !== null}
+                    title="Batalkan pembayaran online?"
+                    description="Halaman bayar ini ditutup dan Midtrans diminta membatalkan transaksinya. Pelanggan tidak bisa lagi membayar lewat halaman itu, tetapi bisa membuka halaman bayar baru dari aplikasi."
+                    details={
+                        cancelTarget
+                            ? [
+                                  `Jumlah: ${formatRupiah(cancelTarget.amount, company)}`,
+                                  `Dibuat: ${formatDateTime(cancelTarget.created_at, company)}`,
+                                  ...(cancelTarget.method_label
+                                      ? [`Metode: ${cancelTarget.method_label}`]
+                                      : []),
+                              ]
+                            : undefined
+                    }
+                    confirmLabel="Batalkan di Midtrans"
+                    tone="danger"
+                    processing={cancelling}
+                    error={cancelError}
+                    onConfirm={cancelAttempt}
+                    onClose={closeCancelDialog}
+                />
 
                 <ConfirmDialog
                     open={removeTarget !== null}

@@ -53,7 +53,7 @@ import {
 import { cn } from '@/lib/utils';
 import { presetRange, todayInZone } from '@/lib/dateRange';
 import { formatDateTime } from '@/lib/format';
-import { AUDIT_EVENT, AUDIT_MODULE, labelOf } from '@/lib/statuses';
+import { AUDIT_MODULE, labelOf } from '@/lib/statuses';
 import type { StatusMap } from '@/lib/statuses/types';
 import { useServerTable } from '@/hooks/useServerTable';
 import { useCompany } from '@/hooks/useCompany';
@@ -72,10 +72,13 @@ export interface AuditLogRow extends Record<string, unknown> {
     description: string;
     /** The sentence the server words for a support entry; null for every other entry. */
     support_text: string | null;
+    /** The one sentence of the entry, worded by the server for every kind of entry. */
+    text: string;
     event: string | null;
     causer_id: string | null;
     causer_type: string | null;
     causer: AuditLogCauser | null;
+    subject_label: string | null;
     subject_type: string | null;
     subject_id: string | null;
     properties?: Record<string, unknown> | unknown[];
@@ -127,12 +130,6 @@ export interface AuditLogProps {
 
 const PER_PAGE_OPTIONS = ['10', '15', '25', '50', '100'].map((value) => ({ value, label: value }));
 
-function formatSubjectShort(type?: string | null, id?: string | null): string {
-    if (!type && id == null) return '-';
-    const cleanType = type ? (type.split('\\').pop() ?? type) : 'Entitas';
-    return id != null ? `${cleanType} #${id}` : cleanType;
-}
-
 function isPlainObject(val: unknown): val is Record<string, unknown> {
     return val !== null && typeof val === 'object' && !Array.isArray(val);
 }
@@ -142,11 +139,6 @@ const MODULES = {
     ...AUDIT_MODULE,
     support: { label: 'Akses dukungan', tone: 'neutral' },
 } satisfies StatusMap;
-
-/** What the entry says: the sentence of a support entry, the stored description of any other. */
-function entryText(row: AuditLogRow): string {
-    return row.support_text ?? row.description ?? '';
-}
 
 function ModuleBadge({ value }: { value: string | null | undefined }) {
     if (!value) return <Badge variant="outline">Umum</Badge>;
@@ -250,15 +242,14 @@ export default function AuditLog({ data, filters, userOptions, selectedUser, can
         if (!term) return safeRows;
 
         return safeRows.filter((row) => {
-            const desc = entryText(row).toLowerCase();
+            const desc = row.text.toLowerCase();
             const logName = (row.log_name ?? '').toLowerCase();
             const event = (row.event ?? '').toLowerCase();
             const causerName = (row.causer?.name ?? '').toLowerCase();
             const causerEmail = (row.causer?.email ?? '').toLowerCase();
-            const subject = (row.subject_type ?? '').toLowerCase();
+            const subject = (row.subject_label ?? '').toLowerCase();
             const idStr = String(row.id);
             const causerIdStr = row.causer_id != null ? String(row.causer_id) : '';
-            const subjectIdStr = row.subject_id != null ? String(row.subject_id) : '';
 
             return (
                 desc.includes(term) ||
@@ -268,8 +259,7 @@ export default function AuditLog({ data, filters, userOptions, selectedUser, can
                 causerEmail.includes(term) ||
                 subject.includes(term) ||
                 idStr.includes(term) ||
-                causerIdStr.includes(term) ||
-                subjectIdStr.includes(term)
+                causerIdStr.includes(term)
             );
         });
     }, [safeRows, localSearch, meta]);
@@ -448,16 +438,9 @@ export default function AuditLog({ data, filters, userOptions, selectedUser, can
                 sortable: true,
                 sortKey: 'created_at',
                 cell: (row) => (
-                    <div className="flex flex-col text-xs whitespace-nowrap">
-                        <span className="font-medium text-foreground">
-                            {formatDateTime(row.created_at)}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                            {row.created_at
-                                ? new Date(row.created_at).toISOString().slice(11, 19) + ' UTC'
-                                : '-'}
-                        </span>
-                    </div>
+                    <span className="text-xs font-medium whitespace-nowrap text-foreground">
+                        {formatDateTime(row.created_at, company)}
+                    </span>
                 ),
             },
             {
@@ -468,21 +451,10 @@ export default function AuditLog({ data, filters, userOptions, selectedUser, can
                 cell: (row) => <ModuleBadge value={row.log_name} />,
             },
             {
-                key: 'event',
-                header: 'Aksi',
-                sortable: true,
-                sortKey: 'event',
-                cell: (row) => <EnumBadge map={AUDIT_EVENT} value={row.event} />,
-            },
-            {
                 key: 'description',
                 header: 'Deskripsi',
-                sortable: true,
-                sortKey: 'description',
                 cell: (row) => (
-                    <div className="max-w-xs truncate text-xs font-medium text-foreground sm:max-w-md">
-                        {entryText(row)}
-                    </div>
+                    <div className="max-w-md text-xs font-medium text-foreground">{row.text}</div>
                 ),
             },
             {
@@ -521,9 +493,7 @@ export default function AuditLog({ data, filters, userOptions, selectedUser, can
                 cell: (row) => (
                     <div className="flex items-center gap-1 text-xs">
                         <Tag className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-                        <span className="font-mono text-muted-foreground">
-                            {formatSubjectShort(row.subject_type, row.subject_id)}
-                        </span>
+                        <span className="text-foreground">{row.subject_label ?? '-'}</span>
                     </div>
                 ),
             },
@@ -560,7 +530,7 @@ export default function AuditLog({ data, filters, userOptions, selectedUser, can
                 },
             },
         ],
-        [],
+        [company],
     );
 
     // Selected row properties extraction
@@ -822,19 +792,15 @@ export default function AuditLog({ data, filters, userOptions, selectedUser, can
                                             <div className="flex items-start justify-between gap-2">
                                                 <div className="flex flex-wrap items-center gap-1.5">
                                                     <ModuleBadge value={row.log_name} />
-                                                    <EnumBadge
-                                                        map={AUDIT_EVENT}
-                                                        value={row.event}
-                                                    />
                                                 </div>
                                                 <span className="text-xs whitespace-nowrap text-muted-foreground">
-                                                    {formatDateTime(row.created_at)}
+                                                    {formatDateTime(row.created_at, company)}
                                                 </span>
                                             </div>
 
                                             {/* Description */}
                                             <p className="text-sm font-medium text-foreground">
-                                                {entryText(row)}
+                                                {row.text}
                                             </p>
 
                                             {/* Metadata */}
@@ -851,10 +817,7 @@ export default function AuditLog({ data, filters, userOptions, selectedUser, can
                                                 <div>
                                                     <span className="block text-xs">Subjek:</span>
                                                     <span className="font-medium text-foreground">
-                                                        {formatSubjectShort(
-                                                            row.subject_type,
-                                                            row.subject_id,
-                                                        )}
+                                                        {row.subject_label ?? '-'}
                                                     </span>
                                                 </div>
                                             </div>
@@ -939,19 +902,13 @@ export default function AuditLog({ data, filters, userOptions, selectedUser, can
                                         Waktu kejadian:
                                     </span>
                                     <span className="font-medium text-foreground">
-                                        {formatDateTime(selectedRow.created_at)}
-                                    </span>
-                                    <span className="ml-1 text-xs text-muted-foreground">
-                                        ({selectedRow.created_at})
+                                        {formatDateTime(selectedRow.created_at, company)}
                                     </span>
                                 </div>
                                 <div>
-                                    <span className="block text-muted-foreground">
-                                        Modul dan aksi:
-                                    </span>
+                                    <span className="block text-muted-foreground">Modul:</span>
                                     <div className="mt-0.5 flex items-center gap-1.5">
                                         <ModuleBadge value={selectedRow.log_name} />
-                                        <EnumBadge map={AUDIT_EVENT} value={selectedRow.event} />
                                     </div>
                                 </div>
                                 <div>
@@ -970,19 +927,14 @@ export default function AuditLog({ data, filters, userOptions, selectedUser, can
                                 </div>
                                 <div>
                                     <span className="block text-muted-foreground">Subjek:</span>
-                                    <span className="font-mono font-medium text-foreground">
-                                        {selectedRow.subject_type ?? '-'}
+                                    <span className="font-medium text-foreground">
+                                        {selectedRow.subject_label ?? '-'}
                                     </span>
-                                    {selectedRow.subject_id != null && (
-                                        <span className="block text-xs text-muted-foreground">
-                                            ID #{selectedRow.subject_id}
-                                        </span>
-                                    )}
                                 </div>
                                 <div className="sm:col-span-2">
                                     <span className="block text-muted-foreground">Deskripsi:</span>
                                     <span className="mt-0.5 block font-medium text-foreground">
-                                        {entryText(selectedRow)}
+                                        {selectedRow.text}
                                     </span>
                                 </div>
                             </div>

@@ -95,7 +95,7 @@ class AppRequestToApprovalTest extends TestCase
         $this->submitAndApprove();
 
         $this->assertSame('completed', $this->workOrder->fresh()->status);
-        $ledger = [...self::HANDED_OVER, 'receive 2.00 at WH by MaterialReturnLine'];
+        $ledger = [...self::HANDED_OVER, 'return 2.00 at WH by MaterialReturnLine'];
         $this->assertLedger($ledger, '92.00');
 
         $this->approveAgain($ledger, '92.00');
@@ -147,10 +147,10 @@ class AppRequestToApprovalTest extends TestCase
     {
         $this->actingAs($this->manager)->postJson(route('admin.inventory.requests.approve', $request))->assertOk();
 
-        foreach (['prepare', 'ready', 'issue'] as $step) {
+        foreach (['prepare', 'issue'] as $step) {
             $this->actingAs($this->warehouseStaff)->postJson(route("admin.inventory.requests.{$step}", $request))
                 ->assertOk()
-                ->assertJsonPath('data.status', ['prepare' => 'preparing', 'ready' => 'ready_for_pickup', 'issue' => 'issued'][$step]);
+                ->assertJsonPath('data.status', ['prepare' => 'ready_for_pickup', 'issue' => 'issued'][$step]);
         }
 
         return $this->api('GET', 'technician/material-returns?work_order_id='.$this->workOrder->public_id, token: $this->token)
@@ -222,7 +222,7 @@ class AppRequestToApprovalTest extends TestCase
 
         $stock = Stock::withoutCompany()->where('product_id', $this->product->id)->where('location_id', $this->warehouse->id)->sole();
         $this->assertSame([$quantity, '0.00'], [$stock->quantity, $stock->reserved_quantity]);
-        $this->assertEqualsWithDelta((float) $quantity, (float) $movements->whereIn('movement_type', ['receive', 'issue'])->sum('quantity'), 0.001, 'receipts less issues are what the warehouse holds');
+        $this->assertEqualsWithDelta((float) $quantity, (float) $movements->whereIn('movement_type', ['receive', 'return', 'issue'])->sum('quantity'), 0.001, 'receipts and returns less issues are what the warehouse holds');
         $this->assertEqualsWithDelta(0.0, (float) $movements->whereIn('movement_type', ['reserve', 'release'])->sum('quantity'), 0.001, 'every reservation was released');
         $this->assertSame($quantity, $movements->last()->balance_after);
         $this->assertNull(Stock::withoutCompany()->where('location_id', $this->pop->id)->first(), 'the POP of the SPK was never looked up or created');

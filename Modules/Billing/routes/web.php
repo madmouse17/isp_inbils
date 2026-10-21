@@ -5,6 +5,7 @@ use App\Http\Middleware\EnsureCustomerAccess;
 use Illuminate\Support\Facades\Route;
 use Modules\Billing\Http\Controllers\InvoiceController;
 use Modules\Billing\Http\Controllers\PaymentAttemptController;
+use Modules\Billing\Http\Controllers\Portal\PaymentFinishController;
 use Modules\Billing\Http\Controllers\Portal\PaymentReturnController;
 use Modules\Billing\Models\Invoice;
 
@@ -15,6 +16,7 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
     Route::post('invoices/generate-preview', [InvoiceController::class, 'generatePreview'])->name('invoices.generate-preview');
     Route::post('invoices/generate', [InvoiceController::class, 'generate'])->name('invoices.generate');
     Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoices.pdf');
+    Route::get('invoices/{invoice}/receipt', [InvoiceController::class, 'receipt'])->name('invoices.receipt');
     Route::resource('invoices', InvoiceController::class);
     LifecycleController::routes('invoices', Invoice::class, ['restore']);
     Route::post('invoices/{invoice}/send', [InvoiceController::class, 'send'])->name('invoices.send');
@@ -24,9 +26,10 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
     Route::post('invoices/{invoice}/items', [InvoiceController::class, 'addItem'])->name('invoices.items.store');
     Route::delete('invoices/{invoice}/items/{item}', [InvoiceController::class, 'removeItem'])->name('invoices.items.destroy');
     Route::post('payment-attempts/{attempt}/refund', [PaymentAttemptController::class, 'refund'])->name('payment-attempts.refund');
+    Route::post('payment-attempts/{attempt}/cancel', [PaymentAttemptController::class, 'cancel'])->name('payment-attempts.cancel');
 });
 
-Route::inertia('pembayaran/selesai', 'Portal/Payments/Finished')->name('payments.finished');
+Route::get('pembayaran/selesai', PaymentFinishController::class)->name('payments.finished');
 
 // Midtrans return target of payments opened before the app-only cutover (Midtrans keeps the finish URL per transaction).
 // Deliberately outside redirect.app.only: a customer coming back from the hosted payment page must see its status.

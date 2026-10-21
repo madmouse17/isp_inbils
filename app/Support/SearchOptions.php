@@ -25,6 +25,8 @@ final class SearchOptions
 
     public const LIMIT = 20;
 
+    public const RECENT_LIMIT = 10;
+
     /**
      * @template TModel of Model
      *
@@ -54,6 +56,8 @@ final class SearchOptions
 
             if (mb_strlen($term) >= self::MIN_CHARS) {
                 $models = $models->concat(self::matches($base, $searchColumns, $term, $models->modelKeys()));
+            } elseif ($term === '' && $request->query($field.'_recent') === '1') {
+                $models = $models->concat(self::recent($base, $models->modelKeys()));
             }
 
             return $models->take(self::LIMIT)->map(function (Model $model) use ($present): array {
@@ -66,6 +70,27 @@ final class SearchOptions
                 ];
             })->values()->all();
         });
+    }
+
+    /**
+     * The newest rows, for a picker that is opened before anything is typed. Newest is by primary key, the cheapest
+     * order every table has; the caller's own ordering is dropped because it exists for the alphabetical search.
+     *
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel>  $base
+     * @param  array<int, int|string>  $exceptKeys
+     * @return Collection<int, TModel>
+     */
+    private static function recent(Builder $base, array $exceptKeys)
+    {
+        $query = (clone $base)->reorder()->orderByDesc($base->getModel()->getQualifiedKeyName())->limit(self::RECENT_LIMIT);
+
+        if ($exceptKeys !== []) {
+            $query->whereKeyNot($exceptKeys);
+        }
+
+        return $query->get();
     }
 
     /**

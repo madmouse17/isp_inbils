@@ -71,7 +71,8 @@ class InventoryRequestApprovalAdapter
         if ($withRelations) {
             $query->with([
                 'requester:id,public_id,name',
-                'items.product:id,public_id,name',
+                'items.product:id,public_id,name,unit_id',
+                'items.product.unit:id,name,symbol',
             ]);
         }
 

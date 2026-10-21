@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import type { PageProps } from '@/types';
-import { ChevronDown, CircleUser, LogOut, Menu, Moon, Sun } from 'lucide-react';
+import { Building2, ChevronDown, CircleUser, LogOut, Menu, Moon, Sun } from 'lucide-react';
 import {
     Button,
     Dropdown,
@@ -22,11 +22,66 @@ import { useNavigationBusy } from '@/hooks/useNavigationBusy';
 import { useTheme } from '@/hooks/useTheme';
 import { useToast } from '@/hooks/useToast';
 import { activeNavHref, visibleNavGroups } from '@/lib/navigation';
+import { useToastInset } from '@/Components/ui/Toast';
 
 interface AdminLayoutProps {
     /** Names the page in the tab and the top bar; every page passes one. */
     title: string;
     children: React.ReactNode;
+}
+
+/** Names the subsidiary the user acts in and offers the way back to its Head, which a switcher alone leaves unsaid. */
+function ParentRibbon() {
+    const { company, companyHierarchy } = usePage<PageProps>().props;
+    const parent = companyHierarchy?.parent;
+
+    return parent && company ? <RibbonBar companyName={company.name} parent={parent} /> : null;
+}
+
+function RibbonBar({
+    companyName,
+    parent,
+}: {
+    companyName: string;
+    parent: { id: string; name: string; can_switch: boolean };
+}) {
+    const bar = useRef<HTMLDivElement>(null);
+    const [busy, setBusy] = useState(false);
+    useToastInset('--parent-ribbon-height', bar);
+
+    return (
+        <div
+            ref={bar}
+            role="region"
+            aria-label="Perusahaan induk"
+            className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-border bg-secondary px-4 py-2 text-sm text-secondary-foreground md:px-6"
+        >
+            <p className="flex min-w-0 items-center gap-2">
+                <Building2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span className="min-w-0">
+                    Sedang di anak perusahaan <strong>{companyName}</strong>
+                </span>
+            </p>
+            {parent.can_switch ? (
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    loading={busy}
+                    aria-label={`Kembali ke induk: ${parent.name}`}
+                    onClick={() =>
+                        router.post(
+                            route('admin.company.switch'),
+                            { company_id: parent.id },
+                            { onStart: () => setBusy(true), onFinish: () => setBusy(false) },
+                        )
+                    }
+                >
+                    Kembali ke induk
+                </Button>
+            ) : null}
+        </div>
+    );
 }
 
 export default function AdminLayout({ title, children }: AdminLayoutProps) {
@@ -55,9 +110,16 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
 
     return (
         <>
+            <a
+                href="#main-content"
+                className="sr-only z-60 rounded-md bg-background px-3 py-2 text-sm font-medium focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:ring-2 focus:ring-ring"
+            >
+                Langsung ke konten
+            </a>
             <Head title={title} />
             <div className="flex h-screen flex-col overflow-hidden bg-muted/30 text-foreground dark:bg-background">
                 <ImpersonationBanner />
+                <ParentRibbon />
                 <div className="flex min-h-0 flex-1 overflow-hidden">
                     <Sidebar
                         open={sidebarOpen}
@@ -178,9 +240,12 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                             {navigating ? 'Memuat halaman…' : ''}
                         </div>
                         <main
+                            id="main-content"
+                            // Focusable by script, so the skip link lands the next Tab in the page and not back in the menu.
+                            tabIndex={-1}
                             aria-busy={navigating || undefined}
                             // scroll-pb: a sticky action bar at the foot of a page never hides the field that has focus.
-                            className="min-h-0 flex-1 scroll-pb-24 scrollbar-thin [scrollbar-color:hsl(var(--muted-foreground))_transparent] overflow-y-auto p-4 md:p-6 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent"
+                            className="min-h-0 flex-1 scroll-pb-24 scrollbar-thin [scrollbar-color:hsl(var(--muted-foreground))_transparent] overflow-y-auto p-4 focus:outline-hidden md:p-6 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent"
                         >
                             <div className="mx-auto space-y-6 w-full max-w-[1600px]">
                                 <TwoFactorPrompt />

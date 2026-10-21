@@ -102,7 +102,7 @@ class ErrorEnvelopeTest extends TestCase
         $response = $this->getJson('/api/v1/_probe/stock');
 
         $this->assertEnvelope($response, 422, 'unprocessable');
-        $response->assertJsonPath('message', 'Stok Kabel Drop di Gudang A tersisa 2 m, dibutuhkan 5 m.');
+        $response->assertJsonPath('message', 'Stok Kabel Drop di Gudang A tidak cukup: tersedia 2 m, diminta 5 m.');
     }
 
     public function test_a_domain_exception_carries_its_own_code_and_headers(): void

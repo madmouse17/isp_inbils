@@ -16,6 +16,7 @@ use App\Models\Core\WhatsAppMessage;
 use App\Models\User;
 use App\Queries\Admin\CustomerAcquirerQuery;
 use App\Queries\Admin\CustomerHistoryQuery;
+use App\Queries\Admin\DispatchQueueQuery;
 use App\Services\Core\CompanyService;
 use App\Services\Core\IndonesiaRegionService;
 use App\Services\Core\LifecycleService;
@@ -80,6 +81,7 @@ class CustomerController extends Controller
 
         $canAssignAcquirer = $request->user()?->can('assignAcquirer', Customer::class) ?? false;
         $canAssignDrop = $request->user()?->can('odn.assign') ?? false;
+        $canAssignTechnician = $request->user()?->can('spk.assign') ?? false;
 
         return Inertia::render('Admin/Customers/Create', [
             'packages' => DB::table('service_packages')
@@ -113,7 +115,9 @@ class CustomerController extends Controller
             'acquirerDefaultId' => $canAssignAcquirer && CustomerAcquirerQuery::defaultId($request->user()) !== null ? $request->user()->public_id : null,
             // Free ODP ports under the chosen serving POP; evaluated only on a partial reload that asks for it (query serving_pop_id).
             ...($canAssignDrop ? ['dropPortOptions' => OdnOccupancyQuery::dropPortOptions($request, PublicId::resolveOne(Location::class, $request->query('serving_pop_id')))] : []),
-            'can' => ['assignAcquirer' => $canAssignAcquirer, 'assignDrop' => $canAssignDrop],
+            'can' => ['assignAcquirer' => $canAssignAcquirer, 'assignDrop' => $canAssignDrop, 'assignTechnician' => $canAssignTechnician],
+            // "Tugaskan sekarang": the technicians with the work each holds, only for someone who may assign; a reload that asks for other props skips the query.
+            'technicians' => fn (): array => $canAssignTechnician ? DispatchQueueQuery::eligibleTechnicians($request) : [],
             'codeSequence' => self::codeSequence(),
         ]);
     }
@@ -125,8 +129,13 @@ class CustomerController extends Controller
 
         $customer = CreateCustomerOnboardingAction::execute($request->validated(), $request->user());
 
-        return redirect()->route('admin.customers.show', $customer)
-            ->with('success', 'Pelanggan, langganan, dan SPK pemasangan dibuat. Link akses dikirim ke '.$customer->email.'.');
+        $technicianId = $request->validated('assign_technician_id');
+        $notice = 'Pelanggan, langganan, dan SPK pemasangan dibuat'
+            .($technicianId === null ? '.' : ' dan ditugaskan ke '.User::query()->whereKey($technicianId)->value('name').'.')
+            // The mail is queued, and an inactive account gets none: the message says what will happen, not that it happened.
+            .($customer->is_active ? ' Tautan akses akan dikirim ke '.$customer->email.'.' : '');
+
+        return redirect()->route('admin.customers.show', $customer)->with('success', $notice);
     }
 
     public function show(Request $request, int|string $customer): InertiaResponse

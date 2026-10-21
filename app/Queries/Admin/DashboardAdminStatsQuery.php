@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\Core\CompanyService;
 use App\Services\Platform\PlatformAuditService;
+use App\Support\AuditEventText;
 use Illuminate\Database\Eloquent\Model;
 use Modules\Billing\Models\Invoice;
 use Modules\Inventory\Models\Product;
@@ -49,7 +50,7 @@ final class DashboardAdminStatsQuery
      *     activeUserCount: int,
      *     roleCount: int,
      *     permissionCount: int,
-     *     recentActivity: list<array{id: string, log_name: string|null, description: string, created_at: string|null}>,
+     *     recentActivity: list<array{id: string, log_name: string|null, description: string, text: string, created_at: string|null}>,
      *     modules: list<array{name: string, href: string, count: int}>
      * }
      */
@@ -73,6 +74,8 @@ final class DashboardAdminStatsQuery
                     'id' => $activity->public_id,
                     'log_name' => $activity->log_name,
                     'description' => $activity->description,
+                    // Without properties: the dashboard is no reader of the audit log's details.
+                    'text' => AuditEventText::text($activity, withProperties: false),
                     'created_at' => $activity->created_at?->toISOString(),
                 ])
                 ->all(),

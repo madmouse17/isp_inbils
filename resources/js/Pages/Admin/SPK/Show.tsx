@@ -14,6 +14,7 @@ import {
     CardContent,
     CardHeader,
     CardTitle,
+    DatePicker,
     EnumBadge,
     FileUpload,
     Input,
@@ -39,6 +40,7 @@ import type { RemoteOption, WorkOrderStep, WorkOrderStepKey } from '@/Components
 import { SuggestionChip } from '@/Components/composite/SuggestionChip';
 import { formatDate, formatDateTime, formatRupiah } from '@/lib/format';
 import { lowestLoad } from '@/lib/suggest';
+import { visitDateDefault } from '@/Pages/Admin/Dispatch/components/AssignDialog';
 import { INVOICE_STATUS, PRIORITY, WORK_ORDER_STATUS, WORK_ORDER_TYPE } from '@/lib/statuses';
 import type { PageProps } from '@/types';
 import type { DropPort } from '@/types/ipam-odn';
@@ -125,7 +127,13 @@ interface ShowProps extends Record<string, unknown> {
     /** The ODP port reserved for the customer (read-only); installation SPKs with a drop, odn.view only. */
     dropPort?: DropPort | null;
     /** What this person may do on this SPK in its status: the page shows no button the server would refuse. */
-    can: { uploadEvidence: boolean; start: boolean; cancel: boolean; reassign: boolean };
+    can: {
+        uploadEvidence: boolean;
+        start: boolean;
+        cancel: boolean;
+        reassign: boolean;
+        edit: boolean;
+    };
     checkIn?: CheckInRecord | null;
     /** The four steps of the visit; `[]` for a cancelled SPK. */
     steps: WorkOrderStep[];
@@ -421,7 +429,13 @@ export default function Show({
         network_asset_id: '',
         quantity_used: '',
         note: '',
+        scheduled_date: '',
     });
+    // The dialog starts from the visit day the SPK has, unless it is past (the server refuses a past day).
+    const openAssign = () => {
+        setData('scheduled_date', visitDateDefault(w.scheduled_date, company?.timezone));
+        setActionModal('assign');
+    };
     // An assigned or running visit changes hands; a draft or a rejected SPK is assigned (again).
     const reassigning = w.status === 'assigned' || w.status === 'in_progress';
     // Assigning an assigned or running SPK changes its technician, and the dialog says so.
@@ -568,14 +582,21 @@ export default function Show({
                     title={w.title}
                     subtitle={w.code}
                     actions={
-                        <Button
-                            asChild
-                            variant="outline"
-                            size="sm"
-                            leftIcon={<ArrowLeft className="size-4" />}
-                        >
-                            <Link href={route('admin.spk.index')}>Kembali</Link>
-                        </Button>
+                        <>
+                            <Button
+                                asChild
+                                variant="outline"
+                                size="sm"
+                                leftIcon={<ArrowLeft className="size-4" />}
+                            >
+                                <Link href={route('admin.spk.index')}>Kembali</Link>
+                            </Button>
+                            {permissions.edit && (
+                                <Button asChild variant="outline" size="sm">
+                                    <Link href={route('admin.spk.edit', w.id)}>Ubah</Link>
+                                </Button>
+                            )}
+                        </>
                     }
                 />
 
@@ -683,10 +704,7 @@ export default function Show({
                                     {(w.status === 'draft' ||
                                         w.status === 'generated' ||
                                         w.status === 'rejected') && (
-                                        <Button
-                                            type="button"
-                                            onClick={() => setActionModal('assign')}
-                                        >
+                                        <Button type="button" onClick={openAssign}>
                                             Tugaskan
                                         </Button>
                                     )}
@@ -694,7 +712,7 @@ export default function Show({
                                         <Button
                                             type="button"
                                             variant="outline"
-                                            onClick={() => setActionModal('assign')}
+                                            onClick={openAssign}
                                         >
                                             Ganti teknisi
                                         </Button>
@@ -985,24 +1003,35 @@ export default function Show({
                             </Alert>
                         )}
                         {actionModal === 'assign' && (
-                            <div className="space-y-2">
-                                <SearchSelect
-                                    label="Teknisi"
-                                    value={data.technician_id}
-                                    onChange={(value) => setData('technician_id', value)}
-                                    options={technicianOptions}
-                                    placeholder="Cari karyawan teknisi"
-                                    emptyText="Tidak ada karyawan teknisi yang cocok."
-                                    error={errors.technician_id}
-                                    required
-                                />
-                                {lightest && data.technician_id === '' && (
-                                    <SuggestionChip
-                                        value={`${lightest.name} (beban terendah: ${lightest.open_today} SPK hari ini)`}
-                                        onUse={() => setData('technician_id', String(lightest.id))}
+                            <>
+                                <div className="space-y-2">
+                                    <SearchSelect
+                                        label="Teknisi"
+                                        value={data.technician_id}
+                                        onChange={(value) => setData('technician_id', value)}
+                                        options={technicianOptions}
+                                        placeholder="Cari karyawan teknisi"
+                                        emptyText="Tidak ada karyawan teknisi yang cocok."
+                                        error={errors.technician_id}
+                                        required
                                     />
-                                )}
-                            </div>
+                                    {lightest && data.technician_id === '' && (
+                                        <SuggestionChip
+                                            value={`${lightest.name} (beban terendah: ${lightest.open_today} SPK hari ini)`}
+                                            onUse={() =>
+                                                setData('technician_id', String(lightest.id))
+                                            }
+                                        />
+                                    )}
+                                </div>
+                                <DatePicker
+                                    label="Tanggal kunjungan"
+                                    value={data.scheduled_date}
+                                    onChange={(value) => setData('scheduled_date', value)}
+                                    error={errors.scheduled_date}
+                                    hint="Opsional. Kosong berarti jadwal SPK tidak berubah."
+                                />
+                            </>
                         )}
                         {(actionModal === 'reject' || actionModal === 'cancel') && (
                             <Input

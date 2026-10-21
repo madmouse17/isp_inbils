@@ -164,7 +164,7 @@ class AuditLogSupportTextTest extends TestCase
         $support = $records->firstWhere('Aksi', 'user.two_factor_reset');
         $this->assertSame('Tim dukungan Inbils mengatur ulang 2FA Budi Santoso', $support['Deskripsi']);
         $this->assertSame('Tim dukungan Inbils', $support['Pelaku'], 'the operator stays masked');
-        $this->assertSame('invoice_generated', $records->firstWhere('Aksi', 'invoice_generated')['Deskripsi'], 'any other row keeps its description');
+        $this->assertSame('billing: invoice generated', $records->firstWhere('Aksi', 'invoice_generated')['Deskripsi'], 'a pair the dictionary does not know reads as itself, underscores as spaces');
 
         $searched = $this->csvRecords($this->get(route('admin.reports.audit-log.export', ['format' => 'csv', 'search' => 'ulang 2FA'])));
         $this->assertSame(['Tim dukungan Inbils mengatur ulang 2FA Budi Santoso'], array_column($searched, 'Deskripsi'), 'the export filters on the same words');

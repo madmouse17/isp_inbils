@@ -21,6 +21,7 @@ use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Mailer\Exception\TransportException;
 use Symfony\Component\Mailer\Exception\UnexpectedResponseException;
@@ -80,6 +81,13 @@ class CompanyMailChannelTest extends TestCase
         ];
     }
 
+    private function lastHtml(): string
+    {
+        $this->assertNotEmpty($this->sent, 'nothing was sent');
+
+        return (string) $this->sent[array_key_last($this->sent)]->message->getHtmlBody();
+    }
+
     private function send(User $to, Notification $notification): void
     {
         app(ChannelManager::class)->sendNow($to, $notification);
@@ -109,7 +117,47 @@ class CompanyMailChannelTest extends TestCase
 
         CompanyService::runAs($this->subA->id, fn () => $this->send($user, new CompanyMailProbe()));
 
+        $this->assertSame(['from' => ['platform@inbils.test'], 'fromName' => ['Sub A'], 'mailer' => 'array'], $this->lastMail());
+    }
+
+    public function test_brand_and_from_name(): void
+    {
+        Storage::fake('public');
+        Storage::fake('local');
+        $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==');
+        $public = $this->subA->addMediaFromString($png)->usingFileName('logo.png')->toMediaCollection('logo');
+        $this->subB->addMediaFromString($png)->usingFileName('logo.png')->toMediaCollection('logo', 'local');
+
+        CompanyService::runAs($this->subA->id, fn () => $this->send($this->groupUser($this->subA, 'staff'), new CompanyMailProbe()));
+        $html = $this->lastHtml();
+
+        $this->assertSame(['from' => ['platform@inbils.test'], 'fromName' => ['Sub A'], 'mailer' => 'array'], $this->lastMail(), 'the platform address and server, the ISP\'s name');
+        $this->assertStringContainsString('<img src="'.$public->getFullUrl().'" class="logo" alt="Sub A"', $html, 'the public logo heads the mail');
+        $this->assertStringContainsString('Sub A. Hak cipta dilindungi.', $html);
+        $this->assertStringContainsString('Salam,', $html, 'the salutation names the ISP');
+        $this->assertStringNotContainsString('laravel.com', $html, 'not the stock Laravel logo');
+        $this->assertStringNotContainsString('© '.date('Y').' Laravel', $html);
+
+        CompanyService::runAs($this->subB->id, fn () => $this->send($this->groupUser($this->subB, 'staff'), new CompanyMailProbe()));
+        $html = $this->lastHtml();
+
+        $this->assertStringNotContainsString('<img', $html, 'a logo that is not on the public disk is never linked: the name stands alone');
+        $this->assertStringContainsString('Sub B', $html);
+    }
+
+    public function test_platform_mail_keeps_inbils(): void
+    {
+        Storage::fake('public');
+        $this->head->addMediaFromString(base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='))->usingFileName('logo.png')->toMediaCollection('logo');
+        $admin = $this->groupUser($this->head);
+
+        CompanyService::runAs($this->head->id, fn () => $this->send($admin, new TenantAdminInvitation($this->head->id)));
+        $html = $this->lastHtml();
+
         $this->assertSame(['from' => ['platform@inbils.test'], 'fromName' => ['Inbils'], 'mailer' => 'array'], $this->lastMail());
+        $this->assertStringContainsString('Inbils. Hak cipta dilindungi.', $html);
+        $this->assertStringNotContainsString('<img', $html, 'the platform wears no ISP logo');
+        $this->assertStringNotContainsString('Group Head. Hak cipta', $html);
     }
 
     public function test_a_disabled_or_another_companys_row_does_not_count(): void
@@ -205,7 +253,7 @@ class CompanyMailChannelTest extends TestCase
 
         CompanyService::runAs($this->subA->id, fn () => $this->send($user, new CompanyMailProbe()));
 
-        $this->assertSame(['from' => ['platform@inbils.test'], 'fromName' => ['Inbils'], 'mailer' => 'array'], $this->lastMail(), 'sent by the platform, as for a company with no integration');
+        $this->assertSame(['from' => ['platform@inbils.test'], 'fromName' => ['Sub A'], 'mailer' => 'array'], $this->lastMail(), 'sent by the platform, as for a company with no integration');
         $row->refresh();
         $this->assertSame('Host 169.254.169.254 tidak diizinkan (alamat lokal atau metadata).', $row->last_error);
         $this->assertNull($row->verified_at);

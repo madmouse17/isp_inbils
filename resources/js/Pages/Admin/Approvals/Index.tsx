@@ -26,7 +26,7 @@ import { formatAge } from '../MyWork/components/utils';
 import { FilterBar } from './components/FilterBar';
 import { MobileItemCard } from './components/MobileItemCard';
 import { ReviewSheet, type RefreshQueueResult } from './components/ReviewSheet';
-import { getItemCompositeId } from './components/utils';
+import { getItemCompositeId, materialsLine } from './components/utils';
 
 export type { ApprovalInboxItem };
 
@@ -250,7 +250,7 @@ export default function ApprovalInboxIndex({
                     <p className="text-xs text-muted-foreground">
                         {labelOf(APPROVAL_TYPE, row.type)}
                         {' | '}
-                        {row.summary.label}: {row.summary.count} jenis, {row.summary.quantity} unit
+                        {materialsLine(row.summary.materials ?? []) || row.summary.label}
                     </p>
                 </div>
             ),

@@ -102,9 +102,13 @@ async function tabTo(page: Page, control: Locator) {
     ).toBe(true);
 }
 
+// W3-NOTIFY (design-w3 §4.8): the heading of an assignment is the code and the priority, the text is the ticket's title
+// and the response deadline. The tickets of this spec are created with priority low.
+const assignedTitle = (ticket: Ticket) => `Tiket ${ticket.code} · Rendah`;
+
 function article(page: Page, ticket: Ticket) {
     return page.getByRole('article').filter({
-        has: page.getByText(`Tiket ${ticket.code} sudah ditugaskan kepada Anda.`, { exact: true }),
+        has: page.getByRole('heading', { name: assignedTitle(ticket) }),
     });
 }
 
@@ -115,7 +119,7 @@ async function clearOwnedUnread(page: Page, owned: Ticket[], deleted = false) {
         result = await inbox(page, pageNumber);
         for (const row of result.data.filter((row) =>
             owned.some(
-                (ticket) => row.message === `Tiket ${ticket.code} sudah ditugaskan kepada Anda.`,
+                (ticket) => row.type === 'ticket_assigned' && row.title === assignedTitle(ticket),
             ),
         )) {
             if (deleted) expect(row.detail_url).toBeNull();
@@ -194,7 +198,8 @@ test('@notification-center owned assignments persist reads and reassignment noti
             expect(matches, `Notification for ${ticket.code}`).toHaveLength(1);
             expect(matches[0]).toMatchObject({
                 type: 'ticket_assigned',
-                title: 'Tiket ditugaskan',
+                title: assignedTitle(ticket),
+                message: expect.stringContaining(`${ticket.title}.`),
                 read_at: null,
             });
             notificationIds.push(matches[0].id);

@@ -403,7 +403,8 @@ class DashboardPersonaTest extends TestCase
         $this->assertNotContains('foreign-activity', $feed->pluck('description')->all());
         $this->assertNotContains('json-copy-activity', $feed->pluck('description')->all());
         $this->assertLessThanOrEqual(10, $feed->count());
-        $this->assertSame(['id', 'log_name', 'description', 'created_at'], array_keys($feed->firstWhere('description', 'visible-activity')));
+        $this->assertSame(['id', 'log_name', 'description', 'text', 'created_at'], array_keys($feed->firstWhere('description', 'visible-activity')));
+        $this->assertSame('dashboard: visible-activity', $feed->firstWhere('description', 'visible-activity')['text'], 'a pair the dictionary does not know reads as itself, never as a bare code');
     }
 
     /** @return array<string, array{0: string}> */

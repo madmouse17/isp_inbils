@@ -9,7 +9,9 @@ use Modules\Inventory\Models\MaterialReturnLine;
 
 /**
  * A custody case as its technician sees it: lines and own declaration, never the warehouse actors or the
- * idempotency and payload hashes.
+ * idempotency and payload hashes. A line also says what the SPK of the case already records as used for its product
+ * (`recorded_used_qty`), so the declaration starts from the technician's own note instead of asking again. The
+ * controller loads `workOrder.items`, so nothing here is read lazily.
  *
  * @property MaterialReturnCase $resource
  */
@@ -51,6 +53,8 @@ class TechnicianMaterialReturnResource extends JsonResource
                     'unit' => data_get($line, 'product.unit.symbol') ?? data_get($line, 'product.unit.name'),
                 ],
                 'issued_qty' => (float) $line->issued_qty,
+                /** What the SPK of the case records as used for this product ("Catat pemakaian"); null when the case has no SPK. */
+                'recorded_used_qty' => $case->workOrder === null ? null : round((float) $case->workOrder->items->where('product_id', $line->product_id)->sum('quantity_used'), 2),
                 'actual_used_qty' => (float) $line->actual_used_qty,
                 'declared_good_return_qty' => (float) $line->declared_good_return_qty,
                 'declared_discrepancy_qty' => (float) $line->declared_discrepancy_qty,

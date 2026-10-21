@@ -3573,6 +3573,74 @@
                 }
             }
         },
+        "/customer/tickets/{id}/confirmation": {
+            "post": {
+                "operationId": "v1.customer.tickets.confirmation",
+                "summary": "\"Masalah sudah beres?\" (K14): the customer rates a resolved ticket, which closes it, or a closed one that was never rated.\nOnly the customer's own ticket (a stranger's id is a 404) and only with the permission to rate. The answer is the ticket as the\ndetail shows it, so the app redraws from it",
+                "tags": [
+                    "Ticket"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ConfirmCustomerTicketRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`CustomerTicketResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "allOf": [
+                                                {
+                                                    "$ref": "#/components/schemas/CustomerTicketResource"
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "required": [
+                                                        "description",
+                                                        "resolution_note",
+                                                        "comments",
+                                                        "attachments"
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
         "/technician/tickets/{id}": {
             "get": {
                 "operationId": "v1.technician.tickets.show",
@@ -4870,6 +4938,28 @@
                 ],
                 "title": "ChangePasswordRequest"
             },
+            "ConfirmCustomerTicketRequest": {
+                "type": "object",
+                "description": "The customer's answer to \"Masalah sudah beres?\": a rating of 1 to 5 and, if they like, a word about it (K14). Whose ticket it is,\nand whether it can be rated, is decided by TicketPolicy::confirm and TicketService::confirmByCustomer.",
+                "properties": {
+                    "rating": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 5
+                    },
+                    "comment": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 1000
+                    }
+                },
+                "required": [
+                    "rating"
+                ],
+                "title": "ConfirmCustomerTicketRequest"
+            },
             "CustomerAnnouncementResource": {
                 "type": "object",
                 "properties": {
@@ -5470,7 +5560,48 @@
                             "null"
                         ],
                         "format": "date-time",
-                        "description": "When a reply of the customer last brought the resolved ticket back; null if it never did."
+                        "description": "When the ticket last came back to work, by a reply of the customer on a resolved ticket or by staff reopening it; null if it never did."
+                    },
+                    "rating": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "description": "What the customer rated the ticket (value 1 to 5, an optional comment, when); null until they did. A rating stays\nwhen the ticket is reopened.",
+                        "properties": {
+                            "value": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "comment": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "rated_at": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "date-time"
+                            }
+                        },
+                        "required": [
+                            "value",
+                            "comment",
+                            "rated_at"
+                        ]
+                    },
+                    "can_confirm": {
+                        "type": "boolean",
+                        "description": "True on a resolved ticket the customer has not rated: \"Sudah beres\" closes it together with a rating."
+                    },
+                    "can_rate": {
+                        "type": "boolean",
+                        "description": "True on a closed ticket nobody rated: the customer can still rate it."
                     },
                     "description": {
                         "type": [
@@ -5513,7 +5644,10 @@
                     "sla_deadline",
                     "handler_first_name",
                     "can_reply",
-                    "reopened_at"
+                    "reopened_at",
+                    "rating",
+                    "can_confirm",
+                    "can_rate"
                 ],
                 "title": "CustomerTicketResource"
             },
@@ -6513,57 +6647,13 @@
                             "material_return_exception",
                             "material_return_rejected",
                             "announcement_published",
+                            "customer_document_expiring",
                             "push_test",
                             "unknown"
                         ]
                     },
                     "title": {
-                        "type": "string",
-                        "enum": [
-                            "Tagihan baru",
-                            "Pengingat jatuh tempo",
-                            "Tagihan segera jatuh tempo",
-                            "Tagihan sudah jatuh tempo",
-                            "Pembayaran diterima",
-                            "Tiket dibuat",
-                            "Tiket baru",
-                            "Petugas ditugaskan",
-                            "Tiket ditugaskan",
-                            "Tiket mulai ditangani",
-                            "Balasan baru",
-                            "Tiket selesai",
-                            "Tiket ditutup",
-                            "Pelanggan membalas",
-                            "Tiket dibuka kembali",
-                            "Batas respons terlewat",
-                            "SLA tiket terlampaui",
-                            "Batas respons pertama terlewat",
-                            "Respons pertama segera jatuh tempo",
-                            "SPK baru ditugaskan",
-                            "Jadwal kunjungan teknisi",
-                            "SPK disetujui",
-                            "SPK ditolak",
-                            "SPK menunggu review",
-                            "Teknisi dalam perjalanan",
-                            "Kunjungan teknisi selesai",
-                            "Jadwal penagihan gagal",
-                            "Pembayaran online perlu dicek",
-                            "Tagihan draf menunggu dikirim",
-                            "Layanan diisolir",
-                            "Layanan dibatasi",
-                            "Layanan aktif kembali",
-                            "Isolir otomatis hari ini",
-                            "Permintaan barang diajukan",
-                            "Permintaan barang disetujui",
-                            "Permintaan barang siap diambil",
-                            "Permintaan barang ditolak",
-                            "Pengembalian material dideklarasikan",
-                            "Pengembalian material bermasalah",
-                            "Pengembalian material ditolak",
-                            "Pengumuman baru",
-                            "Notifikasi uji",
-                            "Notifikasi baru"
-                        ]
+                        "type": "string"
                     },
                     "message": {
                         "type": "string"
@@ -7325,6 +7415,13 @@
                                 "issued_qty": {
                                     "type": "number"
                                 },
+                                "recorded_used_qty": {
+                                    "type": [
+                                        "number",
+                                        "null"
+                                    ],
+                                    "description": "What the SPK of the case records as used for this product (\"Catat pemakaian\"); null when the case has no SPK."
+                                },
                                 "actual_used_qty": {
                                     "type": "number"
                                 },
@@ -7351,6 +7448,7 @@
                                 "id",
                                 "product",
                                 "issued_qty",
+                                "recorded_used_qty",
                                 "actual_used_qty",
                                 "declared_good_return_qty",
                                 "declared_discrepancy_qty",
@@ -7420,6 +7518,21 @@
                             "null"
                         ]
                     },
+                    "category": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "name"
+                        ]
+                    },
                     "available": {
                         "type": [
                             "string",
@@ -7433,6 +7546,7 @@
                     "sku",
                     "name",
                     "unit",
+                    "category",
                     "available"
                 ],
                 "title": "TechnicianProductResource"
@@ -7707,6 +7821,46 @@
                             "lng"
                         ]
                     },
+                    "site": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "description": "Where the technician goes: the installation address of the subscription (source 'installation'), else the location of the\nticket (source 'pop'); null when it has neither. The check-in is measured against this same place, so the header and the\ndistance never name two places. `location` above stays the POP.",
+                        "properties": {
+                            "address": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "lat": {
+                                "type": [
+                                    "number",
+                                    "null"
+                                ]
+                            },
+                            "lng": {
+                                "type": [
+                                    "number",
+                                    "null"
+                                ]
+                            },
+                            "source": {
+                                "type": "string",
+                                "enum": [
+                                    "pop",
+                                    "installation"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "address",
+                            "lat",
+                            "lng",
+                            "source"
+                        ]
+                    },
                     "comments": {
                         "type": "array",
                         "items": {
@@ -7740,7 +7894,8 @@
                     "description",
                     "resolution_note",
                     "customer",
-                    "location"
+                    "location",
+                    "site"
                 ],
                 "title": "TechnicianTicketResource"
             },
@@ -7759,13 +7914,18 @@
                     "last_used": {
                         "type": "boolean",
                         "description": "True for the warehouse of the caller's latest request: the picker of a new request starts there."
+                    },
+                    "available_products": {
+                        "type": "integer",
+                        "description": "How many products are free to ask for here (stock minus reserved above zero), as the picker lists them. The picker starts at the warehouse that holds most."
                     }
                 },
                 "required": [
                     "id",
                     "name",
                     "code",
-                    "last_used"
+                    "last_used",
+                    "available_products"
                 ],
                 "title": "TechnicianWarehouseResource"
             },
@@ -8245,6 +8405,21 @@
                             "null"
                         ]
                     },
+                    "uploaded_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time",
+                        "description": "When the file was added."
+                    },
+                    "uploader_first_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "First name of whoever uploaded the file, staff or the customer; null when that account is gone. The rest of the profile stays internal."
+                    },
                     "mine": {
                         "type": "boolean"
                     },
@@ -8258,6 +8433,8 @@
                     "mime_type",
                     "size",
                     "caption",
+                    "uploaded_at",
+                    "uploader_first_name",
                     "mine",
                     "can_delete"
                 ],

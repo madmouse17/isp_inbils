@@ -321,7 +321,7 @@ final class PermissionCatalogue
                     'billing.pdf.view', 'billing.export', 'billing.manage',
 
                     'ticket.view', 'ticket.create', 'ticket.update',
-                    'ticket.assign', 'ticket.reassign', 'ticket.close', 'ticket.spawn_spk',
+                    'ticket.assign', 'ticket.reassign', 'ticket.close', 'ticket.reopen', 'ticket.spawn_spk',
                     'ticket.export', 'ticket.manage', 'ticket.category.manage',
 
                     'evaluation.view', 'evaluation.create', 'evaluation.update',
@@ -344,7 +344,7 @@ final class PermissionCatalogue
                     'service.view', 'location.view', 'odn.view', 'odn.assign',
                     'spk.view', 'spk.create',
                     // Complaints and tickets, including dispatch notices (ticket.assign).
-                    'ticket.view', 'ticket.create', 'ticket.update', 'ticket.assign', 'ticket.reassign', 'ticket.close',
+                    'ticket.view', 'ticket.create', 'ticket.update', 'ticket.assign', 'ticket.reassign', 'ticket.close', 'ticket.reopen',
                     'ticket.comment.create', 'ticket.comment.internal',
                     'ticket.attachment.upload', 'ticket.attachment.view', 'ticket.spawn_spk',
                     'announcement.manage',

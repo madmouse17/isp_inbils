@@ -89,7 +89,7 @@ class MaterialReturnWorkOrderLockTest extends TestCase
         ]);
 
         $this->assertSame('reconciled', $received->status);
-        $this->assertSame(1, StockMovement::withoutCompany()->where('movement_type', 'receive')->count());
+        $this->assertSame(1, StockMovement::withoutCompany()->where('movement_type', 'return')->count());
     }
 
     private function workOrder(): WorkOrder

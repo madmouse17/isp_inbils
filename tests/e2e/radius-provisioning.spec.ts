@@ -479,9 +479,9 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
             'Diisolir karena diblokir.',
         );
 
-        // The audit log has the entry too.
+        // The audit log has the entry too, worded as a sentence and found by the word the row shows.
         await page.goto('/admin/reports/audit-log');
-        await page.getByPlaceholder('Cari deskripsi, modul, aksi, pelaku...').fill('blocked');
+        await page.getByPlaceholder('Cari deskripsi, modul, aksi, pelaku...').fill('diblokir');
         await page.getByRole('button', { name: 'Terapkan filter' }).click();
         await expect(
             page
@@ -489,7 +489,7 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
                 .filter({ hasText: 'Langganan' })
                 .filter({ hasText: 'Demo Admin' })
                 .first(),
-        ).toContainText('blocked');
+        ).toContainText('Langganan diblokir');
 
         await page.goto(`/admin/subscriptions/${state.subscriptionId}`);
         await page.getByRole('button', { name: 'Buka blokir', exact: true }).click();

@@ -138,11 +138,11 @@ class InvoiceSendGuardTest extends TestCase
         $sent = $this->draft('sent', $maker);
 
         $this->actingAs($maker)->get(route('admin.invoices.show', $draft))->assertInertia(fn ($page) => $page
-            ->where('can', ['update' => true, 'send' => true, 'cancel' => false, 'record_payment' => false, 'reverse_payment' => false, 'refund' => false]));
+            ->where('can', ['update' => true, 'send' => true, 'cancel' => false, 'record_payment' => false, 'reverse_payment' => false, 'refund' => false, 'receipt' => false]));
         $this->get(route('admin.invoices.show', $sent))->assertInertia(fn ($page) => $page->where('can.update', false));
 
         $this->actingAs($this->admin)->get(route('admin.invoices.show', $sent))->assertInertia(fn ($page) => $page
-            ->where('can', ['update' => true, 'send' => true, 'cancel' => true, 'record_payment' => true, 'reverse_payment' => true, 'refund' => true]));
+            ->where('can', ['update' => true, 'send' => true, 'cancel' => true, 'record_payment' => true, 'reverse_payment' => true, 'refund' => true, 'receipt' => true]));
     }
 
     public function test_receivables_expose_attempt_ids_the_refund_flag_and_the_reactivation_rule(): void

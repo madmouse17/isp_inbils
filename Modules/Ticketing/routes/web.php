@@ -8,13 +8,16 @@ use Modules\Ticketing\Models\Ticket;
 
 Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->prefix('admin')->name('admin.')->whereUlid(['ticket', 'attachment', 'ticket_category'])->group(function () {
     Route::get('tickets/export', [TicketController::class, 'export'])->name('tickets.export');
+    Route::get('tickets/sla-preview', [TicketController::class, 'slaPreview'])->name('tickets.sla-preview');
     Route::resource('ticket-categories', TicketCategoryController::class)->only(['index', 'update']);
     Route::resource('tickets', TicketController::class);
     LifecycleController::routes('tickets', Ticket::class, ['restore']);
     Route::post('tickets/{ticket}/assign', [TicketController::class, 'assign'])->name('tickets.assign');
+    Route::post('tickets/{ticket}/assign-self', [TicketController::class, 'assignSelf'])->name('tickets.assign-self');
     Route::post('tickets/{ticket}/start', [TicketController::class, 'start'])->name('tickets.start');
     Route::post('tickets/{ticket}/resolve', [TicketController::class, 'resolve'])->name('tickets.resolve');
     Route::post('tickets/{ticket}/close', [TicketController::class, 'close'])->name('tickets.close');
+    Route::post('tickets/{ticket}/reopen', [TicketController::class, 'reopen'])->name('tickets.reopen');
     Route::post('tickets/{ticket}/spawn-spk', [TicketController::class, 'spawnSpk'])->name('tickets.spawn-spk');
     Route::post('tickets/{ticket}/comments', [TicketController::class, 'addComment'])->name('tickets.comments.store');
     Route::post('tickets/{ticket}/attachments', [TicketController::class, 'uploadAttachment'])->name('tickets.attachments.store');

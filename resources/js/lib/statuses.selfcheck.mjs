@@ -63,6 +63,7 @@ test('the words decided with the owner are the words the maps use', () => {
         ['WORK_ORDER_STATUS', 'waiting_review', 'Menunggu review', 'warning'],
         ['WORK_ORDER_STATUS', 'completed', 'Selesai', 'success'],
         ['WORK_ORDER_STATUS', 'cancelled', 'Dibatalkan', 'neutral'],
+        ['WORK_ORDER_STATUS', 'rejected', 'Dikembalikan', 'danger'],
         ['WORK_ORDER_TRIP', 'en_route', 'Dalam perjalanan', 'info'],
         ['WORK_ORDER_TRIP', 'rework', 'Perlu perbaikan', 'danger'],
         ['TICKET_STATUS', 'open', 'Terbuka', 'info'],
@@ -72,7 +73,7 @@ test('the words decided with the owner are the words the maps use', () => {
         ['TICKET_STATUS', 'closed', 'Ditutup', 'neutral'],
         ['INVOICE_STATUS', 'sent', 'Belum dibayar', 'info'],
         ['INVOICE_STATUS', 'paid', 'Lunas', 'success'],
-        ['INVOICE_STATUS', 'partial', 'Sebagian', 'warning'],
+        ['INVOICE_STATUS', 'partial', 'Dibayar sebagian', 'warning'],
         ['INVOICE_STATUS', 'overdue', 'Lewat jatuh tempo', 'danger'],
         ['CUSTOMER_TYPE', 'Individual', 'Perorangan', 'neutral'],
         ['CUSTOMER_TYPE', 'Company', 'Perusahaan', 'neutral'],
@@ -171,7 +172,7 @@ test('toneColor names the --status-* variable of each tone', () => {
     }
 });
 
-test('WORK_ITEM_STATUS merges three sets that agree on every shared value', () => {
+test('WORK_ITEM_STATUS merges three sets that agree on every shared value but one', () => {
     const merged = statuses.WORK_ITEM_STATUS;
     const parts = [
         statuses.INVENTORY_REQUEST_STATUS,
@@ -180,9 +181,13 @@ test('WORK_ITEM_STATUS merges three sets that agree on every shared value', () =
     ];
     for (const part of parts) {
         for (const [value, entry] of Object.entries(part)) {
+            // R6: an SPK sent back reads "Dikembalikan" and an inventory request refused reads "Ditolak". One map
+            // serves both kinds of row, so `rejected` there follows the SPK, the work the lists exist for.
+            if (value === 'rejected') continue;
             assert.deepEqual(merged[value], entry, `${value} must say the same in every set`);
         }
     }
+    assert.deepEqual(merged.rejected, statuses.WORK_ORDER_STATUS.rejected);
     assert.deepEqual(
         keysOf(merged),
         [...new Set(parts.flatMap((part) => Object.keys(part)))].sort(),

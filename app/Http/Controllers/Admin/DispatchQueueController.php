@@ -96,7 +96,7 @@ class DispatchQueueController extends Controller
 
         $assignee = ['nullable', new PublicIdExists(User::class, fn (Builder $query) => $query->where('company_id', $companyId))];
 
-        $request->validate([
+        $validated = $request->validate([
             'domain' => ['required', 'string', 'in:ticket,spk'],
             'id' => ['required', 'ulid'],
             'assignee_id' => $assignee,
@@ -104,6 +104,12 @@ class DispatchQueueController extends Controller
             'technician_id' => $assignee,
             'expected_assigned_to' => ['present', 'nullable', 'ulid'],
             'expected_updated_at' => ['required', 'string', 'date_format:Y-m-d\\TH:i:s.v\\Z'],
+            // Only an SPK has a visit day: for a ticket the key is dropped before any rule runs.
+            'scheduled_date' => ['exclude_unless:domain,spk', 'bail', 'nullable', 'date_format:Y-m-d', 'after_or_equal:'.SpkService::earliestVisitDate()],
+        ], [
+            'scheduled_date.after_or_equal' => 'Tanggal kunjungan tidak boleh sebelum hari ini.',
+        ], [
+            'scheduled_date' => 'tanggal kunjungan',
         ]);
 
         $domain = $request->input('domain');
@@ -129,14 +135,14 @@ class DispatchQueueController extends Controller
                 throw $exception;
             }
 
-            return back()->with('success', "Tiket {$ticket->code} berhasil ditugaskan.");
+            return back()->with('success', "{$ticket->code} ditugaskan ke {$this->nameOf($assigneeId)}.");
         }
 
         if ($domain === 'spk') {
             $wo = WorkOrder::forCompany($companyId)->wherePublicId($id)->firstOrFail();
             Gate::authorize('assign', $wo);
             try {
-                SpkService::assign($wo, $assigneeId, $user->id, $expectedAssignedTo, $expectedUpdatedAt);
+                SpkService::assign($wo, $assigneeId, $user->id, $expectedAssignedTo, $expectedUpdatedAt, $validated['scheduled_date'] ?? null);
             } catch (HttpException $exception) {
                 if ($request->header('X-Inertia') && $exception->getStatusCode() === 409) {
                     throw ValidationException::withMessages(['conflict' => $exception->getMessage()]);
@@ -144,9 +150,15 @@ class DispatchQueueController extends Controller
                 throw $exception;
             }
 
-            return back()->with('success', "SPK {$wo->code} berhasil ditugaskan.");
+            return back()->with('success', "{$wo->code} ditugaskan ke {$this->nameOf($assigneeId)}.");
         }
 
         abort(422, 'Domain tidak valid.');
+    }
+
+    /** The name the success message gives for the person just assigned. */
+    private function nameOf(int $userId): string
+    {
+        return (string) User::query()->whereKey($userId)->value('name');
     }
 }

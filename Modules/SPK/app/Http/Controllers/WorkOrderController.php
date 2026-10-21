@@ -4,9 +4,6 @@ namespace Modules\SPK\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\CustomerResource;
-use App\Http\Resources\LocationResource;
-use App\Http\Resources\SubscriptionResource;
 use App\Models\Core\Customer;
 use App\Models\Core\EmployeeProfile;
 use App\Models\Core\Location;
@@ -159,7 +156,7 @@ class WorkOrderController extends Controller
         $this->ensureSameCompany($wo);
         Gate::authorize('view', $wo);
 
-        $wo->load(['customer', 'subscription', 'location', 'assignee', 'items.product.unit', 'items.networkAsset.product.unit', 'assignments.technician', 'media']);
+        $wo->load(['customer', 'subscription', 'location', 'assignee', 'items.product.unit', 'items.networkAsset.product.unit', 'assignments.technician:id,public_id,name', 'media']);
         $checkIn = FieldCheckIn::recordFor($wo, 'work_order');
         $productId = PublicId::resolveOne(Product::class, $request->query('product_id')) ?? 0;
 
@@ -197,6 +194,8 @@ class WorkOrderController extends Controller
                 'start' => $request->user()?->can('start', $wo) ?? false,
                 'cancel' => ! in_array($wo->status, ['completed', 'cancelled'], true) && ($request->user()?->can('cancel', $wo) ?? false),
                 'reassign' => $request->user()?->can('reassign', $wo) ?? false,
+                // Only a plan is edited: the edit page sends anything else back to the SPK, so the button waits for the status too.
+                'edit' => in_array($wo->status, SpkService::EDITABLE_STATUSES, true) && ($request->user()?->can('edit', $wo) ?? false),
             ],
             // Only what the page words itself: the technician's own coordinates stay out of the props.
             'checkIn' => $checkIn === null ? null : Arr::only($checkIn, ['status', 'distance_m', 'accuracy_m', 'reason']),
@@ -216,7 +215,7 @@ class WorkOrderController extends Controller
         ]);
     }
 
-    public function edit(WorkOrder $wo): InertiaResponse|RedirectResponse
+    public function edit(Request $request, WorkOrder $wo): InertiaResponse|RedirectResponse
     {
         $this->ensureSameCompany($wo);
         Gate::authorize('edit', $wo);
@@ -225,14 +224,12 @@ class WorkOrderController extends Controller
             return redirect()->route('admin.spk.show', $wo)->with('error', 'SPK hanya bisa diubah saat berstatus draf atau menunggu penugasan.');
         }
 
+        // The pickers search on the server like the create form's: what the SPK holds now comes with the SPK itself.
         $wo->load(['customer', 'subscription', 'location', 'assignee']);
 
         return Inertia::render('Admin/SPK/Edit', [
             'workOrder' => new WorkOrderResource($wo),
-            'customers' => CustomerResource::collection(Customer::query()->where('is_active', true)->orderBy('name')->get()),
-            'subscriptions' => SubscriptionResource::collection(ServiceSubscription::query()->whereIn('status', ['pending', 'active'])->orderBy('code')->get()),
-            'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
-            'technicians' => $this->assignableTechnicians($wo),
+            ...$this->createOptions($request),
         ]);
     }
 
@@ -271,12 +268,13 @@ class WorkOrderController extends Controller
         Gate::authorize('assign', $wo);
 
         try {
-            SpkService::assign(
+            $assigned = SpkService::assign(
                 $wo,
                 $request->integer('technician_id'),
                 $request->user()->id,
                 $request->input('expected_assigned_to') !== null ? $request->integer('expected_assigned_to') : null,
-                $request->input('expected_updated_at')
+                $request->input('expected_updated_at'),
+                $request->validated('scheduled_date'),
             );
         } catch (HttpException $exception) {
             if ($request->header('X-Inertia') && $exception->getStatusCode() === 409) {
@@ -286,7 +284,7 @@ class WorkOrderController extends Controller
             throw $exception;
         }
 
-        return back()->with('success', 'SPK berhasil ditugaskan.');
+        return back()->with('success', "{$assigned->code} ditugaskan ke {$assigned->assignee?->name}.");
     }
 
     public function start(WorkOrder $wo): RedirectResponse

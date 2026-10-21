@@ -303,7 +303,16 @@ export default function Show({
                         <CardContent>
                             <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-3 text-sm">
                                 <DetailRow label="Pelanggan">
-                                    {s.customer?.name ?? `#${s.customer_id}`}
+                                    {s.customer && can('customer.view') ? (
+                                        <Link
+                                            href={route('admin.customers.show', s.customer.id)}
+                                            className="font-medium text-primary-text hover:underline"
+                                        >
+                                            {s.customer.name}
+                                        </Link>
+                                    ) : (
+                                        (s.customer?.name ?? `#${s.customer_id}`)
+                                    )}
                                 </DetailRow>
                                 <DetailRow label="Alamat pemasangan">
                                     {s.installation_address?.label ??

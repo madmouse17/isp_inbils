@@ -173,22 +173,24 @@ class InventoryRequestController extends Controller
         return back()->with('success', 'Permintaan barang disetujui dan stok berhasil direservasi.');
     }
 
+    /** "Siapkan barang": one action takes an approved request to ready for pickup. */
     public function prepare(Request $request, InventoryRequest $inventoryRequest): RedirectResponse|JsonResponse
     {
         Gate::authorize('prepare', $inventoryRequest);
 
-        $prepared = InventoryRequestService::prepare($inventoryRequest, $request->user());
+        $ready = InventoryRequestService::prepareForPickup($inventoryRequest, $request->user());
 
         if ($request->wantsJson()) {
             return response()->json([
-                'message' => 'Status permintaan diubah menjadi sedang disiapkan gudang.',
-                'data' => new InventoryRequestResource($prepared),
+                'message' => 'Barang disiapkan dan siap diambil.',
+                'data' => new InventoryRequestResource($ready),
             ]);
         }
 
-        return back()->with('success', 'Status permintaan diubah menjadi sedang disiapkan gudang.');
+        return back()->with('success', 'Barang disiapkan dan siap diambil.');
     }
 
+    /** Finishes a request that was left preparing before preparation became one step. */
     public function markReady(Request $request, InventoryRequest $inventoryRequest): RedirectResponse|JsonResponse
     {
         Gate::authorize('ready', $inventoryRequest);

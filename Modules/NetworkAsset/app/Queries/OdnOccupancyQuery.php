@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 use Inertia\OptionalProp;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\NetworkAsset\Models\OdnPort;
@@ -177,7 +178,8 @@ final class OdnOccupancyQuery
     /**
      * Free ODP output ports under a POP (the ODP's location descends from the POP by parent_id), for the drop
      * picker at onboarding and on the subscription page, found by typing an ODP code or a splitter label. Full
-     * ODPs never appear; without a POP the list stays empty.
+     * ODPs never appear; without a POP the list stays empty. Each option also tells which ODP it is on (name, free
+     * and total outputs, where it stands), so the picker can show and order by it.
      */
     public static function dropPortOptions(Request $request, ?int $servingPopId): OptionalProp
     {
@@ -198,7 +200,7 @@ final class OdnOccupancyQuery
             ->orderBy('odn_ports.odn_splitter_id')
             ->orderBy('odn_ports.number');
 
-        return SearchOptions::for(
+        $options = SearchOptions::for(
             $request,
             'dropPort',
             $base,
@@ -209,6 +211,51 @@ final class OdnOccupancyQuery
                 'description' => $port->asset?->location?->getAttribute('path'),
             ],
         );
+
+        return Inertia::optional(fn (): array => self::withOdpDetails($options()));
+    }
+
+    /**
+     * The ODP behind each option: its name, how many of its outputs are free (counted as the ODN overview counts them) and the
+     * coordinates of its location. One query for the ODPs of the page, however many ports it lists.
+     *
+     * @param  list<array{value: string, label: string, description: string|null}>  $options
+     * @return list<array{value: string, label: string, description: string|null, odp_name: string, free_ports: int, total_ports: int, lat: float|null, lng: float|null}>
+     */
+    private static function withOdpDetails(array $options): array
+    {
+        if ($options === []) {
+            return [];
+        }
+
+        $companyId = self::companyId();
+        $assetOfPort = DB::table('odn_ports')
+            ->where('company_id', $companyId)
+            ->whereIn('public_id', array_column($options, 'value'))
+            ->pluck('network_asset_id', 'public_id');
+
+        $odps = DB::table('network_assets as a')
+            ->leftJoin('locations as l', 'l.id', '=', 'a.location_id')
+            ->where('a.company_id', $companyId)
+            ->whereIn('a.id', $assetOfPort->unique()->values()->all())
+            ->select(['a.id', 'a.name', 'l.lat', 'l.lng'])
+            ->selectSub(self::outputCount(false), 'capacity')
+            ->selectSub(self::outputCount(true), 'used')
+            ->get()
+            ->keyBy('id');
+
+        return array_map(function (array $option) use ($assetOfPort, $odps): array {
+            $odp = $odps[$assetOfPort[$option['value']]];
+
+            return [
+                ...$option,
+                'odp_name' => (string) $odp->name,
+                'free_ports' => (int) $odp->capacity - (int) $odp->used,
+                'total_ports' => (int) $odp->capacity,
+                'lat' => $odp->lat === null ? null : (float) $odp->lat,
+                'lng' => $odp->lng === null ? null : (float) $odp->lng,
+            ];
+        }, $options);
     }
 
     /** @return list<array{id: string, code: string, name: string}> POPs, for the filter */

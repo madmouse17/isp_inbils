@@ -93,6 +93,12 @@ class HandleInertiaRequests extends Middleware
             // can_consolidate costs a query, so only users who may open the consolidated report pay for it.
             'companyHierarchy' => $company ? [
                 'parent_company_id' => $company->parent?->public_id,
+                // The ribbon of a subsidiary names its Head and offers the way back only when the switch is allowed.
+                'parent' => $company->parent ? [
+                    'id' => $company->parent->public_id,
+                    'name' => $company->parent->name,
+                    'can_switch' => $user->can('switchTo', $company->parent),
+                ] : null,
                 'can_consolidate' => $user->can('report.consolidated.view') && $company->isHead(),
             ] : null,
             // The switcher: only offered to a user who may switch and has somewhere to switch to.

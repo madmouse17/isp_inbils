@@ -452,6 +452,22 @@ test.describe('@ui-pickers SearchSelect', () => {
 
         await expect(page.getByText('Tidak ada hasil.')).toBeVisible();
     });
+
+    test('reopening shows the chosen option, scrolled into the list', async ({ page }) => {
+        await openGallery(page);
+        const field = page.getByRole('combobox', { name: 'Provinsi' });
+
+        await field.click();
+        await page.getByRole('option', { name: /Sulawesi Selatan/ }).click();
+        await expect(field).toHaveValue('Sulawesi Selatan');
+
+        await field.click();
+        await expect(page.getByRole('option', { name: /Sulawesi Selatan/ })).toBeInViewport();
+        await expect(page.getByRole('option', { name: /Sulawesi Selatan/ })).toHaveAttribute(
+            'aria-selected',
+            'true',
+        );
+    });
 });
 
 test.describe('@ui-pickers RemoteSearchSelect', () => {
@@ -467,9 +483,8 @@ test.describe('@ui-pickers RemoteSearchSelect', () => {
 
         await field.fill('default');
         await expect(page.getByRole('option', { name: /Default POP/ })).toBeVisible();
-        await expect
-            .poll(() => new URL(page.url()).searchParams.get('demo_search'))
-            .toBe('default');
+        // The search is a partial reload, not an address: a copied link or a reload must not carry it.
+        expect(new URL(page.url()).searchParams.has('demo_search')).toBe(false);
         // The page keeps its place: the gallery state, such as another picker's value, survives.
         await expect(page.locator('#dates')).toBeVisible();
     });
@@ -495,6 +510,28 @@ test.describe('@ui-pickers RemoteSearchSelect', () => {
         await expect(field).toHaveValue('Default POP');
         await expect(status).toHaveText(chosen ?? '');
     });
+
+    test('opening the field lists the newest rows under "Terakhir dipakai", and the address stays clean', async ({
+        page,
+    }) => {
+        await openGallery(page);
+        const field = page.getByRole('combobox', { name: 'Lokasi (cari di server)' });
+
+        await field.click();
+        const list = page.getByRole('listbox', { name: 'Lokasi (cari di server)' });
+        await expect(list.getByRole('option').first()).toBeVisible();
+        await expect(page.getByText('Terakhir dipakai', { exact: true })).toBeVisible();
+        expect(await list.getByRole('option').count()).toBeLessThanOrEqual(10);
+
+        // Typing replaces the recent rows with the answer for the text, and the heading goes.
+        await field.fill('default');
+        await expect(page.getByRole('option', { name: /Default POP/ })).toBeVisible();
+        await expect(page.getByText('Terakhir dipakai', { exact: true })).toHaveCount(0);
+
+        const query = new URL(page.url()).searchParams;
+        expect(query.has('demo_search')).toBe(false);
+        expect(query.has('demo_recent')).toBe(false);
+    });
 });
 
 test.describe('@ui-pickers EnumBadge', () => {
@@ -511,7 +548,7 @@ test.describe('@ui-pickers EnumBadge', () => {
             'Ditutup',
             'Draf',
             'Belum dibayar',
-            'Sebagian',
+            'Dibayar sebagian',
             'Lunas',
             'Lewat jatuh tempo',
             'Dibatalkan',
@@ -539,7 +576,7 @@ test.describe('@ui-pickers EnumBadge', () => {
             'Semua status',
             'Draf',
             'Belum dibayar',
-            'Sebagian',
+            'Dibayar sebagian',
             'Lunas',
             'Lewat jatuh tempo',
             'Dibatalkan',

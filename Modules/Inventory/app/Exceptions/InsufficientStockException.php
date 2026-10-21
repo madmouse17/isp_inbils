@@ -8,8 +8,8 @@ use RuntimeException;
 /**
  * A stock operation asked for more than the stock allows. The message names the product and the place in the words of
  * whoever reads it (a toast, the approval sheet, the app): "Stok Kabel Fiber Optic Single di AUDIT POP Bandung Timur
- * tersisa 0 m, dibutuhkan 18 m." `requested` and `available` are the quantities as shown: no trailing zeros, decimal
- * comma, dots between thousands.
+ * tidak cukup: tersedia 0 m, diminta 18 m." `requested` and `available` are the quantities as shown: no trailing zeros,
+ * decimal comma, dots between thousands.
  */
 class InsufficientStockException extends RuntimeException
 {
@@ -27,7 +27,7 @@ class InsufficientStockException extends RuntimeException
     /** Issue, transfer or reserve more than is free there (the quantity minus what is reserved). */
     public static function forShortfall(string|float $requested, string|float $available, string $productName, string $unit, string $locationName): self
     {
-        return self::build($requested, $available, $productName, $unit, $locationName, fn (string $need, string $have): string => "Stok {$productName} di {$locationName} tersisa {$have}, dibutuhkan {$need}.");
+        return self::build($requested, $available, $productName, $unit, $locationName, fn (string $need, string $have): string => "Stok {$productName} di {$locationName} tidak cukup: tersedia {$have}, diminta {$need}.");
     }
 
     /** Release more than is reserved there: `available` is the reserved quantity. */

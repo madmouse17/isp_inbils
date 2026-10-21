@@ -10,6 +10,7 @@ import { createRoot } from 'react-dom/client';
 import { registerPlugin } from 'react-filepond';
 import { ToastProvider } from '@/Components/ui';
 import { ErrorBoundary } from '@/Components/composite/ErrorBoundary';
+import { installNativeValidity } from '@/lib/nativeValidity';
 
 // Product name, not env: existing .env files still carry VITE_APP_NAME=Laravel.
 const appName = 'Inbils';
@@ -19,6 +20,9 @@ registerPlugin(
     FilePondPluginFileValidateType,
     FilePondPluginImagePreview,
 );
+
+// Browser bubbles for native constraints follow the browser language; this makes them Indonesian everywhere.
+installNativeValidity();
 
 // A write names the company its page was rendered in; the server refuses it when another tab switched company since.
 let renderedCompanyId: string | null = null;

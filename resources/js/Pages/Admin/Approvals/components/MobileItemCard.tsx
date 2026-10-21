@@ -11,6 +11,7 @@ import {
 } from '@/lib/statuses';
 import type { ApprovalInboxItem } from '@/types';
 import { formatAge } from '../../MyWork/components/utils';
+import { materialsLine } from './utils';
 
 interface MobileItemCardProps {
     item: ApprovalInboxItem;
@@ -63,11 +64,11 @@ export function MobileItemCard({ item, onReview }: MobileItemCardProps) {
                 <div className="space-y-1.5 rounded-md border border-border/60 bg-muted/40 p-2.5 text-xs">
                     <div>
                         <span className="text-muted-foreground">Dampak material: </span>
-                        <span className="font-medium text-foreground">{item.summary.label}</span>
+                        <span className="font-medium text-foreground">
+                            {materialsLine(item.summary.materials ?? []) || item.summary.label}
+                        </span>
                     </div>
-                    <p className="text-muted-foreground">
-                        {item.summary.count} jenis barang, total {item.summary.quantity} unit
-                    </p>
+                    <p className="text-muted-foreground">{item.summary.count} jenis barang</p>
                     <div className="border-t border-border/40 pt-1.5 text-muted-foreground">
                         <p>
                             Diajukan:{' '}

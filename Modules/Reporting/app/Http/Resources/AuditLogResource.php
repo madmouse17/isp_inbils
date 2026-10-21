@@ -6,11 +6,10 @@ use App\Models\Core\Company;
 use App\Models\PlatformAdmin;
 use App\Models\User;
 use App\Services\Platform\PlatformAuditService;
+use App\Support\AuditEventText;
 use App\Support\AuditProperties;
 use App\Support\SupportActionText;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -34,20 +33,9 @@ class AuditLogResource extends JsonResource
             ->keyBy('id');
 
         $activities->each(fn (Activity $activity) => $activity->setRelation('company', $companies->get($activity->getAttribute('company_id'))));
-        self::loadSubjects($activities);
+        AuditEventText::annotate($activities);
 
         return parent::collection($resource);
-    }
-
-    /**
-     * The subject of every entry whose type is still a model, read once per type; a deleted subject keeps its id.
-     *
-     * @param  EloquentCollection<int, Activity>  $activities
-     */
-    public static function loadSubjects(EloquentCollection $activities): void
-    {
-        (new EloquentCollection($activities->filter(fn (Activity $activity): bool => is_string($activity->subject_type) && is_subclass_of($activity->subject_type, Model::class))->all()))
-            ->loadMissing(['subject' => fn (MorphTo $subject) => $subject->withTrashed()]);
     }
 
     /** @return array<string, mixed> */
@@ -68,6 +56,9 @@ class AuditLogResource extends JsonResource
             'description' => $this->resource->description,
             // The one sentence of a support row, so the page, the search and the export word it the same.
             'support_text' => $this->resource->log_name === PlatformAuditService::SUPPORT_LOG ? SupportActionText::for($this->resource) : null,
+            // The one sentence of any entry and what it is about ("REQ-2026-00001"), worded server-side for the page, the search and the export.
+            'text' => AuditEventText::text($this->resource, $canViewProperties),
+            'subject_label' => $this->resource->getAttribute('subject_label'),
             'event' => $this->resource->event,
             'causer_id' => $causer instanceof User ? $causer->public_id : null,
             'causer_type' => $this->resource->causer_type,

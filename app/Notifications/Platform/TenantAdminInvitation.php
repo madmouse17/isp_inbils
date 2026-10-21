@@ -6,6 +6,7 @@ use App\Models\Core\Company;
 use App\Models\User;
 use App\Notifications\Contracts\SentByPlatform;
 use App\Services\Platform\PlatformAuditService;
+use App\Support\MailBrand;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -43,8 +44,8 @@ class TenantAdminInvitation extends Notification implements SentByPlatform, Shou
 
         return (new MailMessage())
             ->subject('Undangan admin '.$company->name.' di Inbils')
-            ->greeting('Halo '.$notifiable->name.',')
-            ->line('Anda diundang menjadi admin '.$company->name.' di Inbils. Atur kata sandi lewat tombol di bawah, lalu masuk dengan email ini.')
+            ->greeting('Halo '.MailBrand::literal($notifiable->name).',')
+            ->line('Anda diundang menjadi admin '.MailBrand::literal($company->name).' di Inbils. Atur kata sandi lewat tombol di bawah, lalu masuk dengan email ini.')
             ->action('Atur kata sandi', $url)
             ->line('Tautan ini berlaku '.$minutes.' menit. Jika sudah kedaluwarsa, minta tim Inbils mengirim ulang undangan.')
             ->line('Jika Anda tidak merasa diundang, abaikan email ini.');

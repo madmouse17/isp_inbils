@@ -45,8 +45,10 @@ test('AuditLog.tsx static contracts and component integrity', async () => {
     assert.doesNotMatch(source, /type="number"/);
     assert.doesNotMatch(source, /__all__/);
 
-    // 4c. Event and module badges come from the shared status maps
-    assert.match(source, /<EnumBadge map=\{AUDIT_EVENT\}/);
+    // 4c. Module badges come from the shared status map; the entry itself is the sentence the server words
+    assert.doesNotMatch(source, /AUDIT_EVENT|entryText|formatSubjectShort|UTC/);
+    assert.match(source, /row\.text/);
+    assert.match(source, /subject_label/);
     assert.match(source, /<EnumBadge map=\{MODULES\}/);
     assert.doesNotMatch(source, /getEventBadgeVariant|formatEventLabel/);
 
@@ -83,7 +85,7 @@ test('AuditLog.tsx static contracts and component integrity', async () => {
     assert.match(source, /Pelaku/);
     assert.match(source, /Subjek/);
     assert.match(source, /Pengguna #/);
-    assert.match(source, /Modul dan aksi/);
+    assert.match(source, /Modul:/);
     assert.doesNotMatch(source, /Audit Log|Terapkan Filter|Atur Ulang|Muat Ulang|Ekspor Log/);
     assert.doesNotMatch(source, /User #|\(Causer\)|Kolom \/ Field/);
 

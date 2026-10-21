@@ -55,7 +55,8 @@ export type ServiceSubscription = {
     otc_installation_fee?: number | string | null;
     contract_months?: number | null;
     package?: { name?: string | null; category?: { id: string; name: string } | null } | null;
-    customer?: { id?: Id; name?: string | null } | null;
+    /** `CustomerResource::summary()`: no contact details. */
+    customer?: { id: Id; code: string; name: string } | null;
     installation_address?: { label?: string | null } | null;
     serving_pop?: { name?: string | null } | null;
     notes?: string | null;

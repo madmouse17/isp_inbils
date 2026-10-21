@@ -12,7 +12,7 @@
  *   authenticated request context (X-XSRF-TOKEN pattern), while receive and
  *   movement evidence stay on real UI selectors.
  */
-import type { APIResponse, Page } from '@playwright/test';
+import type { APIRequestContext, APIResponse, Page } from '@playwright/test';
 import { apiLogin } from './support/api';
 import { expect, test } from './support/fixtures';
 import { companyDateFormat, formatIsoAs } from './support/dateRange';
@@ -231,7 +231,7 @@ test.describe('@lifecycle inventory', () => {
 
         // No Issue modal exists anymore; over-issue must still fail loudly at
         // the guarded endpoint. With a JSON expectation InsufficientStock
-        // renders as 422 {"message": "Stok <barang> di <lokasi> tersisa ..., dibutuhkan ..."}, never a pass.
+        // renders as 422 {"message": "Stok <barang> di <lokasi> tidak cukup: tersedia ..., diminta ..."}, never a pass.
         const csrf = await refreshSession(page, '/admin/stocks');
         const overissue = await page.request.post('/admin/stocks/issue', {
             headers: { 'X-XSRF-TOKEN': csrf, Accept: 'application/json' },
@@ -244,7 +244,7 @@ test.describe('@lifecycle inventory', () => {
         });
         expect(overissue.status()).toBe(422);
         const body = (await overissue.json()) as { message?: string };
-        expect(body.message ?? '').toMatch(/^Stok .+ di .+ tersisa .+, dibutuhkan 999\.999\.999/);
+        expect(body.message ?? '').toMatch(/^Stok .+ di .+ tidak cukup: tersedia .+, diminta 999\.999\.999/);
 
         // Verify the rejected movement was never persisted: browse to Stock Movements
         // and search for the unique note, expecting zero rows.
@@ -388,5 +388,99 @@ test.describe('@lifecycle inventory', () => {
         expect(approved.request.data.status).toBe('approved_reserved');
         expect(approved.request.data.items[0].quantity_approved).toBe(1);
         expect(approved.stockAvailable, 'no figure once the request is approved').toBeNull();
+    });
+
+    /**
+     * A request the technician makes through the app API, for one unit of the stocked E2E product. The warehouse is
+     * stocked first, so an approval has something to reserve.
+     */
+    async function requestInApp(page: Page, request: APIRequestContext, reason: string) {
+        const technician = await apiLogin(request, 'technician');
+        const product = (
+            await json<{ data: { id: string }[] }>(
+                await technician.get('technician/products?search=E2E-STOCK-PRODUCT'),
+            )
+        ).data[0];
+        const warehouse = (
+            await json<{ data: { id: string }[] }>(await technician.get('technician/warehouses'))
+        ).data[0];
+
+        await loginAs(page, 'admin');
+        const csrf = await refreshSession(page, '/admin/stocks');
+        const received = await page.request.post('/admin/stocks/receive', {
+            headers: { 'X-XSRF-TOKEN': csrf },
+            maxRedirects: 0,
+            form: { product_id: product.id, location_id: warehouse.id, quantity: '5', note: `stock-${reason}` },
+        });
+        expect([302, 303]).toContain(received.status());
+        await logout(page);
+
+        const created = await json<{ data: { id: string } }>(
+            await technician.post('technician/inventory-requests', {
+                warehouse_location_id: warehouse.id,
+                reason,
+                items: [{ product_id: product.id, quantity_requested: 1 }],
+            }),
+        );
+
+        return `/admin/inventory/requests/${created.data.id}`;
+    }
+
+    test('a waiting request says who decides, and a rejected one ends on its own step', async ({
+        page,
+        request,
+    }) => {
+        const url = await requestInApp(page, request, `reject-${runId}`);
+
+        // The warehouse cannot decide: the page names who can, and offers no approve button.
+        await loginAs(page, 'staff');
+        await page.goto(url);
+        await expect(page.getByText('Menunggu persetujuan Manajer/Admin')).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Setujui & Reservasi Stok' })).toHaveCount(0);
+        await logout(page);
+
+        await loginAs(page, 'manager');
+        const csrf = await refreshSession(page, '/admin/inventory/requests');
+        const rejected = await page.request.post(`${url}/reject`, {
+            headers: { 'X-XSRF-TOKEN': csrf },
+            maxRedirects: 0,
+            form: { rejection_reason: `bukan kebutuhan ${runId}` },
+        });
+        expect([302, 303]).toContain(rejected.status());
+
+        // The flow stops at Ditolak: the approval steps it never reached are not listed.
+        await page.goto(url);
+        await expect(page.getByText('Ditolak', { exact: true }).first()).toBeVisible();
+        await expect(page.getByText('Disetujui & Direservasi')).toHaveCount(0);
+    });
+
+    test('the warehouse sets the goods aside in one click and hands over with one confirmation', async ({
+        page,
+        request,
+    }) => {
+        const url = await requestInApp(page, request, `prepare-${runId}`);
+
+        await loginAs(page, 'manager');
+        const csrf = await refreshSession(page, '/admin/inventory/requests');
+        const approved = await page.request.post(`${url}/approve`, {
+            headers: { 'X-XSRF-TOKEN': csrf },
+            maxRedirects: 0,
+        });
+        expect([302, 303]).toContain(approved.status());
+        await logout(page);
+
+        await loginAs(page, 'staff');
+        await page.goto(url);
+        await page.getByRole('button', { name: 'Siapkan barang' }).click();
+
+        // One click took it to "Siap diambil": no dialog, no second step; only the hand-over asks.
+        await expect(page.getByRole('button', { name: 'Siapkan barang' })).toHaveCount(0);
+        const handover = page.getByRole('button', { name: 'Serah terima', exact: true });
+        await expect(handover).toBeVisible();
+        await handover.click();
+        const dialog = page.getByRole('alertdialog', { name: 'Konfirmasi serah terima barang?' });
+        await dialog.getByRole('button', { name: 'Konfirmasi serah terima' }).click();
+        await expect(dialog).toBeHidden();
+        await expect(handover).toHaveCount(0);
     });
 });

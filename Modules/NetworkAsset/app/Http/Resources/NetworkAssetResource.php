@@ -41,8 +41,8 @@ class NetworkAssetResource extends JsonResource
             'retired_at' => $this->retired_at,
             'product' => new ProductResource($this->whenLoaded('product')),
             'location' => new LocationResource($this->whenLoaded('location')),
-            'customer' => new CustomerResource($this->whenLoaded('customer')),
-            'subscription' => new SubscriptionResource($this->whenLoaded('subscription')),
+            'customer' => $this->whenLoaded('customer', fn (): ?array => CustomerResource::summary($this->customer)),
+            'subscription' => $this->whenLoaded('subscription', fn (): ?array => SubscriptionResource::summary($this->subscription)),
             'installations' => NetworkAssetInstallationResource::collection($this->whenLoaded('installations')),
             ...$this->lifecycleAttributes(),
         ];

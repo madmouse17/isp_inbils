@@ -11,6 +11,17 @@ use Illuminate\Http\Resources\Json\JsonResource;
 /** @mixin Customer */
 class CustomerResource extends JsonResource
 {
+    /**
+     * What another record shows of its customer: enough to name and link them. Contact details, tax id and notes
+     * stay on the customer's own pages.
+     *
+     * @return array{id: string, code: string, name: string}|null
+     */
+    public static function summary(?Customer $customer): ?array
+    {
+        return $customer === null ? null : ['id' => $customer->public_id, 'code' => $customer->code, 'name' => $customer->name];
+    }
+
     /** @return array<int|string, mixed> */
     public function toArray(Request $request): array
     {
