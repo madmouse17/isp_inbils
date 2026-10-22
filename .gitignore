@@ -35,13 +35,23 @@ Thumbs.db
 
 docs/*
 .env.docker
-/.claude/worktrees/
+# AI tooling and agent working notes stay on this machine, never in the repo (owner, 2026-10-22).
+/AGENTS.md
+/CLAUDE.md
+/TASKS.md
+/QA_REPORT.md
+/boost.json
+/opencode.json
+/skills-lock.json
+/.claude/
+/.opencode/
+/.rtk/
+/.scratch/
+/.superpowers/
 /.tokensave/
 !docs/ENTERPRISE_ISP_READINESS.md
 !docs/SECURITY.md
 !docs/operations/
-!docs/plans/
-!docs/plans/ENTERPRISE_ISP_EXECUTION_PLAN.md
 !docs/architecture/
 docs/architecture/*
 !docs/architecture/overview.md
@@ -76,14 +86,8 @@ docs/standards/*
 !docs/standards/engineering-rules.md
 !docs/standards/coding-standards.md
 !docs/standards/quality-gates.md
-!docs/standards/delegation-rules.md
 !docs/standards/git-workflow.md
 !docs/standards/security-rules.md
-!docs/standards/token-discipline.md
-!docs/agents/
-docs/agents/*
-!docs/agents/issue-tracker.md
-!docs/agents/domain.md
 !docs/api/
 docs/api/*
 !docs/api/mobile-v1.openapi.json
@@ -107,8 +111,6 @@ docs/playbooks/*
 !docs/playbooks/performance.md
 !docs/playbooks/testing.md
 !docs/user-guide/
-!docs/PARKING_LOT.md
-.rtk/
 
 /_AdminLayout*.tsx
 /_patch_*.py
