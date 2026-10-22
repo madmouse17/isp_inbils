@@ -7814,11 +7814,19 @@
                                     "string",
                                     "null"
                                 ]
+                            },
+                            "phone_e164": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "description": "The phone as `+62\u2026` for a WhatsApp link (`https://wa.me/` without the plus); null when it is not an Indonesian mobile number."
                             }
                         },
                         "required": [
                             "name",
-                            "phone"
+                            "phone",
+                            "phone_e164"
                         ]
                     },
                     "location": {

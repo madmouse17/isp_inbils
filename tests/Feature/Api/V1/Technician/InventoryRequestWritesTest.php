@@ -6,8 +6,10 @@ use App\Models\Core\Location;
 use App\Models\User;
 use App\Services\Core\CompanyService;
 use App\Support\PublicId;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
@@ -391,6 +393,56 @@ class InventoryRequestWritesTest extends TestCase
         $this->assertSame($one->getContent(), $two->getContent());
         // Another key is another action, and the request is no longer waiting.
         $this->api('POST', $uri, token: $token)->assertForbidden();
+    }
+
+    public function test_a_request_replayed_after_the_cache_record_expired_returns_the_first_one_and_creates_nothing(): void
+    {
+        Notification::fake();
+        $technician = $this->technicianLogin();
+        $colleague = $this->technicianLogin($technician->company);
+        $cable = $this->product($technician, 'Drop Cable', 'mtr');
+        $body = ['warehouse_location_id' => $this->location($technician)->public_id, 'items' => [['product_id' => $cable->public_id, 'quantity_requested' => 3]]];
+        $key = (string) Str::uuid();
+
+        $first = $this->api('POST', 'technician/inventory-requests', $body, $this->issueToken($technician, 'technician'), ['Idempotency-Key' => $key])->assertCreated();
+        Cache::flush();
+        $replay = $this->api('POST', 'technician/inventory-requests', $body, $this->issueToken($technician, 'technician'), ['Idempotency-Key' => $key])
+            ->assertCreated()
+            ->assertHeaderMissing('Idempotent-Replayed');
+
+        $this->assertSame($first->json('data'), $replay->json('data'));
+        $this->assertArrayNotHasKey('idempotency_key', $replay->json('data'));
+        $this->assertSame(1, InventoryRequest::withoutCompany()->count());
+        $this->assertSame(1, InventoryRequestItem::withoutCompany()->count());
+
+        // Another key is another request; a colleague's identical key is theirs, not a replay.
+        $this->api('POST', 'technician/inventory-requests', $body, $this->issueToken($technician, 'technician'), ['Idempotency-Key' => (string) Str::uuid()])->assertCreated();
+        $this->api('POST', 'technician/inventory-requests', $body, $this->issueToken($colleague, 'technician'), ['Idempotency-Key' => $key])->assertCreated();
+        $this->assertSame(3, InventoryRequest::withoutCompany()->count());
+    }
+
+    public function test_the_stored_key_is_unique_per_requester_and_only_for_keyed_rows(): void
+    {
+        $technician = $this->technicianLogin();
+        $colleague = $this->technicianLogin($technician->company);
+        $key = (string) Str::uuid();
+        $make = fn (User $by, ?string $withKey): InventoryRequest => InventoryRequest::withoutCompany()->create([
+            'company_id' => $technician->company_id,
+            'code' => 'REQ-'.Str::upper(Str::random(8)),
+            'requested_by' => $by->id,
+            'status' => 'draft',
+            'reason' => 'x',
+            'idempotency_key' => $withKey,
+        ]);
+
+        $make($technician, $key);
+        $make($colleague, $key);
+        $make($technician, null);
+        $make($technician, null);
+        $this->assertSame(4, InventoryRequest::withoutCompany()->count());
+
+        $this->expectException(UniqueConstraintViolationException::class);
+        $make($technician, $key);
     }
 
     /** @param  array<string, mixed>  $overrides */

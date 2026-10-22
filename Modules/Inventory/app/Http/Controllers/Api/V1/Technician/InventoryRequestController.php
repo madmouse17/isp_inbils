@@ -3,6 +3,7 @@
 namespace Modules\Inventory\Http\Controllers\Api\V1\Technician;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\Api\EnforceIdempotency;
 use App\Services\Core\CompanyService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
@@ -55,6 +56,7 @@ class InventoryRequestController extends Controller
         $workOrderId = $request->validated('work_order_id');
         $created = InventoryRequestService::create($request->user(), [
             ...Arr::except($request->validated(), 'work_order_id'),
+            'idempotency_key' => $request->attributes->get(EnforceIdempotency::KEY_ATTRIBUTE),
             'source_type' => $workOrderId === null ? null : 'work_order',
             'source_id' => $workOrderId,
             'submit' => true,

@@ -187,7 +187,7 @@ class PaymentsTest extends TestCase
 
     public function test_the_history_does_not_query_once_per_payment(): void
     {
-        // Sanctum re-stamps last_used_at once a minute; a slow run crossing that boundary adds one query.
+        // Sanctum re-stamps last_used_at whenever the clock second changes, one extra UPDATE; frozen time keeps it out of the count.
         $this->freezeTime();
         $invoice = $this->invoiceOf($this->customer, ['status' => 'partial', 'paid_amount' => 54600]);
         $this->paymentOn($invoice, ['amount' => '1000.00']);

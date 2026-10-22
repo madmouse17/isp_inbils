@@ -3,6 +3,7 @@
 namespace Modules\Ticketing\Http\Controllers\Api\V1\Customer;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\Api\EnforceIdempotency;
 use App\Http\Middleware\EnsureCustomerAccess;
 use App\Models\Core\Customer;
 use Illuminate\Http\JsonResponse;
@@ -23,7 +24,8 @@ class TicketCommentController extends Controller
         Gate::authorize('view', $ticket);
         Gate::authorize('comment', $ticket);
 
-        $comment = TicketService::addCustomerReply($ticket, $request->validated(), $request->user())
+        $data = [...$request->validated(), 'idempotency_key' => $request->attributes->get(EnforceIdempotency::KEY_ATTRIBUTE)];
+        $comment = TicketService::addCustomerReply($ticket, $data, $request->user())
             ->load('author:id,name');
 
         return (new CustomerTicketCommentResource($comment))->response()->setStatusCode(201);

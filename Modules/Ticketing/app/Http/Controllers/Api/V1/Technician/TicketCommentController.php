@@ -3,6 +3,7 @@
 namespace Modules\Ticketing\Http\Controllers\Api\V1\Technician;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\Api\EnforceIdempotency;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 use Modules\Ticketing\Http\Requests\StoreTicketCommentRequest;
@@ -18,7 +19,8 @@ class TicketCommentController extends Controller
         Gate::authorize('view', $ticket);
         Gate::authorize('comment', $ticket);
 
-        $comment = TicketService::addComment($ticket, $request->validated(), $request->user()->id)
+        $data = [...$request->validated(), 'idempotency_key' => $request->attributes->get(EnforceIdempotency::KEY_ATTRIBUTE)];
+        $comment = TicketService::addComment($ticket, $data, $request->user()->id)
             ->load('author:id,name');
 
         return (new TechnicianTicketCommentResource($comment))->response()->setStatusCode(201);

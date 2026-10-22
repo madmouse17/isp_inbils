@@ -12,6 +12,7 @@ use App\Support\PublicId;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Modules\Inventory\Models\InventoryRequest;
@@ -170,13 +171,50 @@ class InventoryRequestService
     /**
      * Create a new Inventory Request (draft or submitted).
      *
+     * `idempotency_key` (the API's Idempotency-Key) makes a replay answer the request it created, even after the cache
+     * replay record is gone; a replay racing the first call lands on the unique index and resolves to that same row.
+     *
      * @param  array<string, mixed>  $data
      */
     public static function create(User $requester, array $data): InventoryRequest
     {
         $companyId = CompanyService::currentId() ?? CompanyService::idFor($requester);
 
+        try {
+            return self::createInTransaction($requester, $data, $companyId);
+        } catch (UniqueConstraintViolationException $e) {
+            return self::requestOfKey($requester, $companyId, $data['idempotency_key'] ?? null) ?? throw $e;
+        }
+    }
+
+    /**
+     * Look up a request this requester already made under an Idempotency-Key.
+     */
+    private static function requestOfKey(User $requester, ?int $companyId, ?string $key): ?InventoryRequest
+    {
+        if ($key === null) {
+            return null;
+        }
+
+        return InventoryRequest::withoutCompany()
+            ->where('company_id', $companyId)
+            ->where('requested_by', $requester->id)
+            ->where('idempotency_key', $key)
+            ->first()
+            ?->load(['items.product', 'items.sourceLocation', 'requester', 'warehouseLocation']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private static function createInTransaction(User $requester, array $data, ?int $companyId): InventoryRequest
+    {
         return DB::transaction(function () use ($requester, $data, $companyId) {
+            $replay = self::requestOfKey($requester, $companyId, $data['idempotency_key'] ?? null);
+            if ($replay !== null) {
+                return $replay;
+            }
+
             $code = NumberSequenceService::generate('inventory_request', $companyId);
             $submitImmediately = ! empty($data['submit']);
 
@@ -201,6 +239,7 @@ class InventoryRequestService
                 'needed_at' => $data['needed_at'] ?? null,
                 'reason' => $reason,
                 'submitted_at' => $submitImmediately ? now() : null,
+                'idempotency_key' => $data['idempotency_key'] ?? null,
             ]);
 
             foreach ($data['items'] as $itemData) {

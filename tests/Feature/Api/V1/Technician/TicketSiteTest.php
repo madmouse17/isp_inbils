@@ -84,6 +84,15 @@ class TicketSiteTest extends TestCase
         $this->show($ticket)->assertOk()->assertJsonPath('data.site', null)->assertJsonPath('data.location', null);
     }
 
+    public function test_the_customer_carries_a_whatsapp_number_only_for_an_indonesian_mobile(): void
+    {
+        $this->customer->update(['phone' => '0812-3456-7890']);
+        $this->show($this->ticket(null, null))->assertOk()->assertJsonPath('data.customer.phone_e164', '+6281234567890');
+
+        $this->customer->update(['phone' => '021 555 1234']);
+        $this->show($this->ticket(null, null))->assertOk()->assertJsonPath('data.customer.phone_e164', null);
+    }
+
     public function test_an_installation_address_without_coordinates_is_still_the_site_the_check_in_uses(): void
     {
         $ticket = $this->ticket($this->subscriptionAt('Jl. Melati 3', null, null), $this->pop);

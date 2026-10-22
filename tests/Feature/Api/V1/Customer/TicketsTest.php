@@ -10,6 +10,7 @@ use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -137,6 +138,26 @@ class TicketsTest extends TestCase
         $this->assertSame(1, $ticket->comments()->count());
         $this->assertFalse((bool) $ticket->comments()->firstOrFail()->is_internal);
         $this->api('POST', "customer/tickets/{$foreign->public_id}/comments", ['body' => 'Nope'], $this->token)->assertNotFound();
+    }
+
+    public function test_a_customer_reply_replayed_after_the_cache_record_expired_creates_nothing(): void
+    {
+        $ticket = $this->ticket('Own', $this->customer->id);
+        $url = "customer/tickets/{$ticket->public_id}/comments";
+        $key = (string) Str::uuid();
+
+        $first = $this->api('POST', $url, ['body' => 'Reply'], $this->token, ['Idempotency-Key' => $key])->assertCreated();
+        Cache::flush();
+        $replay = $this->api('POST', $url, ['body' => 'Reply'], $this->token, ['Idempotency-Key' => $key])
+            ->assertCreated()
+            ->assertHeaderMissing('Idempotent-Replayed');
+
+        $this->assertSame($first->json('data'), $replay->json('data'));
+        $this->assertArrayNotHasKey('idempotency_key', $replay->json('data'));
+        $this->assertSame(1, $ticket->comments()->count());
+
+        $this->api('POST', $url, ['body' => 'Reply'], $this->token, ['Idempotency-Key' => (string) Str::uuid()])->assertCreated();
+        $this->assertSame(2, $ticket->comments()->count());
     }
 
     public function test_customer_create_rejects_foreign_subscription_or_network_asset(): void

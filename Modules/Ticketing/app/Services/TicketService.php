@@ -355,7 +355,7 @@ class TicketService
      * A comment by staff. A closed ticket takes none. The first public one is the first response, unless Mulai came first,
      * and the customer hears of every public one. An internal note does neither.
      *
-     * @param  array{body: string, is_internal?: bool}  $data
+     * @param  array{body: string, is_internal?: bool, idempotency_key?: ?string}  $data
      */
     public static function addComment(Ticket $ticket, array $data, int $authorId): TicketComment
     {
@@ -363,6 +363,11 @@ class TicketService
 
         return DB::transaction(function () use ($ticket, $data, $authorId): TicketComment {
             $ticket = self::lockedTicket($ticket->id);
+            $replay = self::commentOfKey($ticket, $authorId, $data['idempotency_key'] ?? null);
+            if ($replay !== null) {
+                return $replay;
+            }
+
             abort_if($ticket->status === 'closed', 422, 'Tiket sudah ditutup.');
 
             $internal = (bool) ($data['is_internal'] ?? false);
@@ -371,6 +376,7 @@ class TicketService
                 'author_id' => $authorId,
                 'body' => $data['body'],
                 'is_internal' => $internal,
+                'idempotency_key' => $data['idempotency_key'] ?? null,
             ]);
 
             if (! $internal) {
@@ -389,7 +395,7 @@ class TicketService
      * The customer's reply from the app. A closed ticket takes none; a resolved one comes back to its handler (to dispatch
      * when it has none). Either way the handler and dispatch hear of it. It is never a response by staff.
      *
-     * @param  array{body: string}  $data
+     * @param  array{body: string, idempotency_key?: ?string}  $data
      */
     public static function addCustomerReply(Ticket $ticket, array $data, User $customerUser): TicketComment
     {
@@ -397,6 +403,11 @@ class TicketService
 
         return DB::transaction(function () use ($ticket, $data, $customerUser): TicketComment {
             $ticket = self::lockedTicket($ticket->id);
+            $replay = self::commentOfKey($ticket, $customerUser->id, $data['idempotency_key'] ?? null);
+            if ($replay !== null) {
+                return $replay;
+            }
+
             self::assertOpenForCustomer($ticket);
 
             $comment = TicketComment::create([
@@ -404,6 +415,7 @@ class TicketService
                 'author_id' => $customerUser->id,
                 'body' => $data['body'],
                 'is_internal' => false,
+                'idempotency_key' => $data['idempotency_key'] ?? null,
             ]);
 
             $reopens = $ticket->status === 'resolved';
@@ -418,6 +430,23 @@ class TicketService
 
             return $comment;
         });
+    }
+
+    /**
+     * The comment this API client already made under this Idempotency-Key, to answer a replay the cache no longer
+     * remembers (24 h). Called with the ticket locked, so two racing replays cannot both miss it. Trashed rows count:
+     * the unique index still holds their key.
+     */
+    private static function commentOfKey(Ticket $ticket, int $authorId, ?string $key): ?TicketComment
+    {
+        if ($key === null) {
+            return null;
+        }
+
+        $existing = TicketComment::withTrashed()->where('author_id', $authorId)->where('idempotency_key', $key)->first();
+        abort_if($existing !== null && (int) $existing->ticket_id !== (int) $ticket->id, 409, 'Kunci idempotensi sudah dipakai pada tiket lain.');
+
+        return $existing;
     }
 
     /**

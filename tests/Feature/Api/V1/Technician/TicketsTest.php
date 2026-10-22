@@ -10,7 +10,9 @@ use App\Models\User;
 use App\Services\Core\CompanyService;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
@@ -264,6 +266,67 @@ class TicketsTest extends TestCase
         $this->api('POST', "technician/tickets/{$started->public_id}/start", token: $this->token)
             ->assertOk()
             ->assertJsonPath('data.first_response_source', 'start');
+    }
+
+    public function test_a_comment_replayed_after_the_cache_record_expired_returns_the_first_one_and_creates_nothing(): void
+    {
+        $ticket = $this->assignedTicket('on_progress');
+        $url = "technician/tickets/{$ticket->public_id}/comments";
+        $body = ['body' => 'Menuju lokasi', 'is_internal' => false];
+        $key = (string) Str::uuid();
+
+        $first = $this->api('POST', $url, $body, $this->token, ['Idempotency-Key' => $key])->assertCreated();
+        Cache::flush();
+        $replay = $this->api('POST', $url, $body, $this->token, ['Idempotency-Key' => $key])
+            ->assertCreated()
+            ->assertHeaderMissing('Idempotent-Replayed');
+
+        $this->assertSame($first->json('data'), $replay->json('data'));
+        $this->assertArrayNotHasKey('idempotency_key', $replay->json('data'));
+        $this->assertSame(1, TicketComment::withoutCompany()->count());
+
+        $this->api('POST', $url, $body, $this->token, ['Idempotency-Key' => (string) Str::uuid()])->assertCreated();
+        $this->assertSame(2, TicketComment::withoutCompany()->count());
+
+        // The ticket closing in between does not turn the old answer into a 422.
+        $ticket->update(['status' => 'closed']);
+        Cache::flush();
+        $this->api('POST', $url, $body, $this->token, ['Idempotency-Key' => $key])
+            ->assertCreated()
+            ->assertJsonPath('data.id', $first->json('data.id'));
+        $this->assertSame(2, TicketComment::withoutCompany()->count());
+    }
+
+    public function test_a_key_used_for_another_ticket_is_a_conflict(): void
+    {
+        $ticket = $this->assignedTicket('on_progress');
+        $other = $this->assignedTicket('on_progress');
+        $key = (string) Str::uuid();
+
+        $this->api('POST', "technician/tickets/{$ticket->public_id}/comments", ['body' => 'A'], $this->token, ['Idempotency-Key' => $key])->assertCreated();
+        Cache::flush();
+        $this->api('POST', "technician/tickets/{$other->public_id}/comments", ['body' => 'A'], $this->token, ['Idempotency-Key' => $key])->assertConflict();
+
+        $this->assertSame(1, TicketComment::withoutCompany()->count());
+        $this->assertSame([$key], TicketComment::withoutCompany()->pluck('idempotency_key')->all());
+    }
+
+    public function test_the_stored_key_is_unique_per_author_and_only_for_keyed_rows(): void
+    {
+        $ticket = $this->assignedTicket('on_progress');
+        $key = (string) Str::uuid();
+        $make = fn (User $author, ?string $withKey): TicketComment => CompanyService::runAs((int) $ticket->company_id, fn () => TicketComment::query()->create([
+            'ticket_id' => $ticket->id, 'author_id' => $author->id, 'body' => 'x', 'idempotency_key' => $withKey,
+        ]));
+
+        $make($this->technician, $key);
+        $make($this->otherTechnician, $key);
+        $make($this->technician, null);
+        $make($this->technician, null);
+        $this->assertSame(4, TicketComment::withoutCompany()->count());
+
+        $this->expectException(UniqueConstraintViolationException::class);
+        $make($this->technician, $key);
     }
 
     private function assignedTicket(string $status): Ticket

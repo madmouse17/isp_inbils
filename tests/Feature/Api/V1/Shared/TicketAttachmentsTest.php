@@ -261,7 +261,7 @@ class TicketAttachmentsTest extends TestCase
 
     public function test_the_ticket_detail_does_not_query_once_per_file(): void
     {
-        // Sanctum re-stamps last_used_at once a minute; a slow run crossing that boundary adds one query.
+        // Sanctum re-stamps last_used_at whenever the clock second changes, one extra UPDATE; frozen time keeps it out of the count.
         $this->freezeTime();
         [$user, $customer] = $this->customerLogin();
         $ticket = $this->ticket($user->company_id, ['customer_id' => $customer->id]);

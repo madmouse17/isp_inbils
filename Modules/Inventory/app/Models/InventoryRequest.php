@@ -43,6 +43,7 @@ use Modules\Ticketing\Models\Ticket;
  * @property ?Carbon $issued_at
  * @property ?Carbon $rejected_at
  * @property ?Carbon $cancelled_at
+ * @property ?string $idempotency_key
  * @property-read User|null $requester
  * @property-read User|null $approver
  * @property-read User|null $preparer
@@ -87,6 +88,7 @@ class InventoryRequest extends Model
         'issued_at',
         'rejected_at',
         'cancelled_at',
+        'idempotency_key',
     ];
 
     protected $casts = [

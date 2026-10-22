@@ -196,7 +196,7 @@ class TicketAttachmentRulesTest extends TestCase
             DB::flushQueryLog();
             DB::enableQueryLog();
             $this->api('GET', "customer/tickets/{$this->ticket->public_id}", token: $this->token)->assertOk();
-            // Sanctum notes when a token was last used, at most once a minute: not a cost of the page.
+            // Sanctum re-stamps last_used_at whenever the clock second changes: not a cost of the page.
             $queries = array_values(array_filter(array_column(DB::getQueryLog(), 'query'), fn (string $sql): bool => ! str_contains($sql, 'personal_access_tokens')));
             DB::disableQueryLog();
 

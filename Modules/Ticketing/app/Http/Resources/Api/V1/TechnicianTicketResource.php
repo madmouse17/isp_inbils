@@ -4,6 +4,7 @@ namespace Modules\Ticketing\Http\Resources\Api\V1;
 
 use App\Models\Core\CustomerAddress;
 use App\Models\Core\Location;
+use App\Services\WhatsApp\PhoneNumber;
 use App\Support\FieldCheckIn;
 use Illuminate\Http\Request;
 use Modules\Ticketing\Models\Ticket;
@@ -23,6 +24,8 @@ class TechnicianTicketResource extends CustomerTicketResource
             'customer' => $this->customer ? [
                 'name' => $this->customer->name,
                 'phone' => $this->customer->phone,
+                /** The phone as `+62…` for a WhatsApp link (`https://wa.me/` without the plus); null when it is not an Indonesian mobile number. */
+                'phone_e164' => ($e164 = PhoneNumber::normalizeIndonesianMobile($this->customer->phone)) === null ? null : '+'.$e164,
             ] : null,
             'subscription' => $this->subscription ? ['id' => $this->subscription->public_id, 'code' => $this->subscription->code] : null,
             'location' => $this->location ? [

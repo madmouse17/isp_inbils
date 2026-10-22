@@ -18,7 +18,7 @@ class TicketComment extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'ticket_id', 'author_id', 'body', 'is_internal',
+        'ticket_id', 'author_id', 'body', 'is_internal', 'idempotency_key',
     ];
 
     protected $casts = [
