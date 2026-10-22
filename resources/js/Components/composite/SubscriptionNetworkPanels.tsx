@@ -34,7 +34,12 @@ export function SubscriptionNetworkPanels({
         <div className="grid gap-6 lg:grid-cols-2">
             {showIp && (
                 <SubscriptionIpPanel
-                    subscription={{ id: subscription.id, code: subscription.code, terminated }}
+                    subscription={{
+                        id: subscription.id,
+                        code: subscription.code,
+                        terminated,
+                        hasServingPop: subscription.hasServingPop,
+                    }}
                     addresses={ipAddresses}
                     pools={staticPools ?? []}
                     canAssign={can.assignIp}

@@ -11,6 +11,7 @@ use App\Models\Core\Company;
 use App\Services\Core\CompanyLogoService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\IndonesiaRegionService;
+use App\Services\Platform\SubsidiaryRequestService;
 use App\Services\WhatsApp\WhatsAppCloudClient;
 use App\Services\WhatsApp\WhatsAppSettings;
 use App\Support\FieldCheckIn;
@@ -26,16 +27,19 @@ use Inertia\Response;
 
 class CompanyController extends Controller
 {
-    public function editProfile(Request $request): Response
+    public function editProfile(Request $request, SubsidiaryRequestService $subsidiaryRequests): Response
     {
         $company = CompanyService::current();
         Gate::authorize('viewProfile', $company);
+        $canRequestSubsidiary = $request->user()?->can('requestSubsidiary', $company) ?? false;
 
         return Inertia::render('Admin/Company/Profile', [
             'company' => new CompanyResource($company),
             'can' => [
                 'update' => $request->user()?->can('company.manage') ?? false,
+                'requestSubsidiary' => $canRequestSubsidiary,
             ],
+            'subsidiaryRequest' => $canRequestSubsidiary ? $subsidiaryRequests->summaryFor($company) : null,
         ]);
     }
 

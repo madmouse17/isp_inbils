@@ -1,7 +1,7 @@
+import type { FormEvent, ReactNode } from 'react';
 import { useState } from 'react';
-import type { ReactNode } from 'react';
-import { Link, router } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
+import { Link, router, useForm } from '@inertiajs/react';
+import { ArrowLeft, ExternalLink, Trash2, Upload } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
     Alert,
@@ -14,16 +14,25 @@ import {
     CardTitle,
     EmptyCell,
     EnumBadge,
+    FileUpload,
+    TBody,
+    TD,
+    TH,
+    THead,
+    TR,
+    Table,
 } from '@/Components/ui';
 import {
     CustomerAcquirerValue,
     CustomerRelatedTables,
     DataTable,
+    NativeSelect,
     PageHeader,
     type CustomerHistory,
     type CustomerHistoryAccess,
     type DataTableColumn,
 } from '@/Components/composite';
+import { ConfirmDialog } from '@/Components/composite/ConfirmDialog';
 import { formatDate, formatDateTime } from '@/lib/format';
 import {
     ACTIVE_STATE,
@@ -35,6 +44,13 @@ import {
 } from '@/lib/statuses';
 import type { Customer } from '@/types/models';
 import type { CustomerWhatsApp, WhatsAppMessageRow } from '@/types/whatsapp';
+import type { MediaItem } from '@/types/document';
+
+interface DocumentTypeOption {
+    code: string;
+    name: string;
+    expiry_days: number | null;
+}
 
 interface ShowProps extends Record<string, unknown> {
     customer: { data: Customer & { whatsapp: CustomerWhatsApp } };
@@ -42,6 +58,9 @@ interface ShowProps extends Record<string, unknown> {
     historyAccess: CustomerHistoryAccess;
     /** The latest 20 WhatsApp rows of this customer, newest first. */
     whatsappMessages: WhatsAppMessageRow[];
+    documents: MediaItem[];
+    documentTypes: DocumentTypeOption[];
+    documentModelType: string;
     can: { viewAcquirer: boolean; update: boolean };
 }
 
@@ -134,11 +153,200 @@ function DetailRow({ label, children }: { label: string; children: ReactNode }) 
     );
 }
 
+function CustomerDocumentsPanel({
+    customerId,
+    modelType,
+    documents,
+    documentTypes,
+    canUpdate,
+}: {
+    customerId: string;
+    modelType: string;
+    documents: MediaItem[];
+    documentTypes: DocumentTypeOption[];
+    canUpdate: boolean;
+}) {
+    const form = useForm({
+        model_type: modelType,
+        model_id: customerId,
+        file: null as File | null,
+        document_type_code: '',
+        collection: 'documents',
+    });
+    const [deleting, setDeleting] = useState<MediaItem | null>(null);
+    const [deleteProcessing, setDeleteProcessing] = useState(false);
+
+    const submit = (event: FormEvent) => {
+        event.preventDefault();
+        form.post(route('admin.documents.media.store'), {
+            preserveScroll: true,
+            onSuccess: () => form.reset('file', 'document_type_code'),
+        });
+    };
+
+    const remove = () => {
+        if (!deleting) return;
+
+        router.delete(route('admin.documents.media.destroy', deleting.id), {
+            preserveScroll: true,
+            onStart: () => setDeleteProcessing(true),
+            onSuccess: () => setDeleting(null),
+            onFinish: () => setDeleteProcessing(false),
+        });
+    };
+
+    return (
+        <div className="space-y-6">
+            {canUpdate ? (
+                <form onSubmit={submit} className="rounded-lg border border-border bg-muted/20 p-4">
+                    <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] md:items-end">
+                        <NativeSelect
+                            label="Jenis dokumen"
+                            value={form.data.document_type_code}
+                            onChange={(event) =>
+                                form.setData('document_type_code', event.target.value)
+                            }
+                            error={form.errors.document_type_code}
+                            required
+                        >
+                            <option value="">Pilih jenis</option>
+                            {documentTypes.map((type) => (
+                                <option key={type.code} value={type.code}>
+                                    {type.name}
+                                    {type.expiry_days ? ` (${type.expiry_days} hari)` : ''}
+                                </option>
+                            ))}
+                        </NativeSelect>
+                        <FileUpload
+                            label="Berkas"
+                            value={form.data.file}
+                            onChange={(file) => form.setData('file', file)}
+                            acceptedFileTypes={['application/pdf', 'image/jpeg', 'image/png']}
+                            maxFileSize="10MB"
+                            error={form.errors.file}
+                            hint="PDF, JPG, atau PNG. Maksimum 10 MB."
+                            required
+                        />
+                        <Button
+                            type="submit"
+                            variant="primary"
+                            loading={form.processing}
+                            disabled={!form.data.file || !form.data.document_type_code}
+                            leftIcon={<Upload className="size-4" />}
+                        >
+                            Unggah
+                        </Button>
+                    </div>
+                </form>
+            ) : null}
+
+            {documents.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
+                    Belum ada dokumen. Unggah KTP atau kontrak pelanggan.
+                </div>
+            ) : (
+                <Table>
+                    <THead>
+                        <TR>
+                            <TH>Dokumen</TH>
+                            <TH>Berlaku</TH>
+                            <TH>Diunggah</TH>
+                            <TH className="text-right">Aksi</TH>
+                        </TR>
+                    </THead>
+                    <TBody>
+                        {documents.map((document) => (
+                            <TR key={document.id}>
+                                <TD>
+                                    <p className="font-medium text-foreground">
+                                        {document.document_type_name ||
+                                            document.document_type ||
+                                            'Dokumen'}
+                                    </p>
+                                    <p className="mt-1 text-xs break-all text-muted-foreground">
+                                        {document.file_name}
+                                    </p>
+                                </TD>
+                                <TD>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span>
+                                            {document.expires_at
+                                                ? `Berlaku sampai ${formatDate(document.expires_at)}`
+                                                : 'Tanpa masa berlaku'}
+                                        </span>
+                                        {document.expiry === 'expiring' ? (
+                                            <Badge variant="warning">Segera habis</Badge>
+                                        ) : null}
+                                        {document.expiry === 'expired' ? (
+                                            <Badge variant="danger">Kedaluwarsa</Badge>
+                                        ) : null}
+                                    </div>
+                                </TD>
+                                <TD>{formatDateTime(document.created_at)}</TD>
+                                <TD>
+                                    <div className="flex justify-end gap-2">
+                                        {document.url ? (
+                                            <Button
+                                                asChild
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                leftIcon={<ExternalLink className="size-4" />}
+                                            >
+                                                <a
+                                                    href={document.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
+                                                    Lihat
+                                                </a>
+                                            </Button>
+                                        ) : null}
+                                        {canUpdate ? (
+                                            <Button
+                                                type="button"
+                                                variant="danger"
+                                                size="sm"
+                                                leftIcon={<Trash2 className="size-4" />}
+                                                onClick={() => setDeleting(document)}
+                                            >
+                                                Hapus
+                                                <span className="sr-only">
+                                                    {' '}
+                                                    {document.file_name}
+                                                </span>
+                                            </Button>
+                                        ) : null}
+                                    </div>
+                                </TD>
+                            </TR>
+                        ))}
+                    </TBody>
+                </Table>
+            )}
+
+            <ConfirmDialog
+                open={deleting !== null}
+                title={`Hapus ${deleting?.file_name ?? 'dokumen'}?`}
+                description="Berkas ini akan dihapus permanen dari data pelanggan."
+                confirmLabel="Hapus dokumen"
+                tone="danger"
+                processing={deleteProcessing}
+                onConfirm={remove}
+                onClose={() => setDeleting(null)}
+            />
+        </div>
+    );
+}
+
 export default function Show({
     customer,
     history,
     historyAccess,
     whatsappMessages,
+    documents,
+    documentTypes,
+    documentModelType,
     can,
 }: ShowProps) {
     const c = customer.data;
@@ -262,6 +470,19 @@ export default function Show({
                     subscriptions={c.subscriptions ?? []}
                     history={history}
                     historyAccess={historyAccess}
+                    extraTab={{
+                        value: 'documents',
+                        label: `Dokumen (${documents.length})`,
+                        content: (
+                            <CustomerDocumentsPanel
+                                customerId={String(c.id)}
+                                modelType={documentModelType}
+                                documents={documents}
+                                documentTypes={documentTypes}
+                                canUpdate={can.update}
+                            />
+                        ),
+                    }}
                 />
             </div>
         </AdminLayout>

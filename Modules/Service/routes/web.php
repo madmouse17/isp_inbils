@@ -20,6 +20,7 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
     Route::group(['prefix' => 'admin', 'as' => 'admin.'], function () {
         Route::get('announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
         Route::post('announcements', [AnnouncementController::class, 'store'])->name('announcements.store');
+        Route::post('announcements/audience', [AnnouncementController::class, 'audience'])->middleware('throttle:60,1,announcement-audience')->name('announcements.audience');
         Route::put('announcements/{announcement}', [AnnouncementController::class, 'update'])->name('announcements.update');
         Route::post('announcements/{announcement}/publish', [AnnouncementController::class, 'publish'])->name('announcements.publish');
         Route::post('announcements/{announcement}/deactivate', [AnnouncementController::class, 'deactivate'])->name('announcements.deactivate');

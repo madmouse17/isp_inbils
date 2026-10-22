@@ -20,21 +20,29 @@ import { formatBytes } from '@/lib/platform';
 import { PLATFORM_TENANT_STATUS, optionsOf } from '@/lib/statuses';
 import { toPagination } from '@/lib/pagination';
 import type {
+    PlatformSubsidiaryRequest,
     PlatformTenantFilters,
     PlatformTenantRow,
     PlatformTenantSummary,
 } from '@/types/platform';
 import type { Paginated } from '@/types';
+import { SubsidiaryRequestsCard } from './Companies/components/SubsidiaryRequestsCard';
 
 interface DashboardProps {
     tenants: Paginated<PlatformTenantRow>;
     filters: PlatformTenantFilters;
     summary: PlatformTenantSummary;
+    subsidiaryRequests: PlatformSubsidiaryRequest[];
 }
 
 const STATUS_OPTIONS = [{ value: '', label: 'Semua status' }, ...optionsOf(PLATFORM_TENANT_STATUS)];
 
-export default function Dashboard({ tenants, filters, summary }: DashboardProps) {
+export default function Dashboard({
+    tenants,
+    filters,
+    summary,
+    subsidiaryRequests,
+}: DashboardProps) {
     const { params, set, setMany, sortBy, sortDir, onSort, processing } = useServerTable({
         url: route('platform.dashboard'),
         filters,
@@ -182,6 +190,8 @@ export default function Dashboard({ tenants, filters, summary }: DashboardProps)
                     </AlertDescription>
                 </Alert>
             ) : null}
+
+            <SubsidiaryRequestsCard requests={subsidiaryRequests} />
 
             <Card>
                 <CardContent className="space-y-4 pt-6">

@@ -9,16 +9,22 @@ use App\Models\PlatformAdmin;
 use App\Models\RoleTemplate;
 use App\Models\User;
 use App\Services\Platform\PlatformAuditService;
+use App\Services\Platform\SubsidiaryRequestService;
 use App\Services\Platform\SupportToolsService;
+use App\Services\Platform\TenantExportService;
 use App\Services\Platform\TenantLifecycleService;
+use App\Support\AuditEventText;
 use App\Support\PermissionCatalogue;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
+use Spatie\Activitylog\Models\Activity;
 
 /**
  * Everything the platform's tenant page shows about ONE tenant (a head company with its subsidiaries). Like the
@@ -41,6 +47,8 @@ class TenantDetailQuery
         private readonly PlatformTenantListQuery $tenants,
         private readonly TenantLifecycleService $lifecycle,
         private readonly SupportToolsService $support,
+        private readonly TenantExportService $exports,
+        private readonly SubsidiaryRequestService $subsidiaryRequests,
     ) {}
 
     /**
@@ -57,6 +65,8 @@ class TenantDetailQuery
         /** @var LengthAwarePaginator<int, mixed> $page the rows are arrays from here on */
         $page = $users;
         $page->setCollection(collect($this->userRows($users->getCollection(), $companies)));
+
+        $lifecycle = $this->lifecycle->state($root);
 
         return [
             'tenant' => $this->profile($root),
@@ -76,11 +86,17 @@ class TenantDetailQuery
             'roleTemplates' => RoleTemplate::query()->orderBy('id')->get(['key', 'name'])->map(fn (RoleTemplate $template): array => ['key' => $template->key, 'name' => $template->name])->all(),
             'userFilters' => $userFilters,
             'recentAudit' => $this->recentAudit($ids),
+            'subsidiaryRequests' => $this->subsidiaryRequests->pending($root),
             'failedJobs' => $this->failedJobs($ids),
             'failedWhatsApp' => $this->failedWhatsApp($ids, $companies),
             'integrations' => $this->integrations($ids, $companies),
             'exports' => $this->exports($root),
-            'lifecycle' => $this->lifecycle->state($root),
+            'lifecycle' => $lifecycle,
+            'suspendImpact' => $lifecycle['can_suspend'] ? $this->suspendImpact($ids) : null,
+            'sessionDriver' => [
+                'ends_all' => config('session.driver') === 'database',
+                'lifetime_minutes' => (int) config('session.lifetime'),
+            ],
         ];
     }
 
@@ -340,43 +356,82 @@ class TenantDetailQuery
     }
 
     /**
+     * What suspending the tenant would cut off, counted for its confirmation dialog: the people who could still sign in,
+     * the sessions and app tokens they hold, and the invoices still waiting for money. Sessions are only countable on the
+     * database driver (null elsewhere). A count, never a list of people.
+     *
+     * @param  list<int>  $ids
+     * @return array{users: int, sessions: int|null, app_tokens: int, open_invoices: array{count: int, outstanding: string}}
+     */
+    private function suspendImpact(array $ids): array
+    {
+        $users = DB::table('users')->whereIn('company_id', $ids)->where('is_active', true)->select('id');
+        $invoices = DB::table('invoices')
+            ->whereIn('company_id', $ids)
+            ->whereNull('deleted_at')
+            ->whereIn('status', ['sent', 'partial', 'overdue'])
+            ->selectRaw('count(*) as total_count, coalesce(sum(total - paid_amount), 0) as outstanding')
+            ->first();
+
+        return [
+            'users' => (clone $users)->count(),
+            'sessions' => config('session.driver') === 'database'
+                ? DB::table((string) config('session.table', 'sessions'))
+                    ->whereIn('user_id', (clone $users))
+                    ->where('last_activity', '>=', now()->subMinutes((int) config('session.lifetime'))->getTimestamp())
+                    ->count()
+                : null,
+            'app_tokens' => DB::table('personal_access_tokens')
+                ->where('tokenable_type', User::class)
+                ->whereIn('tokenable_id', (clone $users))
+                ->where(fn ($live) => $live->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+                ->count(),
+            'open_invoices' => [
+                'count' => (int) ($invoices->total_count ?? 0),
+                'outstanding' => (string) ($invoices->outstanding ?? '0'),
+            ],
+        ];
+    }
+
+    /**
      * The newest rows about this tenant, whoever wrote them (its users, and the platform and support entries about
-     * it). No properties dump: only who, what, about which kind of record, and the reason when the row has one.
+     * it). No properties dump: the sentence of the row without its details, who, what kind of record, and the reason
+     * when the row has one.
      *
      * @param  list<int>  $ids
      * @return list<array<string, mixed>>
      */
     private function recentAudit(array $ids): array
     {
-        $rows = DB::table('activity_log')
+        /** @var EloquentCollection<int, Activity> $rows */
+        $rows = Activity::query()
+            ->select(['id', 'public_id', 'log_name', 'description', 'subject_type', 'subject_id', 'causer_type', 'causer_id', 'properties', 'created_at'])
+            ->with('causer')
             ->whereIn('company_id', $ids)
             ->orderByDesc('id')
             ->limit(self::RECENT)
-            ->get(['id', 'public_id', 'log_name', 'description', 'subject_type', 'causer_type', 'causer_id', 'properties', 'created_at']);
+            ->get();
 
-        $names = [];
+        // Loads the subjects too: the sentence of a support row names the person it was about.
+        AuditEventText::annotate($rows);
 
-        foreach ([PlatformAdmin::class, User::class] as $causer) {
-            $causerIds = $rows->where('causer_type', $causer)->pluck('causer_id')->unique()->all();
-            $names[$causer] = $causerIds === [] ? [] : $causer::query()->whereIn('id', $causerIds)->pluck('name', 'id')->all();
-        }
-
-        return $rows->map(function (object $row) use ($names): array {
-            $properties = json_decode((string) $row->properties, true);
+        return $rows->map(function (Activity $row): array {
             $kind = match ($row->causer_type) {
                 PlatformAdmin::class => 'platform_admin',
                 User::class => 'user',
                 default => null,
             };
+            $reason = $row->properties?->get('reason');
 
             return [
                 'id' => $row->public_id,
                 'log_name' => $row->log_name,
                 'description' => $row->description,
+                'text' => AuditEventText::text($row, withProperties: false),
                 'subject_type' => $row->subject_type === null ? null : class_basename($row->subject_type),
-                'causer' => $kind === null ? null : ['type' => $kind, 'name' => $names[$row->causer_type][$row->causer_id] ?? null],
-                'reason' => is_array($properties) && is_string($properties['reason'] ?? null) ? $properties['reason'] : null,
-                'created_at' => Carbon::parse($row->created_at)->toIso8601String(),
+                'causer' => $kind === null ? null : ['type' => $kind, 'name' => $row->causer?->getAttribute('name')],
+                'reason' => is_string($reason) ? $reason : null,
+                'created_at' => $row->created_at?->toIso8601String(),
             ];
         })->all();
     }
@@ -452,8 +507,8 @@ class TenantDetailQuery
     }
 
     /**
-     * The tenant's latest exports. No download link: the download route is signed and checked on the record by the
-     * export ticket, which adds it to these rows.
+     * The tenant's latest exports, each with the signed link while it can still be downloaded (the same link and the
+     * same rule as the exports page, so the download route checks it on the record and writes the audit rows).
      *
      * @return list<array<string, mixed>>
      */
@@ -476,6 +531,9 @@ class TenantDetailQuery
                 'created_at' => $export->created_at?->toIso8601String(),
                 'completed_at' => $export->completed_at?->toIso8601String(),
                 'expires_at' => $export->expires_at?->toIso8601String(),
+                'download_url' => $this->exports->isDownloadable($export)
+                    ? URL::temporarySignedRoute('platform.exports.download', $export->expires_at, ['tenantExport' => $export])
+                    : null,
             ])
             ->all();
     }

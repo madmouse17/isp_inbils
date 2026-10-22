@@ -2,6 +2,7 @@
 
 namespace Modules\Service\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AnswersInlineCreate;
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
 use App\Services\Core\CompanyService;
@@ -9,6 +10,7 @@ use App\Services\Core\LifecycleService;
 use App\Support\ExportQuery;
 use App\Support\ServiceHours;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -24,6 +26,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SLATierController extends Controller
 {
+    use AnswersInlineCreate;
     use HasIndexQuery;
 
     private const SORTABLE = ['name', 'response_time_hours', 'resolution_time_hours', 'created_at'];
@@ -57,10 +60,14 @@ class SLATierController extends Controller
         return Inertia::render('Admin/Service/SLATiers/Create', ['serviceHoursSet' => $this->serviceHoursSet()]);
     }
 
-    public function store(StoreSLATierRequest $request): RedirectResponse
+    public function store(StoreSLATierRequest $request): RedirectResponse|JsonResponse
     {
         Gate::authorize('store', SLATier::class);
-        SLATier::query()->create($request->validated());
+        $tier = SLATier::query()->create($request->validated());
+
+        if ($this->wantsInlineRow($request)) {
+            return response()->json(['data' => ['id' => $tier->public_id, 'label' => $tier->name]], 201);
+        }
 
         return redirect()->route('admin.sla-tiers.index')->with('success', 'Tingkat SLA dibuat.');
     }

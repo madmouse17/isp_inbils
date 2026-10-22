@@ -15,8 +15,10 @@ export interface MediaItem {
     size: number;
     collection: string;
     document_type?: string | null;
+    document_type_name?: string | null;
     uploaded_by?: string | null;
     expires_at?: string | null;
+    expiry?: 'expiring' | 'expired' | null;
     url?: string;
     created_at?: string;
 }

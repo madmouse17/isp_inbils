@@ -125,9 +125,34 @@ class TenantStarterCatalogTest extends TestCase
         $company = $this->provision(['catalog' => CompanySeeder::CATALOG_STARTER]);
 
         $this->assertSame(self::rows(CompanySeeder::CATALOG_STARTER), $this->counts($company));
-        $this->assertTrue(DB::table('locations')->where(['company_id' => $company->id, 'name' => 'Default POP'])->exists());
+        $this->assertSame(
+            ['Wilayah Utama', 'Area Utama', 'POP Utama'],
+            DB::table('locations')->where('company_id', $company->id)->orderBy('id')->pluck('name')->all(),
+        );
         $this->assertTrue(DB::table('service_packages')->where(['company_id' => $company->id, 'name' => 'Home 10Mbps'])->exists());
         $this->assertSame('starter', Activity::query()->where('description', 'tenant.provisioned')->sole()->properties['catalog']);
+    }
+
+    public function test_every_company_gets_indonesian_ticket_categories_with_a_customer_hint(): void
+    {
+        Notification::fake();
+
+        $company = $this->provision(['catalog' => CompanySeeder::CATALOG_EMPTY]);
+
+        $categories = DB::table('ticket_categories')->where('company_id', $company->id)->orderBy('id')->pluck('name', 'code')->all();
+
+        $this->assertSame([
+            'no_internet' => 'Internet mati',
+            'slow_connection' => 'Koneksi lambat',
+            'packet_loss' => 'Koneksi putus-sambung',
+            'device_issue' => 'Masalah perangkat',
+            'fiber_issue' => 'Kabel fiber bermasalah',
+        ], $categories);
+        $this->assertSame(0, DB::table('ticket_categories')->where('company_id', $company->id)->where(fn ($query) => $query->whereNull('customer_hint')->orWhere('customer_hint', ''))->count());
+        $this->assertSame(
+            'Periksa lampu modem. Cabut adaptor 10 detik lalu pasang lagi. Bila lampu LOS merah, kirim laporan ini.',
+            DB::table('ticket_categories')->where(['company_id' => $company->id, 'code' => 'no_internet'])->value('customer_hint'),
+        );
     }
 
     public function test_empty_seeds_units_and_categories_only(): void
@@ -269,7 +294,7 @@ class TenantStarterCatalogTest extends TestCase
 
         $this->assertSame(self::rows(CompanySeeder::CATALOG_DEMO), $this->counts($company));
         $this->assertContains('HW-MA5800-001', $serials, 'NetworkDemo installs the legacy gear by its serial');
-        $this->assertTrue(DB::table('locations')->where(['company_id' => $company->id, 'name' => 'Default POP'])->exists());
+        $this->assertTrue(DB::table('locations')->where(['company_id' => $company->id, 'name' => 'POP Utama'])->exists());
         $this->assertTrue(DB::table('service_packages')->where(['company_id' => $company->id, 'name' => 'Home 10Mbps'])->exists());
     }
 

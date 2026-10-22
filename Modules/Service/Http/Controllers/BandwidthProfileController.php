@@ -2,11 +2,13 @@
 
 namespace Modules\Service\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AnswersInlineCreate;
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
 use App\Services\Core\LifecycleService;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -21,6 +23,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class BandwidthProfileController extends Controller
 {
+    use AnswersInlineCreate;
     use HasIndexQuery;
 
     private const SORTABLE = ['name', 'download_mbps', 'upload_mbps', 'type', 'contention_ratio', 'created_at'];
@@ -50,10 +53,15 @@ class BandwidthProfileController extends Controller
         return Inertia::render('Admin/Service/BandwidthProfiles/Create');
     }
 
-    public function store(StoreBandwidthProfileRequest $request): RedirectResponse
+    public function store(StoreBandwidthProfileRequest $request): RedirectResponse|JsonResponse
     {
         Gate::authorize('store', BandwidthProfile::class);
-        BandwidthProfile::query()->create($request->validated());
+        $profile = BandwidthProfile::query()->create($request->validated());
+
+        // The package form's "+ Baru" dialog (X-Inline-Create) selects the new row; every other client gets the redirect.
+        if ($this->wantsInlineRow($request)) {
+            return response()->json(['data' => ['id' => $profile->public_id, 'label' => $profile->name]], 201);
+        }
 
         return redirect()->route('admin.bandwidth-profiles.index')->with('success', 'Profil bandwidth dibuat.');
     }

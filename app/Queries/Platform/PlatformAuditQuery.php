@@ -5,9 +5,12 @@ namespace App\Queries\Platform;
 use App\Models\Core\Company;
 use App\Models\PlatformAdmin;
 use App\Services\Platform\PlatformAuditService;
+use App\Support\AuditEventText;
 use App\Support\AuditProperties;
 use App\Support\PublicId;
+use App\Support\SupportActionText;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
@@ -18,7 +21,7 @@ use Spatie\Activitylog\Models\Activity;
 class PlatformAuditQuery
 {
     /**
-     * @param  array{company_id: ?int, platform_admin_id: ?int, event: ?string, date_from: ?string, date_to: ?string, search: ?string, page: int, per_page: int}  $filters
+     * @param  array{company_id: ?int, platform_admin_id: ?int, event: ?string, source: string, date_from: ?string, date_to: ?string, search: ?string, page: int, per_page: int}  $filters
      * @return LengthAwarePaginator<int, array<string, mixed>>
      */
     public function paginate(array $filters): LengthAwarePaginator
@@ -29,10 +32,9 @@ class PlatformAuditQuery
             ->pluck('id')
             ->map(fn (mixed $id): int => (int) $id)
             ->all();
-        /** @var LengthAwarePaginator<int, Activity> $page */
-        $page = Activity::query()
+        $rows = fn (): Builder => Activity::query()
             ->select(['id', 'public_id', 'company_id', 'log_name', 'description', 'subject_type', 'subject_id', 'causer_type', 'causer_id', 'properties', 'batch_uuid', 'created_at'])
-            ->whereIn('log_name', [PlatformAuditService::PLATFORM_LOG, PlatformAuditService::SUPPORT_LOG])
+            ->tap(fn (Builder $query) => $this->whereSource($query, $filters['source']))
             ->when($companyIds !== null, fn (Builder $query) => $query->whereIn('company_id', $companyIds))
             ->when($filters['platform_admin_id'], fn (Builder $query, int $id) => $query
                 ->where('causer_type', PlatformAdmin::class)
@@ -42,11 +44,19 @@ class PlatformAuditQuery
             ->when($filters['date_to'], fn (Builder $query, string $date) => $query->where('created_at', '<', Carbon::parse($date, 'UTC')->addDay()->startOfDay()))
             ->when($filters['search'], fn (Builder $query, string $term) => $this->search($query, $term))
             ->with('causer')
-            ->orderByDesc('id')
-            ->paginate($filters['per_page'], page: $filters['page'])
-            ->withQueryString();
+            ->orderByDesc('id');
+        /** @var LengthAwarePaginator<int, Activity> $page */
+        $page = $rows()->paginate($filters['per_page'], page: $filters['page'])->withQueryString();
 
-        $activities = collect($page->items());
+        // A page past the last one (an old link, a typed number) shows the last page, not an empty table (F11-D09).
+        if ($page->currentPage() > $page->lastPage()) {
+            $page = $rows()->paginate($filters['per_page'], page: $page->lastPage())->withQueryString();
+        }
+
+        /** @var EloquentCollection<int, Activity> $activities */
+        $activities = new EloquentCollection($page->items());
+        // Loads the subjects too: the sentence of a support row names the person it was about.
+        AuditEventText::annotate($activities);
         $companies = Company::query()
             ->whereIn('id', $activities->pluck('company_id')->filter()->unique())
             ->get(['id', 'public_id', 'name', 'code'])
@@ -68,7 +78,7 @@ class PlatformAuditQuery
     /**
      * The filters as the page shows them: the company and the admin by public id.
      *
-     * @param  array{company_id: ?int, platform_admin_id: ?int, event: ?string, date_from: ?string, date_to: ?string, search: ?string, page: int, per_page: int}  $filters
+     * @param  array{company_id: ?int, platform_admin_id: ?int, event: ?string, source: string, date_from: ?string, date_to: ?string, search: ?string, page: int, per_page: int}  $filters
      * @return array<string, mixed>
      */
     public function displayFilters(array $filters): array
@@ -103,22 +113,85 @@ class PlatformAuditQuery
             ->all();
     }
 
+    /**
+     * What the "Kegiatan" filter offers: every action the two logs hold, worded the way the page words its rows.
+     * shortcut: one DISTINCT over the two logs per full page load; keep the list in the cache when they grow past
+     * what a scan of their codes can carry.
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    public function events(): array
+    {
+        return Activity::query()
+            ->whereIn('log_name', [PlatformAuditService::PLATFORM_LOG, PlatformAuditService::SUPPORT_LOG])
+            ->distinct()
+            ->pluck('description')
+            ->map(fn (string $code): array => ['value' => $code, 'label' => AuditEventText::describe(PlatformAuditService::PLATFORM_LOG, $code)])
+            ->sortBy('label', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * A support row with a batch is the tenant's copy of a platform row (PlatformAuditService), so the list names an
+     * action once: `all` leaves such copies out, `support` lists them, and `platform` is the operator's own log.
+     *
+     * @param  Builder<Activity>  $query
+     */
+    private function whereSource(Builder $query, string $source): void
+    {
+        match ($source) {
+            'support' => $query->where('log_name', PlatformAuditService::SUPPORT_LOG),
+            'platform' => $query->where('log_name', PlatformAuditService::PLATFORM_LOG),
+            default => $query->where(fn (Builder $rows) => $rows
+                ->where('log_name', PlatformAuditService::PLATFORM_LOG)
+                ->orWhere(fn (Builder $copies) => $copies->where('log_name', PlatformAuditService::SUPPORT_LOG)->whereNull('batch_uuid'))),
+        };
+    }
+
     /** @param Builder<Activity> $query */
     private function search(Builder $query, string $term): void
     {
         $like = '%'.addcslashes($term, '%_\\').'%';
+        $worded = $this->wordedAs($term);
 
-        $query->where(function (Builder $match) use ($like): void {
+        $query->where(function (Builder $match) use ($like, $worded): void {
             $match->where('description', 'like', $like)
-                ->orWhereIn('causer_id', PlatformAdmin::query()
-                    ->select('id')
-                    ->where(fn (Builder $admins) => $admins->where('name', 'like', $like)->orWhere('email', 'like', $like)))
+                ->orWhere(fn (Builder $rows) => $rows->where('log_name', PlatformAuditService::PLATFORM_LOG)->whereIn('description', $worded['platform']))
+                ->orWhere(fn (Builder $rows) => $rows->where('log_name', PlatformAuditService::SUPPORT_LOG)->whereIn('description', $worded['support']))
+                ->orWhere(fn (Builder $rows) => $rows
+                    ->where('causer_type', PlatformAdmin::class)
+                    ->whereIn('causer_id', PlatformAdmin::query()
+                        ->select('id')
+                        ->where(fn (Builder $admins) => $admins->where('name', 'like', $like)->orWhere('email', 'like', $like))))
                 ->orWhereIn('company_id', Company::query()
                     ->select('id')
                     ->where(fn (Builder $companies) => $companies->where('name', 'like', $like)->orWhere('code', 'like', $like)))
                 ->orWhere('properties->tenant_name', 'like', $like)
                 ->orWhere('properties->tenant_code', 'like', $like);
         });
+    }
+
+    /**
+     * The action codes whose sentence on the page contains the term: what a search for visible text means. A search for
+     * "ditangguhkan" finds `tenant.suspended`; the code itself is matched by the caller.
+     *
+     * @return array{platform: list<string>, support: list<string>}
+     */
+    private function wordedAs(string $term): array
+    {
+        $needle = mb_strtolower($term);
+
+        return [
+            'platform' => Activity::query()
+                ->where('log_name', PlatformAuditService::PLATFORM_LOG)
+                ->distinct()
+                ->pluck('description')
+                ->filter(fn (string $code): bool => str_contains(mb_strtolower(AuditEventText::describe(PlatformAuditService::PLATFORM_LOG, $code)), $needle))
+                ->values()
+                ->all(),
+            'support' => SupportActionText::codesMatching($term),
+        ];
     }
 
     /**
@@ -157,6 +230,8 @@ class PlatformAuditQuery
             'id' => $activity->public_id,
             'log_name' => $activity->log_name,
             'description' => $activity->description,
+            // The sentence of the row, worded on the server like every other audit surface (AuditEventText).
+            'text' => AuditEventText::text($activity),
             'company' => $company === null
                 ? (isset($properties['tenant_code']) ? ['id' => null, 'name' => $properties['tenant_name'] ?? null, 'code' => $properties['tenant_code']] : null)
                 : ['id' => $company->public_id, 'name' => $company->name, 'code' => $company->code],
@@ -169,6 +244,7 @@ class PlatformAuditQuery
                 'type' => class_basename($activity->subject_type),
                 'id' => $subjects[$activity->subject_type.':'.$activity->subject_id] ?? null,
             ],
+            'subject_label' => $activity->getAttribute('subject_label'),
             'properties' => $properties,
             'batch_uuid' => $activity->batch_uuid,
             'created_at' => $activity->created_at?->toIso8601String(),

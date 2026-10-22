@@ -9,6 +9,7 @@ use App\Services\Core\CompanyHierarchyService;
 use App\Services\Core\CompanyMembershipService;
 use App\Services\Core\CompanyRoleService;
 use App\Services\Platform\PlatformAuditService;
+use App\Services\Platform\SubsidiaryRequestService;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -22,6 +23,9 @@ use Illuminate\Validation\ValidationException;
  * far as he holds what that copy grants (CompanyRoleService::mirrorTemplateRoles): a company that trimmed its own copy
  * does not see it widened by the new one. A member who got no role, and the roles left out for a person to give, are
  * reported to the operator so they can be named in Pengguna; the audit row lists what each member was given.
+ *
+ * It may answer a tenant's open request for a subsidiary (K34): the request is closed with outcome `created` in the same
+ * transaction, so a creation that fails leaves the request open.
  */
 class AddTenantSubsidiaryAction
 {
@@ -30,6 +34,7 @@ class AddTenantSubsidiaryAction
         private readonly CompanyMembershipService $memberships,
         private readonly CompanyRoleService $roles,
         private readonly PlatformAuditService $audit,
+        private readonly SubsidiaryRequestService $requests,
     ) {}
 
     /**
@@ -43,6 +48,11 @@ class AddTenantSubsidiaryAction
 
             if (! $head->is_active) {
                 throw ValidationException::withMessages(['lifecycle' => 'Perusahaan sedang ditangguhkan: aktifkan kembali sebelum menambah anak perusahaan.']);
+            }
+
+            // First, so a request closed meanwhile by another operator stops the whole action before anything is created.
+            if (isset($validated['subsidiary_request_id'])) {
+                $this->requests->approve($actor, $head, (string) $validated['subsidiary_request_id']);
             }
 
             $subsidiary = $this->hierarchy->createSubsidiary($head, Arr::only($validated, ['name', 'code', 'currency', 'timezone']));

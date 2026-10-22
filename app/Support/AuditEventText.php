@@ -126,6 +126,8 @@ final class AuditEventText
         'security.password.reset_requested' => 'Tautan atur ulang kata sandi diminta',
         'security.password.reset' => 'Kata sandi diatur ulang',
         'security.password.changed' => 'Kata sandi diubah',
+        'security.user.invitation_sent' => 'Undangan akun staf dikirim',
+        'security.user.invitation_resent' => 'Undangan akun staf dikirim ulang',
         'security.api.token_issued' => 'Token aplikasi seluler dibuat',
         'security.api.tokens_revoked' => 'Token aplikasi seluler dicabut',
         'security.enumeration_suspected' => 'Pola akses mencurigakan terdeteksi',

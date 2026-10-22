@@ -155,14 +155,14 @@ class NetworkAccountProvisioner
             $audit();
         }
 
-        $unsent = $this->disconnect($account, $owed);
+        [$unsent, $cut] = $this->disconnect($account, $owed);
 
         $account->forceFill(($recordFirst ? [] : $record) + [
             'pending_disconnect_at' => null,
             'sync_status' => 'synced',
             'last_error' => $unsent === [] ? null : Str::limit('Sesi terbuka berasal dari router yang belum didaftarkan: '.implode(', ', $unsent).'.', 255, ''),
             'last_attempt_at' => now(),
-        ])->save();
+        ] + ($cut ? ['last_disconnect_at' => now()] : []))->save();
 
         if (! $recordFirst) {
             $audit();
@@ -265,7 +265,7 @@ class NetworkAccountProvisioner
      * Cut every open session of the owed usernames on the NAS that holds it. Done = ACK or NAK "session not found".
      *
      * @param  list<string>  $usernames
-     * @return list<string> addresses of sessions no NAS of the company owns (recorded, not sent, not retried)
+     * @return array{0: list<string>, 1: bool} addresses of sessions no NAS of the company owns (recorded, not sent, not retried); whether a session was cut
      *
      * @throws DisconnectPendingException at least one Disconnect got no usable answer (the others were still sent)
      */
@@ -273,6 +273,7 @@ class NetworkAccountProvisioner
     {
         $unsent = [];
         $failed = 0;
+        $cut = 0;
 
         foreach ($usernames as $username) {
             foreach ($this->radius->openSessions($username) as $session) {
@@ -298,6 +299,7 @@ class NetworkAccountProvisioner
                 ], $account);
 
                 $failed += $result->isDone() ? 0 : 1;
+                $cut += $result->isDone() ? 1 : 0;
             }
         }
 
@@ -305,7 +307,7 @@ class NetworkAccountProvisioner
             throw new DisconnectPendingException('Router belum menjawab permintaan pemutusan sesi; dicoba lagi otomatis.');
         }
 
-        return array_values(array_unique($unsent));
+        return [array_values(array_unique($unsent)), $cut > 0];
     }
 
     private function markPending(NetworkAccount $account, string $reason): void

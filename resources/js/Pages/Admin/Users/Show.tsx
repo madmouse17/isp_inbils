@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
-import { Link, router } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
+import { Link, router, usePage } from '@inertiajs/react';
+import { ArrowLeft, Send } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
     DataTable,
@@ -44,6 +44,7 @@ import {
     WORK_ORDER_STATUS,
     WORK_ORDER_TYPE,
 } from '@/lib/statuses';
+import type { PageProps } from '@/types';
 
 interface UserData {
     id: string;
@@ -52,7 +53,12 @@ interface UserData {
     is_active: boolean;
     roles: string[];
     two_factor_enabled?: boolean;
-    can?: { delete?: boolean; reset_two_factor?: boolean; assign_roles?: boolean };
+    can?: {
+        delete?: boolean;
+        reset_two_factor?: boolean;
+        assign_roles?: boolean;
+        resend_invitation?: boolean;
+    };
     created_at?: string;
     last_login_at?: string | null;
 }
@@ -121,6 +127,19 @@ export default function Show({ user, history, historyAccess }: ShowProps) {
           ? 'tickets'
           : 'spk';
     const [tab, setTab] = useState(firstHistoryTab);
+    const [sendingInvitation, setSendingInvitation] = useState(false);
+    const invitationError = usePage<PageProps>().props.errors.invitation;
+
+    const resendInvitation = () =>
+        router.post(
+            route('admin.users.invitation.resend', user.data.id),
+            {},
+            {
+                preserveScroll: true,
+                onStart: () => setSendingInvitation(true),
+                onFinish: () => setSendingInvitation(false),
+            },
+        );
 
     const invoiceColumns: DataTableColumn<InvoiceHistory>[] = useMemo(
         () => [
@@ -277,12 +296,33 @@ export default function Show({ user, history, historyAccess }: ShowProps) {
                                     </Link>
                                 </Button>
                             ) : null}
+                            {user.data.can?.resend_invitation ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    loading={sendingInvitation}
+                                    leftIcon={<Send className="size-4" />}
+                                    onClick={resendInvitation}
+                                >
+                                    Kirim ulang undangan
+                                </Button>
+                            ) : null}
                             <Button asChild variant="primary" size="sm">
                                 <Link href={route('admin.users.edit', user.data.id)}>Ubah</Link>
                             </Button>
                         </>
                     }
                 />
+
+                {invitationError ? (
+                    <div
+                        role="alert"
+                        className="rounded-md border border-destructive bg-destructive/10 px-4 py-3 text-sm text-destructive-text"
+                    >
+                        {invitationError}
+                    </div>
+                ) : null}
 
                 <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
                     <Card>

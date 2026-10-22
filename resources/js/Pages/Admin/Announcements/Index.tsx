@@ -22,7 +22,13 @@ import { ActionDialog } from './components/ActionDialog';
 import type { ActionRequest } from './components/ActionDialog';
 import { AnnouncementDialog } from './components/AnnouncementDialog';
 import { BannerDialog } from './components/BannerDialog';
+import { announcementPublishNote } from './components/EditorDialog';
 import type { AnnouncementRow, BannerRow, IndexProps, Target } from './types';
+
+/** What this page adds to the shared props: how many customers publishing each draft of the page reaches, by id. */
+interface AnnouncementsPageProps extends IndexProps {
+    recipientCounts: Partial<Record<string, number>>;
+}
 
 /** `row` is the one being edited; no row is a new one. */
 type Editor =
@@ -32,17 +38,24 @@ type Confirmations = Record<'publish' | 'deactivate' | 'remove', ActionRequest>;
 
 const STATUS_OPTIONS = [{ value: '', label: 'Semua status' }, ...optionsOf(ANNOUNCEMENT_STATUS)];
 
-/** The three confirmations of a row: publish it, deactivate it, delete the draft. `publishNote` says what publishing does. */
+/**
+ * The three confirmations of a row: publish it, deactivate it, delete the draft. `publishNote` says what publishing does;
+ * `recipients` (announcements) is how many customers it reaches, which the title says.
+ */
 function confirmations(
     resource: 'announcements' | 'promo-banners',
     noun: string,
     row: { id: string; title: string },
     publishNote: string,
+    recipients?: number,
 ): Confirmations {
     return {
         publish: {
-            title: `Terbitkan ${noun} ${row.title}?`,
-            description: `${publishNote} Setelah terbit, ${noun} tidak bisa dihapus, hanya dinonaktifkan.`,
+            title:
+                recipients === undefined
+                    ? `Terbitkan ${noun} ${row.title}?`
+                    : `Terbitkan untuk ${formatNumber(recipients)} pelanggan?`,
+            description: `${recipients === undefined ? '' : `${row.title}: `}${publishNote} Setelah terbit, ${noun} tidak bisa dihapus, hanya dinonaktifkan.`,
             confirmLabel: 'Terbitkan',
             href: route(`admin.${resource}.publish`, row.id),
             method: 'post',
@@ -79,7 +92,8 @@ export default function Index({
     locationOptions,
     preview,
     can,
-}: IndexProps) {
+    recipientCounts,
+}: AnnouncementsPageProps) {
     const company = useCompany();
     const dateFormat = phpToDateFns(company?.settings?.date_format);
     const [editor, setEditor] = useState<Editor>(null);
@@ -87,7 +101,7 @@ export default function Index({
     const { params, search, setSearch, set, setMany, setPage, processing } = useServerTable({
         url: route('admin.announcements.index'),
         filters,
-        only: ['tab', 'announcements', 'banners', 'counts', 'filters'],
+        only: ['tab', 'announcements', 'banners', 'counts', 'filters', 'recipientCounts'],
     });
     const hasFilters = Boolean(params.search || params.status);
     const resetFilters = () => setMany({ search: '', status: '' });
@@ -144,6 +158,7 @@ export default function Index({
                         'pengumuman',
                         row,
                         announcementPublishNote(row.kind),
+                        recipientCounts[row.id],
                     );
 
                     return (
@@ -160,7 +175,7 @@ export default function Index({
                 },
             },
         ];
-    }, [can.manage, dateFormat]);
+    }, [can.manage, dateFormat, recipientCounts]);
 
     const bannerColumns: DataTableColumn<BannerRow>[] = useMemo(() => {
         const base: DataTableColumn<BannerRow>[] = [
@@ -392,12 +407,6 @@ export default function Index({
             </div>
         </AdminLayout>
     );
-}
-
-function announcementPublishNote(kind: string): string {
-    return kind === 'outage' || kind === 'maintenance'
-        ? 'Pengumuman tampil paling atas di beranda aplikasi pelanggan sasaran, dan setiap pelanggan sasaran menerima satu notifikasi saat jadwal mulai tiba.'
-        : 'Pengumuman tampil di beranda aplikasi pelanggan sasaran sesuai jadwal. Pengumuman informasi tidak mengirim notifikasi.';
 }
 
 function linkSummary(row: BannerRow): string {

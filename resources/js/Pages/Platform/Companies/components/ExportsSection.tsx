@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from '@inertiajs/react';
-import { Archive } from 'lucide-react';
+import { Archive, Download } from 'lucide-react';
 import { DataTable, type DataTableColumn } from '@/Components/composite';
 import {
     Button,
@@ -73,8 +73,31 @@ export function ExportsSection({ tenant, exports }: ExportsSectionProps) {
                 className: 'max-w-md whitespace-normal text-destructive-text',
                 cell: (row) => row.error_message ?? <EmptyCell />,
             },
+            {
+                key: 'download_url',
+                header: 'Unduh',
+                cell: (row) =>
+                    row.download_url ? (
+                        <Button
+                            asChild
+                            size="sm"
+                            variant="outline"
+                            leftIcon={<Download className="size-4" aria-hidden="true" />}
+                        >
+                            <a
+                                href={row.download_url}
+                                download
+                                aria-label={`Unduh ekspor ${tenant.code}`}
+                            >
+                                Unduh
+                            </a>
+                        </Button>
+                    ) : (
+                        <EmptyCell />
+                    ),
+            },
         ],
-        [],
+        [tenant.code],
     );
     const close = () => {
         setRequesting(false);
@@ -87,7 +110,7 @@ export function ExportsSection({ tenant, exports }: ExportsSectionProps) {
                 <div>
                     <CardTitle>Ekspor data</CardTitle>
                     <CardDescription>
-                        Riwayat ekspor perusahaan ini. Arsip yang siap diunduh dari halaman Ekspor.
+                        Riwayat ekspor perusahaan ini. Arsip yang siap bisa diunduh di sini atau dari halaman Ekspor.
                     </CardDescription>
                 </div>
                 <div className="flex flex-wrap gap-2">

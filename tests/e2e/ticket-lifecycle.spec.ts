@@ -372,7 +372,7 @@ async function createTicketViaUi(page: Page, title: string) {
     await page.getByLabel('Judul').fill(title);
     await page.getByLabel('Sumber').selectOption('customer');
     await settleAppChunks(page);
-    await selectSearchOption(page, 'Kategori', 'Device Issue');
+    await selectSearchOption(page, 'Kategori', 'Masalah perangkat');
     await selectSearchOption(page, 'Pelanggan', e2eCustomerName);
     await page.getByRole('button', { name: 'Simpan', exact: true }).click();
 

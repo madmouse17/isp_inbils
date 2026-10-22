@@ -49,7 +49,7 @@ async function createTicketViaUi(page: Page, title: string, subscriptionCode?: s
     await page.getByLabel('Judul').fill(title);
     await page.getByLabel('Sumber').selectOption('customer');
     await settleAppChunks(page);
-    await selectSearchOption(page, 'Kategori', 'Device Issue');
+    await selectSearchOption(page, 'Kategori', 'Masalah perangkat');
     await selectSearchOption(page, 'Pelanggan', e2eCustomerName);
     if (subscriptionCode) {
         await selectSearchOption(page, 'Langganan', subscriptionCode);
@@ -187,14 +187,14 @@ test.describe('@sla-targets', () => {
         const main = page.getByRole('main');
         await expect(main.getByRole('heading', { name: 'Kategori Tiket' })).toBeVisible();
 
-        const row = main.getByRole('row').filter({ hasText: 'Device Issue' });
+        const row = main.getByRole('row').filter({ hasText: 'Masalah perangkat' });
         const original = {
             response: (await row.getByRole('cell').nth(2).innerText()).trim(),
             resolution: (await row.getByRole('cell').nth(3).innerText()).trim(),
         };
 
         try {
-            await editCategory(page, 'Device Issue', '2', '5');
+            await editCategory(page, 'Masalah perangkat', '2', '5');
             await expect(row.getByRole('cell').nth(2)).toHaveText('2');
             await expect(row.getByRole('cell').nth(3)).toHaveText('5');
 
@@ -204,7 +204,7 @@ test.describe('@sla-targets', () => {
 
             expect(ticket.deadline_source).toEqual({
                 type: 'category',
-                name: 'Device Issue',
+                name: 'Masalah perangkat',
                 response_hours: 2,
                 resolution_hours: 5,
                 urgent_halved: false,
@@ -219,12 +219,12 @@ test.describe('@sla-targets', () => {
             await settleAppChunks(page);
             await page.goto(`/admin/tickets/${id}`);
             await expect(
-                page.getByRole('main').getByText('(Target kategori Device Issue)').first(),
+                page.getByRole('main').getByText('(Target kategori Masalah perangkat)').first(),
             ).toBeVisible();
         } finally {
             await settleAppChunks(page);
             await page.goto('/admin/ticket-categories');
-            await editCategory(page, 'Device Issue', original.response, original.resolution);
+            await editCategory(page, 'Masalah perangkat', original.response, original.resolution);
         }
     });
 
@@ -236,7 +236,8 @@ test.describe('@sla-targets', () => {
         await page.goto('/admin/ticket-categories');
         const dialog = page.getByRole('dialog');
         const hint = dialog.getByLabel('Saran untuk pelanggan');
-        const open = () => page.getByRole('button', { name: 'Ubah kategori Device Issue' }).click();
+        const open = () =>
+            page.getByRole('button', { name: 'Ubah kategori Masalah perangkat' }).click();
 
         await open();
         const original = await hint.inputValue();
@@ -245,6 +246,12 @@ test.describe('@sla-targets', () => {
             await expect(hint).toHaveValue('x'.repeat(500));
             await expect(dialog.getByText('500/500 karakter.')).toBeVisible();
             await hint.fill('Mulai ulang modem, lalu tunggu dua menit.');
+            await expect(dialog.getByText('Pelanggan melihat:')).toBeVisible();
+            // The preview block, not the textarea that holds the same words.
+            const preview = dialog.getByText('Pelanggan melihat:').locator('..');
+            await expect(
+                preview.getByText('Mulai ulang modem, lalu tunggu dua menit.', { exact: true }),
+            ).toBeVisible();
             await dialog.getByRole('button', { name: 'Simpan' }).click();
             await expect(dialog).toBeHidden();
 

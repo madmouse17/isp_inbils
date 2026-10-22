@@ -19,6 +19,7 @@ import {
     EnumBadge,
     Input,
     Modal,
+    NativeSelect,
     Switch,
     Textarea,
 } from '@/Components/ui';
@@ -60,6 +61,8 @@ interface VehicleForm {
     is_active: boolean;
     notes: string;
 }
+
+const VEHICLE_TYPES = ['Motor', 'Mobil', 'Pikap'];
 
 const emptyForm: VehicleForm = {
     plate_number: '',
@@ -266,12 +269,21 @@ export default function Index({ vehicles, filters, can }: IndexProps) {
                                 error={errors.plate_number}
                                 required
                             />
-                            <Input
+                            <NativeSelect
                                 label="Jenis"
                                 value={data.type}
                                 onChange={(event) => setData('type', event.target.value)}
+                                // A type stored before the picker stays selectable, so an edit never drops it.
+                                options={[
+                                    { value: '', label: 'Pilih jenis' },
+                                    ...[
+                                        ...VEHICLE_TYPES,
+                                        ...(data.type && !VEHICLE_TYPES.includes(data.type)
+                                            ? [data.type]
+                                            : []),
+                                    ].map((type) => ({ value: type, label: type })),
+                                ]}
                                 error={errors.type}
-                                placeholder="Motor, mobil, atau pikap"
                             />
                             <Input
                                 label="Merek"

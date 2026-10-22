@@ -117,7 +117,9 @@ test('@platform suspend blocks tenant login and reactivate restores it', async (
     await suspend
         .getByLabel(`Ketik ${platformFixture.tenantCode} untuk melanjutkan`)
         .fill(platformFixture.tenantCode!);
-    await suspend.getByLabel('Kata sandi operator').fill(platformFixture.password!);
+    // The field is asked only outside the step-up window of an earlier confirmation (F11-U03).
+    const suspendField = suspend.getByLabel('Kata sandi operator');
+    if (await suspendField.isVisible()) await suspendField.fill(platformFixture.password!);
     await suspend.getByRole('button', { name: 'Tangguhkan perusahaan' }).click();
     await expect(page.getByText('Ditangguhkan', { exact: true }).first()).toBeVisible();
 
@@ -163,7 +165,8 @@ test('@platform operator requests a tenant export once and sees it queued', asyn
         await request
             .getByLabel(`Ketik ${platformFixture.tenantCode} untuk melanjutkan`)
             .fill(platformFixture.tenantCode!);
-        await request.getByLabel('Kata sandi operator').fill(platformFixture.password!);
+        const requestField = request.getByLabel('Kata sandi operator');
+        if (await requestField.isVisible()) await requestField.fill(platformFixture.password!);
         await request.getByRole('button', { name: 'Minta ekspor' }).click();
 
         if (attempt === 'first') {
@@ -213,7 +216,8 @@ test('@platform operator starts and stops support access from the company page',
     await page.getByRole('button', { name: 'Masuk sebagai E2E Suspend Admin' }).click();
     const start = page.getByRole('alertdialog');
     await start.getByLabel('Alasan').fill('Pemeriksaan akses dukungan dari halaman perusahaan');
-    await start.getByLabel('Kata sandi operator').fill(platformFixture.password!);
+    const startField = start.getByLabel('Kata sandi operator');
+    if (await startField.isVisible()) await startField.fill(platformFixture.password!);
     await start.getByRole('button', { name: 'Mulai akses dukungan' }).click();
     await expect(page).toHaveURL(/\/admin\/dashboard$/);
 

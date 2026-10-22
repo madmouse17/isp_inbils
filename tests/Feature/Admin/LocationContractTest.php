@@ -1231,4 +1231,26 @@ class LocationContractTest extends TestCase
         $this->post(route('admin.locations.move', $area), ['new_parent_id' => $region->public_id])->assertSessionHas('success', 'Lokasi dipindahkan.');
         $this->put(route('admin.locations.update', $area), ['code' => 'AREA-1', 'name' => 'Area baru', 'type' => 'area'])->assertSessionHas('success', 'Lokasi diperbarui.');
     }
+
+    public function test_site_sits_under_a_pop_or_an_area_without_a_rack_but_not_under_a_region(): void
+    {
+        CompanyService::useCompanyForTests($this->company->id);
+
+        $region = LocationService::create(['code' => 'SITE-REGION', 'name' => 'Region', 'type' => 'region']);
+        $area = LocationService::create(['code' => 'SITE-AREA', 'name' => 'Area', 'type' => 'area', 'parent_id' => $region->id]);
+        $pop = LocationService::create(['code' => 'SITE-POP', 'name' => 'POP', 'type' => 'pop', 'parent_id' => $area->id]);
+
+        $underPop = LocationService::create(['code' => 'SITE-1', 'name' => 'Site under POP', 'type' => 'site', 'parent_id' => $pop->id]);
+        $underArea = LocationService::create(['code' => 'SITE-2', 'name' => 'Site under area', 'type' => 'site', 'parent_id' => $area->id]);
+
+        $this->assertSame('SITE-REGION > SITE-AREA > SITE-POP > SITE-1', $underPop->path);
+        $this->assertSame('SITE-REGION > SITE-AREA > SITE-2', $underArea->path);
+
+        try {
+            LocationService::create(['code' => 'SITE-3', 'name' => 'Site under region', 'type' => 'site', 'parent_id' => $region->id]);
+            $this->fail('Expected a site under a region to be refused.');
+        } catch (ValidationException $e) {
+            $this->assertSame(['Lokasi Site harus punya induk Rak, POP atau Area.'], $e->errors()['parent_id']);
+        }
+    }
 }

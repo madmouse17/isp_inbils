@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link } from '@inertiajs/react';
+import { Plus } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { DataTable, PageHeader, type DataTableColumn } from '@/Components/composite';
 import { UtilisationBar } from '@/Components/composite/UtilisationBar';
 import {
+    Button,
     EmptyCell,
     EnumBadge,
     Input,
@@ -14,6 +16,7 @@ import {
     Tabs,
     type SearchSelectOption,
 } from '@/Components/ui';
+import { usePermission } from '@/hooks/usePermission';
 import { useTableQuery } from '@/hooks/useTableQuery';
 import { toPagination } from '@/lib/pagination';
 import { ODN_PORT_STATE, SUBSCRIPTION_STATUS } from '@/lib/statuses';
@@ -35,6 +38,15 @@ const secondPage = (page: Paginated<unknown>) =>
 
 export default function Index({ odps, ponPorts, unmapped, filters, pops }: IndexProps) {
     const [tab, setTab] = useState<OdnTab>('odps');
+    // An ODP is an asset of type ODP: the empty state sends whoever may create assets to the form with that type chosen.
+    const registerOdp = usePermission().can('network_asset.create') ? (
+        <Button asChild size="sm" variant="primary">
+            <Link href={route('admin.network-assets.create', { asset_type: 'odp' })}>
+                <Plus className="size-4" aria-hidden="true" />
+                Daftarkan ODP
+            </Link>
+        </Button>
+    ) : undefined;
     const { params, set, setMany, processing } = useTableQuery(
         {
             search: filters.search,
@@ -255,6 +267,7 @@ export default function Index({ odps, ponPorts, unmapped, filters, pops }: Index
                             loading={processing}
                             emptyTitle="Belum ada ODP"
                             emptyDescription="ODP adalah aset jaringan bertipe ODP. Daftarkan satu, lalu tambahkan splitter agar punya port."
+                            emptyAction={registerOdp}
                             hasFilters={filtered}
                             onResetFilters={resetFilters}
                             itemLabel="ODP"

@@ -19,7 +19,7 @@ class CompanySubsidiaryController extends Controller
 
         // Members who hold only custom roles at home get no role in the new company, and a template role wider than what a
         // member holds at home is not copied: the operator is told who and what, so the roles can be named in Pengguna.
-        $message = 'Anak perusahaan dibuat.';
+        $message = 'Anak perusahaan dibuat.'.($request->filled('subsidiary_request_id') ? ' Permintaannya ditutup.' : '');
 
         if ($result['members_without_roles'] !== []) {
             $message .= ' Anggota ini belum punya peran di anak perusahaan baru dan perlu diberi peran di Pengguna: '.implode(', ', $result['members_without_roles']).'.';

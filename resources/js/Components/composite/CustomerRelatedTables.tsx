@@ -74,6 +74,8 @@ interface CustomerRelatedTablesProps {
     subscriptions: ServiceSubscription[];
     history?: CustomerHistory;
     historyAccess?: CustomerHistoryAccess;
+    /** A tab the page owns (Dokumen on the customer page): its value, its label with any count, and its panel. */
+    extraTab?: { value: string; label: string; content: ReactNode };
 }
 
 const DETAIL_LINK = 'font-medium text-primary-text hover:underline';
@@ -94,6 +96,7 @@ export function CustomerRelatedTables({
     subscriptions,
     history = { invoices: [], tickets: [], work_orders: [] },
     historyAccess = { billing: false, tickets: false, spk: false },
+    extraTab,
 }: CustomerRelatedTablesProps) {
     const [tab, setTab] = useState('addresses');
     // The subscription pages ask for customer.subscription.view: without it the code stays a word, not a dead link.
@@ -114,6 +117,7 @@ export function CustomerRelatedTables({
                 {historyAccess.tickets ? (
                     <Tab value="tickets">Tiket ({history.tickets.length})</Tab>
                 ) : null}
+                {extraTab ? <Tab value={extraTab.value}>{extraTab.label}</Tab> : null}
             </TabList>
             <TabPanel value="addresses">
                 <Table>
@@ -426,6 +430,7 @@ export function CustomerRelatedTables({
                     </Table>
                 </TabPanel>
             ) : null}
+            {extraTab ? <TabPanel value={extraTab.value}>{extraTab.content}</TabPanel> : null}
         </Tabs>
     );
 }

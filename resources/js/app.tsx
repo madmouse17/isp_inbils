@@ -2,6 +2,7 @@ import '../css/app.css';
 import './bootstrap';
 
 import { createInertiaApp, router } from '@inertiajs/react';
+import axios from 'axios';
 import FilePondPluginFileValidateSize from 'filepond-plugin-file-validate-size';
 import FilePondPluginFileValidateType from 'filepond-plugin-file-validate-type';
 import FilePondPluginImagePreview from 'filepond-plugin-image-preview';
@@ -25,12 +26,20 @@ registerPlugin(
 installNativeValidity();
 
 // A write names the company its page was rendered in; the server refuses it when another tab switched company since.
+// Inertia visits and the axios posts of dialogs (quick create, previews) both carry it.
 let renderedCompanyId: string | null = null;
 const rememberCompany = (props: { company?: { id?: string } | null }) => {
     renderedCompanyId = props.company?.id ?? null;
 };
 router.on('navigate', (event) => rememberCompany(event.detail.page.props));
 router.on('success', (event) => rememberCompany(event.detail.page.props));
+axios.interceptors.request.use((config) => {
+    if (renderedCompanyId && config.method && config.method !== 'get') {
+        config.headers.set('X-Inbils-Company', renderedCompanyId);
+    }
+
+    return config;
+});
 
 void createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),

@@ -2,11 +2,13 @@
 
 namespace Modules\Service\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AnswersInlineCreate;
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
 use App\Services\Core\LifecycleService;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -15,12 +17,15 @@ use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Modules\Service\Http\Requests\StoreSpeedProfileRequest;
 use Modules\Service\Http\Requests\UpdateSpeedProfileRequest;
+use Modules\Service\Http\Resources\BandwidthProfileResource;
 use Modules\Service\Http\Resources\SpeedProfileResource;
+use Modules\Service\Models\BandwidthProfile;
 use Modules\Service\Models\SpeedProfile;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SpeedProfileController extends Controller
 {
+    use AnswersInlineCreate;
     use HasIndexQuery;
 
     private const SORTABLE = ['name', 'download_max_mbps', 'upload_max_mbps', 'burst_download_mbps', 'burst_upload_mbps', 'radius_profile_name', 'created_at'];
@@ -47,13 +52,19 @@ class SpeedProfileController extends Controller
     {
         Gate::authorize('create', SpeedProfile::class);
 
-        return Inertia::render('Admin/Service/SpeedProfiles/Create');
+        return Inertia::render('Admin/Service/SpeedProfiles/Create', [
+            'bandwidthProfiles' => BandwidthProfileResource::collection(BandwidthProfile::query()->where('is_active', true)->orderBy('name')->get()),
+        ]);
     }
 
-    public function store(StoreSpeedProfileRequest $request): RedirectResponse
+    public function store(StoreSpeedProfileRequest $request): RedirectResponse|JsonResponse
     {
         Gate::authorize('store', SpeedProfile::class);
-        SpeedProfile::query()->create($request->validated());
+        $profile = SpeedProfile::query()->create($request->validated());
+
+        if ($this->wantsInlineRow($request)) {
+            return response()->json(['data' => ['id' => $profile->public_id, 'label' => $request->validated('name')]], 201);
+        }
 
         return redirect()->route('admin.speed-profiles.index')->with('success', 'Profil kecepatan dibuat.');
     }

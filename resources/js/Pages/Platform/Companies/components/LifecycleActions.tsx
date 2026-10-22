@@ -6,16 +6,37 @@ import {
     ConfirmActionDialog,
     type PlatformConfirmation,
 } from '@/Components/composite/platform/ConfirmActionDialog';
-import type { PlatformLifecycle, PlatformTenantProfile } from '@/types/platform';
+import { formatMoney, formatNumber } from '@/lib/format';
+import type {
+    PlatformLifecycle,
+    PlatformSuspendImpact,
+    PlatformTenantProfile,
+} from '@/types/platform';
 
 type LifecycleAction = 'suspend' | 'reactivate' | 'delete' | null;
 
 interface LifecycleActionsProps {
     tenant: PlatformTenantProfile;
     lifecycle: PlatformLifecycle;
+    /** What suspending would cut off; null once the tenant is not active. */
+    suspendImpact: PlatformSuspendImpact | null;
 }
 
-export function LifecycleActions({ tenant, lifecycle }: LifecycleActionsProps) {
+/** One line per thing the suspension reaches, counted by the server. Sessions are left out when the driver cannot count them. */
+function impactLines(impact: PlatformSuspendImpact, currency: string): string[] {
+    return [
+        `${formatNumber(impact.users)} pengguna aktif tidak bisa masuk lagi.`,
+        ...(impact.sessions === null
+            ? []
+            : [`${formatNumber(impact.sessions)} sesi yang sedang berjalan langsung berakhir.`]),
+        `${formatNumber(impact.app_tokens)} token aplikasi seluler berhenti berlaku.`,
+        impact.open_invoices.count === 0
+            ? 'Tidak ada faktur terbuka.'
+            : `${formatNumber(impact.open_invoices.count)} faktur terbuka senilai ${formatMoney(impact.open_invoices.outstanding, currency)}.`,
+    ];
+}
+
+export function LifecycleActions({ tenant, lifecycle, suspendImpact }: LifecycleActionsProps) {
     const [action, setAction] = useState<LifecycleAction>(null);
     const [processing, setProcessing] = useState(false);
     const [errors, setErrors] = useState<Record<string, string | undefined>>({});
@@ -88,6 +109,7 @@ export function LifecycleActions({ tenant, lifecycle }: LifecycleActionsProps) {
                 <ConfirmActionDialog
                     title={`Tangguhkan ${tenant.name}?`}
                     description="Perusahaan dan anak perusahaan aktif kehilangan akses. Data tetap tersimpan dan dapat diaktifkan kembali."
+                    details={suspendImpact ? impactLines(suspendImpact, tenant.currency) : undefined}
                     confirmLabel="Tangguhkan perusahaan"
                     tone="danger"
                     reason

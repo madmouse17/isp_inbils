@@ -5,6 +5,7 @@ namespace App\Services\Core;
 use App\Models\Core\Location;
 use App\Support\RecordNotFound;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -12,13 +13,15 @@ use Illuminate\Validation\ValidationException;
 class LocationService
 {
     /**
-     * @var array<string, string>
+     * The parent types a type may sit under. A site sits under a rack, a POP or an area: a small ISP has no racks.
+     *
+     * @var array<string, list<string>>
      */
-    private const REQUIRED_PARENT_TYPES = [
-        'area' => 'region',
-        'pop' => 'area',
-        'rack' => 'pop',
-        'site' => 'rack',
+    private const ALLOWED_PARENT_TYPES = [
+        'area' => ['region'],
+        'pop' => ['area'],
+        'rack' => ['pop'],
+        'site' => ['rack', 'pop', 'area'],
     ];
 
     /**
@@ -242,13 +245,13 @@ class LocationService
 
         abort_unless($parent instanceof Location, 404, 'Induk lokasi tidak ditemukan atau tidak valid.');
 
-        $requiredParentType = self::REQUIRED_PARENT_TYPES[$childType] ?? null;
-        if ($requiredParentType !== null && $parent->type !== $requiredParentType) {
+        $allowedParentTypes = self::ALLOWED_PARENT_TYPES[$childType] ?? null;
+        if ($allowedParentTypes !== null && ! in_array($parent->type, $allowedParentTypes, true)) {
             throw ValidationException::withMessages([
                 $attribute => sprintf(
                     'Lokasi %s harus punya induk %s.',
                     self::TYPE_LABELS[$childType] ?? $childType,
-                    self::TYPE_LABELS[$requiredParentType] ?? $requiredParentType
+                    self::typeLabels($allowedParentTypes)
                 ),
             ]);
         }
@@ -258,9 +261,15 @@ class LocationService
 
     private static function assertValidType(string $type): void
     {
-        if ($type !== 'region' && ! array_key_exists($type, self::REQUIRED_PARENT_TYPES)) {
+        if ($type !== 'region' && ! array_key_exists($type, self::ALLOWED_PARENT_TYPES)) {
             throw ValidationException::withMessages(['type' => 'Tipe lokasi tidak valid.']);
         }
+    }
+
+    /** @param  list<string>  $types */
+    private static function typeLabels(array $types): string
+    {
+        return Arr::join(array_map(fn (string $type): string => self::TYPE_LABELS[$type] ?? $type, $types), ', ', ' atau ');
     }
 
     private static function assertChildrenAcceptParentType(Location $location, string $newParentType): void
@@ -273,9 +282,9 @@ class LocationService
             ->get(['id', 'type']);
 
         foreach ($children as $child) {
-            $requiredParentType = self::REQUIRED_PARENT_TYPES[$child->type] ?? null;
+            $allowedParentTypes = self::ALLOWED_PARENT_TYPES[$child->type] ?? null;
 
-            if ($requiredParentType === null || $requiredParentType !== $newParentType) {
+            if ($allowedParentTypes === null || ! in_array($newParentType, $allowedParentTypes, true)) {
                 throw ValidationException::withMessages([
                     'type' => sprintf(
                         'Lokasi %s tidak dapat punya induk %s.',

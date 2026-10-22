@@ -2,6 +2,9 @@
 
 namespace App\Support;
 
+use Illuminate\Contracts\Session\Session;
+use Illuminate\Support\Carbon;
+
 /**
  * The session keys and time limits of a platform admin's login (/platform), in one place so the middleware, the
  * controllers and the impersonation layer read the same names. All keys are namespaced `platform.` and live in the
@@ -24,4 +27,19 @@ final class PlatformSession
 
     /** How long a password confirmation covers sensitive actions. */
     public const PASSWORD_CONFIRM_SECONDS = 300;
+
+    /**
+     * The moment the session's last password confirmation stops covering sensitive actions, or null when it has none or
+     * has run out. The step-up middleware enforces it and the panel shows it, so both read the same window.
+     */
+    public static function confirmedUntil(Session $session): ?Carbon
+    {
+        $confirmedAt = $session->get(self::PASSWORD_CONFIRMED);
+
+        if (! is_int($confirmedAt) || now()->getTimestamp() - $confirmedAt > self::PASSWORD_CONFIRM_SECONDS) {
+            return null;
+        }
+
+        return Carbon::createFromTimestamp($confirmedAt + self::PASSWORD_CONFIRM_SECONDS);
+    }
 }

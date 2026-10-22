@@ -181,6 +181,10 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await expect(
             mainOf(page).getByRole('heading', { name: 'Daftarkan Router NAS' }),
         ).toBeVisible();
+        // A router that is not an asset yet can be made here, in the same step.
+        await expect(
+            page.getByRole('button', { name: 'Router belum terdaftar? Buat aset router di sini' }),
+        ).toBeVisible();
 
         // The router is picked by search; one that is already registered is not offered again.
         await page.getByLabel('Aset router').fill('E2E-ROUTER');

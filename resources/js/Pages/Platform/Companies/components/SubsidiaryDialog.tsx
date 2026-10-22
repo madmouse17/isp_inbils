@@ -1,21 +1,30 @@
 import type { FormEvent } from 'react';
 import { useForm } from '@inertiajs/react';
 import { Alert, AlertDescription, Button, Checkbox, Input, Modal } from '@/Components/ui';
-import type { PlatformCompanyUser, PlatformTenantProfile } from '@/types/platform';
+import { suggestCode } from '@/lib/suggestCode';
+import type {
+    PlatformCompanyUser,
+    PlatformSubsidiaryRequest,
+    PlatformTenantProfile,
+} from '@/types/platform';
 
 interface SubsidiaryDialogProps {
     tenant: PlatformTenantProfile;
     admins: PlatformCompanyUser[];
+    /** The tenant's request this subsidiary answers: its name and code fill the form, and creating the subsidiary closes it. */
+    request?: PlatformSubsidiaryRequest;
     onClose: () => void;
 }
 
-export function SubsidiaryDialog({ tenant, admins, onClose }: SubsidiaryDialogProps) {
+export function SubsidiaryDialog({ tenant, admins, request, onClose }: SubsidiaryDialogProps) {
     const form = useForm({
-        name: '',
-        code: '',
+        name: request?.name ?? '',
+        code: request?.code ?? (request ? (suggestCode(request.name) ?? '') : ''),
         member_ids: [] as string[],
+        subsidiary_request_id: request?.id ?? '',
     });
-    const lifecycleError = (form.errors as Record<string, string | undefined>).lifecycle;
+    const formErrors = form.errors as Record<string, string | undefined>;
+    const refusal = formErrors.lifecycle ?? formErrors.subsidiary_request_id;
     const memberError =
         form.errors.member_ids ??
         Object.entries(form.errors).find(([key]) => key.startsWith('member_ids.'))?.[1];
@@ -29,14 +38,35 @@ export function SubsidiaryDialog({ tenant, admins, onClose }: SubsidiaryDialogPr
     };
 
     return (
-        <Modal open onClose={onClose} title="Tambah anak perusahaan" size="lg">
+        <Modal
+            open
+            onClose={onClose}
+            title={request ? 'Buat anak perusahaan dari permintaan' : 'Tambah anak perusahaan'}
+            size="lg"
+        >
             <form onSubmit={submit} className="space-y-5">
+                {request ? (
+                    <div className="rounded-md border border-border bg-muted/40 p-3 text-sm">
+                        <p className="font-medium">
+                            Permintaan dari {request.requester?.name ?? 'admin perusahaan'}
+                        </p>
+                        {request.note ? (
+                            <p className="mt-1 break-words whitespace-pre-line text-muted-foreground">
+                                {request.note}
+                            </p>
+                        ) : null}
+                        <p className="mt-1 text-muted-foreground">
+                            Permintaan ini ditutup begitu anak perusahaannya dibuat. Nama dan kode
+                            boleh diubah.
+                        </p>
+                    </div>
+                ) : null}
                 <p className="text-sm text-muted-foreground">
                     Mata uang dan zona waktu mengikuti perusahaan induk.
                 </p>
-                {lifecycleError ? (
+                {refusal ? (
                     <Alert variant="danger">
-                        <AlertDescription>{lifecycleError}</AlertDescription>
+                        <AlertDescription>{refusal}</AlertDescription>
                     </Alert>
                 ) : null}
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -98,7 +128,7 @@ export function SubsidiaryDialog({ tenant, admins, onClose }: SubsidiaryDialogPr
                         Batal
                     </Button>
                     <Button type="submit" loading={form.processing}>
-                        Tambah anak perusahaan
+                        {request ? 'Buat anak perusahaan' : 'Tambah anak perusahaan'}
                     </Button>
                 </div>
             </form>

@@ -481,8 +481,8 @@ test.describe('@ui-pickers RemoteSearchSelect', () => {
         await expect(page.getByText('Ketik minimal 2 huruf untuk mencari.')).toBeVisible();
         expect(new URL(page.url()).searchParams.has('demo_search')).toBe(false);
 
-        await field.fill('default');
-        await expect(page.getByRole('option', { name: /Default POP/ })).toBeVisible();
+        await field.fill('pop utama');
+        await expect(page.getByRole('option', { name: /POP Utama/ })).toBeVisible();
         // The search is a partial reload, not an address: a copied link or a reload must not carry it.
         expect(new URL(page.url()).searchParams.has('demo_search')).toBe(false);
         // The page keeps its place: the gallery state, such as another picker's value, survives.
@@ -496,18 +496,18 @@ test.describe('@ui-pickers RemoteSearchSelect', () => {
         const field = page.getByRole('combobox', { name: 'Lokasi (cari di server)' });
         const status = sent(page, 'Lokasi (cari di server)');
 
-        await field.fill('default');
-        await page.getByRole('option', { name: /Default POP/ }).click();
+        await field.fill('pop utama');
+        await page.getByRole('option', { name: /POP Utama/ }).click();
         await expect(status).toHaveText(/^Nilai terkirim: [0-9A-HJKMNP-TV-Z]{26}$/i);
         const chosen = await status.textContent();
-        await expect(field).toHaveValue('Default POP');
+        await expect(field).toHaveValue('POP Utama');
 
         await field.fill('zzzz');
         await expect(page.getByText('Tidak ada lokasi yang cocok.')).toBeVisible();
         await expect(status).toHaveText(chosen ?? '');
 
         await page.keyboard.press('Escape');
-        await expect(field).toHaveValue('Default POP');
+        await expect(field).toHaveValue('POP Utama');
         await expect(status).toHaveText(chosen ?? '');
     });
 
@@ -524,8 +524,8 @@ test.describe('@ui-pickers RemoteSearchSelect', () => {
         expect(await list.getByRole('option').count()).toBeLessThanOrEqual(10);
 
         // Typing replaces the recent rows with the answer for the text, and the heading goes.
-        await field.fill('default');
-        await expect(page.getByRole('option', { name: /Default POP/ })).toBeVisible();
+        await field.fill('pop utama');
+        await expect(page.getByRole('option', { name: /POP Utama/ })).toBeVisible();
         await expect(page.getByText('Terakhir dipakai', { exact: true })).toHaveCount(0);
 
         const query = new URL(page.url()).searchParams;

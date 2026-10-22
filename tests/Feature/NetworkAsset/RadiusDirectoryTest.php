@@ -4,6 +4,7 @@ namespace Tests\Feature\NetworkAsset;
 
 use App\Models\Core\Company;
 use App\Services\Core\CompanyService;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Modules\NetworkAsset\Services\Radius\RadiusDirectory;
@@ -241,13 +242,15 @@ class RadiusDirectoryTest extends TestCase
         $this->seedRadiusSession(['acctsessionid' => 'stale-no-update', 'acctstarttime' => $fmt(30), 'acctupdatetime' => null]);
         $this->seedRadiusSession(['acctsessionid' => 'other-user', 'username' => 'ani@acme']);
 
+        // Two moments of one row are worked out one after the other: a clock that stands still keeps them on the same second.
+        $this->travelTo(now());
         $sessions = $this->radius->openSessions('budi@acme');
 
         $this->assertSame(['newest', 'fresh-old-start'], array_column($sessions, 'session_id'));
-        $this->assertSame(['session_id', 'nas_ip', 'framed_ip', 'started_at', 'updated_at'], array_keys($sessions[0]));
+        $this->assertSame(['session_id', 'nas_ip', 'framed_ip', 'started_at', 'last_seen_at', 'stale'], array_keys($sessions[0]));
         $this->assertSame('192.0.2.10', $sessions[0]['nas_ip']);
         $this->assertSame('198.51.100.7', $sessions[0]['framed_ip']);
-        $this->assertNull($sessions[0]['updated_at']);
+        $this->assertSame($sessions[0]['started_at'], $sessions[0]['last_seen_at'], 'a session without an update has said nothing since it started');
     }
 
     public function test_sessions_on_nas_are_scoped_and_capped(): void
@@ -260,7 +263,7 @@ class RadiusDirectoryTest extends TestCase
 
         $all = $this->radius->sessionsOnNas('192.0.2.10');
         $this->assertCount(5, $all);
-        $this->assertSame(['session_id', 'nas_ip', 'framed_ip', 'started_at', 'updated_at', 'username'], array_keys($all[0]));
+        $this->assertSame(['session_id', 'nas_ip', 'framed_ip', 'started_at', 'last_seen_at', 'stale', 'username'], array_keys($all[0]));
         $this->assertCount(2, $this->radius->sessionsOnNas('192.0.2.10', 2));
     }
 
@@ -285,7 +288,10 @@ class RadiusDirectoryTest extends TestCase
         $this->seedRadiusSession(['username' => 'ani@acme', 'acctstoptime' => '2026-10-15 00:00:00']);
         $this->seedRadiusSession(['acctstarttime' => '2026-10-14 08:00:00']);
 
-        $this->assertSame('2026-10-14 06:45:10', $this->radius->lastSeen('budi@acme'));
+        // The result is a moment of the application clock, so the one clock of the test is frozen.
+        $this->travelTo(CarbonImmutable::create(2026, 10, 15, 12, 0, 0, 'UTC'));
+
+        $this->assertSame('2026-10-14T06:45:10+00:00', $this->radius->lastSeen('budi@acme'));
     }
 
     public function test_last_seen_is_null_while_no_session_of_the_user_has_ended(): void
@@ -313,6 +319,7 @@ class RadiusDirectoryTest extends TestCase
             fn () => $this->radius->sessionsOnNas('192.0.2.10'),
             fn () => $this->radius->usageSince('budi@acme', $from),
             fn () => $this->radius->lastSeen('budi@acme'),
+            fn () => $this->radius->lastAccountingAt('192.0.2.10'),
         ];
         foreach ($calls as $call) {
             $this->assertSame(RadiusException::DISABLED, $this->kind($call));

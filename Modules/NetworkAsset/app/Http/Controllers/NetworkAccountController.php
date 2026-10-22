@@ -128,14 +128,15 @@ class NetworkAccountController extends Controller
 
     /**
      * The open session and this month's volume, read live. Both are null while RADIUS is off or unreachable:
-     * the page still renders.
+     * the page still renders. A session nothing has updated for 15 minutes comes too, flagged `stale`: the router
+     * rebooted or never sent its Stop, and the page says so instead of a silent "Offline".
      *
      * @return array{0: ?array<string, mixed>, 1: ?array<string, mixed>}
      */
     private function liveState(RadiusDirectory $radius, NetworkAccount $account): array
     {
         try {
-            $session = $radius->openSessions($account->username)[0] ?? null;
+            $session = $radius->openSessions($account->username, withStale: true)[0] ?? null;
             $usage = $radius->usageSince($account->username, now()->startOfMonth());
         } catch (RadiusException) {
             return [null, null];
@@ -148,7 +149,8 @@ class NetworkAccountController extends Controller
                 'nas_label' => $this->nasLabel($session['nas_ip']),
                 'framed_ip' => $session['framed_ip'],
                 'started_at' => $session['started_at'],
-                'updated_at' => $session['updated_at'],
+                'last_seen_at' => $session['last_seen_at'],
+                'stale' => $session['stale'],
             ],
             ['month' => now()->format('Y-m')] + $usage,
         ];

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { EmptyCell, EnumBadge, Modal } from '@/Components/ui';
 import { formatDateTime } from '@/lib/format';
 import { formatPropertyValue } from '@/lib/platform';
-import { PLATFORM_AUDIT_ACTION, PLATFORM_LOG, labelOf } from '@/lib/statuses';
+import { PLATFORM_LOG } from '@/lib/statuses';
 import type { PlatformAuditEntry } from '@/types/platform';
 
 interface AuditDetailDialogProps {
@@ -26,7 +26,7 @@ export function AuditDetailDialog({ entry, onClose }: AuditDetailDialogProps) {
         <Modal
             open
             onClose={onClose}
-            title={labelOf(PLATFORM_AUDIT_ACTION, entry.description)}
+            title={entry.text}
             size="lg"
         >
             <div className="space-y-5">
@@ -55,7 +55,7 @@ export function AuditDetailDialog({ entry, onClose }: AuditDetailDialogProps) {
                     </Fact>
                     <Fact label="Subjek">
                         {entry.subject ? (
-                            `${entry.subject.type} #${entry.subject.id}`
+                            `${entry.subject.type}${entry.subject_label ? ` ${entry.subject_label}` : ` #${entry.subject.id}`}`
                         ) : (
                             <EmptyCell />
                         )}

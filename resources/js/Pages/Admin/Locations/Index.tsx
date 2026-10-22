@@ -35,6 +35,8 @@ import {
     Textarea,
 } from '@/Components/ui';
 import type { SearchSelectOption } from '@/Components/ui';
+import { LatLngMapPicker } from '@/Components/composite/LatLngMapPicker';
+import { useMapDefault } from '@/hooks/useMapDefault';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
 import {
@@ -109,7 +111,8 @@ const typeFilterOptions = [{ value: '', label: 'Semua tipe' }, ...typeOptions];
 
 export default function Index({ locations, tree, markers, filters, can }: LocationsProps) {
     /* -- View tab -- */
-    const [viewTab, setViewTab] = useState<string>('map');
+    // A company that has not placed any location opens on the table: an empty map teaches nothing.
+    const [viewTab, setViewTab] = useState<string>(markers.length === 0 ? 'table' : 'map');
 
     /* -- Server table for list view -- */
     const { params, set, setMany, sortBy, sortDir, onSort, processing } = useServerTable({
@@ -121,6 +124,11 @@ export default function Index({ locations, tree, markers, filters, can }: Locati
 
     /* -- Every place of the tree -- */
     const flat = useMemo(() => flatten(tree.data), [tree.data]);
+    const withoutCoordinates = useMemo(
+        () => flat.filter((loc) => !(loc.lat && loc.lng)).length,
+        [flat],
+    );
+    const mapDefault = useMapDefault();
 
     const parentOptions = useMemo<SearchSelectOption[]>(
         () =>
@@ -315,20 +323,10 @@ export default function Index({ locations, tree, markers, filters, can }: Locati
             header: 'Aksi',
             cell: (row) => (
                 <div className="flex items-center gap-1">
-                    {can.update && !row.deleted_at && (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => startEdit(row)}
-                        >
-                            Ubah
-                        </Button>
-                    )}
                     {can.move && !row.deleted_at && (
                         <Button
                             type="button"
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
                             onClick={() => {
                                 setMoveTarget(row);
@@ -339,6 +337,7 @@ export default function Index({ locations, tree, markers, filters, can }: Locati
                         </Button>
                     )}
                     <DataTableActions
+                        onEdit={can.update ? () => startEdit(row) : undefined}
                         lifecycle={{
                             row,
                             name: row.name,
@@ -372,6 +371,13 @@ export default function Index({ locations, tree, markers, filters, can }: Locati
                     subtitle="Wilayah, area, POP, rak, dan site tempat perangkat jaringan berada."
                     actions={createButton}
                 />
+
+                {withoutCoordinates > 0 && (
+                    <p className="text-sm text-muted-foreground">
+                        {withoutCoordinates} lokasi belum punya koordinat. Titik muncul di peta
+                        setelah lintang dan bujurnya diisi.
+                    </p>
+                )}
 
                 {/* View switcher */}
                 <Tabs value={viewTab} onValueChange={setViewTab}>
@@ -456,7 +462,8 @@ export default function Index({ locations, tree, markers, filters, can }: Locati
                         }
                     }}
                 >
-                    <DialogContent className="max-w-2xl">
+                    {/* With the map the form is taller than a laptop screen: it scrolls inside the dialog. */}
+                    <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-2xl overflow-y-auto">
                         <DialogHeader>
                             <DialogTitle>Buat Lokasi</DialogTitle>
                             <DialogDescription>
@@ -522,6 +529,17 @@ export default function Index({ locations, tree, markers, filters, can }: Locati
                                 error={createForm.errors.lng}
                                 inputMode="decimal"
                             />
+                            <LatLngMapPicker
+                                // isolate: the map keeps its own z-index layers below the dialog.
+                                className="isolate lg:col-span-2"
+                                lat={createForm.data.lat}
+                                lng={createForm.data.lng}
+                                onChange={({ lat, lng }) => {
+                                    createForm.setData((current) => ({ ...current, lat, lng }));
+                                }}
+                                defaultCenter={mapDefault.center}
+                                defaultZoom={mapDefault.zoom}
+                            />
                             <DialogFooter className="lg:col-span-2">
                                 <Button
                                     type="button"
@@ -556,7 +574,7 @@ export default function Index({ locations, tree, markers, filters, can }: Locati
                         }
                     }}
                 >
-                    <DialogContent className="max-w-2xl">
+                    <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-2xl overflow-y-auto">
                         <DialogHeader>
                             <DialogTitle>Ubah {editTarget?.code ?? 'lokasi'}</DialogTitle>
                             <DialogDescription>
@@ -620,6 +638,16 @@ export default function Index({ locations, tree, markers, filters, can }: Locati
                                 onChange={(e) => editForm.setData('lng', e.target.value)}
                                 error={editForm.errors.lng}
                                 inputMode="decimal"
+                            />
+                            <LatLngMapPicker
+                                className="isolate lg:col-span-2"
+                                lat={editForm.data.lat}
+                                lng={editForm.data.lng}
+                                onChange={({ lat, lng }) => {
+                                    editForm.setData((current) => ({ ...current, lat, lng }));
+                                }}
+                                defaultCenter={mapDefault.center}
+                                defaultZoom={mapDefault.zoom}
                             />
 
                             {/* Coordinate change confirmation */}

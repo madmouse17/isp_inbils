@@ -4,10 +4,6 @@ import { Link, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { DataTable, DataTableActions, NativeSelect, PageHeader } from '@/Components/composite';
 import type { DataTableColumn } from '@/Components/composite';
-import {
-    ConfirmRequestDialog,
-    type ConfirmRequest,
-} from '@/Components/composite/ConfirmRequestDialog';
 import { Button, Input, Modal, Switch } from '@/Components/ui';
 import { EnumBadge } from '@/Components/ui/EnumBadge';
 import { useServerTable } from '@/hooks/useServerTable';
@@ -45,7 +41,6 @@ interface IndexProps extends Record<string, unknown> {
 export default function Index({ packageCategories, filters, can }: IndexProps) {
     /** `'new'` adds a category, a row edits it. */
     const [dialog, setDialog] = useState<'new' | CategoryRow | null>(null);
-    const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
     const { params, search, setSearch, set, setMany, sortBy, sortDir, onSort, processing } =
         useServerTable({
             url: route('admin.service-package-categories.index'),
@@ -116,31 +111,16 @@ export default function Index({ packageCategories, filters, can }: IndexProps) {
                 key: 'actions',
                 header: 'Aksi',
                 cell: (row) => (
-                    <div className="flex items-center gap-1">
-                        {can.update ? <DataTableActions onEdit={() => setDialog(row)} /> : null}
-                        {can.delete ? (
-                            <Button
-                                type="button"
-                                variant="destructive-outline"
-                                size="sm"
-                                aria-label={`Hapus kategori ${row.name}`}
-                                onClick={() =>
-                                    setConfirm({
-                                        title: `Hapus kategori ${row.name}?`,
-                                        description:
-                                            'Kategori hanya bisa dihapus selama tidak ada paket di dalamnya. Nonaktifkan kategori jika sudah dipakai.',
-                                        confirmLabel: 'Hapus kategori',
-                                        href: route(
-                                            'admin.service-package-categories.destroy',
-                                            row.id,
-                                        ),
-                                    })
-                                }
-                            >
-                                Hapus
-                            </Button>
-                        ) : null}
-                    </div>
+                    <DataTableActions
+                        onEdit={can.update ? () => setDialog(row) : undefined}
+                        deleteHref={
+                            can.delete
+                                ? route('admin.service-package-categories.destroy', row.id)
+                                : undefined
+                        }
+                        deleteMessage={`Hapus kategori ${row.name}?`}
+                        deleteDescription="Kategori hanya bisa dihapus selama tidak ada paket di dalamnya. Nonaktifkan kategori jika sudah dipakai."
+                    />
                 ),
             },
         ];
@@ -207,13 +187,6 @@ export default function Index({ packageCategories, filters, can }: IndexProps) {
                     <CategoryDialog
                         onClose={() => setDialog(null)}
                         category={dialog === 'new' ? undefined : dialog}
-                    />
-                )}
-                {confirm && (
-                    <ConfirmRequestDialog
-                        key={confirm.href}
-                        request={confirm}
-                        onClose={() => setConfirm(null)}
                     />
                 )}
             </div>

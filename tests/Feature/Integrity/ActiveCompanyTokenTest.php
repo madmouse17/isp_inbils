@@ -48,6 +48,18 @@ class ActiveCompanyTokenTest extends TestCase
         $this->assertSame(0, Unit::withoutCompany()->where('name', 'Stale Unit')->count());
     }
 
+    public function test_a_json_post_from_a_stale_tab_is_refused_with_409(): void
+    {
+        $this->userOnSubA();
+
+        // What the axios dialogs (quick create, previews) send once app.tsx puts the header on them.
+        $this->withHeaders([ResolveActiveCompany::HEADER => $this->head->public_id])
+            ->postJson(route('admin.units.store'), ['name' => 'Stale Json Unit', 'symbol' => 'sju'])
+            ->assertStatus(409);
+
+        $this->assertSame(0, Unit::withoutCompany()->where('name', 'Stale Json Unit')->count());
+    }
+
     public function test_an_update_from_a_stale_tab_redirects_with_303(): void
     {
         $this->userOnSubA();

@@ -13,7 +13,7 @@ import {
 } from '@/Components/ui';
 import { formatDateTime } from '@/lib/format';
 import { classBasename } from '@/lib/platform';
-import { AUDIT_EVENT, PLATFORM_AUDIT_ACTION, PLATFORM_LOG, resolveStatus } from '@/lib/statuses';
+import { PLATFORM_LOG } from '@/lib/statuses';
 import type {
     PlatformAuditRow,
     PlatformFailedJob,
@@ -27,15 +27,6 @@ interface ActivitySectionsProps {
     audit: PlatformAuditRow[];
     failedJobs: PlatformFailedJob[];
     failedWhatsApp: PlatformFailedWhatsApp[];
-}
-
-/** The platform log's label first, then the tenant audit's; a code neither lists shows as itself. */
-function actionLabel(description: string): string {
-    const known = [PLATFORM_AUDIT_ACTION, AUDIT_EVENT]
-        .map((map) => resolveStatus(map, description))
-        .find((status) => status?.known);
-
-    return known?.label ?? description;
 }
 
 export function ActivitySections({
@@ -56,7 +47,7 @@ export function ActivitySections({
                 header: 'Kegiatan',
                 cell: (row) => (
                     <div>
-                        <p className="font-medium">{actionLabel(row.description)}</p>
+                        <p className="font-medium">{row.text}</p>
                         {row.subject_type ? (
                             <p className="text-xs text-muted-foreground">{row.subject_type}</p>
                         ) : null}

@@ -41,6 +41,7 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
 
     // NAS routers (FreeRADIUS clients). RADIUS writes are best effort after the save and retried by network:sync.
     Route::resource('nas-devices', NasDeviceController::class)->parameters(['nas-devices' => 'nasDevice']);
+    Route::post('nas-devices/{nasDevice}/sync', [NasDeviceController::class, 'sync'])->middleware('throttle:6,1,nas-sync')->name('nas-devices.sync');
 
     Route::get('subscriptions/{subscription}/network-account', [NetworkAccountController::class, 'show'])->name('subscriptions.network-account.show');
     Route::post('subscriptions/{subscription}/network-account', [NetworkAccountController::class, 'store'])->name('subscriptions.network-account.store');

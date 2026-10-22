@@ -56,10 +56,15 @@ export const NETWORK_ISOLATED_BECAUSE = {
 } satisfies StatusMap;
 
 /**
- * Whether a NAS device was written to RADIUS: derived from `radius_synced_at`, `last_error` and the company's
- * RADIUS switch, not stored. `disabled` is no failure: a company without RADIUS has nothing to write to.
+ * Whether a NAS device was written to RADIUS and whether FreeRADIUS serves it: derived from `radius_synced_at`,
+ * `last_error`, the company's RADIUS switch and, on the router page, the newest accounting packet (`radius_state`);
+ * not stored. `synced` is what a list can say (a row was written, nothing checked); `awaiting_restart` and `live` are
+ * what the router page can say, because FreeRADIUS reads its clients only when it starts. `disabled` is no failure: a
+ * company without RADIUS has nothing to write to.
  */
 export const NAS_RADIUS_STATE = {
+    live: { label: 'Aktif', tone: 'success' },
+    awaiting_restart: { label: 'Menunggu restart FreeRADIUS', tone: 'warning' },
     synced: { label: 'Tertulis ke RADIUS', tone: 'success' },
     error: { label: 'Gagal ditulis', tone: 'danger' },
     waiting: { label: 'Menunggu ditulis', tone: 'warning' },

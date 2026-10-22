@@ -146,7 +146,7 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
 
         await page.goto('/admin/tickets/create');
         await page.getByLabel('Judul').fill(title);
-        await selectSearchOption(page, 'Kategori', 'No Internet');
+        await selectSearchOption(page, 'Kategori', 'Internet mati');
         await page.getByLabel('Prioritas').selectOption('high');
         await selectSearchOption(page, 'Pelanggan', customerName);
         await page
@@ -261,11 +261,11 @@ async function createCustomer(page: Page, key: string) {
     await page.getByLabel('Email').fill(`contact.${slug.toLowerCase()}@example.test`);
 
     // Langganan & SPK: the package and the serving POP are required, and the E2E seeder
-    // provisions "Home 10Mbps" and "Default POP". Both are SearchSelects, the POP is matched
+    // provisions "Home 10Mbps" and "POP Utama". Both are SearchSelects, the POP is matched
     // by substring as in customer-subscription.spec.ts.
     await page.getByRole('tab', { name: 'Langganan & SPK' }).click();
     await selectFirstSearchOption(page, 'Paket layanan');
-    await selectSearchOption(page, 'POP pelayan', /Default POP/);
+    await selectSearchOption(page, 'POP pelayan', /POP Utama/);
 
     await page.getByRole('tab', { name: 'Data pelanggan' }).click();
     await page.getByRole('button', { name: 'Buat pelanggan dan SPK' }).click();

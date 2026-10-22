@@ -22,7 +22,7 @@ import { expect, test } from './support/fixtures';
  * address nor a drop.
  */
 
-const popName = 'Default POP';
+const popName = 'POP Utama';
 const odpCode = 'E2E-ODP-001';
 const oltCode = 'E2E-OLT-001';
 

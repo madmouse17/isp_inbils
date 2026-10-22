@@ -25,10 +25,14 @@ class StoreUserRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8'],
             'is_active' => ['boolean'],
             'roles' => ['array', new NoStackedSodConflict($this->user())],
             'roles.*' => ['string', Rule::exists('roles', 'name')->where('company_id', CompanyService::currentId())->where('guard_name', 'web')],
+            'employee' => ['nullable', 'array:phone,hire_date,status,notes'],
+            'employee.phone' => ['nullable', 'string', 'max:50'],
+            'employee.hire_date' => ['nullable', 'date_format:Y-m-d'],
+            'employee.status' => ['nullable', 'string', 'in:active,inactive'],
+            'employee.notes' => ['nullable', 'string', 'max:2000'],
         ];
     }
 }

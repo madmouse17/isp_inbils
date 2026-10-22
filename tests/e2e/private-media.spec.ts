@@ -191,7 +191,7 @@ async function createTicket(page: Page, title: string, customerName: string) {
     await page.getByLabel('Judul').fill(title);
     await page.getByLabel('Sumber').selectOption('customer');
     await settleAppChunks(page);
-    await selectSearchOption(page, 'Kategori', 'Device Issue');
+    await selectSearchOption(page, 'Kategori', 'Masalah perangkat');
     await selectSearchOption(page, 'Pelanggan', customerName);
     await page.getByRole('button', { name: 'Simpan', exact: true }).click();
     await expect(page).toHaveURL(/\/admin\/tickets/);

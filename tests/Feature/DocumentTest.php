@@ -201,6 +201,64 @@ class DocumentTest extends TestCase
         ]);
     }
 
+    public function test_document_upload_accepts_customer_update_without_system_setting(): void
+    {
+        $customer = Customer::factory()->create(['company_id' => $this->admin->company_id]);
+        $staff = User::factory()->create([
+            'company_id' => $this->admin->company_id,
+            'email_verified_at' => now(),
+            'is_active' => true,
+        ]);
+        $this->grantPermissions($staff, ['app.web', 'customer.update']);
+
+        $this->actingAs($staff)->post(route('admin.documents.media.store'), [
+            'model_type' => Customer::class,
+            'model_id' => $customer->public_id,
+            'file' => UploadedFile::fake()->create('customer.pdf', 120, 'application/pdf'),
+            'collection' => 'documents',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('media', ['model_id' => $customer->id, 'file_name' => 'customer.pdf']);
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'customer',
+            'description' => 'document_uploaded',
+            'subject_type' => Customer::class,
+            'subject_id' => $customer->id,
+        ]);
+    }
+
+    public function test_document_upload_rejects_unapproved_file_types_and_files_over_ten_megabytes(): void
+    {
+        $customer = Customer::factory()->create(['company_id' => $this->admin->company_id]);
+
+        $this->actingAs($this->admin)->post(route('admin.documents.media.store'), [
+            'model_type' => Customer::class,
+            'model_id' => $customer->public_id,
+            'file' => UploadedFile::fake()->create('script.svg', 10, 'image/svg+xml'),
+        ])->assertSessionHasErrors('file');
+
+        $this->actingAs($this->admin)->post(route('admin.documents.media.store'), [
+            'model_type' => Customer::class,
+            'model_id' => $customer->public_id,
+            'file' => UploadedFile::fake()->create('large.pdf', 10241, 'application/pdf'),
+        ])->assertSessionHasErrors('file');
+
+        $this->assertDatabaseMissing('media', ['model_id' => $customer->id]);
+    }
+
+    public function test_document_upload_rejects_a_pdf_that_keeps_an_html_extension(): void
+    {
+        $customer = Customer::factory()->create(['company_id' => $this->admin->company_id]);
+
+        $this->actingAs($this->admin)->post(route('admin.documents.media.store'), [
+            'model_type' => Customer::class,
+            'model_id' => $customer->public_id,
+            'file' => UploadedFile::fake()->create('kontrak.html', 10, 'application/pdf'),
+        ])->assertSessionHasErrors('file');
+
+        $this->assertDatabaseMissing('media', ['model_id' => $customer->id]);
+    }
+
     public function test_document_upload_rejects_without_permission(): void
     {
         $customer = Customer::factory()->create(['company_id' => $this->admin->company_id]);

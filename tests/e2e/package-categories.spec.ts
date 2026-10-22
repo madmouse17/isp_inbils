@@ -205,10 +205,19 @@ test.describe('@package-categories', () => {
         await page.goto('/admin/service-package-categories');
         const main = page.getByRole('main');
 
+        const askDelete = async (name: string) => {
+            await main
+                .getByRole('row')
+                .filter({ hasText: name })
+                .getByRole('button', { name: 'Aksi lainnya' })
+                .click();
+            await page.getByRole('menuitem', { name: 'Hapus' }).click();
+        };
+
         // Used by the package of this run: the server's message stays in the dialog.
-        await main.getByRole('button', { name: `Hapus kategori ${renamedName}` }).click();
+        await askDelete(renamedName);
         const confirm = page.getByRole('alertdialog');
-        await confirm.getByRole('button', { name: 'Hapus kategori' }).click();
+        await confirm.getByRole('button', { name: 'Hapus', exact: true }).click();
         await expect(
             confirm.getByText('Kategori masih dipakai 1 paket. Nonaktifkan saja.'),
         ).toBeVisible();
@@ -223,8 +232,8 @@ test.describe('@package-categories', () => {
         await dialog.getByLabel('Nama').fill(spareName);
         await dialog.getByRole('button', { name: 'Simpan' }).click();
         await expect(dialog).toBeHidden();
-        await main.getByRole('button', { name: `Hapus kategori ${spareName}` }).click();
-        await confirm.getByRole('button', { name: 'Hapus kategori' }).click();
+        await askDelete(spareName);
+        await confirm.getByRole('button', { name: 'Hapus', exact: true }).click();
         await expect(main.getByRole('row').filter({ hasText: spareName })).toHaveCount(0);
 
         // Deactivated: still listed, no longer offered for packages.

@@ -19,13 +19,15 @@ interface EditorDialogProps {
 
 /**
  * What saving a row means for the customer app, by the status the row has now. A new row starts as a
- * draft; once published, a change is live at once.
+ * draft; once published, a change is live at once. `publishFromForm`: the form has "Simpan & Terbitkan" too.
  */
-export function saveNote(status: string | undefined): string {
+export function saveNote(status: string | undefined, publishFromForm = false): string {
     switch (status) {
         case undefined:
         case 'draft':
-            return 'Disimpan sebagai draf. Terbitkan dari daftar setelah dicek di pratinjau.';
+            return publishFromForm
+                ? 'Simpan sebagai draf, atau pakai Simpan & Terbitkan setelah dicek di pratinjau.'
+                : 'Disimpan sebagai draf. Terbitkan dari daftar setelah dicek di pratinjau.';
         case 'scheduled':
         case 'live':
             return 'Sudah terbit, jadi perubahan langsung berlaku di aplikasi pelanggan.';
@@ -34,6 +36,13 @@ export function saveNote(status: string | undefined): string {
         default:
             return 'Sudah dinonaktifkan: tidak tampil di aplikasi dan tidak bisa diaktifkan lagi.';
     }
+}
+
+/** What publishing an announcement does, by its kind: the text of both confirmations (the list and the editor). */
+export function announcementPublishNote(kind: string): string {
+    return kind === 'outage' || kind === 'maintenance'
+        ? 'Pengumuman tampil paling atas di beranda aplikasi pelanggan sasaran, dan setiap pelanggan sasaran menerima satu notifikasi saat jadwal mulai tiba.'
+        : 'Pengumuman tampil di beranda aplikasi pelanggan sasaran sesuai jadwal. Pengumuman informasi tidak mengirim notifikasi.';
 }
 
 /** A wide dialog with the form on the left and the phone preview that follows it on the right. Mount it only while open. */

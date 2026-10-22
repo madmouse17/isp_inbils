@@ -19,8 +19,15 @@ use Throwable;
  * `radius` integration row (Pengaturan → Integrasi) and reached through the connection `radius_{companyId}`; the
  * company the request, job or command acts in decides which one. The data methods take primitives, so they do not
  * know Inbils models: only connection() and check() know the integration row. Query builder only, so SQLite (tests)
- * and MySQL behave the same. Every data method refuses with kind `disabled` before any query while that company has
- * no enabled row, or while the host of its row is refused by the host policy (connection()).
+ * and MySQL behave the same, with one exception: the age of a datetime is raw SQL on the RADIUS server's own clock
+ * (ageOf()). Every data
+ * method refuses with kind `disabled` before any query while that company has no enabled row, or while the host of its
+ * row is refused by the host policy (connection()).
+ *
+ * Time: FreeRADIUS writes every `radacct` datetime in the zone of its database server, which is not the application's
+ * (the app runs in UTC, an ISP's server in its own zone). Ages are therefore measured inside the RADIUS statement, on
+ * the server's clock, and what this class returns are moments on the application's clock (ISO 8601 with offset),
+ * worked out as "now minus that age".
  *
  * Limit: `nasname` is IPv4 only because `radacct.nasipaddress` is varchar(15).
  */
@@ -239,19 +246,20 @@ class RadiusDirectory
     }
 
     /**
-     * Open, not stale sessions of one user, newest first.
+     * Open sessions of one user, newest first, with the ones nothing has updated for 15 minutes left out. `$withStale`
+     * lists those too, after the live ones, flagged `stale`: a router that reboots never sends the Stop of its sessions.
      *
-     * @return list<array{session_id: string, nas_ip: string, framed_ip: ?string, started_at: string, updated_at: ?string}>
+     * @return list<array{session_id: string, nas_ip: string, framed_ip: ?string, started_at: string, last_seen_at: string, stale: bool}>
      */
-    public function openSessions(string $username): array
+    public function openSessions(string $username, bool $withStale = false): array
     {
-        return $this->run(fn (Connection $db): array => $this->sessions($db->table('radacct')->where('username', $username), self::MAX_SESSIONS, false));
+        return $this->run(fn (Connection $db): array => $this->sessions($db->table('radacct')->where('username', $username), self::MAX_SESSIONS, false, $withStale));
     }
 
     /**
      * Open, not stale sessions on one NAS address, newest first.
      *
-     * @return list<array{session_id: string, nas_ip: string, framed_ip: ?string, started_at: string, updated_at: ?string, username: string}>
+     * @return list<array{session_id: string, nas_ip: string, framed_ip: ?string, started_at: string, last_seen_at: string, stale: bool, username: string}>
      */
     public function sessionsOnNas(string $nasIp, int $limit = self::MAX_SESSIONS): array
     {
@@ -292,40 +300,98 @@ class RadiusDirectory
         });
     }
 
-    /** When the newest finished session of this user ended (radacct's own datetime text); null while none has ended. */
+    /** When the newest finished session of this user ended, as a moment on the application's clock (ISO 8601); null while none has ended. */
     public function lastSeen(string $username): ?string
     {
         return $this->run(function (Connection $db) use ($username): ?string {
-            $stoppedAt = $db->table('radacct')->where('username', $username)->max('acctstoptime');
+            $row = $db->table('radacct')->where('username', $username)->selectRaw($this->ageOf('MAX(acctstoptime)').' AS age')->first();
 
-            return $stoppedAt === null ? null : (string) $stoppedAt;
+            return ($row->age ?? null) === null ? null : $this->moment((int) $row->age);
         });
     }
 
-    /** @return list<array<string, mixed>> */
-    private function sessions(Builder $query, int $limit, bool $withUsername): array
+    /**
+     * The newest accounting packet this NAS sent (an update or a stop) as a moment on the application's clock (ISO
+     * 8601); null while it never sent one. FreeRADIUS only answers a router whose client row it loaded at its start, so
+     * a packet newer than the row was written says the restart happened.
+     *
+     * shortcut: reads every `radacct` row of the NAS (the stock schema indexes `nasipaddress` alone); add an index on
+     * (nasipaddress, acctupdatetime) on the RADIUS side when one router holds millions of rows.
+     */
+    public function lastAccountingAt(string $nasIp): ?string
     {
-        return $this->open($query)
+        return $this->run(function (Connection $db) use ($nasIp): ?string {
+            $row = $db->table('radacct')
+                ->where('nasipaddress', $nasIp)
+                ->selectRaw('MIN('.$this->ageOf('acctupdatetime').') AS updated_age, MIN('.$this->ageOf('acctstoptime').') AS stopped_age')
+                ->first();
+            $age = collect([$row->updated_age ?? null, $row->stopped_age ?? null])
+                ->filter(fn (mixed $age): bool => $age !== null)
+                ->map(fn (mixed $age): int => (int) $age)
+                ->min();
+
+            return $age === null ? null : $this->moment($age);
+        });
+    }
+
+    /**
+     * Open sessions of the query, newest first. Times are moments on the application's clock; `stale` says the last
+     * packet is older than the 15-minute rule, which only a caller that asked for stale sessions ever sees.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function sessions(Builder $query, int $limit, bool $withUsername, bool $withStale = false): array
+    {
+        $sessions = $this->open($query, $withStale)
+            ->select(['acctsessionid', 'nasipaddress', 'framedipaddress', 'username'])
+            // A session that never sent an update has said nothing since its start.
+            ->selectRaw($this->ageOf('acctstarttime').' AS started_age, '.$this->ageOf('COALESCE(acctupdatetime, acctstarttime)').' AS seen_age')
             ->orderByDesc('acctstarttime')
             ->orderByDesc('radacctid')
             ->limit($limit)
-            ->get(['acctsessionid', 'nasipaddress', 'framedipaddress', 'acctstarttime', 'acctupdatetime', 'username'])
+            ->get()
             ->map(fn (object $row): array => [
                 'session_id' => (string) $row->acctsessionid,
                 'nas_ip' => (string) $row->nasipaddress,
                 'framed_ip' => $row->framedipaddress === '' ? null : $row->framedipaddress,
-                'started_at' => (string) $row->acctstarttime,
-                'updated_at' => $row->acctupdatetime === null ? null : (string) $row->acctupdatetime,
+                'started_at' => $this->moment((int) $row->started_age),
+                'last_seen_at' => $this->moment((int) $row->seen_age),
+                'stale' => (int) $row->seen_age > self::STALE_AFTER_MINUTES * 60,
             ] + ($withUsername ? ['username' => (string) $row->username] : []))
             ->all();
+
+        if ($withStale) {
+            // The live session stands for the account, even when a leftover row of a dead one started later (sort is stable).
+            usort($sessions, fn (array $a, array $b): int => $a['stale'] <=> $b['stale']);
+        }
+
+        return $sessions;
     }
 
-    /** Open and not stale: the 15-minute rule exists here once, for the session lists and the online check. */
-    private function open(Builder $query): Builder
+    /** Open and, unless asked otherwise, not stale: the 15-minute rule exists here once, measured on the RADIUS clock. */
+    private function open(Builder $query, bool $withStale = false): Builder
     {
-        return $query
-            ->whereNull('acctstoptime')
-            ->whereRaw('COALESCE(acctupdatetime, acctstarttime) >= ?', [now()->subMinutes(self::STALE_AFTER_MINUTES)->format('Y-m-d H:i:s')]);
+        $query->whereNull('acctstoptime');
+
+        return $withStale
+            ? $query
+            : $query->whereRaw($this->ageOf('COALESCE(acctupdatetime, acctstarttime)').' <= ?', [self::STALE_AFTER_MINUTES * 60]);
+    }
+
+    /**
+     * SQL for the seconds from a RADIUS datetime to the RADIUS server's own clock. Its datetimes are in its zone, not the
+     * application's, so every age is measured there and only the duration comes back (F7-D20). The one raw expression of
+     * this class; the SQLite stand-in of the tests defines NOW() and UNIX_TIMESTAMP() too.
+     */
+    private function ageOf(string $expression): string
+    {
+        return "(UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP({$expression}))";
+    }
+
+    /** The moment on the application's clock that was this many seconds ago; a packet stamped ahead of the server reads as now. */
+    private function moment(int $secondsAgo): string
+    {
+        return now()->subSeconds(max(0, $secondsAgo))->toIso8601String();
     }
 
     private function deleteUserRows(Connection $db, string $username): void

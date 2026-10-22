@@ -28,6 +28,7 @@ use Modules\NetworkAsset\Database\Factories\NetworkAccountFactory;
  * @property ?string $provisioned_password_hash HMAC of the password last written to RADIUS
  * @property ?CarbonInterface $provisioned_at
  * @property ?CarbonInterface $pending_disconnect_at a Disconnect is owed since then; set before RADIUS is touched, cleared with the record
+ * @property ?CarbonInterface $last_disconnect_at when the router last confirmed the Disconnect of a session; stays after pending_disconnect_at is cleared
  * @property string $sync_status pending|synced|failed
  * @property ?string $last_error
  * @property ?CarbonInterface $last_attempt_at
@@ -51,6 +52,7 @@ class NetworkAccount extends Model
         'password' => 'encrypted',
         'provisioned_at' => 'datetime',
         'pending_disconnect_at' => 'datetime',
+        'last_disconnect_at' => 'datetime',
         'last_attempt_at' => 'datetime',
     ];
 

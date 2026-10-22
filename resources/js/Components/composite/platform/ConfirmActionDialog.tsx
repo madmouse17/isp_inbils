@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import { useForm } from '@inertiajs/react';
+import { useForm, usePage } from '@inertiajs/react';
+import { format } from 'date-fns';
 import {
     Alert,
     AlertDescription,
@@ -15,6 +16,7 @@ import {
     Textarea,
 } from '@/Components/ui';
 import { ConfirmDescription } from '@/Components/composite/ConfirmDialog';
+import type { PageProps } from '@/types';
 
 export type PlatformConfirmation = {
     reason?: string;
@@ -55,11 +57,17 @@ export function ConfirmActionDialog({
     const [reasonValue, setReasonValue] = useState('');
     const [confirmationCode, setConfirmationCode] = useState('');
     const password = useForm({ password: '' });
+    // The operator's password was confirmed lately enough for sensitive actions. The server still checks it on every one
+    // of them (RequirePlatformPasswordConfirmation); this only spares the person typing it again inside the window.
+    const confirmedUntil = usePage<PageProps<{ passwordConfirmedUntil?: string | null }>>().props.passwordConfirmedUntil ?? null;
+    const [now, setNow] = useState(() => Date.now());
+    const covered = (at: number) => confirmedUntil !== null && new Date(confirmedUntil).getTime() > at;
+    const askPassword = requirePassword && !covered(now);
     const busy = processing || password.processing;
     const ready =
         (!reason || reasonValue.trim().length >= 5) &&
         (!companyCode || confirmationCode === companyCode) &&
-        (!requirePassword || password.data.password !== '');
+        (!askPassword || password.data.password !== '');
     const generalError = Object.entries(errors).find(
         ([key, value]) => value && !['reason', 'confirmation_code'].includes(key),
     )?.[1];
@@ -76,7 +84,13 @@ export function ConfirmActionDialog({
 
         if (!ready || busy) return;
 
-        if (!requirePassword) {
+        // The window may have ended while the dialog was open: show the field instead of sending a doomed request.
+        if (requirePassword && !askPassword && !covered(Date.now())) {
+            setNow(Date.now());
+            return;
+        }
+
+        if (!askPassword) {
             perform();
             return;
         }
@@ -152,7 +166,7 @@ export function ConfirmActionDialog({
                         />
                     ) : null}
 
-                    {requirePassword ? (
+                    {askPassword ? (
                         <Input
                             ref={
                                 reason || companyCode
@@ -169,6 +183,10 @@ export function ConfirmActionDialog({
                             onChange={(event) => password.setData('password', event.target.value)}
                             required
                         />
+                    ) : requirePassword && confirmedUntil !== null ? (
+                        <p className="text-sm text-muted-foreground">
+                            Terkonfirmasi sampai {format(new Date(confirmedUntil), 'HH.mm')}
+                        </p>
                     ) : null}
 
                     <AlertDialogFooter>

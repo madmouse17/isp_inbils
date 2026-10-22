@@ -6,7 +6,7 @@ import { Checkbox } from '@/Components/ui/Checkbox';
 import { Input } from '@/Components/ui/Input';
 import { Label } from '@/Components/ui/Label';
 import { Wordmark } from '@/Components/ui/Wordmark';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import type { FormEventHandler } from 'react';
 
 /** Opens the customer app on Android; with the app missing, Chrome sends the phone to its Play Store page. */
@@ -23,6 +23,8 @@ export default function Login({
     /** Set right after a customer saved a password: the account lives in the app, not on this page. */
     customerHandoff?: { email: string; appUrl: string | null } | null;
 }) {
+    // A sign-out the server forced (a suspended company) redirects here with the message in the page's own errors; the form's errors only fill after its own submit.
+    const pageErrors = usePage().props.errors;
     const { data, setData, post, processing, errors, reset } = useForm({
         email: customerHandoff?.email ?? '',
         password: '',
@@ -112,7 +114,7 @@ export default function Login({
                                     value={data.email}
                                     autoComplete="username"
                                     autoFocus
-                                    error={errors.email}
+                                    error={errors.email ?? pageErrors.email}
                                     onChange={(e) => setData('email', e.target.value)}
                                 />
 

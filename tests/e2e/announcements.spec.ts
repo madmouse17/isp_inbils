@@ -116,6 +116,8 @@ test.describe('@announcements', () => {
         await dialog.getByLabel('Jenis').selectOption('outage');
         await dialog.getByLabel('Judul').fill(announcementTitle);
         await dialog.getByLabel('Isi').fill('Perbaikan kabel di Bandung.\nSelesai pukul 16.00.');
+        // A draft can also be saved and published in one step (the confirmation names how many customers it reaches).
+        await expect(dialog.getByRole('button', { name: 'Simpan & Terbitkan' })).toBeVisible();
 
         // The phone shows what is typed, and keeps its own Terang or Gelap choice.
         const phone = dialog.getByRole('group', { name: 'Pratinjau beranda aplikasi pelanggan' });

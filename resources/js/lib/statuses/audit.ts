@@ -1,32 +1,5 @@
 import type { StatusMap } from './types';
 
-/**
- * What an entry records, as the audit log stores it in `event`: a model's lifecycle event, or, for an entry written by
- * `AuditService::log()`, its action (the same code as `description`). Only the security and export actions that every
- * company's audit page can show are labelled here; any other action code shows as itself.
- */
-export const AUDIT_EVENT = {
-    created: { label: 'Dibuat', tone: 'success' },
-    updated: { label: 'Diperbarui', tone: 'info' },
-    deleted: { label: 'Dihapus', tone: 'danger' },
-    restored: { label: 'Dipulihkan', tone: 'warning' },
-    login: { label: 'Masuk', tone: 'success' },
-    logout: { label: 'Keluar', tone: 'neutral' },
-    'login.failed': { label: 'Gagal masuk', tone: 'warning' },
-    lockout: { label: 'Dikunci sementara', tone: 'danger' },
-    'password.reset_requested': { label: 'Tautan atur ulang diminta', tone: 'info' },
-    'password.reset': { label: 'Kata sandi diatur ulang', tone: 'success' },
-    'password.changed': { label: 'Kata sandi diubah', tone: 'info' },
-    'two_factor.challenge_passed': { label: 'Kode 2FA benar', tone: 'success' },
-    'role.created': { label: 'Peran dibuat', tone: 'success' },
-    'role.updated': { label: 'Peran diubah', tone: 'info' },
-    'role.deleted': { label: 'Peran dihapus', tone: 'danger' },
-    'role.attached': { label: 'Peran ditambahkan', tone: 'info' },
-    'role.detached': { label: 'Peran dicabut', tone: 'warning' },
-    'export.csv': { label: 'Ekspor CSV', tone: 'info' },
-    'export.pdf': { label: 'Ekspor PDF', tone: 'info' },
-} satisfies StatusMap;
-
 /** The area of the system an entry belongs to (`log_name`): a kind, so neutral. */
 export const AUDIT_MODULE = {
     customer: { label: 'Pelanggan', tone: 'neutral' },

@@ -63,11 +63,14 @@ export default function Index({
             })),
         [addresses.data],
     );
-    const primaryAddressId = addresses.data.find((address) => address.is_primary)?.id;
+    // The primary address; the only address when the customer has just one. Still changeable in the form.
+    const preselectedAddress =
+        addresses.data.find((address) => address.is_primary) ??
+        (addresses.data.length === 1 ? addresses.data[0] : undefined);
     const { data, setData, post, processing, errors, reset } = useForm({
         service_package_id: '',
-        // The customer's primary address, still changeable in the form.
-        installation_address_id: primaryAddressId === undefined ? '' : String(primaryAddressId),
+        installation_address_id:
+            preselectedAddress === undefined ? '' : String(preselectedAddress.id),
         billing_day: '1',
         mrc_amount: '',
         otc_installation_fee: '0',

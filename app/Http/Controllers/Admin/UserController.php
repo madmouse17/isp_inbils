@@ -7,20 +7,27 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreUserRequest;
 use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Http\Resources\UserResource;
+use App\Models\Core\EmployeeProfile;
 use App\Models\Role;
 use App\Models\User;
+use App\Notifications\StaffAccountInvitation;
 use App\Queries\Admin\UserHistoryQuery;
+use App\Services\Core\AuditService;
 use App\Services\Core\CompanyMembershipService;
 use App\Services\Core\CompanyRoleService;
 use App\Services\Core\CompanyService;
+use App\Services\Core\UserProfileService;
 use App\Support\ExportQuery;
 use App\Support\RecordNotFound;
 use App\Support\UserDeletionGuard;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -64,6 +71,7 @@ class UserController extends Controller
 
         return Inertia::render('Admin/Users/Create', [
             'roles' => $this->roleOptions($request->user()),
+            'can' => ['createEmployee' => Gate::allows('create', EmployeeProfile::class)],
         ]);
     }
 
@@ -73,22 +81,35 @@ class UserController extends Controller
 
         $data = $request->validated();
         $names = $data['roles'] ?? [];
-        unset($data['roles']);
+        $employee = $data['employee'] ?? null;
+
+        // A profile makes the login an assignable technician (IsActiveTechnician): it is HR's call, not users.manage's.
+        if (UserProfileService::hasEmployeeData($employee)) {
+            Gate::authorize('create', EmployeeProfile::class);
+        }
+
+        unset($data['roles'], $data['employee']);
 
         $company = CompanyService::current() ?? abort(403);
 
-        // One transaction, the company row locked first: a role the actor may not give (G1) takes the new user with it.
-        $roles->transaction((int) $company->id, function () use ($data, $names, $company, $request, $roles): void {
+        // One transaction, the company row locked first: a role the actor may not give (G1) takes the new user and optional employee profile with it.
+        $user = $roles->transaction((int) $company->id, function () use ($data, $names, $employee, $company, $request, $roles): User {
             $user = new User($data);
             $user->forceFill([
                 'company_id' => $company->id,
                 'email_verified_at' => now(),
+                'password' => Str::password(32),
             ])->save();
             app(CompanyMembershipService::class)->grant($user, $company, true);
             $roles->syncUserRoles($request->user(), $user, $names);
-        });
+            UserProfileService::createEmployee($user, $employee);
 
-        return redirect()->route('admin.users.index')->with('success', 'Pengguna dibuat.');
+            return $user;
+        });
+        $user->notify(new StaffAccountInvitation((int) $company->id));
+        AuditService::log('security', 'user.invitation_sent', ['user_id' => $user->id], $user);
+
+        return redirect()->route('admin.users.index')->with('success', 'Pengguna dibuat. Undangan dikirim ke '.$request->string('email')->toString().'.');
     }
 
     public function show(Request $request, User $user): InertiaResponse
@@ -107,6 +128,32 @@ class UserController extends Controller
             'history' => UserHistoryQuery::execute($user, $historyAccess),
             'historyAccess' => $historyAccess,
         ]);
+    }
+
+    public function resendInvitation(Request $request, User $user): RedirectResponse
+    {
+        $this->ensureSameCompany($user);
+        Gate::authorize('update', $user);
+        abort_unless($request->user()?->can('users.manage'), 403);
+
+        if (! $user->is_active || $user->last_login_at !== null) {
+            return back()->withErrors(['invitation' => 'Undangan hanya dapat dikirim kepada pengguna aktif yang belum pernah masuk.']);
+        }
+
+        $key = 'staff-invitation|'.$user->id;
+
+        if (RateLimiter::tooManyAttempts($key, 6)) {
+            throw new ThrottleRequestsException(
+                'Terlalu banyak pengiriman undangan. Coba lagi nanti.',
+                headers: ['Retry-After' => RateLimiter::availableIn($key)],
+            );
+        }
+
+        RateLimiter::hit($key, 60);
+        $user->notify(new StaffAccountInvitation((int) CompanyService::currentId()));
+        AuditService::log('security', 'user.invitation_resent', ['user_id' => $user->id], $user);
+
+        return back()->with('success', 'Undangan dikirim ulang ke '.$user->email.'.');
     }
 
     public function edit(Request $request, User $user): InertiaResponse

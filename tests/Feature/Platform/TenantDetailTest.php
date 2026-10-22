@@ -12,11 +12,13 @@ use App\Models\User;
 use App\Notifications\Platform\TenantAdminInvitation;
 use App\Services\Core\AuditService;
 use App\Services\Platform\PlatformAuditService;
+use App\Support\AuditEventText;
 use App\Support\PublicId;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
@@ -453,11 +455,27 @@ class TenantDetailTest extends TestCase
             ->where('recentAudit.0.reason', 'Tagihan menunggak')
             ->where('recentAudit.0.causer', ['type' => 'platform_admin', 'name' => $this->operator->name])
             ->where('recentAudit.1.log_name', 'platform')
+            ->where('recentAudit.1.text', AuditEventText::describe('platform', 'tenant.suspended'))
+            ->where('recentAudit.0.text', fn ($text): bool => is_string($text) && $text !== '' && ! str_contains($text, 'tenant.suspended'))
             ->where('recentAudit.2.causer', null)
             ->where('recentAudit.2.reason', null)
             ->where('recentAudit.2.subject_type', 'User')
             ->has('recentAudit.0.created_at')
             ->missing('recentAudit.0.properties'));
+    }
+
+    public function test_the_suspend_impact_counts_what_suspending_would_cut_off(): void
+    {
+        $this->alpha['staff']->createToken('app');
+
+        $this->show($this->alpha['root'])->assertInertia(fn (Assert $page) => $page
+            ->where('suspendImpact.users', 3)
+            ->where('suspendImpact.app_tokens', 1)
+            // PHPUnit runs on the array session driver, which cannot count sessions.
+            ->where('suspendImpact.sessions', null)
+            ->where('suspendImpact.open_invoices.count', 0)
+            ->where('suspendImpact.open_invoices.outstanding', fn ($amount): bool => (float) $amount === 0.0)
+            ->where('sessionDriver', ['ends_all' => false, 'lifetime_minutes' => (int) config('session.lifetime')]));
     }
 
     public function test_the_recent_audit_is_capped_at_ten_rows(): void
@@ -506,8 +524,9 @@ class TenantDetailTest extends TestCase
             ]));
     }
 
-    public function test_the_exports_are_this_tenants_latest_first_without_a_download_link(): void
+    public function test_the_exports_are_this_tenants_latest_first_with_a_signed_link_while_they_can_be_downloaded(): void
     {
+        $this->travelTo('2026-10-19 12:00:00');
         $mine = TenantExport::factory()->ready('2026-10-19 10:00:00')->create(['company_id' => $this->alpha['root']->id, 'requested_by_platform_admin_id' => $this->operator->id]);
         $failed = TenantExport::factory()->failed()->create(['company_id' => $this->alpha['root']->id, 'requested_by_platform_admin_id' => $this->operator->id]);
         TenantExport::factory()->ready()->create(['company_id' => $this->beta['root']->id, 'requested_by_platform_admin_id' => $this->operator->id]);
@@ -516,6 +535,7 @@ class TenantDetailTest extends TestCase
             ->has('exports', 2)
             ->where('exports.0.id', $failed->public_id)
             ->where('exports.0.status', 'failed')
+            ->where('exports.0.download_url', null)
             ->where('exports.0.error_message', 'ExportFailed: boom')
             ->where('exports.1', [
                 'id' => $mine->public_id,
@@ -528,9 +548,9 @@ class TenantDetailTest extends TestCase
                 'created_at' => $mine->created_at->toIso8601String(),
                 'completed_at' => '2026-10-19T10:00:00+00:00',
                 'expires_at' => '2026-10-20T10:00:00+00:00',
+                'download_url' => URL::temporarySignedRoute('platform.exports.download', $mine->expires_at, ['tenantExport' => $mine]),
             ])
-            ->missing('exports.1.file_path')
-            ->missing('exports.1.download_url'));
+            ->missing('exports.1.file_path'));
     }
 
     public function test_the_tenant_page_lists_integration_states_without_values(): void

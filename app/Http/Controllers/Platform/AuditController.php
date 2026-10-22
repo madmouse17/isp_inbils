@@ -18,6 +18,8 @@ class AuditController extends Controller
         return Inertia::render('Platform/Audit/Index', [
             'activity' => JsonResource::collection($audit->paginate($filters)),
             'filters' => $audit->displayFilters($filters),
+            'filterErrors' => $request->filterErrors(),
+            'events' => fn () => $audit->events(),
             'tenants' => $audit->tenants(),
             'admins' => $audit->admins(),
         ]);

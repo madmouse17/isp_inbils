@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Link } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
+import { Link, router } from '@inertiajs/react';
+import { Activity, ArrowLeft, RefreshCw } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
     Alert,
@@ -12,15 +12,16 @@ import {
     CardHeader,
     CardTitle,
     EmptyCell,
+    EnumBadge,
 } from '@/Components/ui';
 import { DataTable, PageHeader, type DataTableColumn } from '@/Components/composite';
 import { ConfirmRequestDialog } from '@/Components/composite/ConfirmRequestDialog';
 import { CopyButton } from '@/Components/composite/CopyButton';
-import { NasStatusBadge } from '@/Components/composite/NetworkAccessBadges';
 import { RouterOsCommandCard } from '@/Components/composite/RouterOsCommandCard';
 import { AssetPanelCard } from '@/Components/composite/hardware-panel/AssetPanelCard';
 import { usePermission } from '@/hooks/usePermission';
 import { formatDateTime } from '@/lib/format';
+import { NAS_RADIUS_STATE } from '@/lib/statuses';
 import type { NasDevice, NasDeviceSession } from '@/types/network-asset';
 
 interface ShowProps extends Record<string, unknown> {
@@ -41,9 +42,48 @@ function Detail({ label, children }: { label: string; children: React.ReactNode 
     );
 }
 
+/**
+ * What the badge says. RADIUS off: not configured. Else what the accounting packets told the server (a router that
+ * sent one after the write is live, one that sent none waits for FreeRADIUS to start), and when RADIUS did not answer,
+ * what the row itself can say.
+ */
+function radiusStateOf(nas: NasDevice, radiusEnabled: boolean): keyof typeof NAS_RADIUS_STATE {
+    if (!radiusEnabled) return 'disabled';
+    if (nas.radius_state === 'live' || nas.radius_state === 'awaiting_restart')
+        return nas.radius_state;
+
+    return nas.radius_synced_at ? 'synced' : nas.last_error ? 'error' : 'waiting';
+}
+
 export default function Show({ nasDevice, sessions, isolirUrl, radiusEnabled, can }: ShowProps) {
     const [removing, setRemoving] = useState(false);
+    const [syncing, setSyncing] = useState(false);
+    const [checking, setChecking] = useState(false);
+    const [checkedAt, setCheckedAt] = useState<Date | null>(null);
     const canOpenIntegrations = usePermission().can('company.integrations.manage');
+    const state = radiusStateOf(nasDevice, radiusEnabled);
+
+    const sync = () => {
+        router.post(
+            route('admin.nas-devices.sync', nasDevice.id),
+            {},
+            {
+                preserveScroll: true,
+                onStart: () => setSyncing(true),
+                onFinish: () => setSyncing(false),
+            },
+        );
+    };
+
+    // Reads the router and its sessions again from RADIUS; only those two props, so the rest of the page stays.
+    const check = () => {
+        router.reload({
+            only: ['nasDevice', 'sessions'],
+            onStart: () => setChecking(true),
+            onSuccess: () => setCheckedAt(new Date()),
+            onFinish: () => setChecking(false),
+        });
+    };
 
     const asset = nasDevice.network_asset;
     const assetCode = asset?.code ?? `#${nasDevice.id}`;
@@ -83,6 +123,11 @@ export default function Show({ nasDevice, sessions, isolirUrl, radiusEnabled, ca
                 header: 'Mulai',
                 cell: (row) => formatDateTime(row.started_at),
             },
+            {
+                key: 'last_seen_at',
+                header: 'Terakhir terlihat',
+                cell: (row) => formatDateTime(row.last_seen_at),
+            },
         ],
         [],
     );
@@ -103,6 +148,18 @@ export default function Show({ nasDevice, sessions, isolirUrl, radiusEnabled, ca
                             >
                                 <Link href={route('admin.nas-devices.index')}>Kembali</Link>
                             </Button>
+                            {can.update && radiusEnabled ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    leftIcon={<RefreshCw className="size-4" />}
+                                    loading={syncing}
+                                    onClick={sync}
+                                >
+                                    Sinkronkan ke RADIUS
+                                </Button>
+                            ) : null}
                             {can.update ? (
                                 <Button asChild variant="outline" size="sm">
                                     <Link href={route('admin.nas-devices.edit', nasDevice.id)}>
@@ -155,7 +212,20 @@ export default function Show({ nasDevice, sessions, isolirUrl, radiusEnabled, ca
                         <CardContent className="space-y-4">
                             <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
                                 <Detail label="Klien RADIUS">
-                                    <NasStatusBadge nas={nasDevice} radiusEnabled={radiusEnabled} />
+                                    <EnumBadge map={NAS_RADIUS_STATE} value={state} />
+                                    {state === 'live' && nasDevice.last_accounting_at ? (
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            Paket terakhir{' '}
+                                            {formatDateTime(nasDevice.last_accounting_at)}
+                                        </p>
+                                    ) : null}
+                                    {state === 'awaiting_restart' ? (
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            Menunggu FreeRADIUS dimulai ulang. Router belum mengirim
+                                            paket sejak ditulis; setelah dimulai ulang, pilih Uji
+                                            koneksi.
+                                        </p>
+                                    ) : null}
                                 </Detail>
                                 <Detail label="Terakhir ditulis">
                                     {nasDevice.radius_synced_at
@@ -177,6 +247,25 @@ export default function Show({ nasDevice, sessions, isolirUrl, radiusEnabled, ca
                                     {nasDevice.has_radius_secret ? 'Tersimpan' : 'Belum diisi'}
                                 </Detail>
                             </dl>
+                            {radiusEnabled ? (
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        leftIcon={<Activity className="size-4" />}
+                                        loading={checking}
+                                        onClick={check}
+                                    >
+                                        Uji koneksi
+                                    </Button>
+                                    <span role="status" className="text-xs text-muted-foreground">
+                                        {checkedAt
+                                            ? `Diperiksa ${formatDateTime(checkedAt)}`
+                                            : null}
+                                    </span>
+                                </div>
+                            ) : null}
                             {nasDevice.last_error ? (
                                 <Alert variant="danger">
                                     <AlertTitle>Kesalahan terakhir</AlertTitle>

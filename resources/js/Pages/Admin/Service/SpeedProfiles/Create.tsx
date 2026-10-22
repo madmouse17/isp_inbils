@@ -2,10 +2,30 @@ import type { FormEvent } from 'react';
 import { Link, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Switch } from '@/Components/ui';
+import {
+    Button,
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    Input,
+    SearchSelect,
+    Switch,
+} from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
 
-export default function Create() {
+interface BandwidthRow {
+    id: string;
+    name: string;
+    download_mbps: number;
+    upload_mbps: number;
+}
+
+interface CreateProps extends Record<string, unknown> {
+    bandwidthProfiles: { data: BandwidthRow[] };
+}
+
+export default function Create({ bandwidthProfiles }: CreateProps) {
     const { data, setData, post, processing, errors } = useForm({
         name: '',
         download_max_mbps: '',
@@ -44,6 +64,31 @@ export default function Create() {
                             <CardTitle>Data profil</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-4 md:grid-cols-2">
+                            <div className="md:col-span-2">
+                                <SearchSelect
+                                    id="speed-from-bandwidth"
+                                    label="Isi dari profil bandwidth"
+                                    value=""
+                                    onChange={(id) => {
+                                        const profile = bandwidthProfiles.data.find(
+                                            (row) => row.id === id,
+                                        );
+                                        if (!profile) return;
+                                        setData((current) => ({
+                                            ...current,
+                                            download_max_mbps: String(profile.download_mbps),
+                                            upload_max_mbps: String(profile.upload_mbps),
+                                        }));
+                                    }}
+                                    options={bandwidthProfiles.data.map((row) => ({
+                                        value: row.id,
+                                        label: row.name,
+                                        description: `${row.download_mbps}/${row.upload_mbps} Mbps`,
+                                    }))}
+                                    placeholder="Pilih untuk menyalin kecepatan"
+                                    hint="Menyalin unduh dan unggah maksimum dari profil yang dijual. Ubah bila perlu."
+                                />
+                            </div>
                             <Input
                                 label="Nama"
                                 value={data.name}

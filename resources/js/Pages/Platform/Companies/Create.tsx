@@ -1,8 +1,10 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useForm } from '@inertiajs/react';
+import axios from 'axios';
 import { ArrowLeft, Info } from 'lucide-react';
 import PlatformLayout from '@/Layouts/PlatformLayout';
+import { suggestCode } from '@/lib/suggestCode';
 import { PageHeader } from '@/Components/composite';
 import {
     Alert,
@@ -57,6 +59,34 @@ export default function Create({ defaults, timezones, currencies }: CreateProps)
         catalog: 'starter' as Catalog,
         demo_data: false,
     });
+    // The code follows the name until somebody types their own; then it stays theirs.
+    const codeTyped = useRef(false);
+    const [codeTaken, setCodeTaken] = useState(false);
+
+    useEffect(() => {
+        const code = form.data.code.trim();
+        let current = true;
+        // Only an answer for the code now in the field counts, so a slow reply for an older one is dropped.
+        const timer = setTimeout(() => {
+            if (!/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(code)) {
+                setCodeTaken(false);
+                return;
+            }
+
+            axios
+                .get<{ available: boolean }>(route('platform.companies.code-check'), {
+                    params: { code },
+                })
+                .then(({ data }) => current && setCodeTaken(!data.available))
+                // The server checks the code again when the form is sent.
+                .catch(() => current && setCodeTaken(false));
+        }, 400);
+
+        return () => {
+            current = false;
+            clearTimeout(timer);
+        };
+    }, [form.data.code]);
     const timezoneOptions = useMemo(
         () => timezones.map((timezone) => ({ value: timezone, label: timezone })),
         [timezones],
@@ -105,7 +135,14 @@ export default function Create({ defaults, timezones, currencies }: CreateProps)
                             value={form.data.name}
                             maxLength={255}
                             error={form.errors.name}
-                            onChange={(event) => form.setData('name', event.target.value)}
+                            onChange={(event) => {
+                                const name = event.target.value;
+                                form.setData((data) => ({
+                                    ...data,
+                                    name,
+                                    code: codeTyped.current ? data.code : (suggestCode(name) ?? ''),
+                                }));
+                            }}
                             required
                         />
                         <Input
@@ -115,8 +152,11 @@ export default function Create({ defaults, timezones, currencies }: CreateProps)
                             maxLength={50}
                             pattern="[A-Za-z0-9][A-Za-z0-9_\-]*"
                             hint="Gunakan huruf, angka, strip, atau garis bawah. Huruf besar dan kecil dibedakan."
-                            error={form.errors.code}
-                            onChange={(event) => form.setData('code', event.target.value)}
+                            error={form.errors.code ?? (codeTaken ? 'Kode sudah dipakai' : undefined)}
+                            onChange={(event) => {
+                                codeTyped.current = event.target.value !== '';
+                                form.setData('code', event.target.value);
+                            }}
                             required
                         />
                         <SearchSelect

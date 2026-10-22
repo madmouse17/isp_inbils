@@ -517,7 +517,7 @@ Mail: NEW `App\Support\MailBrand::for(object $notifiable, Notification $notifica
 
 ### 4.13 Catalog (W3-CATALOG)
 
-- F2-U01: `BandwidthProfile`, `SpeedProfile` and `SLATier` store endpoints answer 201 `{data: {id, label}}` when `wantsJson()`; package form "+ Baru" dialogs select the new row; the speed profile prefills from the chosen bandwidth profile.
+- F2-U01: `BandwidthProfile`, `SpeedProfile` and `SLATier` store endpoints answer 201 `{data: {id, label}}` only to a request with the header `X-Inline-Create` (the "+ Baru" dialog; `AnswersInlineCreate`), never to `Accept: application/json` alone, which keeps the redirect; package form "+ Baru" dialogs select the new row; the speed profile prefills from the chosen bandwidth profile.
 - F2-U02 package code suggestion (client); F3-U03 organisation code suggestion; vehicle type picker (Motor, Mobil, Pikap; a stored other value stays allowed on edit).
 - F2-U04 `LatLngMapPicker` on locations; F2-U05 `LocationService` allows a site under POP or Area; F2-U06 table tab when no location has coordinates, plus "{n} lokasi belum punya koordinat"; F2-U10 `DataTableActions` everywhere.
 - K12, F6-D19, F8-D13, F10-D04 per §3.6; the category page shows a hint preview "Pelanggan melihat:".

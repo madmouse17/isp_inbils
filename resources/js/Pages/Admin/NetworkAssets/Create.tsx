@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react';
-import { Link, router, useForm } from '@inertiajs/react';
+import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
@@ -11,6 +11,7 @@ import {
     DatePicker,
     Input,
     NativeSelect,
+    SearchSelect,
     Textarea,
 } from '@/Components/ui';
 import { PageHeader, RemoteSearchSelect, type RemoteOption } from '@/Components/composite';
@@ -25,11 +26,19 @@ interface CreateProps extends Record<string, unknown> {
 const typeOptions = optionsOf(NETWORK_ASSET_TYPE);
 const ownershipOptions = optionsOf(NETWORK_ASSET_OWNERSHIP);
 
+/** The type a link asks for (`?asset_type=odp`, "Daftarkan ODP" of the ODN page); an ONT as before when it asks for none. */
+function typeFromUrl(url: string): string {
+    const asked = new URLSearchParams(url.split('?')[1] ?? '').get('asset_type') ?? '';
+
+    return typeOptions.some((option) => option.value === asked) ? asked : 'onu_ont';
+}
+
 export default function Create({ productOptions, locationOptions }: CreateProps) {
+    const { url } = usePage();
     const { data, setData, post, processing, errors } = useForm({
         name: '',
         product_id: '',
-        asset_type: 'onu_ont',
+        asset_type: typeFromUrl(url),
         serial_number: '',
         mac_address: '',
         ip_address: '',
@@ -89,12 +98,16 @@ export default function Create({ productOptions, locationOptions }: CreateProps)
                                 emptyText="Tidak ada produk aktif yang cocok."
                                 error={errors.product_id}
                             />
-                            <NativeSelect
+                            <SearchSelect
+                                id="asset-type"
                                 label="Tipe aset"
                                 value={data.asset_type}
-                                onChange={(e) => setData('asset_type', e.target.value)}
+                                onChange={(value) => setData('asset_type', value)}
                                 options={typeOptions}
+                                placeholder="Cari tipe aset"
+                                emptyText="Tidak ada tipe aset yang cocok."
                                 error={errors.asset_type}
+                                required
                             />
                             <Input
                                 label="Nomor seri"
@@ -112,12 +125,14 @@ export default function Create({ productOptions, locationOptions }: CreateProps)
                                 label="Alamat IP"
                                 value={data.ip_address}
                                 onChange={(e) => setData('ip_address', e.target.value)}
+                                hint="Alamat perangkat itu sendiri, bila tetap. Boleh kosong."
                                 error={errors.ip_address}
                             />
                             <Input
                                 label="IP manajemen"
                                 value={data.management_ip}
                                 onChange={(e) => setData('management_ip', e.target.value)}
+                                hint="Alamat untuk mengelola perangkat. Router NAS memakainya sebagai alamat NAS dan target CoA."
                                 error={errors.management_ip}
                             />
                             <RemoteSearchSelect

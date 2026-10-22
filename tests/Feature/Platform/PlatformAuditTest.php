@@ -44,7 +44,7 @@ class PlatformAuditTest extends TestCase
         $audit->support('user.login_unlocked', ['user_id' => $this->alpha['staff']->id], $this->alpha['staff'], $this->operator);
         AuditService::log('security', 'two_factor.challenge_failed', ['user_id' => $this->alpha['staff']->id], $this->alpha['staff']);
 
-        $this->asOperator(false)->get(route('platform.audit.index'))
+        $this->asOperator(false)->get(route('platform.audit.index', ['source' => 'all']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Platform/Audit/Index')
@@ -52,6 +52,7 @@ class PlatformAuditTest extends TestCase
                     'company_id' => null,
                     'platform_admin_id' => null,
                     'event' => null,
+                    'source' => 'all',
                     'date_from' => null,
                     'date_to' => null,
                     'search' => null,
@@ -152,14 +153,23 @@ class PlatformAuditTest extends TestCase
                 ->where('activity.meta.per_page', 25)
                 ->has('activity.data', 8));
 
-        foreach (['company_id' => $this->alpha['child']->public_id, 'platform_admin_id' => PublicId::new(), 'page' => 0, 'per_page' => 1000, 'date_to' => '2026-10-19'] as $key => $value) {
+        // A filter the server cannot use never refuses the visit: the page opens on the rest and says what was wrong.
+        $refused = ['company_id' => $this->alpha['child']->public_id, 'platform_admin_id' => PublicId::new(), 'page' => 0, 'per_page' => 1000, 'source' => 'nope', 'date_to' => '2026-10-19'];
+
+        foreach ($refused as $key => $value) {
             $query = [$key => $value];
 
             if ($key === 'date_to') {
                 $query['date_from'] = '2026-10-20';
             }
 
-            $this->asOperator(false)->get(route('platform.audit.index', $query))->assertSessionHasErrors($key);
+            $this->asOperator(false)->get(route('platform.audit.index', $query))
+                ->assertOk()
+                ->assertSessionHasNoErrors()
+                ->assertInertia(fn (Assert $page) => $page
+                    ->has("filterErrors.{$key}")
+                    ->where('filters.source', 'platform')
+                    ->has('activity.data'));
         }
     }
 }

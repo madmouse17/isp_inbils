@@ -1,5 +1,8 @@
+import type { Page } from '@playwright/test';
+
 import { expect, test } from './support/fixtures';
 import { loginAs } from './support/demo';
+import { createUser } from './support/users';
 
 /**
  * QA-ISP t_2121a815 remediation proof — async delete lifecycle on the
@@ -28,7 +31,7 @@ import { loginAs } from './support/demo';
 
 const DELETE_URL_PATTERN = /\/admin\/users\/[0-9A-HJKMNP-TV-Z]{26}$/i;
 
-async function openUsersIndex(page: import('@playwright/test').Page) {
+async function openUsersIndex(page: Page) {
     await loginAs(page, 'admin');
     await page.goto('/admin/users');
     await expect(page.getByRole('main').getByRole('heading', { name: 'Pengguna' })).toBeVisible({
@@ -36,24 +39,15 @@ async function openUsersIndex(page: import('@playwright/test').Page) {
     });
 }
 
-async function createDisposableUser(page: import('@playwright/test').Page) {
+async function createDisposableUser(page: Page) {
     const name = `QA Delete ${Date.now()}`;
-    await page.goto('/admin/users/create');
-    await expect(
-        page.getByRole('main').getByRole('heading', { name: 'Buat Pengguna', level: 1 }),
-    ).toBeVisible({
-        timeout: 15_000,
-    });
-    await page.getByLabel('Nama').fill(name);
-    await page.getByLabel('Email').fill(`qa-delete-${Date.now()}@example.test`);
-    await page.getByLabel(/^Kata sandi( \*)?$/).fill('Password123!');
-    await page.getByRole('button', { name: 'Buat', exact: true }).click();
-    await expect(page).toHaveURL(/\/admin\/users\/?$/);
+    // An invited user: the row only has to exist, nobody signs in as it.
+    await createUser(page, { name, email: `qa-delete-${Date.now()}@example.test` });
     await expect(page.getByRole('main').getByRole('heading', { name: 'Pengguna' })).toBeVisible();
     return name;
 }
 
-async function findRow(page: import('@playwright/test').Page, name: string) {
+async function findRow(page: Page, name: string) {
     const searchInput = page.getByLabel('Cari', { exact: true });
     await searchInput.fill(name);
     await expect(page).toHaveURL(

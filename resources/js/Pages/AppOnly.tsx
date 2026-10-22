@@ -62,12 +62,16 @@ export default function AppOnly({ role, appName, playStoreUrl }: AppOnlyProps) {
                 </header>
 
                 <div className="flex flex-col gap-2">
-                    {playStoreUrl && (
+                    {playStoreUrl ? (
                         <Button asChild className="min-h-11">
                             <a href={playStoreUrl} target="_blank" rel="noopener noreferrer">
                                 Buka Play Store
                             </a>
                         </Button>
+                    ) : (
+                        <p className="rounded-md border border-border bg-muted/30 px-3 py-3 text-sm text-muted-foreground">
+                            Minta tautan aplikasi ke admin ISP Anda.
+                        </p>
                     )}
                     <Button asChild variant="outline" className="min-h-11">
                         <Link href={route('profile.edit')}>Kelola akun &amp; 2FA</Link>

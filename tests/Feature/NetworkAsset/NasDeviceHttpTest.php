@@ -83,7 +83,7 @@ class NasDeviceHttpTest extends TestCase
     /** @return list<string> */
     private function contractKeys(): array
     {
-        return ['id', 'network_asset', 'nasname', 'shortname', 'coa_port', 'has_radius_secret', 'radius_synced_at', 'last_error'];
+        return ['id', 'network_asset', 'nasname', 'shortname', 'coa_port', 'has_radius_secret', 'radius_synced_at', 'last_error', 'radius_state', 'last_accounting_at'];
     }
 
     public function test_index_lists_only_this_companys_nas_rows_with_the_contract_shape_and_no_secret(): void
@@ -324,7 +324,7 @@ class NasDeviceHttpTest extends TestCase
         $props = $response->inertiaProps();
         $this->assertSame($this->contractKeys(), array_keys($props['nasDevice']));
         $byUser = collect($props['sessions'])->keyBy('username');
-        $this->assertSame(['session_id', 'nas_ip', 'nas_label', 'framed_ip', 'started_at', 'updated_at', 'username', 'subscription'], array_keys($byUser["alice@{$this->realm}"]));
+        $this->assertSame(['session_id', 'nas_ip', 'nas_label', 'framed_ip', 'started_at', 'last_seen_at', 'stale', 'username', 'subscription'], array_keys($byUser["alice@{$this->realm}"]));
         $this->assertSame(['id' => $subscription->public_id, 'code' => $subscription->code], $byUser["alice@{$this->realm}"]['subscription']);
         $this->assertNull($byUser["ghost@{$this->realm}"]['subscription']);
         $this->assertSame($nas->networkAsset->code.' - '.$nas->networkAsset->name, $byUser["alice@{$this->realm}"]['nas_label']);

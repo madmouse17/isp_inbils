@@ -242,7 +242,7 @@ test.describe('@lifecycle whatsapp notifications', () => {
 
         await page.getByRole('tab', { name: 'Langganan & SPK' }).click();
         await selectFirstSearchOption(page, 'Paket layanan');
-        await selectSearchOption(page, 'POP pelayan', 'Default POP');
+        await selectSearchOption(page, 'POP pelayan', 'POP Utama');
 
         await page.getByRole('tab', { name: 'Data pelanggan' }).click();
         await expect(page.getByRole('checkbox', { name: CONSENT })).toBeChecked();

@@ -24,7 +24,7 @@ class UserResource extends JsonResource
             'id' => $this->public_id,
             'name' => $this->name,
             'email' => $this->email,
-            'company_id' => $this->company?->public_id,
+            'company_id' => $this->company?->getAttribute('public_id'),
             'is_active' => $this->is_active,
             'last_login_at' => $this->last_login_at,
             // The roles he holds in the company the request acts in: a role belongs to one company.
@@ -40,6 +40,9 @@ class UserResource extends JsonResource
                 'reset_two_factor' => ! $memberOnly && $this->hasTwoFactorEnabled()
                     && ($actor?->can('resetTwoFactor', $this->resource) ?? false),
                 'assign_roles' => $actor?->can('assignRoles', $this->resource) ?? false,
+                'resend_invitation' => ! $memberOnly && $this->is_active && $this->last_login_at === null
+                    && $actor->can('update', $this->resource)
+                    && $actor->can('users.manage'),
             ],
         ];
     }

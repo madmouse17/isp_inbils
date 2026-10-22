@@ -138,11 +138,11 @@ class CompanySeeder extends Seeder
         }
 
         foreach ([
-            ['name' => 'No Internet', 'code' => 'no_internet', 'default_sla_hours' => 4, 'default_priority' => 'urgent'],
-            ['name' => 'Slow Connection', 'code' => 'slow_connection', 'default_sla_hours' => 8, 'default_priority' => 'high'],
-            ['name' => 'Packet Loss', 'code' => 'packet_loss', 'default_sla_hours' => 8, 'default_priority' => 'high'],
-            ['name' => 'Device Issue', 'code' => 'device_issue', 'default_sla_hours' => 12, 'default_priority' => 'medium'],
-            ['name' => 'Fiber Issue', 'code' => 'fiber_issue', 'default_sla_hours' => 12, 'default_priority' => 'high'],
+            ['name' => 'Internet mati', 'code' => 'no_internet', 'default_sla_hours' => 4, 'default_priority' => 'urgent', 'customer_hint' => 'Periksa lampu modem. Cabut adaptor 10 detik lalu pasang lagi. Bila lampu LOS merah, kirim laporan ini.'],
+            ['name' => 'Koneksi lambat', 'code' => 'slow_connection', 'default_sla_hours' => 8, 'default_priority' => 'high', 'customer_hint' => 'Coba dengan satu perangkat di dekat modem. Hentikan unduhan besar. Bila tetap lambat, sebutkan jam kejadiannya.'],
+            ['name' => 'Koneksi putus-sambung', 'code' => 'packet_loss', 'default_sla_hours' => 8, 'default_priority' => 'high', 'customer_hint' => 'Catat jam saat koneksi terputus dan berapa lama. Hidupkan ulang modem sekali sebelum melapor.'],
+            ['name' => 'Masalah perangkat', 'code' => 'device_issue', 'default_sla_hours' => 12, 'default_priority' => 'medium', 'customer_hint' => 'Sebutkan perangkat yang bermasalah (modem atau router) dan lampu yang menyala.'],
+            ['name' => 'Kabel fiber bermasalah', 'code' => 'fiber_issue', 'default_sla_hours' => 12, 'default_priority' => 'high', 'customer_hint' => 'Jangan menarik atau menekuk kabel. Kirim foto kabel yang rusak bila bisa.'],
         ] as $category) {
             DB::table('ticket_categories')->updateOrInsert(
                 ['company_id' => $company->id, 'code' => $category['code']],
@@ -179,9 +179,9 @@ class CompanySeeder extends Seeder
             return;
         }
 
-        $region = LocationService::create(['company_id' => $company->id, 'code' => 'REG-01', 'name' => 'Default Region', 'type' => 'region', 'is_active' => true]);
-        $area = LocationService::create(['company_id' => $company->id, 'parent_id' => $region->id, 'code' => 'AREA-01', 'name' => 'Default Area', 'type' => 'area', 'is_active' => true]);
-        LocationService::create(['company_id' => $company->id, 'parent_id' => $area->id, 'code' => 'POP-01', 'name' => 'Default POP', 'type' => 'pop', 'is_active' => true]);
+        $region = LocationService::create(['company_id' => $company->id, 'code' => 'REG-01', 'name' => 'Wilayah Utama', 'type' => 'region', 'is_active' => true]);
+        $area = LocationService::create(['company_id' => $company->id, 'parent_id' => $region->id, 'code' => 'AREA-01', 'name' => 'Area Utama', 'type' => 'area', 'is_active' => true]);
+        LocationService::create(['company_id' => $company->id, 'parent_id' => $area->id, 'code' => 'POP-01', 'name' => 'POP Utama', 'type' => 'pop', 'is_active' => true]);
     }
 
     private function seedBandwidthProfiles(Company $company): void

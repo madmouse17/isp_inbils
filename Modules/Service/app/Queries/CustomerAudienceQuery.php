@@ -4,6 +4,7 @@ namespace Modules\Service\Queries;
 
 use App\Models\Core\Customer;
 use App\Models\Core\Customer as CustomerModel;
+use App\Services\Core\CompanyService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Modules\Service\Models\Announcement;
@@ -66,21 +67,58 @@ class CustomerAudienceQuery
      */
     public function applyCustomerAudience(Builder $query, Announcement $announcement): Builder
     {
-        if ($announcement->audience === 'all') {
+        return $this->applyTargeting(
+            $query,
+            (int) $announcement->company_id,
+            $announcement->audience,
+            $announcement->locations()->pluck('locations.id')->map(fn (mixed $id): int => (int) $id)->all(),
+            $announcement->servicePackageCategories()->pluck('service_package_categories.id')->map(fn (mixed $id): int => (int) $id)->all(),
+        );
+    }
+
+    /**
+     * How many customers an announcement with this targeting reaches: those with an active app account, the ones
+     * SendAnnouncementNotifications writes to (keep the base query the same). It takes the targeting, not a saved
+     * row, so the editor can say "untuk 8 pelanggan" before anything is saved. Ids of the current company only (the
+     * caller validated them); acts in the current company.
+     *
+     * @param  list<int>  $locationIds
+     * @param  list<int>  $categoryIds
+     */
+    public function recipientCount(string $audience, array $locationIds, array $categoryIds): int
+    {
+        $accounts = CustomerModel::query()
+            ->whereNotNull('user_id')
+            ->whereHas('user', fn ($user) => $user->where('is_active', true));
+
+        return $this->applyTargeting($accounts, (int) CompanyService::currentId(), $audience, $locationIds, $categoryIds)->count();
+    }
+
+    /**
+     * `all` reaches every customer; a targeted audience reaches the customers with an active or suspended subscription
+     * under one of the locations (the location itself or anything below it) and in one of the categories, each list
+     * counting only when it is not empty. A targeted audience without any target reaches nobody.
+     *
+     * @param  Builder<CustomerModel>  $query
+     * @param  list<int>  $locationIds
+     * @param  list<int>  $categoryIds
+     * @return Builder<CustomerModel>
+     */
+    private function applyTargeting(Builder $query, int $companyId, string $audience, array $locationIds, array $categoryIds): Builder
+    {
+        if ($audience === 'all') {
             return $query;
         }
 
-        $hasLocations = $announcement->locations()->exists();
-        $hasCategories = $announcement->servicePackageCategories()->exists();
-        if (! $hasLocations && ! $hasCategories) {
+        if ($locationIds === [] && $categoryIds === []) {
             return $query->whereRaw('0 = 1');
         }
 
-        return $query->whereExists(fn (QueryBuilder $subscriptions) => $this->matchingSubscriptionForItem(
+        return $query->whereExists(fn (QueryBuilder $subscriptions) => $this->matchingSubscriptionForTargets(
             $subscriptions,
-            $announcement,
-            $hasLocations,
-            $hasCategories,
+            $companyId,
+            $locationIds,
+            $categoryIds,
         ));
     }
 
@@ -162,39 +200,38 @@ class CustomerAudienceQuery
             });
     }
 
-    private function matchingSubscriptionForItem(
+    /**
+     * @param  list<int>  $locationIds
+     * @param  list<int>  $categoryIds
+     */
+    private function matchingSubscriptionForTargets(
         QueryBuilder $query,
-        Announcement $announcement,
-        bool $hasLocations,
-        bool $hasCategories,
+        int $companyId,
+        array $locationIds,
+        array $categoryIds,
     ): QueryBuilder {
         $query->selectRaw('1')
             ->from('service_subscriptions as audience_subscription')
             ->join('service_packages as audience_package', 'audience_package.id', '=', 'audience_subscription.service_package_id')
             ->leftJoin('locations as audience_pop', 'audience_pop.id', '=', 'audience_subscription.serving_pop_id')
             ->whereColumn('audience_subscription.customer_id', 'customers.id')
-            ->where('audience_subscription.company_id', (int) $announcement->company_id)
+            ->where('audience_subscription.company_id', $companyId)
             ->whereNull('audience_subscription.deleted_at')
             ->whereIn('audience_subscription.status', ['active', 'suspended']);
 
-        if ($hasLocations) {
+        if ($locationIds !== []) {
             $query->whereExists(fn (QueryBuilder $match) => $match
                 ->selectRaw('1')
-                ->from('announcement_location as audience_location_match')
-                ->join('locations as audience_target_location', 'audience_target_location.id', '=', 'audience_location_match.location_id')
-                ->where('audience_location_match.announcement_id', (int) $announcement->id)
+                ->from('locations as audience_target_location')
+                ->whereIn('audience_target_location.id', $locationIds)
                 ->where(function (QueryBuilder $subtree): void {
                     $subtree->whereColumn('audience_target_location.id', 'audience_subscription.serving_pop_id')
                         ->orWhereRaw("LEFT(audience_pop.path, CHAR_LENGTH(audience_target_location.path) + 3) = CONCAT(audience_target_location.path, ' > ')");
                 }));
         }
 
-        if ($hasCategories) {
-            $query->whereExists(fn (QueryBuilder $match) => $match
-                ->selectRaw('1')
-                ->from('announcement_service_package_category as audience_category_match')
-                ->where('audience_category_match.announcement_id', (int) $announcement->id)
-                ->whereColumn('audience_category_match.service_package_category_id', 'audience_package.service_package_category_id'));
+        if ($categoryIds !== []) {
+            $query->whereIn('audience_package.service_package_category_id', $categoryIds);
         }
 
         return $query;

@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 
-import { loginAs } from './support/demo';
+import { inertiaProps, loginAs } from './support/demo';
 import { companyDateFormat, formatIsoAs } from './support/dateRange';
 import { expect, test } from './support/fixtures';
 
@@ -85,7 +85,7 @@ test('@admin-vehicles-documents a document type keeps its code on edit and is cr
     await loginAs(page, 'admin');
     await page.goto('/admin/documents');
     await expect(
-        page.getByRole('main').getByRole('heading', { name: 'Dokumen', level: 1 }),
+        page.getByRole('main').getByRole('heading', { name: 'Jenis Dokumen', level: 1 }),
     ).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole('button', { name: 'Buat Jenis Dokumen' }).first().click();
@@ -115,4 +115,25 @@ test('@admin-vehicles-documents a document type keeps its code on edit and is cr
     await expect(saved).toContainText(`Jenis uji ${code} diubah`);
 
     await deleteRow(page, code);
+});
+
+test('@admin-vehicles-documents customer page has the document upload tab and empty guidance', async ({
+    page,
+}) => {
+    await loginAs(page, 'admin');
+    const props = await inertiaProps(page, '/admin/customers?search=E2E-LINKED-CUST');
+    const customerId = props.props?.customers?.data?.[0]?.id as string | undefined;
+    if (!customerId) throw new Error('Could not resolve E2E linked customer');
+
+    await page.goto(`/admin/customers/${customerId}`);
+    const tab = page.getByRole('tab', { name: /Dokumen \(\d+\)/ });
+    await expect(tab).toBeVisible();
+    await tab.click();
+
+    await expect(
+        page.getByText('Belum ada dokumen. Unggah KTP atau kontrak pelanggan.'),
+    ).toBeVisible();
+    await expect(page.getByLabel('Jenis dokumen')).toBeVisible();
+    await expect(page.getByText('PDF, JPG, atau PNG. Maksimum 10 MB.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Unggah' })).toBeDisabled();
 });

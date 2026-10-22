@@ -11,6 +11,7 @@ use App\Http\Requests\Admin\StoreCustomerRequest;
 use App\Http\Requests\Admin\UpdateCustomerRequest;
 use App\Http\Resources\CustomerResource;
 use App\Models\Core\Customer;
+use App\Models\Core\DocumentType;
 use App\Models\Core\Location;
 use App\Models\Core\WhatsAppMessage;
 use App\Models\User;
@@ -18,6 +19,7 @@ use App\Queries\Admin\CustomerAcquirerQuery;
 use App\Queries\Admin\CustomerHistoryQuery;
 use App\Queries\Admin\DispatchQueueQuery;
 use App\Services\Core\CompanyService;
+use App\Services\Core\DocumentService;
 use App\Services\Core\IndonesiaRegionService;
 use App\Services\Core\LifecycleService;
 use App\Services\Core\NumberSequenceService;
@@ -159,6 +161,9 @@ class CustomerController extends Controller
             'history' => CustomerHistoryQuery::execute($customer, $historyAccess),
             'historyAccess' => $historyAccess,
             'whatsappMessages' => $this->whatsAppMessages($customer),
+            'documents' => collect(DocumentService::list($customer))->sortByDesc('created_at')->values(),
+            'documentTypes' => $this->documentTypeOptions(),
+            'documentModelType' => Customer::class,
             'can' => [
                 'viewAcquirer' => $canViewAcquirer,
                 'update' => $request->user()?->can('update', $customer) ?? false,
@@ -243,6 +248,23 @@ class CustomerController extends Controller
 
         return redirect()->route('admin.customers.index')
             ->with('success', 'Pelanggan diperbarui.');
+    }
+
+    /**
+     * The active document types a customer file can carry: the ones for customers, and the ones that name no subject.
+     * `applies_to` is free text; the demo and the factory write "Customer".
+     *
+     * @return list<array{code: string, name: string, expiry_days: ?int}>
+     */
+    private function documentTypeOptions(): array
+    {
+        return DocumentType::query()
+            ->where('is_active', true)
+            ->where(fn (Builder $applies) => $applies->whereNull('applies_to')->orWhereIn('applies_to', ['Customer', 'Pelanggan']))
+            ->orderBy('name')
+            ->get(['code', 'name', 'expiry_days'])
+            ->map(fn (DocumentType $type): array => ['code' => $type->code, 'name' => $type->name, 'expiry_days' => $type->expiry_days])
+            ->all();
     }
 
     /**

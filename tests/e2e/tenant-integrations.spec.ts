@@ -31,6 +31,7 @@ import {
 import { expect, test } from './support/fixtures';
 import { loginAsPlatformOperator } from './support/platform';
 import { totp } from './support/totp';
+import { createUser } from './support/users';
 
 const MOCK_PORT = 18911;
 const MOCK_ORIGIN = `http://127.0.0.1:${MOCK_PORT}`;
@@ -201,16 +202,12 @@ async function issueInvoice(page: Page): Promise<{ id: string; number: string }>
 }
 
 async function createAdmin(page: Page, email: string) {
-    await page.goto('/admin/users/create');
-    await expect(
-        page.getByRole('main').getByRole('heading', { name: 'Buat Pengguna', level: 1 }),
-    ).toBeVisible({ timeout: 15_000 });
-    await page.getByLabel('Nama').fill('QA Integrasi');
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel(/^Kata sandi( \*)?$/).fill(userPassword);
-    await page.getByRole('checkbox', { name: 'Admin', exact: true }).check();
-    await page.getByRole('button', { name: 'Buat', exact: true }).click();
-    await expect(page).toHaveURL(/\/admin\/users\/?$/);
+    await createUser(page, {
+        name: 'QA Integrasi',
+        email,
+        roles: ['Admin'],
+        password: userPassword,
+    });
 }
 
 /** Password confirmation comes first, as for every change to the second factor. */

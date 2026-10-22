@@ -17,9 +17,7 @@ class RequirePlatformPasswordConfirmation
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $confirmedAt = $request->session()->get(PlatformSession::PASSWORD_CONFIRMED);
-
-        if (is_int($confirmedAt) && now()->getTimestamp() - $confirmedAt <= PlatformSession::PASSWORD_CONFIRM_SECONDS) {
+        if (PlatformSession::confirmedUntil($request->session()) !== null) {
             return $next($request);
         }
 

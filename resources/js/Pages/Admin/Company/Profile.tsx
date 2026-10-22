@@ -17,10 +17,16 @@ import {
 import { PageHeader } from '@/Components/composite';
 import { MIN_TEXT_CONTRAST, contrastWithWhite } from '@/lib/contrast';
 import type { Company } from '@/types';
+import {
+    SubsidiaryRequestCard,
+    type SubsidiaryRequestSummary,
+} from './components/SubsidiaryRequestCard';
 
 interface ProfileProps {
     company: { data: Company };
-    can: { update: boolean };
+    can: { update: boolean; requestSubsidiary: boolean };
+    /** The company's open request for a subsidiary; only sent when the person may ask for one. */
+    subsidiaryRequest: SubsidiaryRequestSummary | null;
 }
 
 const BRAND_PRESETS = [
@@ -113,7 +119,7 @@ function BrandColorField({ value, onChange, error, disabled }: BrandColorFieldPr
     );
 }
 
-export default function Profile({ company, can }: ProfileProps) {
+export default function Profile({ company, can, subsidiaryRequest }: ProfileProps) {
     const { data, setData, post, processing, progress, errors, reset } = useForm({
         _method: 'put',
         name: company.data.name ?? '',
@@ -259,6 +265,10 @@ export default function Profile({ company, can }: ProfileProps) {
                         )}
                     </Card>
                 </form>
+
+                {can.requestSubsidiary ? (
+                    <SubsidiaryRequestCard request={subsidiaryRequest} />
+                ) : null}
             </div>
         </AdminLayout>
     );

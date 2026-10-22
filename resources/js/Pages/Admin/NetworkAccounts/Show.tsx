@@ -1,6 +1,6 @@
 import type { FormEvent, ReactNode } from 'react';
-import { useState } from 'react';
-import { Link, router, useForm } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
+import { Link, router, useForm, usePoll } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import AdminLayout from '@/Layouts/AdminLayout';
@@ -80,6 +80,12 @@ const serviceTypeOptions = optionsOf(NETWORK_SERVICE_TYPE);
 /** The username rule of the field hint: 3 to 40 lower-case letters, digits, dots, hyphens or underscores. */
 const USERNAME_PATTERN = /^[a-z0-9._-]{3,40}$/;
 
+/** While a session was cut and the router has not come back, the page asks again this often, and stops after the give-up time. */
+const POLL_MS = 5000;
+const POLL_GIVE_UP_MS = 5 * 60_000;
+/** "Sesi diputus ..." is worth saying for this long after the cut; later an offline account is just offline. */
+const RECONNECT_NOTE_MS = 30 * 60_000;
+
 /** Reads the one-time secret out of the flash data of a visit; the shape is fixed by NetworkAccountController. */
 function secretFrom(flash: Record<string, unknown>): string | null {
     const sent = flash.network_account as { secret?: string } | undefined;
@@ -123,6 +129,11 @@ function sinceOf(moment: string): string {
     return at.toDateString() === new Date().toDateString()
         ? format(at, 'HH:mm')
         : formatDateTime(moment);
+}
+
+/** Milliseconds from a moment of the server to now; infinite for no moment. */
+function millisSince(moment: string | null): number {
+    return moment === null ? Infinity : Date.now() - new Date(moment).getTime();
 }
 
 function UsernameField({
@@ -409,12 +420,48 @@ export default function Show({
     };
 
     const speedProfile = subscription.speed_profile;
+    // An open row that nothing updated for 15 minutes is a router that rebooted without sending the Stop: not online.
+    const live = session !== null && !session.stale;
     // A session only gets its address when it starts, so one that predates an assignment keeps the old address until it is cut.
-    const framedIp = session?.framed_ip ?? null;
+    const framedIp = live ? session.framed_ip : null;
     const addressMismatch =
         staticAddress !== null && framedIp !== null && framedIp !== staticAddress.address
             ? { framedIp, expected: staticAddress.address }
             : null;
+    // A cut that went through and a router that has not redialled yet; the page follows until it does.
+    const reconnecting =
+        radiusEnabled &&
+        !live &&
+        !account?.pending_disconnect_at &&
+        millisSince(account?.last_disconnect_at ?? null) < RECONNECT_NOTE_MS;
+    const waiting = radiusEnabled && (Boolean(account?.pending_disconnect_at) || reconnecting);
+    const [pollGaveUp, setPollGaveUp] = useState(false);
+    const { start, stop } = usePoll(
+        POLL_MS,
+        { only: ['account', 'session'] },
+        { autoStart: false },
+    );
+
+    useEffect(() => {
+        if (!waiting) {
+            stop();
+
+            return;
+        }
+
+        start();
+        const timer = setTimeout(() => {
+            stop();
+            setPollGaveUp(true);
+        }, POLL_GIVE_UP_MS);
+
+        return () => {
+            clearTimeout(timer);
+            setPollGaveUp(false);
+        };
+        // start and stop are fresh closures over one stable poll; only the waiting state matters.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [waiting]);
 
     return (
         <AdminLayout title={`Akses jaringan ${subscription.code}`}>
@@ -475,6 +522,18 @@ export default function Show({
                                     Coba sekarang
                                 </Button>
                             )}
+                        </AlertDescription>
+                    </Alert>
+                ) : null}
+
+                {reconnecting && account?.last_disconnect_at ? (
+                    <Alert variant="info">
+                        <AlertDescription>
+                            Sesi diputus {sinceOf(account.last_disconnect_at)}, menunggu router
+                            menyambung ulang.
+                            {pollGaveUp
+                                ? ' Pembaruan otomatis berhenti; muat ulang halaman untuk memeriksa lagi.'
+                                : ''}
                         </AlertDescription>
                     </Alert>
                 ) : null}
@@ -693,7 +752,7 @@ export default function Show({
                                         <EnumBadge
                                             map={NETWORK_ONLINE_STATE}
                                             value={
-                                                session === null
+                                                !live
                                                     ? false
                                                     : account.pending_disconnect_at
                                                       ? 'pending_disconnect'
@@ -716,6 +775,14 @@ export default function Show({
                                             </Row>
                                             <Row label="Sesi mulai">
                                                 {formatDateTime(session.started_at)}
+                                            </Row>
+                                            <Row label="Terakhir terlihat">
+                                                {sinceOf(session.last_seen_at)}
+                                                {session.stale ? (
+                                                    <p className="mt-1 text-xs text-muted-foreground">
+                                                        Data sesi lebih dari 15 menit
+                                                    </p>
+                                                ) : null}
                                             </Row>
                                         </>
                                     )}

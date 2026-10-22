@@ -5,6 +5,9 @@ namespace Modules\NetworkAsset\Services;
 use App\Services\Core\AuditService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use Modules\Ipam\Services\IpAssignmentService;
+use Modules\NetworkAsset\Jobs\WriteNasDeviceJob;
 use Modules\NetworkAsset\Models\NasDevice;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\NetworkAsset\Services\Radius\RadiusDirectory;
@@ -19,12 +22,15 @@ use Modules\NetworkAsset\Services\Radius\RadiusException;
 class NasDeviceService
 {
     /**
-     * @param  array{network_asset_id: int, nasname?: ?string, coa_port?: ?int, radius_secret: string}  $data
+     * `new_asset` makes the router asset in the same transaction (F2-U08), so a router that was never entered as an
+     * asset needs no second form; when either part fails neither is kept.
+     *
+     * @param  array{network_asset_id?: int, new_asset?: array{name: string, management_ip: string}, nasname?: ?string, coa_port?: ?int, radius_secret: string}  $data
      */
     public static function create(array $data): NasDevice
     {
         $nas = DB::transaction(function () use ($data): NasDevice {
-            $asset = self::routerAsset((int) $data['network_asset_id']);
+            $asset = isset($data['new_asset']) ? self::createRouterAsset($data['new_asset']) : self::routerAsset((int) $data['network_asset_id']);
 
             abort_if(NasDevice::query()->where('network_asset_id', $asset->id)->exists(), 422, 'Aset router ini sudah terdaftar sebagai router NAS.');
 
@@ -125,6 +131,17 @@ class NasDeviceService
         return true;
     }
 
+    /**
+     * The "Sinkronkan ke RADIUS" button: a queued job writes the router now, ahead of the 15-minute sweep. The audit
+     * row names the router and never a secret. The caller checks that the company has RADIUS before it asks.
+     */
+    public static function requestSync(NasDevice $nas): void
+    {
+        AuditService::log('nas_device', 'sync_requested', ['asset_code' => $nas->networkAsset?->code], $nas);
+
+        WriteNasDeviceJob::dispatch((int) $nas->company_id, $nas->id);
+    }
+
     /** A router asset of the current company that has a management address. */
     private static function routerAsset(int $id): NetworkAsset
     {
@@ -132,6 +149,31 @@ class NasDeviceService
 
         abort_if($asset === null, 422, 'Pilih aset router milik perusahaan ini.');
         abort_if(blank($asset->getAttribute('management_ip')), 422, 'Aset router belum punya IP manajemen.');
+
+        return $asset;
+    }
+
+    /**
+     * A router asset made by the NAS form: coded like any asset, its management address claimed in IPAM like the asset
+     * form does. IPAM's refusal ("sudah dipakai ...") is shown under the field of this form.
+     *
+     * @param  array{name: string, management_ip: string}  $router
+     */
+    private static function createRouterAsset(array $router): NetworkAsset
+    {
+        $asset = NetworkAsset::query()->create([
+            'code' => NetworkAssetService::generateCode(),
+            'name' => $router['name'],
+            'asset_type' => 'router',
+            'management_ip' => $router['management_ip'],
+            'status' => 'available',
+        ]);
+
+        try {
+            IpAssignmentService::syncAssetAddresses($asset);
+        } catch (ValidationException $e) {
+            throw ValidationException::withMessages(collect($e->errors())->mapWithKeys(fn (array $messages, string $field): array => ["new_asset.{$field}" => $messages])->all());
+        }
 
         return $asset;
     }

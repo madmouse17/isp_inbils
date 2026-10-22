@@ -46,6 +46,7 @@ class SchedulerLockTest extends TestCase
             'midtrans:reconcile' => 10,
             'network:sync' => 10,
             'announcements:publish-scheduled' => 10,
+            'customers:document-expiry' => 120,
             'inbils:platform:exports:prune' => 50,
             'billing:generate' => 120,
             'billing:check-overdue' => 120,

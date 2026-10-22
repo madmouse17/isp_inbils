@@ -15,20 +15,18 @@ import {
     Textarea,
 } from '@/Components/ui';
 import { MoneyInput, PageHeader } from '@/Components/composite';
-
-interface OptRow {
-    id: string;
-    name: string;
-}
+import { SuggestionChip } from '@/Components/composite/SuggestionChip';
+import { suggestCode } from '@/lib/suggestCode';
+import { PackageProfilePickers, type ProfileRow } from './components/PackageProfilePickers';
 
 interface CreateProps extends Record<string, unknown> {
-    bandwidthProfiles: { data: OptRow[] };
-    speedProfiles: { data: OptRow[] };
-    slaTiers: { data: OptRow[] };
+    bandwidthProfiles: { data: ProfileRow[] };
+    speedProfiles: { data: ProfileRow[] };
+    slaTiers: { data: ProfileRow[] };
     packageCategories: { id: string; code: string; name: string; is_active: boolean }[];
 }
 
-const toOptions = (rows: OptRow[]) =>
+const toOptions = (rows: { id: string; name: string }[]) =>
     rows.map((row) => ({ value: String(row.id), label: row.name }));
 
 export default function Create({
@@ -52,9 +50,7 @@ export default function Create({
     });
 
     const categoryOptions = useMemo(() => toOptions(packageCategories), [packageCategories]);
-    const bandwidthOptions = useMemo(() => toOptions(bandwidthProfiles.data), [bandwidthProfiles]);
-    const speedOptions = useMemo(() => toOptions(speedProfiles.data), [speedProfiles]);
-    const slaOptions = useMemo(() => toOptions(slaTiers.data), [slaTiers]);
+    const suggestedCode = suggestCode(data.name, 'PKG');
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
@@ -84,13 +80,21 @@ export default function Create({
                             <CardTitle>Data paket</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-4 md:grid-cols-2">
-                            <Input
-                                label="Kode"
-                                value={data.code}
-                                onChange={(e) => setData('code', e.target.value)}
-                                error={errors.code}
-                                required
-                            />
+                            <div className="space-y-2">
+                                <Input
+                                    label="Kode"
+                                    value={data.code}
+                                    onChange={(e) => setData('code', e.target.value)}
+                                    error={errors.code}
+                                    required
+                                />
+                                {data.code === '' && suggestedCode !== null && (
+                                    <SuggestionChip
+                                        value={suggestedCode}
+                                        onUse={() => setData('code', suggestedCode)}
+                                    />
+                                )}
+                            </div>
                             <Input
                                 label="Nama"
                                 value={data.name}
@@ -108,35 +112,13 @@ export default function Create({
                                 error={errors.service_package_category_id}
                                 required
                             />
-                            <SearchSelect
-                                id="package-bandwidth-profile"
-                                label="Profil bandwidth"
-                                value={data.bandwidth_profile_id}
-                                onChange={(value) => setData('bandwidth_profile_id', value)}
-                                options={bandwidthOptions}
-                                placeholder="Pilih profil"
-                                error={errors.bandwidth_profile_id}
-                                required
-                            />
-                            <SearchSelect
-                                id="package-speed-profile"
-                                label="Profil kecepatan"
-                                value={data.speed_profile_id}
-                                onChange={(value) => setData('speed_profile_id', value)}
-                                options={speedOptions}
-                                placeholder="Pilih profil"
-                                error={errors.speed_profile_id}
-                                required
-                            />
-                            <SearchSelect
-                                id="package-sla-tier"
-                                label="Tingkat SLA"
-                                value={data.sla_tier_id}
-                                onChange={(value) => setData('sla_tier_id', value)}
-                                options={slaOptions}
-                                placeholder="Pilih tingkat"
-                                error={errors.sla_tier_id}
-                                required
+                            <PackageProfilePickers
+                                values={data}
+                                onChange={(key, value) => setData(key, value)}
+                                errors={errors}
+                                bandwidthProfiles={bandwidthProfiles.data}
+                                speedProfiles={speedProfiles.data}
+                                slaTiers={slaTiers.data}
                             />
                             <MoneyInput
                                 id="package-price-mrc"

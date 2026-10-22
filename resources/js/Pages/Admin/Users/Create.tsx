@@ -1,23 +1,43 @@
-import type { FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Link, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite';
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Switch } from '@/Components/ui';
+import {
+    Button,
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    Input,
+    Switch,
+    Textarea,
+} from '@/Components/ui';
+import { NativeSelect } from '@/Components/composite';
 import { RoleChecklist, type RoleOption } from './components/RoleChecklist';
 
 interface CreateProps {
     roles: RoleOption[];
+    can: { createEmployee: boolean };
 }
 
-export default function Create({ roles }: CreateProps) {
-    const { data, setData, post, processing, errors } = useForm({
+export default function Create({ roles, can }: CreateProps) {
+    // A profile makes the login an assignable technician, so it is only sent when the operator turns it on.
+    const [withEmployee, setWithEmployee] = useState(false);
+    const { data, setData, post, processing, errors, transform } = useForm({
         name: '',
         email: '',
-        password: '',
         is_active: true,
         roles: [] as string[],
+        employee: {
+            phone: '',
+            hire_date: '',
+            status: 'active',
+            notes: '',
+        },
     });
+
+    transform((form) => ({ ...form, employee: can.createEmployee && withEmployee ? form.employee : null }));
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -29,7 +49,7 @@ export default function Create({ roles }: CreateProps) {
             <div className="space-y-6">
                 <PageHeader
                     title="Buat Pengguna"
-                    subtitle="Akun baru masuk dengan email dan kata sandi ini. Peran menentukan hak aksesnya."
+                    subtitle="Akun menerima undangan lewat email untuk mengatur kata sandi. Peran menentukan hak aksesnya."
                     actions={
                         <Button
                             asChild
@@ -63,16 +83,6 @@ export default function Create({ roles }: CreateProps) {
                                 error={errors.email}
                                 required
                             />
-                            <Input
-                                label="Kata sandi"
-                                type="password"
-                                autoComplete="new-password"
-                                value={data.password}
-                                onChange={(e) => setData('password', e.target.value)}
-                                error={errors.password}
-                                hint="Minimal 8 karakter."
-                                required
-                            />
                             <Switch
                                 label="Aktif"
                                 checked={data.is_active}
@@ -88,12 +98,75 @@ export default function Create({ roles }: CreateProps) {
                             </div>
                         </CardContent>
                     </Card>
+                    {can.createEmployee && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Profil karyawan</CardTitle>
+                            </CardHeader>
+                            <CardContent className="grid gap-4 md:grid-cols-2">
+                                <div className="md:col-span-2">
+                                    <Switch
+                                        label="Buat profil karyawan untuk pengguna ini"
+                                        checked={withEmployee}
+                                        onCheckedChange={setWithEmployee}
+                                    />
+                                </div>
+                                {withEmployee && (
+                                    <>
+                                        <Input
+                                            label="Telepon"
+                                            value={data.employee.phone}
+                                            onChange={(e) =>
+                                                setData('employee', { ...data.employee, phone: e.target.value })
+                                            }
+                                            error={errors['employee.phone']}
+                                        />
+                                        <Input
+                                            label="Tanggal masuk"
+                                            type="date"
+                                            value={data.employee.hire_date}
+                                            onChange={(e) =>
+                                                setData('employee', {
+                                                    ...data.employee,
+                                                    hire_date: e.target.value,
+                                                })
+                                            }
+                                            error={errors['employee.hire_date']}
+                                        />
+                                        <NativeSelect
+                                            label="Status karyawan"
+                                            value={data.employee.status}
+                                            onChange={(e) =>
+                                                setData('employee', {
+                                                    ...data.employee,
+                                                    status: e.target.value,
+                                                })
+                                            }
+                                            error={errors['employee.status']}
+                                        >
+                                            <option value="active">Aktif</option>
+                                            <option value="inactive">Nonaktif</option>
+                                        </NativeSelect>
+                                        <Textarea
+                                            label="Catatan"
+                                            value={data.employee.notes}
+                                            onChange={(e) =>
+                                                setData('employee', { ...data.employee, notes: e.target.value })
+                                            }
+                                            error={errors['employee.notes']}
+                                            className="md:col-span-2"
+                                        />
+                                    </>
+                                )}
+                            </CardContent>
+                        </Card>
+                    )}
                     <div className="flex justify-end gap-2">
                         <Button asChild variant="outline">
                             <Link href={route('admin.users.index')}>Batal</Link>
                         </Button>
                         <Button type="submit" variant="primary" loading={processing}>
-                            Buat
+                            Kirim undangan
                         </Button>
                     </div>
                 </form>

@@ -88,6 +88,7 @@ test.describe('@app-only Play Store button', () => {
         await loginAs(page, 'technician');
 
         await expect(page.getByRole('link', { name: 'Buka Play Store' })).toHaveCount(0);
+        await expect(page.getByText('Minta tautan aplikasi ke admin ISP Anda.')).toBeVisible();
         await expect(page.getByRole('link', { name: 'Kelola akun & 2FA' })).toBeVisible();
         await expect(page.getByRole('button', { name: 'Keluar' })).toBeVisible();
     });

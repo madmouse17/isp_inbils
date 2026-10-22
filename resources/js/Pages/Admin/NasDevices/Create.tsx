@@ -1,4 +1,5 @@
 import type { FormEvent } from 'react';
+import { useState } from 'react';
 import { Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
@@ -16,6 +17,7 @@ import {
 import { PageHeader, RemoteSearchSelect, type RemoteOption } from '@/Components/composite';
 import { RadiusSecretField } from '@/Components/composite/RadiusSecretField';
 import { RouterOsCommandCard } from '@/Components/composite/RouterOsCommandCard';
+import { usePermission } from '@/hooks/usePermission';
 
 interface CreateProps extends Record<string, unknown> {
     /** Sent on a search only (`routerAsset_search`). An option's description is the router's management IP. */
@@ -27,8 +29,13 @@ interface CreateProps extends Record<string, unknown> {
 }
 
 export default function Create({ routerAssetOptions, hasRouterAssets, realm }: CreateProps) {
-    const { data, setData, post, processing, errors, reset } = useForm({
+    const canCreateAsset = usePermission().can('network_asset.create');
+    // A router that is not an asset yet is made in the same step; with no router asset to pick, that is the only way.
+    const [creatingAsset, setCreatingAsset] = useState(!hasRouterAssets && canCreateAsset);
+    const { data, setData, post, processing, errors, reset, transform } = useForm({
         network_asset_id: '',
+        new_asset_name: '',
+        new_asset_ip: '',
         nasname: '',
         coa_port: '1700',
         radius_secret: '',
@@ -44,14 +51,39 @@ export default function Create({ routerAssetOptions, hasRouterAssets, realm }: C
         }));
     };
 
-    const realmError = (errors as Record<string, string | undefined>).realm;
+    // Typing the management IP of a new router fills the NAS address too, until that one was typed over.
+    const typeNewAssetIp = (address: string) => {
+        setData((current) => ({
+            ...current,
+            new_asset_ip: address,
+            nasname:
+                current.nasname === '' || current.nasname === current.new_asset_ip
+                    ? address
+                    : current.nasname,
+        }));
+    };
+
+    const fieldErrors = errors as Record<string, string | undefined>;
+    const realmError = fieldErrors.realm;
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
+        // Either an asset that exists or the two fields of a new one: the server refuses both at once.
+        transform(({ new_asset_name, new_asset_ip, ...rest }) =>
+            creatingAsset
+                ? {
+                      ...rest,
+                      network_asset_id: '',
+                      new_asset: { name: new_asset_name, management_ip: new_asset_ip },
+                  }
+                : rest,
+        );
         post(route('admin.nas-devices.store'), {
             onFinish: () => reset('radius_secret'),
         });
     };
+
+    const showForm = realm !== null && (hasRouterAssets || canCreateAsset);
 
     return (
         <AdminLayout title="Daftarkan Router NAS">
@@ -79,12 +111,13 @@ export default function Create({ routerAssetOptions, hasRouterAssets, realm }: C
                             sebelum mendaftarkan router.
                         </AlertDescription>
                     </Alert>
-                ) : !hasRouterAssets ? (
+                ) : !showForm ? (
                     <Alert variant="info">
                         <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <span>
-                                Belum ada aset router yang tersedia. Tambahkan aset bertipe Router
-                                dengan IP manajemen di Aset Jaringan lebih dulu.
+                                Belum ada aset router yang tersedia. Minta pengelola aset
+                                menambahkan aset bertipe Router dengan IP manajemen di Aset Jaringan
+                                lebih dulu.
                             </span>
                             <Button asChild size="sm" variant="outline">
                                 <Link href={route('admin.network-assets.index')}>
@@ -100,18 +133,71 @@ export default function Create({ routerAssetOptions, hasRouterAssets, realm }: C
                                 <CardTitle>Router</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                <RemoteSearchSelect
-                                    field="routerAsset"
-                                    label="Aset router"
-                                    value={data.network_asset_id}
-                                    onChange={selectAsset}
-                                    options={routerAssetOptions}
-                                    placeholder="Cari kode, nama, atau IP manajemen"
-                                    emptyText="Tidak ada aset router yang cocok."
-                                    hint="Hanya aset router yang punya IP manajemen dan belum terdaftar."
-                                    error={errors.network_asset_id}
-                                    required
-                                />
+                                {creatingAsset ? (
+                                    <div className="space-y-3">
+                                        <div className="grid gap-4 sm:grid-cols-2">
+                                            <Input
+                                                label="Nama router baru"
+                                                value={data.new_asset_name}
+                                                onChange={(event) =>
+                                                    setData('new_asset_name', event.target.value)
+                                                }
+                                                error={fieldErrors['new_asset.name']}
+                                                required
+                                            />
+                                            <Input
+                                                label="IP manajemen"
+                                                value={data.new_asset_ip}
+                                                onChange={(event) =>
+                                                    typeNewAssetIp(event.target.value)
+                                                }
+                                                hint="Alamat router di jaringan Anda. Dipakai sebagai alamat NAS dan target CoA."
+                                                error={fieldErrors['new_asset.management_ip']}
+                                                inputMode="decimal"
+                                                required
+                                            />
+                                        </div>
+                                        <p className="text-sm text-muted-foreground">
+                                            Asetnya dibuat bersama pendaftaran ini, dengan kode
+                                            otomatis.
+                                        </p>
+                                        {hasRouterAssets ? (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setCreatingAsset(false)}
+                                            >
+                                                Pilih dari daftar aset
+                                            </Button>
+                                        ) : null}
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <RemoteSearchSelect
+                                            field="routerAsset"
+                                            label="Aset router"
+                                            value={data.network_asset_id}
+                                            onChange={selectAsset}
+                                            options={routerAssetOptions}
+                                            placeholder="Cari kode, nama, atau IP manajemen"
+                                            emptyText="Tidak ada aset router yang cocok."
+                                            hint="Hanya aset router yang punya IP manajemen dan belum terdaftar."
+                                            error={errors.network_asset_id}
+                                            required
+                                        />
+                                        {canCreateAsset ? (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => setCreatingAsset(true)}
+                                            >
+                                                Router belum terdaftar? Buat aset router di sini
+                                            </Button>
+                                        ) : null}
+                                    </div>
+                                )}
                                 {realmError ? (
                                     <p role="alert" className="text-sm text-destructive-text">
                                         {realmError}
@@ -171,7 +257,7 @@ export default function Create({ routerAssetOptions, hasRouterAssets, realm }: C
                     </form>
                 )}
 
-                {realm !== null && hasRouterAssets ? (
+                {showForm ? (
                     <RouterOsCommandCard
                         nasAddress={data.nasname}
                         coaPort={Number(data.coa_port)}

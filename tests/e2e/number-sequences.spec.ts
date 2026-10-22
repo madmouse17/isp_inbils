@@ -96,7 +96,7 @@ async function onboardCustomer(page: Page, name: string, slug: string) {
 
     await page.getByRole('tab', { name: 'Langganan & SPK' }).click();
     await selectFirstSearchOption(page, 'Paket layanan');
-    await selectSearchOption(page, 'POP pelayan', 'Default POP');
+    await selectSearchOption(page, 'POP pelayan', 'POP Utama');
 
     await page.getByRole('tab', { name: 'Data pelanggan' }).click();
 }

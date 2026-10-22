@@ -530,7 +530,7 @@ test.describe('@hardware-panel hardware panel', () => {
         const name = `E2E Panel Router ${unique('model')}`;
         await page.goto('/admin/network-assets/create');
         await page.getByLabel(/^Nama( \*)?$/).fill(name);
-        await page.getByLabel('Tipe aset').selectOption({ label: 'Router' });
+        await selectSearchOption(page, 'Tipe aset', 'Router');
         await page.getByLabel('Vendor').fill('MikroTik');
         await page.getByLabel(/^Model( \*)?$/).fill('hAP ac2 RBD52G-5HacD2HnD');
         await page.getByRole('button', { name: 'Simpan', exact: true }).click();

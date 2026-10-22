@@ -73,10 +73,10 @@ test('@kanban-t_744bf022 admin creates customer, installation address, and pendi
     await page.getByLabel('Email').fill(`contact.${suffix}@example.test`);
 
     // Subscription & SPK section: package + serving POP are required; the E2E
-    // seeder provisions "Home 10Mbps" and "Default POP".
+    // seeder provisions "Home 10Mbps" and "POP Utama".
     await page.getByRole('tab', { name: 'Langganan & SPK' }).click();
     await selectFirstSearchOption(page, 'Paket layanan');
-    await selectSearchOption(page, 'POP pelayan', /Default POP/);
+    await selectSearchOption(page, 'POP pelayan', /POP Utama/);
 
     await page.getByRole('tab', { name: 'Data pelanggan' }).click();
     await page.getByRole('button', { name: 'Buat pelanggan dan SPK' }).click();

@@ -122,7 +122,7 @@ class DocumentController extends Controller
         $request->validate([
             'model_type' => ['required', 'string'],
             'model_id' => ['required', 'ulid'],
-            'file' => ['required', 'file', 'max:10240'],
+            'file' => ['required', 'file', 'max:10240', 'extensions:pdf,jpg,jpeg,png', 'mimes:pdf,jpg,jpeg,png'],
             'document_type_code' => ['nullable', 'string'],
             'collection' => ['nullable', 'string'],
         ]);

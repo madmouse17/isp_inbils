@@ -5,15 +5,21 @@ namespace Modules\Service\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Core\Location;
 use App\Support\SearchOptions;
+use Closure;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Service\Http\Requests\AnnouncementAudienceRequest;
 use Modules\Service\Http\Requests\SaveAnnouncementRequest;
 use Modules\Service\Models\Announcement;
 use Modules\Service\Models\PromoBanner;
 use Modules\Service\Models\ServicePackageCategory;
+use Modules\Service\Queries\CustomerAudienceQuery;
 use Modules\Service\Resources\AnnouncementResource;
 use Modules\Service\Resources\PromoBannerResource;
 use Modules\Service\Services\AnnouncementService;
@@ -28,13 +34,15 @@ class AnnouncementController extends Controller
         $status = $request->string('status')->toString();
         $status = in_array($status, Announcement::STATUSES, true) ? $status : null;
 
-        $announcements = $tab === 'announcements'
-            ? AnnouncementResource::collection(Announcement::query()
+        $page = $tab === 'announcements'
+            ? Announcement::query()
                 ->with(['locations:id,public_id,code,name', 'servicePackageCategories:id,public_id,code,name'])
                 ->when($search !== '', fn ($query) => $query->where('title', 'like', '%'.addcslashes($search, '\\%_').'%'))
                 ->when($status !== null, fn ($query) => $query->ofStatus($status))
-                ->latest('id')->paginate(10)->withQueryString())
+                ->latest('id')->paginate(10)->withQueryString()
             : null;
+        // The models, taken before AnnouncementResource::collection() swaps the paginator's items for resources.
+        $rows = $page === null ? [] : $page->getCollection()->all();
         $banners = $tab === 'banners'
             ? PromoBannerResource::collection(PromoBanner::query()
                 ->with(['locations:id,public_id,code,name', 'servicePackageCategories:id,public_id,code,name', 'media'])
@@ -45,7 +53,10 @@ class AnnouncementController extends Controller
 
         return Inertia::render('Admin/Announcements/Index', [
             'tab' => $tab,
-            'announcements' => $announcements,
+            'announcements' => $page === null ? null : AnnouncementResource::collection($page),
+            // What publishing a draft of this page reaches, by announcement id: the confirmation says "untuk {n} pelanggan".
+            // A closure, so a reload of the table that does not ask for it runs none of the count queries.
+            'recipientCounts' => fn (): array => $this->recipientCounts(collect($rows), app(CustomerAudienceQuery::class)),
             'banners' => $banners,
             'counts' => ['announcements' => Announcement::query()->count(), 'banners' => PromoBanner::query()->count()],
             'filters' => $request->only(['tab', 'search']) + array_filter(['status' => $status]),
@@ -75,6 +86,12 @@ class AnnouncementController extends Controller
     public function store(SaveAnnouncementRequest $request, AnnouncementService $service): RedirectResponse
     {
         Gate::authorize('create', Announcement::class);
+
+        // "Simpan & Terbitkan": the form also asks to publish what it saves.
+        if ($request->boolean('publish')) {
+            return $this->savedAndPublished($service, fn (): Announcement => $service->create($request->validated()));
+        }
+
         $service->create($request->validated());
 
         return back()->with('success', 'Pengumuman disimpan sebagai draf.');
@@ -83,9 +100,29 @@ class AnnouncementController extends Controller
     public function update(SaveAnnouncementRequest $request, Announcement $announcement, AnnouncementService $service): RedirectResponse
     {
         Gate::authorize('update', $announcement);
+
+        if ($request->boolean('publish')) {
+            return $this->savedAndPublished($service, fn (): Announcement => $service->update($announcement, $request->validated()));
+        }
+
         $service->update($announcement, $request->validated());
 
         return back()->with('success', 'Pengumuman diperbarui.');
+    }
+
+    /**
+     * How many customers an announcement with this targeting would reach, for the confirmation of the editor: the
+     * targeting is the form's, not a saved row. The count is all that leaves.
+     */
+    public function audience(AnnouncementAudienceRequest $request, CustomerAudienceQuery $audience): JsonResponse
+    {
+        Gate::authorize('viewAny', Announcement::class);
+
+        return response()->json(['count' => $audience->recipientCount(
+            $request->string('audience')->toString(),
+            array_map('intval', $request->validated('location_ids', [])),
+            array_map('intval', $request->validated('service_package_category_ids', [])),
+        )]);
     }
 
     public function publish(Announcement $announcement, AnnouncementService $service): RedirectResponse
@@ -110,5 +147,41 @@ class AnnouncementController extends Controller
         $service->deleteDraft($announcement);
 
         return back()->with('success', 'Draf pengumuman dihapus.');
+    }
+
+    /**
+     * One transaction: when publishing is refused (the period is over, the row is published already) the row is not
+     * saved either, so the form can be fixed and sent again without a second draft behind it.
+     *
+     * @param  Closure(): Announcement  $save
+     */
+    private function savedAndPublished(AnnouncementService $service, Closure $save): RedirectResponse
+    {
+        DB::transaction(function () use ($service, $save): void {
+            $announcement = $save();
+            Gate::authorize('update', $announcement);
+            $service->publish($announcement);
+        });
+
+        return back()->with('success', 'Pengumuman disimpan dan diterbitkan.');
+    }
+
+    /**
+     * Publishing is asked for drafts only, so only they are counted: one query per draft of the page (at most ten).
+     * The targets come from the rows already loaded.
+     *
+     * @param  Collection<int, Announcement>  $announcements
+     * @return array<string, int>
+     */
+    private function recipientCounts(Collection $announcements, CustomerAudienceQuery $audience): array
+    {
+        return $announcements
+            ->filter(fn (Announcement $announcement): bool => $announcement->published_at === null)
+            ->mapWithKeys(fn (Announcement $announcement): array => [$announcement->public_id => $audience->recipientCount(
+                $announcement->audience,
+                array_map('intval', $announcement->locations->modelKeys()),
+                array_map('intval', $announcement->servicePackageCategories->modelKeys()),
+            )])
+            ->all();
     }
 }

@@ -26,6 +26,7 @@ class NetworkAccountResource extends JsonResource
             'provisioned_at' => $this->provisioned_at?->toIso8601String(),
             'disconnect_pending' => $this->pending_disconnect_at !== null,
             'pending_disconnect_at' => $this->pending_disconnect_at?->toIso8601String(),
+            'last_disconnect_at' => $this->last_disconnect_at?->toIso8601String(),
         ];
     }
 }

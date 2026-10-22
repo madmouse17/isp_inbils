@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { usePage } from '@inertiajs/react';
 import { Ellipsis, LogIn } from 'lucide-react';
 import {
     Button,
@@ -10,7 +11,13 @@ import {
 } from '@/Components/ui';
 import { ConfirmActionDialog } from '@/Components/composite/platform/ConfirmActionDialog';
 import { usePlatformAction } from '@/Components/composite/platform/usePlatformAction';
-import type { PlatformCompanyUser, PlatformTenantProfile } from '@/types/platform';
+import { formatNumber } from '@/lib/format';
+import type { PageProps } from '@/types';
+import type {
+    PlatformCompanyUser,
+    PlatformSessionDriver,
+    PlatformTenantProfile,
+} from '@/types/platform';
 
 type UserAction = 'impersonate' | 'two-factor' | 'invitation' | 'unlock';
 
@@ -29,6 +36,7 @@ interface UserActionsProps {
 /** What the operator can do for one person: support access, and the account repairs of the support tools. */
 export function UserActions({ tenant, user }: UserActionsProps) {
     const [action, setAction] = useState<UserAction | null>(null);
+    const { sessionDriver } = usePage<PageProps<{ sessionDriver: PlatformSessionDriver }>>().props;
     const { processing, errors, post, clearErrors } = usePlatformAction();
 
     const close = () => {
@@ -93,7 +101,11 @@ export function UserActions({ tenant, user }: UserActionsProps) {
                 <ConfirmActionDialog
                     {...dialog}
                     title={`Atur ulang 2FA ${user.name}?`}
-                    description="Autentikasi dua langkah pengguna dimatikan dan semua sesi masuknya berakhir. Pengguna perlu mengaktifkannya lagi."
+                    description={`Autentikasi dua langkah pengguna dimatikan. ${
+                        sessionDriver.ends_all
+                            ? 'Semua sesi masuknya berakhir.'
+                            : `Sesi yang sedang berjalan berakhir sendiri setelah ${formatNumber(sessionDriver.lifetime_minutes)} menit tanpa dipakai.`
+                    } Pengguna perlu mengaktifkannya lagi.`}
                     confirmLabel="Atur ulang 2FA"
                     tone="danger"
                 />

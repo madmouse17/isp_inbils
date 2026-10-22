@@ -23,6 +23,7 @@ use App\Http\Controllers\Admin\OrganizationController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SubscriptionController;
+use App\Http\Controllers\Admin\SubsidiaryRequestController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\UserRoleController;
 use App\Http\Controllers\Admin\UserTwoFactorResetController;
@@ -63,6 +64,9 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
     Route::get('company/settings', [CompanyController::class, 'editSettings'])->name('company.settings.edit');
     Route::put('company/settings', [CompanyController::class, 'updateSettings'])->name('company.settings.update');
     Route::post('company/switch', CompanySwitchController::class)->name('company.switch');
+    // "Minta anak perusahaan" (K34): the operator creates subsidiaries. Own throttle prefix, the anonymous key is the user alone.
+    Route::post('company/subsidiary-requests', [SubsidiaryRequestController::class, 'store'])
+        ->middleware('throttle:5,1,subsidiary-request')->name('company.subsidiary-requests.store');
 
     Route::middleware('can:company.integrations.manage')->group(function () {
         Route::get('company/integrations', [CompanyIntegrationController::class, 'edit'])->name('company.integrations.edit');
@@ -76,6 +80,8 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
     Route::get('users/export', [UserController::class, 'export'])->name('users.export');
     Route::resource('users', UserController::class);
     Route::post('users/{user}/two-factor/reset', UserTwoFactorResetController::class)->name('users.two-factor.reset');
+    // The resend of a staff invitation; the method lives in UserController (W3-TEAMDOCS), the route is registered here for it.
+    Route::post('users/{user}/invitation', [UserController::class, 'resendInvitation'])->name('users.invitation.resend');
     // The roles a member holds in this company, also for a member homed elsewhere (his login fields are not edited here).
     Route::put('users/{user}/roles', UserRoleController::class)->name('users.roles.update');
     Route::get('roles/export', [RoleController::class, 'export'])->name('roles.export');

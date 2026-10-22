@@ -809,7 +809,7 @@ class AuditLogTenantIsolationTest extends TestCase
 
         $this->assertDatabaseHas('locations', [
             'company_id' => $this->companyA->id,
-            'name' => 'Default Region',
+            'name' => 'Wilayah Utama',
         ]);
     }
 }

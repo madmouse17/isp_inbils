@@ -183,11 +183,11 @@ export default function Index({ documentTypes, filters, can }: IndexProps) {
     );
 
     return (
-        <AdminLayout title="Dokumen">
+        <AdminLayout title="Jenis Dokumen">
             <div className="space-y-6">
                 <PageHeader
-                    title="Dokumen"
-                    subtitle="Jenis dokumen beserta status wajib dan masa berlakunya."
+                    title="Jenis Dokumen"
+                    subtitle="Jenis dokumen pelanggan beserta status wajib dan masa berlakunya. Berkasnya diunggah di tab Dokumen pada halaman pelanggan."
                     actions={
                         <div className="flex flex-wrap gap-2">
                             {can.export ? (

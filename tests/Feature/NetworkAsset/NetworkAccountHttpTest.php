@@ -92,7 +92,7 @@ class NetworkAccountHttpTest extends TestCase
     /** @return list<string> */
     private function accountKeys(): array
     {
-        return ['id', 'service_type', 'username', 'sync_status', 'last_error', 'provisioned_group', 'provisioned_at', 'disconnect_pending', 'pending_disconnect_at'];
+        return ['id', 'service_type', 'username', 'sync_status', 'last_error', 'provisioned_group', 'provisioned_at', 'disconnect_pending', 'pending_disconnect_at', 'last_disconnect_at'];
     }
 
     public function test_the_page_without_an_account_has_the_contract_shape(): void
@@ -225,7 +225,7 @@ class NetworkAccountHttpTest extends TestCase
             ->where('session.nas_ip', $this->nasIp)
             ->where('session.nas_label', $this->nas->networkAsset->code.' - '.$this->nas->networkAsset->name)
             ->where('usage', ['month' => now()->format('Y-m'), 'input_octets' => 1000, 'output_octets' => 4000]));
-        $this->assertSame(['session_id', 'nas_ip', 'nas_label', 'framed_ip', 'started_at', 'updated_at'], array_keys($response->inertiaProps()['session']));
+        $this->assertSame(['session_id', 'nas_ip', 'nas_label', 'framed_ip', 'started_at', 'last_seen_at', 'stale'], array_keys($response->inertiaProps()['session']));
     }
 
     public function test_the_session_has_no_label_when_no_nas_of_the_company_owns_the_address(): void

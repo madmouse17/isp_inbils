@@ -3,6 +3,7 @@ import type { Page } from '@playwright/test';
 import { inertiaProps, loginAs, logout, unique } from './support/demo';
 import { expect, test } from './support/fixtures';
 import { totp } from './support/totp';
+import { createUser } from './support/users';
 
 /**
  * Two-factor authentication from the user's side (docs/SECURITY.md section 3): enrol from the
@@ -133,16 +134,12 @@ test('@two-factor an admin resets a colleague who lost the authenticator', async
 });
 
 async function createStaffUser(page: Page, email: string) {
-    await page.goto('/admin/users/create');
-    await expect(
-        page.getByRole('main').getByRole('heading', { name: 'Buat Pengguna', level: 1 }),
-    ).toBeVisible({ timeout: 15_000 });
-    await page.getByLabel('Nama').fill('QA Two-Factor');
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel(/^Kata sandi( \*)?$/).fill(userPassword);
-    await page.getByRole('checkbox', { name: 'Staf', exact: true }).check();
-    await page.getByRole('button', { name: 'Buat', exact: true }).click();
-    await expect(page).toHaveURL(/\/admin\/users\/?$/);
+    await createUser(page, {
+        name: 'QA Two-Factor',
+        email,
+        roles: ['Staf'],
+        password: userPassword,
+    });
 }
 
 async function submitPassword(page: Page, email: string) {

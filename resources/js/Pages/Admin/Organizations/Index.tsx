@@ -20,6 +20,8 @@ import {
     SearchSelect,
     Switch,
 } from '@/Components/ui';
+import { SuggestionChip } from '@/Components/composite/SuggestionChip';
+import { suggestCode } from '@/lib/suggestCode';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
 import {
@@ -313,13 +315,21 @@ export default function Index({ organizations, parentOptions, filters, can }: In
                 >
                     <form onSubmit={submit} className="space-y-4">
                         <div className="grid gap-4 md:grid-cols-2">
-                            <Input
-                                label="Kode"
-                                value={data.code}
-                                onChange={(event) => setData('code', event.target.value)}
-                                error={errors.code}
-                                required
-                            />
+                            <div className="space-y-2">
+                                <Input
+                                    label="Kode"
+                                    value={data.code}
+                                    onChange={(event) => setData('code', event.target.value)}
+                                    error={errors.code}
+                                    required
+                                />
+                                {data.code === '' && suggestCode(data.name) !== null && (
+                                    <SuggestionChip
+                                        value={suggestCode(data.name) ?? ''}
+                                        onUse={() => setData('code', suggestCode(data.name) ?? '')}
+                                    />
+                                )}
+                            </div>
                             <Input
                                 label="Nama"
                                 value={data.name}

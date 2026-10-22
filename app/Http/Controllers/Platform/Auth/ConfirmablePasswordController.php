@@ -8,6 +8,7 @@ use App\Models\PlatformAdmin;
 use App\Services\Platform\ImpersonationService;
 use App\Support\PlatformSession;
 use Illuminate\Auth\Events\Lockout;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -65,21 +66,41 @@ class ConfirmablePasswordController extends Controller
 
         $request->session()->put(PlatformSession::PASSWORD_CONFIRMED, now()->getTimestamp());
 
-        // A visit the middleware interrupted resumes first. A dialog posts from the page it guards, so otherwise the
-        // answer goes back to that page; the confirm page itself is no place to return to.
-        $back = url()->previous(route('platform.dashboard'));
+        // A stale `url.intended` (the tenant guard leaves one when the operator opened a tenant page as a guest) is no place
+        // to land: only a page of this panel counts, and a dialog goes back to the page it posted from (F11-D01).
+        $referrer = $this->panelPage($request, url()->previous());
+        $intended = $this->panelPage($request, $request->session()->pull('url.intended'));
 
-        if (Str::before($back, '?') !== route('platform.password.confirm')) {
-            return redirect()->intended($back);
+        if ($referrer !== null && Str::before($referrer, '?') !== route('platform.password.confirm')) {
+            return redirect()->to($referrer);
         }
 
         // The banner of a support session opens the confirm page from a tenant page and names it in return_to. The
         // tenant app is another shell, so the way back is a full page load, not a visit of this one.
-        $tenantPage = $impersonation->current($request->session()) === null ? null : $this->returnTo($back);
+        $tenantPage = $referrer === null || $impersonation->current($request->session()) === null ? null : $this->returnTo($referrer);
 
         return $tenantPage === null
-            ? redirect()->intended(route('platform.dashboard'))
+            ? redirect()->to($intended ?? route('platform.dashboard'))
             : Inertia::location(url($tenantPage));
+    }
+
+    /** $url when it is a page of this panel on this host, else null: a Referer or a session value is no proof of where to go. */
+    private function panelPage(Request $request, mixed $url): ?string
+    {
+        if (! is_string($url)) {
+            return null;
+        }
+
+        $parts = parse_url($url);
+
+        if ($parts === false || ($parts['host'] ?? null) !== $request->getHost()) {
+            return null;
+        }
+
+        $path = $parts['path'] ?? '';
+        $panel = route('platform.dashboard', absolute: false);
+
+        return $path === $panel || str_starts_with($path, $panel.'/') ? $url : null;
     }
 
     /** The tenant page the confirm page URL $confirmPage names in return_to, when it is one. */

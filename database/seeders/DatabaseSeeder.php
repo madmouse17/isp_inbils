@@ -26,8 +26,12 @@ class DatabaseSeeder extends Seeder
                 DemoDataSeeder::class,
                 DemoTeamSeeder::class,
                 CustomerDemoSeeder::class,
-                E2eFixtureSeeder::class,
             ]);
+        }
+
+        // E2E fixtures (E2E-SUB and friends) never reach local/development; tests/e2e/setup.php seeds them for APP_ENV=e2e.
+        if (app()->environment('testing')) {
+            $this->call(E2eFixtureSeeder::class);
         }
     }
 }

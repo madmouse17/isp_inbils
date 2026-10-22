@@ -261,7 +261,7 @@ class PrivateMediaAccessTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        $this->assertSame('/admin/media/'.$this->documentFile->public_id, DocumentService::list($this->customer)->first()['url']);
+        $this->assertSame('/admin/media/'.$this->documentFile->public_id, DocumentService::list($this->customer)[0]['url']);
     }
 
     private function outsider(): User

@@ -28,6 +28,7 @@ import type {
 } from '@/types/platform';
 import { LifecycleActions } from './components/LifecycleActions';
 import { SubsidiariesSection } from './components/SubsidiariesSection';
+import { SubsidiaryRequestsCard } from './components/SubsidiaryRequestsCard';
 import { UsersSection } from './components/UsersSection';
 import { RolesSection } from './components/RolesSection';
 import { AccountStatusCell, LastLoginCell } from './components/UserSignInState';
@@ -39,6 +40,7 @@ export default function Show({
     metrics,
     admins,
     subsidiaries,
+    subsidiaryRequests,
     users,
     userFilters,
     companyRoles,
@@ -49,6 +51,7 @@ export default function Show({
     integrations,
     exports,
     lifecycle,
+    suspendImpact,
 }: PlatformCompanyShowProps) {
     const adminColumns = useMemo<DataTableColumn<PlatformCompanyUser>[]>(
         () => [
@@ -163,7 +166,7 @@ export default function Show({
                     { label: 'Dasbor', href: route('platform.dashboard') },
                     { label: tenant.name },
                 ]}
-                actions={<LifecycleActions tenant={tenant} lifecycle={lifecycle} />}
+                actions={<LifecycleActions tenant={tenant} lifecycle={lifecycle} suspendImpact={suspendImpact} />}
             />
 
             {tenant.status === 'suspended' ? (
@@ -189,6 +192,8 @@ export default function Show({
                     </AlertDescription>
                 </Alert>
             ) : null}
+
+            <SubsidiaryRequestsCard requests={subsidiaryRequests} scope={{ tenant, admins }} />
 
             <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
                 <Card>

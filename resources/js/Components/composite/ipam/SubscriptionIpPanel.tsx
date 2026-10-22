@@ -9,7 +9,7 @@ import { Button, Card, CardContent, CardHeader, CardTitle } from '@/Components/u
 import type { StaticPool, SubscriptionIpAddress } from '@/types/ipam-odn';
 
 interface SubscriptionIpPanelProps {
-    subscription: { id: string; code: string; terminated: boolean };
+    subscription: { id: string; code: string; terminated: boolean; hasServingPop: boolean };
     addresses: SubscriptionIpAddress[];
     /** Static pools the subscription can draw from; the server sends them only to holders of ipam.assign. */
     pools: StaticPool[];
@@ -82,7 +82,10 @@ export function SubscriptionIpPanel({
                 )}
                 {editable && pools.length === 0 && (
                     <p className="text-muted-foreground">
-                        Belum ada pool statis untuk POP langganan ini. Daftarkan di{' '}
+                        {subscription.hasServingPop
+                            ? 'Belum ada pool statis untuk POP langganan ini.'
+                            : 'Langganan ini belum punya POP. Pool statis per POP baru ditawarkan setelah POP layanan dipilih.'}{' '}
+                        Daftarkan di{' '}
                         <Link
                             href={route('admin.ipam.prefixes.index')}
                             className="font-medium text-primary-text hover:underline"

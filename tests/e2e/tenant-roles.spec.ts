@@ -76,7 +76,10 @@ async function openDemoCompany(page: Page) {
 
 async function confirmPlatformAction(page: Page, label: string) {
     const dialog = page.getByRole('alertdialog');
-    await dialog.getByLabel('Kata sandi operator').fill(platformFixture.password!);
+    await expect(dialog).toBeVisible();
+    // Inside the step-up window of an earlier confirmation the dialog asks for no password (F11-U03).
+    const field = dialog.getByLabel('Kata sandi operator');
+    if (await field.isVisible()) await field.fill(platformFixture.password!);
     await dialog.getByRole('button', { name: label }).click();
 }
 

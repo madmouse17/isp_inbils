@@ -16,6 +16,9 @@ Schedule::command('billing:suspend-overdue')->dailyAt('08:00')->withoutOverlappi
 // iterates active companies and dispatches one job per tenant.
 Schedule::command('tickets:sla')->everyFifteenMinutes()->withoutOverlapping(10);
 
+// Customer-document reminders use each company's calendar day and write one bell row per recipient and document.
+Schedule::command('customers:document-expiry')->dailyAt('00:30')->withoutOverlapping(120);
+
 // Backstop for lost Midtrans notifications: asks Midtrans about attempts still pending after
 // ten minutes, per active company. A no-op while no Midtrans server key is configured.
 Schedule::command('midtrans:reconcile')->everyFifteenMinutes()->withoutOverlapping(10);

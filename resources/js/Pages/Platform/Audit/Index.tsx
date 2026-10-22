@@ -3,6 +3,8 @@ import { Link } from '@inertiajs/react';
 import PlatformLayout from '@/Layouts/PlatformLayout';
 import { DataTable, PageHeader, type DataTableColumn } from '@/Components/composite';
 import {
+    Alert,
+    AlertDescription,
     Button,
     Card,
     CardContent,
@@ -10,16 +12,19 @@ import {
     EmptyCell,
     EnumBadge,
     Input,
+    NativeSelect,
     SearchSelect,
 } from '@/Components/ui';
 import { useServerTable } from '@/hooks/useServerTable';
 import { formatDateTime } from '@/lib/format';
 import { toPagination } from '@/lib/pagination';
-import { PLATFORM_AUDIT_ACTION, PLATFORM_LOG, labelOf } from '@/lib/statuses';
+import { PLATFORM_LOG } from '@/lib/statuses';
 import type { Paginated } from '@/types';
 import type {
     PlatformAdminOption,
     PlatformAuditEntry,
+    PlatformAuditEventOption,
+    PlatformAuditFilterErrors,
     PlatformAuditFilters,
     PlatformTenantOption,
 } from '@/types/platform';
@@ -28,33 +33,57 @@ import { AuditDetailDialog } from './components/AuditDetailDialog';
 interface AuditIndexProps {
     activity: Paginated<PlatformAuditEntry>;
     filters: PlatformAuditFilters;
+    /** What was wrong with each filter the server could not use; the page still opens on the rest. */
+    filterErrors: PlatformAuditFilterErrors;
+    /** Every action the logs hold, with its sentence. */
+    events: PlatformAuditEventOption[];
     tenants: PlatformTenantOption[];
     admins: PlatformAdminOption[];
 }
 
-const ACTION_OPTIONS = Object.entries(PLATFORM_AUDIT_ACTION).map(([code, { label }]) => ({
-    value: code,
-    label,
-    description: code,
-}));
+const DEFAULT_SOURCE = 'platform';
+
+const SOURCE_OPTIONS = [
+    { value: 'platform', label: 'Platform' },
+    { value: 'support', label: 'Akses dukungan' },
+    { value: 'all', label: 'Semua sumber' },
+];
 
 const NO_FILTERS = {
     company_id: '',
     platform_admin_id: '',
     event: '',
+    source: '',
     date_from: '',
     date_to: '',
     search: '',
 };
 
-export default function Index({ activity, filters, tenants, admins }: AuditIndexProps) {
+export default function Index({
+    activity,
+    filters,
+    filterErrors,
+    events,
+    tenants,
+    admins,
+}: AuditIndexProps) {
     const { params, set, setMany, processing } = useServerTable({
         url: route('platform.audit.index'),
         filters,
-        only: ['activity', 'filters'],
+        only: ['activity', 'filters', 'filterErrors'],
     });
     const [selected, setSelected] = useState<PlatformAuditEntry | null>(null);
-    const hasFilters = Object.keys(NO_FILTERS).some((key) => params[key]);
+    const source = params.source ?? DEFAULT_SOURCE;
+    // The default source is where the page starts, not a filter somebody set.
+    const hasFilters = Object.keys(NO_FILTERS).some((key) =>
+        key === 'source' ? source !== DEFAULT_SOURCE : params[key],
+    );
+    const eventOptions = useMemo(
+        () => events.map(({ value, label }) => ({ value, label, description: value })),
+        [events],
+    );
+    // Page and rows per page have no field of their own; the others show their message beside the field.
+    const pagingError = filterErrors.page ?? filterErrors.per_page;
     const tenantOptions = useMemo(
         () =>
             tenants.map((tenant) => ({
@@ -81,9 +110,7 @@ export default function Index({ activity, filters, tenants, admins }: AuditIndex
                 header: 'Kegiatan',
                 cell: (row) => (
                     <div>
-                        <p className="font-medium">
-                            {labelOf(PLATFORM_AUDIT_ACTION, row.description)}
-                        </p>
+                        <p className="font-medium">{row.text}</p>
                         <p className="font-mono text-xs text-muted-foreground">{row.description}</p>
                     </div>
                 ),
@@ -154,7 +181,7 @@ export default function Index({ activity, filters, tenants, admins }: AuditIndex
                         type="button"
                         variant="outline"
                         size="sm"
-                        aria-label={`Lihat rincian ${labelOf(PLATFORM_AUDIT_ACTION, row.description)}`}
+                        aria-label={`Lihat rincian ${row.text}`}
                         onClick={() => setSelected(row)}
                     >
                         Lihat
@@ -184,6 +211,7 @@ export default function Index({ activity, filters, tenants, admins }: AuditIndex
                             placeholder="Kegiatan, operator, atau perusahaan"
                             value={params.search ?? ''}
                             maxLength={100}
+                            error={filterErrors.search}
                             onChange={(event) => set('search', event.target.value)}
                         />
                         <SearchSelect
@@ -191,6 +219,7 @@ export default function Index({ activity, filters, tenants, admins }: AuditIndex
                             placeholder="Semua perusahaan"
                             value={params.company_id ?? ''}
                             options={tenantOptions}
+                            error={filterErrors.company_id}
                             onChange={(value) => set('company_id', value)}
                         />
                         <SearchSelect
@@ -198,18 +227,28 @@ export default function Index({ activity, filters, tenants, admins }: AuditIndex
                             placeholder="Semua operator"
                             value={params.platform_admin_id ?? ''}
                             options={adminOptions}
+                            error={filterErrors.platform_admin_id}
                             onChange={(value) => set('platform_admin_id', value)}
                         />
                         <SearchSelect
                             label="Kegiatan"
                             placeholder="Semua kegiatan"
                             value={params.event ?? ''}
-                            options={ACTION_OPTIONS}
+                            options={eventOptions}
+                            error={filterErrors.event}
                             onChange={(value) => set('event', value)}
+                        />
+                        <NativeSelect
+                            label="Sumber"
+                            value={source}
+                            options={SOURCE_OPTIONS}
+                            error={filterErrors.source}
+                            onChange={(event) => set('source', event.target.value)}
                         />
                         <DateRangePicker
                             label="Rentang tanggal"
                             value={{ from: params.date_from ?? null, to: params.date_to ?? null }}
+                            error={filterErrors.date_from ?? filterErrors.date_to}
                             onChange={(range) =>
                                 setMany({ date_from: range.from, date_to: range.to })
                             }
@@ -219,6 +258,11 @@ export default function Index({ activity, filters, tenants, admins }: AuditIndex
                         Rentang tanggal dihitung dalam UTC. Waktu pada tabel mengikuti zona waktu
                         peramban.
                     </p>
+                    {pagingError ? (
+                        <Alert variant="warning">
+                            <AlertDescription>{pagingError}</AlertDescription>
+                        </Alert>
+                    ) : null}
                     <DataTable
                         columns={columns}
                         pagination={toPagination(activity)}

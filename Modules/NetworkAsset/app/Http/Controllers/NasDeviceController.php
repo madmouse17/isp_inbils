@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Core\CompanyService;
 use App\Services\Core\IntegrationConfig;
 use App\Support\SearchOptions;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -89,8 +90,9 @@ class NasDeviceController extends Controller
         $nasDevice->load('networkAsset.location');
 
         return Inertia::render('Admin/NasDevices/Show', [
-            'nasDevice' => (new NasDeviceResource($nasDevice))->resolve(),
-            'sessions' => $this->sessions($radius, $nasDevice),
+            // Closures: "Uji koneksi" reloads these two props only and must not pay for the rest of the page.
+            'nasDevice' => fn (): array => $this->described($nasDevice, $radius),
+            'sessions' => fn (): array => $this->sessions($radius, $nasDevice),
             'isolirUrl' => route('isolir.show', CompanyService::current()?->code),
             'radiusEnabled' => app(IntegrationConfig::class)->isEnabled('radius'),
             'can' => ['update' => $request->user()?->can('network_asset.nas.manage') ?? false],
@@ -135,6 +137,23 @@ class NasDeviceController extends Controller
         return $removed ? $redirect : $redirect->with('warning', 'Baris klien RADIUS tidak dapat dihapus (RADIUS belum dikonfigurasi atau tidak terjangkau). Hapus dari tabel nas secara manual.');
     }
 
+    /**
+     * "Sinkronkan ke RADIUS": write this router now through a queued job instead of waiting for the sweep. A company
+     * without RADIUS has nothing to write to, so the page is told that instead of promising a sync.
+     */
+    public function sync(NasDevice $nasDevice): RedirectResponse
+    {
+        Gate::authorize('network_asset.nas.manage');
+
+        if (! app(IntegrationConfig::class)->isEnabled('radius')) {
+            return back()->with('warning', 'Belum dikirim ke RADIUS karena RADIUS belum dikonfigurasi untuk perusahaan ini.');
+        }
+
+        NasDeviceService::requestSync($nasDevice);
+
+        return back()->with('success', 'Sinkronisasi ke RADIUS dijadwalkan.');
+    }
+
     /** A saved row that RADIUS does not know yet is not an error: the sync writes it once RADIUS can be reached. */
     private function saved(RedirectResponse $redirect, NasDevice $nasDevice, string $message): RedirectResponse
     {
@@ -153,6 +172,25 @@ class NasDeviceController extends Controller
     private function realm(): ?string
     {
         return Realm::fromCode(CompanyService::current()?->code);
+    }
+
+    /**
+     * The router as the resource shows it, plus what RADIUS knows of its traffic (the newest accounting packet). RADIUS
+     * off or not answering leaves that unknown (`radius_state` null) and the page says what it still knows.
+     *
+     * @return array<string, mixed>
+     */
+    private function described(NasDevice $nasDevice, RadiusDirectory $radius): array
+    {
+        $resource = new NasDeviceResource($nasDevice);
+
+        try {
+            $latest = $radius->lastAccountingAt((string) $nasDevice->nasname);
+            $resource->withLastAccounting($latest === null ? null : CarbonImmutable::parse($latest));
+        } catch (RadiusException) {
+        }
+
+        return $resource->resolve();
     }
 
     /**
@@ -181,7 +219,8 @@ class NasDeviceController extends Controller
             'nas_label' => $label,
             'framed_ip' => $session['framed_ip'],
             'started_at' => $session['started_at'],
-            'updated_at' => $session['updated_at'],
+            'last_seen_at' => $session['last_seen_at'],
+            'stale' => $session['stale'],
             'username' => $session['username'],
             'subscription' => ($subscription = $subscriptions->get($session['username'])?->subscription) === null ? null : ['id' => $subscription->public_id, 'code' => $subscription->code],
         ], $sessions);

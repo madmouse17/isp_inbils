@@ -1,3 +1,4 @@
+import { Alert, AlertDescription } from '@/Components/ui/Alert';
 import { Link, router } from '@inertiajs/react';
 import { MoreHorizontal } from 'lucide-react';
 import { useRef, useState } from 'react';
@@ -189,19 +190,22 @@ export function DataTableActions({
     // Synchronous in-flight guard: prevents double-submit from a same-tick
     // double-click before React re-renders the disabled state.
     const deleteInFlight = useRef(false);
+    // The server's refusal (a rule such as "still in use"), shown in the dialog that asked for the delete.
+    const [deleteError, setDeleteError] = useState<string>();
 
     const confirmDelete = () => {
         if (!deleteHref || deleteInFlight.current) return;
 
         deleteInFlight.current = true;
         setDeleteProcessing(true);
-
+        setDeleteError(undefined);
         router.delete(deleteHref, {
             preserveScroll: true,
             onFinish: () => {
                 deleteInFlight.current = false;
                 setDeleteProcessing(false);
             },
+            onError: (errors) => setDeleteError(Object.values(errors).find(Boolean)),
             onSuccess: () => {
                 setConfirmOpen(false);
                 onDeleteSuccess?.();
@@ -276,6 +280,7 @@ export function DataTableActions({
                                 // stay open: only the success path (or a user
                                 // cancel when idle) may close it.
                                 if (deleteInFlight.current && !open) return;
+                                setDeleteError(undefined);
                                 setConfirmOpen(open);
                             }}
                         >
@@ -288,6 +293,13 @@ export function DataTableActions({
                                         </AlertDialogDescription>
                                     ) : null}
                                 </AlertDialogHeader>
+                                {deleteError ? (
+                                    <Alert variant="danger">
+                                        <AlertDescription className="text-destructive-text">
+                                            {deleteError}
+                                        </AlertDescription>
+                                    </Alert>
+                                ) : null}
                                 <AlertDialogFooter>
                                     <AlertDialogCancel disabled={deleteProcessing}>
                                         Batal

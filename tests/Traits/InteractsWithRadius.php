@@ -4,10 +4,14 @@ namespace Tests\Traits;
 
 use App\Models\Core\Company;
 use App\Models\Core\CompanyIntegration;
+use Carbon\CarbonInterface;
+use Closure;
 use Illuminate\Database\Connection;
+use Illuminate\Database\Connectors\SQLiteConnector;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
+use Pdo\Sqlite;
 
 /**
  * An SQLite file standing in for the FreeRADIUS database: the stock table and column names that RadiusDirectory
@@ -23,11 +27,19 @@ use Illuminate\Support\Facades\DB;
  *
  * `radiusConnection()` is the shared database, and its query log also counts what the company connections run, so a
  * test that asserts "RADIUS was not asked" sees every statement whichever connection ran it.
+ *
+ * The stand-in answers `NOW()` like the MySQL of a real RADIUS server: the application's clock plus
+ * `$radiusClockOffsetMinutes` (0 by default, so tests that freeze time with travelTo() see one clock). A test of the
+ * time zone sets the offset and writes `radacct` datetimes with radiusNow(): that is how FreeRADIUS writes them, in
+ * the zone of its own server.
  */
 trait InteractsWithRadius
 {
     /** Whether a company created from now on gets an enabled row, see fakeRadius(). */
     protected bool $radiusForNewCompanies = false;
+
+    /** Minutes the RADIUS server's clock (its zone) runs ahead of the application's; negative for a zone behind it. */
+    protected int $radiusClockOffsetMinutes = 0;
 
     protected bool $radiusListening = false;
 
@@ -43,6 +55,7 @@ trait InteractsWithRadius
      */
     protected function fakeRadius(): void
     {
+        $this->giveRadiusStandInAClock();
         $database = $this->newRadiusDatabase();
 
         config(['database.connections.radius' => ['driver' => 'sqlite', 'database' => $database, 'prefix' => '', 'foreign_key_constraints' => false]]);
@@ -64,6 +77,53 @@ trait InteractsWithRadius
         foreach (Company::query()->get() as $company) {
             $this->radiusIntegration($company);
         }
+    }
+
+    /**
+     * What `NOW()` is on the RADIUS server and so what `radacct` datetimes are measured against: the application's clock
+     * plus the offset of the server's zone. Write the datetimes of a seeded session from this, not from now().
+     */
+    protected function radiusNow(): CarbonInterface
+    {
+        return now()->addMinutes($this->radiusClockOffsetMinutes);
+    }
+
+    /**
+     * SQLite has no NOW(), the one function RadiusDirectory asks the RADIUS server for (its clock). Every SQLite link of
+     * this test, the application's `radius_{companyId}` ones and the direct ones, is opened by a connector that
+     * defines it. The closure reads the offset when it is called, so a test may change the zone after connecting.
+     */
+    private function giveRadiusStandInAClock(): void
+    {
+        $clock = fn (): string => $this->radiusNow()->format('Y-m-d H:i:s');
+
+        $this->app->bind('db.connector.sqlite', fn (): SQLiteConnector => new class($clock) extends SQLiteConnector
+        {
+            public function __construct(private readonly Closure $clock) {}
+
+            /** PHP 8.4 hands PDO::connect() callers the plain class, which cannot define a function: only a Pdo\Sqlite can. */
+            protected function createPdoConnection($dsn, $username, #[\SensitiveParameter] $password, $options)
+            {
+                return class_exists(Sqlite::class)
+                    ? Sqlite::connect($dsn, $username, $password, $options)
+                    : new \PDO($dsn, $username, $password, $options);
+            }
+
+            public function connect(array $config)
+            {
+                $pdo = parent::connect($config);
+                $unix = static fn (mixed $at): ?int => $at === null ? null : (new \DateTimeImmutable((string) $at, new \DateTimeZone('UTC')))->getTimestamp();
+
+                // RadiusDirectory measures every age as UNIX_TIMESTAMP(NOW()) - UNIX_TIMESTAMP(column), MySQL's own functions.
+                foreach ([['NOW', $this->clock, 0], ['UNIX_TIMESTAMP', $unix, 1]] as [$name, $function, $arguments]) {
+                    $pdo instanceof Sqlite
+                        ? $pdo->createFunction($name, $function, $arguments)
+                        : $pdo->sqliteCreateFunction($name, $function, $arguments);
+                }
+
+                return $pdo;
+            }
+        });
     }
 
     /** Every company's row is switched off, its connection details kept, and a company created later gets none. */
@@ -204,7 +264,7 @@ trait InteractsWithRadius
     }
 
     /**
-     * An open session that started and updated a minute ago; override any radacct column.
+     * An open session that started two minutes and updated a minute ago on the RADIUS clock; override any radacct column.
      *
      * @param  array<string, mixed>  $attributes
      */
@@ -218,8 +278,8 @@ trait InteractsWithRadius
             'acctuniqueid' => "uniq-$n",
             'username' => 'budi@acme',
             'nasipaddress' => '192.0.2.10',
-            'acctstarttime' => now()->subMinutes(2)->format('Y-m-d H:i:s'),
-            'acctupdatetime' => now()->subMinute()->format('Y-m-d H:i:s'),
+            'acctstarttime' => $this->radiusNow()->subMinutes(2)->format('Y-m-d H:i:s'),
+            'acctupdatetime' => $this->radiusNow()->subMinute()->format('Y-m-d H:i:s'),
             'acctstoptime' => null,
             'acctinputoctets' => 0,
             'acctoutputoctets' => 0,

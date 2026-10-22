@@ -67,6 +67,11 @@ test('@kanban-t_40cf97ea admin location map is first-class with empty markers an
     const map = page.locator('.leaflet-container');
     const petaTab = page.getByRole('tab', { name: 'Peta' });
 
+    // No location has a point yet, so the page opens on the table and counts the places without one (F2-U06).
+    await expect(page.getByRole('tab', { name: 'Tabel' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByText(/\d+ lokasi belum punya koordinat/)).toBeVisible();
+    await petaTab.click();
+
     await expect(petaTab).toHaveAttribute('aria-selected', 'true');
     await expect(map).toBeVisible();
     await expect(map.locator('.leaflet-control-attribution')).toContainText('OpenStreetMap');
@@ -89,8 +94,9 @@ test('@kanban-t_40cf97ea admin location map is first-class with empty markers an
     await page.getByRole('button', { name: 'Tambah POP' }).click();
     const createDialog = page.getByRole('dialog', { name: 'Buat Lokasi' });
     await expect(createDialog).toBeVisible();
-    await expect(createDialog.getByLabel('Lintang')).toHaveValue(/^-?\d+\.\d{7}$/);
-    await expect(createDialog.getByLabel('Bujur')).toHaveValue(/^-?\d+\.\d{7}$/);
+    // exact: the map of the picker is labelled "Peta untuk memilih lintang dan bujur", which also contains the words.
+    await expect(createDialog.getByLabel('Lintang', { exact: true })).toHaveValue(/^-?\d+\.\d{7}$/);
+    await expect(createDialog.getByLabel('Bujur', { exact: true })).toHaveValue(/^-?\d+\.\d{7}$/);
 });
 
 test('@kanban-t_40cf97ea marker edit uses the authoritative tree row', async ({ page }) => {
@@ -189,8 +195,8 @@ test('@kanban-t_40cf97ea marker edit uses the authoritative tree row', async ({ 
     await expect(editDialog.getByRole('combobox', { name: 'Induk' })).toHaveValue(
         expectedParentPath,
     );
-    await editDialog.getByLabel('Lintang').fill('-6.2345678');
-    await editDialog.getByLabel('Bujur').fill('106.8765432');
+    await editDialog.getByLabel('Lintang', { exact: true }).fill('-6.2345678');
+    await editDialog.getByLabel('Bujur', { exact: true }).fill('106.8765432');
 
     const updateRequest = page.waitForRequest((request) => {
         if (!request.url().match(/\/admin\/locations\/[0-9A-HJKMNP-TV-Z]{26}$/i)) return false;

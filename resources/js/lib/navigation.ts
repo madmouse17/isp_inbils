@@ -415,7 +415,7 @@ export const navGroups: readonly NavGroup[] = [
                 anyOf: ['roles.manage'],
             },
             {
-                label: 'Dokumen',
+                label: 'Jenis Dokumen',
                 href: '/admin/documents',
                 icon: FileText,
                 anyOf: ['system.setting'],

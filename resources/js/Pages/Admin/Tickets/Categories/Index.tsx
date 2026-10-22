@@ -193,6 +193,14 @@ export default function TicketCategoriesIndex({ categories, can }: Props) {
                         hint={`Tampil di aplikasi pelanggan saat memilih kategori ini. Kosongkan jika tidak perlu. ${data.customer_hint.length}/${CUSTOMER_HINT_MAX} karakter.`}
                         error={errors.customer_hint}
                     />
+                    <div className="space-y-1 rounded-md border border-border bg-muted/40 p-3 text-sm">
+                        <p className="font-medium text-foreground">Pelanggan melihat:</p>
+                        <p className="break-words whitespace-pre-line text-muted-foreground">
+                            {data.customer_hint.trim() === ''
+                                ? 'Tidak ada saran. Pelanggan langsung membuat laporan.'
+                                : data.customer_hint.trim()}
+                        </p>
+                    </div>
                     <div className="flex justify-end gap-2">
                         <Button type="button" variant="outline" onClick={close}>
                             Batal
