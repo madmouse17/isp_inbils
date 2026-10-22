@@ -4,7 +4,7 @@ Inbils sends Android push notifications to the customer and technician apps thro
 
 ## Credentials
 
-The server needs the Firebase Admin SDK service-account JSON, not `google-services.json`. Keep the key outside the repository and outside the web root. Set only its path:
+The server needs the Firebase Admin SDK service-account JSON, not `google-services.json`. The Android client config `google-services.json` lives in the mobile repository, tracked in git in both apps (`customer/android/app/` and `technician/android/app/`); it is not a secret, and the service-account JSON below is. Keep the key outside the repository and outside the web root. Set only its path:
 
 ```dotenv
 FIREBASE_CREDENTIALS=/absolute/path/firebase-service-account.json

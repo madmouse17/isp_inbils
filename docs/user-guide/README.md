@@ -57,7 +57,7 @@ otomatis ikut.
 
 ```bash
 flutter emulators --launch inbils_pixel7      # tunggu sampai emulator-5554 muncul di `flutter devices`
-cp ~/.config/inbils/google-services.json ../inbils-mobile/technician/android/app/   # juga ke customer/; hapus lagi sesudahnya
+# google-services.json ikut di repo aplikasi (config klien Firebase, bukan rahasia): tidak ada langkah salin
 cd ../inbils-mobile/technician
 flutter drive --flavor dev --dart-define-from-file=env/dev.json \
   --driver=test_driver/integration_test.dart \
