@@ -1,0 +1,47 @@
+# Local *.test domains with HTTPS, in the way Laragon gives every project a name (owner, 2026-10-22).
+# Development only: never part of a deploy, and it changes nothing in compose.yaml or compose.sail.yaml.
+#
+#   https://inbils.test         -> Sail (laravel.test:80)
+#   https://deploy.inbils.test  -> the 8080 stack (app:8080)
+#
+# Start: DOCKER_CONTEXT=default docker compose -f docker/devproxy/compose.yaml up -d --build
+# The one-time sudo steps (DNS for *.test, trusting the local certificate) are in docs/operations/DOCKER.md.
+name: inbils-devproxy
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    # Port 80 on 127.0.0.1 belongs to Sail, so this proxy serves HTTPS only.
+    ports:
+      - "127.0.0.1:443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    networks:
+      - sail
+      - deploy
+
+  # Answers every *.test name with 127.0.0.1 and nothing else; systemd-resolved sends only .test here.
+  dns:
+    build:
+      dockerfile_inline: |
+        FROM alpine:3.22
+        RUN apk add --no-cache dnsmasq
+        ENTRYPOINT ["dnsmasq", "--keep-in-foreground", "--log-facility=-", "--no-resolv", "--no-hosts", "--address=/test/127.0.0.1"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.2:53:53/udp"
+      - "127.0.0.2:53:53/tcp"
+
+volumes:
+  # The local certificate authority lives here: keep it, or every browser must trust a new one.
+  caddy_data:
+
+networks:
+  sail:
+    name: inbils-sail_sail
+    external: true
+  deploy:
+    name: inbils_inbils
+    external: true

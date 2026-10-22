@@ -1,0 +1,14 @@
+{
+	# Certificates from Caddy's own local authority; port 80 is Sail's, so no HTTP redirect listener.
+	local_certs
+	skip_install_trust
+	auto_https disable_redirects
+}
+
+inbils.test {
+	reverse_proxy laravel.test:80
+}
+
+deploy.inbils.test {
+	reverse_proxy app:8080
+}

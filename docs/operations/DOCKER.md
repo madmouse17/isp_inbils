@@ -206,6 +206,45 @@ Override the host binding or port in `.env.docker`, for example `APP_BIND_ADDRES
 docker compose --env-file .env.docker up -d --force-recreate app
 ```
 
+## Local `*.test` domains (like Laragon)
+
+`docker/devproxy/compose.yaml` gives the two local stacks a name with HTTPS, development only:
+
+| Address | Goes to |
+| --- | --- |
+| <https://inbils.test> | Sail (`laravel.test:80`) |
+| <https://deploy.inbils.test> | the 8080 stack (`app:8080`) |
+
+Two containers: `caddy` (HTTPS on `127.0.0.1:443` with certificates from its own local authority; port 80 stays Sail's, so there is no HTTP redirect) and `dns` (dnsmasq on `127.0.0.2:53`, answering every `*.test` name with `127.0.0.1` and nothing else). Both join the Sail and deploy networks as external networks, so start Sail and the 8080 stack first.
+
+```bash
+DOCKER_CONTEXT=default docker compose -f docker/devproxy/compose.yaml up -d --build
+```
+
+Both `.env` and `.env.docker` set `TRUSTED_PROXIES=172.16.0.0/12` (Docker networks), so the app keeps the `https` scheme behind Caddy; without it the page loads its assets over `http` and the browser blocks them. On a real server name the real proxy instead. `APP_URL` stays `http://localhost` and `http://localhost:8080`, so mail and queued links, the E2E suite and the healthchecks are unchanged; both stacks run with `APP_ENV=local`, where Laravel does not check the host. A stack switched to `production` must get the `.test` name as its `APP_URL`, or the host check refuses it.
+
+One-time steps on the host, run by the owner:
+
+1. Send `.test` lookups to the `dns` container. Every other name keeps the normal resolver:
+
+   ```bash
+   sudo mkdir -p /etc/systemd/resolved.conf.d
+   printf '[Resolve]\nDNS=127.0.0.2\nDomains=~test\n' | sudo tee /etc/systemd/resolved.conf.d/inbils-test.conf
+   sudo systemctl restart systemd-resolved
+   resolvectl query inbils.test   # 127.0.0.1
+   ```
+
+2. Trust the local certificate authority. Export it with `DOCKER_CONTEXT=default docker compose -f docker/devproxy/compose.yaml cp caddy:/data/caddy/pki/authorities/local/root.crt ~/inbils-local-ca.crt`, then:
+
+   ```bash
+   sudo cp ~/inbils-local-ca.crt /usr/local/share/ca-certificates/inbils-local-ca.crt && sudo update-ca-certificates
+   certutil -d sql:$HOME/.pki/nssdb -A -t "C,," -n "Inbils local CA" -i ~/inbils-local-ca.crt   # Chrome and Chromium
+   ```
+
+   Firefox keeps its own list: Settings, Privacy & Security, Certificates, View Certificates, Authorities, Import. The authority can sign a certificate for any name, and its key is in the `caddy_data` volume: never copy that volume off this machine, and keep the volume, or every browser must trust a new authority.
+
+Limits: `npm run dev` (Vite HMR on `http://localhost:5173`) does not work behind `https://inbils.test`, because the browser blocks the plain-HTTP script; use <http://localhost> for HMR, or `npm run build`. The Android emulator cannot resolve `*.test`, so the apps keep `10.0.2.2`. To remove it all: `docker compose -f docker/devproxy/compose.yaml down`, delete `/etc/systemd/resolved.conf.d/inbils-test.conf` and restart `systemd-resolved`.
+
 ## Local MySQL CLI
 
 The safe default publishes MySQL only on host loopback at `127.0.0.1:3307`:
