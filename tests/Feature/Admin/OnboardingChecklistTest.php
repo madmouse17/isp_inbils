@@ -7,7 +7,9 @@ namespace Tests\Feature\Admin;
 use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\Core\Location;
+use App\Models\Core\NumberSequence;
 use App\Models\User;
+use App\Services\Core\NumberSequenceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Modules\Service\Database\Factories\ServicePackageFactory;
@@ -256,7 +258,34 @@ class OnboardingChecklistTest extends TestCase
         return User::factory()->create(['company_id' => $company->id, 'email_verified_at' => now(), 'is_active' => $active]);
     }
 
-    /** @return array{steps: list<array{key: string, label: string, done: bool, href: string}>, done: int, total: int}|null */
+    public function test_the_card_lists_the_prefixes_of_ticket_invoice_and_spk_codes(): void
+    {
+        $admin = $this->userWithRole($this->makeCompany(), 'admin');
+
+        $this->assertSame([
+            ['entity' => 'ticket', 'label' => 'Tiket', 'prefix' => 'TKT'],
+            ['entity' => 'invoice', 'label' => 'Tagihan', 'prefix' => 'INV'],
+            ['entity' => 'spk', 'label' => 'SPK', 'prefix' => 'SPK'],
+        ], $this->onboarding($admin)['prefixes']);
+    }
+
+    public function test_the_card_shows_the_prefix_the_company_saved_not_the_default(): void
+    {
+        $company = $this->makeCompany();
+        $other = $this->makeCompany();
+        $admin = $this->userWithRole($company, 'admin');
+        NumberSequenceService::ensureAll($company->id);
+        NumberSequenceService::ensureAll($other->id);
+        NumberSequence::forCompany($company->id)->where('entity_type', 'invoice')->update(['prefix' => 'FAK']);
+        NumberSequence::forCompany($other->id)->where('entity_type', 'ticket')->update(['prefix' => 'XXX']);
+
+        $this->assertSame(
+            ['TKT', 'FAK', 'SPK'],
+            array_column($this->onboarding($admin)['prefixes'], 'prefix'),
+        );
+    }
+
+    /** @return array{steps: list<array{key: string, label: string, done: bool, href: string}>, prefixes: list<array{entity: string, label: string, prefix: string}>, done: int, total: int}|null */
     private function onboarding(User $user): ?array
     {
         return $this->actingAs($user)->get(route('admin.dashboard'))->assertOk()->inertiaProps('onboarding');

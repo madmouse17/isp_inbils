@@ -423,6 +423,35 @@ class DashboardExceptionCountsTest extends TestCase
         $this->assertSame(3, $this->section($manager, 'overdue_invoices')['count']);
     }
 
+    public function test_due_soon_invoice_card_counts_what_the_invoice_list_shows_for_due_within_three_days(): void
+    {
+        $company = $this->makeCompany();
+        $other = $this->makeCompany();
+        $manager = $this->userWithRole($company, 'manager');
+
+        // Today is 2026-10-10: the window is 10 October through 13 October.
+        $this->invoice($company, ['status' => 'sent', 'due_date' => '2026-10-10']);
+        $this->invoice($company, ['status' => 'partial', 'due_date' => '2026-10-12', 'paid_amount' => '200000.00']);
+        $this->invoice($company, ['status' => 'sent', 'due_date' => '2026-10-13']);
+        $this->invoice($company, ['status' => 'sent', 'due_date' => '2026-10-14']);
+        $this->invoice($company, ['status' => 'sent', 'due_date' => '2026-10-09']);
+        $this->invoice($company, ['status' => 'overdue', 'due_date' => '2026-10-11']);
+        $this->invoice($company, ['status' => 'draft', 'due_date' => '2026-10-11']);
+        $this->invoice($company, ['status' => 'paid', 'due_date' => '2026-10-11', 'paid_amount' => '1000000.00']);
+        $this->invoice($company, ['status' => 'sent', 'due_date' => '2026-10-11', 'paid_amount' => '1000000.00']);
+        $this->invoice($company, ['status' => 'sent', 'due_date' => '2026-10-11'])->delete();
+        $this->invoice($other, ['status' => 'sent', 'due_date' => '2026-10-11']);
+
+        $section = $this->section($manager, 'invoices_due_soon');
+
+        $this->assertSame(3, $section['count']);
+        $this->assertSame('warning', $section['severity']);
+        $this->assertSame('finance', $section['group']);
+        $this->assertSame('Jatuh tempo ≤ 3 hari', $section['title']);
+        $this->assertSame(route('admin.invoices.index', ['due_within' => 3]), $section['href']);
+        $this->assertSame(3, $this->actingAs($manager)->get($section['href'])->inertiaProps('invoices.meta.total'));
+    }
+
     public function test_draft_invoice_card_counts_the_drafts_the_invoice_list_shows_for_status_draft(): void
     {
         $company = $this->makeCompany();
@@ -569,8 +598,10 @@ class DashboardExceptionCountsTest extends TestCase
         $returns = $this->section($manager, 'return_queue');
         $this->actingAs($manager);
 
-        $this->assertSame(4, $requests['count']);
-        $this->assertSame(InventoryRequestService::getBadgeCounts($manager)['warehouse_queue'], $requests['count']);
+        $this->assertSame(1, $requests['count'], 'the manager approves what waits for them, the rest of the queue is for others');
+        $this->assertSame(InventoryRequestService::getBadgeCounts($manager)['warehouse_actionable'], $requests['count']);
+        $this->assertSame(['queue' => 4], $requests['breakdown']);
+        $this->assertSame(InventoryRequestService::getBadgeCounts($manager)['warehouse_queue'], $requests['breakdown']['queue']);
         $this->assertSame('info', $requests['severity']);
         $this->assertSame('warehouse', $requests['group']);
         $this->assertSame(route('admin.inventory.requests.index', ['tab' => 'warehouse']), $requests['href']);
@@ -653,14 +684,15 @@ class DashboardExceptionCountsTest extends TestCase
             $this->actingAs($manager)->get($sections['low_stock']['href'])->inertiaProps('stocks.meta.total'),
         );
         $this->assertSame(
-            $sections['warehouse_requests']['count'],
+            $sections['warehouse_requests']['breakdown']['queue'],
             $this->actingAs($manager)->get($sections['warehouse_requests']['href'])->inertiaProps('requests.meta.total'),
         );
         $this->assertSame(3, $sections['dispatch_unassigned']['count']);
         $this->assertSame(2, $sections['approvals']['count']);
         $this->assertSame(1, $sections['sla_breached']['count']);
         $this->assertSame(1, $sections['low_stock']['count']);
-        $this->assertSame(2, $sections['warehouse_requests']['count']);
+        $this->assertSame(1, $sections['warehouse_requests']['count']);
+        $this->assertSame(2, $sections['warehouse_requests']['breakdown']['queue']);
     }
 
     public function test_my_work_count_matches_the_my_work_list(): void
@@ -705,6 +737,7 @@ class DashboardExceptionCountsTest extends TestCase
             'return_queue' => 'warning',
             'low_stock' => 'warning',
             'overdue_invoices' => 'danger',
+            'invoices_due_soon' => 'neutral',
             'online_payment_exceptions' => 'neutral',
             'draft_invoices' => 'neutral',
             'online_payment_pending' => 'neutral',

@@ -12,7 +12,7 @@ interface OnboardingChecklistCardProps {
  * link to the page that finishes it, so the open work is what stands out. The list is not numbered: the order is free.
  */
 export function OnboardingChecklistCard({ onboarding }: OnboardingChecklistCardProps) {
-    const { steps, done, total } = onboarding;
+    const { steps, prefixes, done, total } = onboarding;
 
     return (
         <Card className="flex flex-col gap-4 p-5">
@@ -22,6 +22,10 @@ export function OnboardingChecklistCard({ onboarding }: OnboardingChecklistCardP
             />
             <p className="text-sm text-muted-foreground">
                 Langkah tercentang otomatis begitu datanya ada. Urutannya bebas.
+            </p>
+            <p className="text-sm text-muted-foreground">
+                Kode dokumen dimulai dengan{' '}
+                {prefixes.map(({ label, prefix }) => `${label} ${prefix}`).join(', ')}.
             </p>
             <ul aria-label="Langkah penyiapan" role="list" className="grid gap-2 sm:grid-cols-2">
                 {steps.map((step) => (

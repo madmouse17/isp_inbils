@@ -33,6 +33,7 @@ const roleVisibility: Record<
             'Antrean retur material',
             'Stok di bawah minimum',
             'Tagihan jatuh tempo',
+            'Jatuh tempo ≤ 3 hari',
             'Pembayaran online bermasalah',
             'Pembayaran online tertunda',
         ],
@@ -52,6 +53,7 @@ const roleVisibility: Record<
             'Antrean retur material',
             'Stok di bawah minimum',
             'Tagihan jatuh tempo',
+            'Jatuh tempo ≤ 3 hari',
             'Pembayaran online bermasalah',
             'Pembayaran online tertunda',
         ],
@@ -70,6 +72,7 @@ const roleVisibility: Record<
             'Antrean retur material',
             'Stok di bawah minimum',
             'Tagihan jatuh tempo',
+            'Jatuh tempo ≤ 3 hari',
             'Pembayaran online bermasalah',
             'Pembayaran online tertunda',
         ],
@@ -174,6 +177,9 @@ test('@dashboard-persona admin first-run checklist counts the steps and links to
 
     await expect(checklist.getByRole('progressbar')).toBeVisible();
     await expect(checklist.getByText(/^\d+ dari 7 langkah selesai$/)).toBeVisible();
+    await expect(
+        checklist.getByText(/^Kode dokumen dimulai dengan Tiket \w+, Tagihan \w+, SPK \w+\.$/),
+    ).toBeVisible();
     await expect(
         checklist.getByRole('list', { name: 'Langkah penyiapan' }).getByRole('listitem'),
     ).toHaveCount(7);

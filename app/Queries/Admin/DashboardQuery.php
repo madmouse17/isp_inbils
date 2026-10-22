@@ -5,6 +5,7 @@ namespace App\Queries\Admin;
 use App\Models\User;
 use App\Services\Core\CompanyService;
 use App\Support\Money;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
@@ -13,11 +14,13 @@ use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Arr;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\PaymentAttempt;
+use Modules\Billing\Services\BillingService;
 use Modules\Billing\Services\PaymentAttemptService;
 use Modules\Inventory\Models\MaterialReturnCase;
 use Modules\Inventory\Models\Stock;
 use Modules\Inventory\Services\InventoryRequestService;
 use Modules\Inventory\Services\MaterialReturnService;
+use Modules\SPK\Models\WorkOrder;
 use Modules\Ticketing\Models\Ticket;
 
 /**
@@ -38,6 +41,9 @@ final class DashboardQuery
 
     /** The statuses BillingService::receivables() treats as open; checkOverdue() only flips sent and partial. */
     private const OPEN_INVOICE_STATUSES = ['sent', 'partial', 'overdue'];
+
+    /** Days ahead the "due soon" invoice card looks; its link carries the same number as ?due_within. */
+    private const INVOICE_DUE_SOON_DAYS = 3;
 
     /**
      * @return list<array<string, mixed>>
@@ -60,6 +66,7 @@ final class DashboardQuery
             self::returnQueue($user, $inventory['returns']),
             self::lowStock($user),
             self::overdueInvoices($user),
+            self::invoicesDueSoon($user),
             self::onlinePaymentExceptions($user),
             self::draftInvoices($user),
             self::onlinePaymentPending($user),
@@ -191,23 +198,47 @@ final class DashboardQuery
         $waiting = (ApprovalInboxQuery::isEligibleForSpk($user) ? ApprovalInboxQuery::spkWaitingCount($request) : 0)
             + (ApprovalInboxQuery::isEligibleForInventoryRequest($user) ? ApprovalInboxQuery::inventoryWaitingCount($request) : 0);
 
-        return self::section('approvals', 'approvals', 'Menunggu persetujuan saya', $waiting, route('admin.approvals.index'), 'warning');
+        return self::section('approvals', 'approvals', 'Menunggu persetujuan saya', $waiting, route('admin.approvals.index'), 'warning', [
+            'maker_blocked' => self::makerBlockedSpk($user),
+        ]);
     }
 
     /**
+     * SPK waiting for review that the actor made: the maker-checker rule keeps them out of the inbox count, so the card
+     * says another admin has to decide instead of showing a bare 0 (F4-U16).
+     */
+    private static function makerBlockedSpk(User $user): int
+    {
+        if (! ApprovalInboxQuery::isEligibleForSpk($user)) {
+            return 0;
+        }
+
+        return WorkOrder::query()
+            ->forCompany(CompanyService::idFor($user))
+            ->where('status', 'waiting_review')
+            ->where('created_by', $user->id)
+            ->count();
+    }
+
+    /**
+     * What this actor can act on now (approve, prepare or hand over), not the whole queue the tab lists; the whole queue
+     * rides along as `breakdown.queue` (null for an actor who may only reject, as `warehouse_queue` is).
+     *
      * @param  array<string, int|null>|null  $requests
      * @return array<string, mixed>|null
      */
     private static function warehouseRequests(User $user, ?array $requests): ?array
     {
-        $queue = $requests['warehouse_queue'] ?? null;
+        $actionable = $requests['warehouse_actionable'] ?? null;
 
         // The warehouse tab only lists the whole queue for inventory.request.view.all.
-        if ($queue === null || ! $user->can('inventory.request.view.all')) {
+        if ($actionable === null || ! $user->can('inventory.request.view.all')) {
             return null;
         }
 
-        return self::section('warehouse_requests', 'warehouse', 'Antrean permintaan gudang', $queue, route('admin.inventory.requests.index', ['tab' => 'warehouse']), 'info');
+        return self::section('warehouse_requests', 'warehouse', 'Antrean permintaan gudang', $actionable, route('admin.inventory.requests.index', ['tab' => 'warehouse']), 'info', [
+            'breakdown' => ['queue' => $requests['warehouse_queue']],
+        ]);
     }
 
     /**
@@ -277,6 +308,31 @@ final class DashboardQuery
         return self::section('overdue_invoices', 'finance', 'Tagihan jatuh tempo', $count, route('admin.invoices.index', ['status' => 'overdue']), 'danger', [
             'outstanding' => $outstanding,
         ]);
+    }
+
+    /**
+     * Invoices still to be paid whose due date falls within the next few days, by the company's calendar: the near miss
+     * before the overdue card. The count is the invoice list's own for ?due_within=3 (InvoiceController::whereDueWithin).
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function invoicesDueSoon(User $user): ?array
+    {
+        if (! $user->can('billing.view')) {
+            return null;
+        }
+
+        $companyId = (int) CompanyService::idFor($user);
+        $today = CarbonImmutable::parse(BillingService::todayFor($companyId));
+
+        $count = Invoice::query()
+            ->forCompany($companyId)
+            ->whereIn('status', ['sent', 'partial'])
+            ->whereColumn('paid_amount', '<', 'total')
+            ->whereBetween('due_date', [$today->toDateString(), $today->addDays(self::INVOICE_DUE_SOON_DAYS)->toDateString()])
+            ->count();
+
+        return self::section('invoices_due_soon', 'finance', 'Jatuh tempo ≤ '.self::INVOICE_DUE_SOON_DAYS.' hari', $count, route('admin.invoices.index', ['due_within' => self::INVOICE_DUE_SOON_DAYS]), 'warning');
     }
 
     /**

@@ -46,18 +46,18 @@ class DashboardPersonaTest extends TestCase
             'admin' => ['admin', [
                 'dispatch_unassigned', 'sla_breached', 'sla_due_soon', 'customer_replied', 'approvals',
                 'warehouse_requests', 'return_queue', 'low_stock',
-                'overdue_invoices', 'online_payment_exceptions', 'draft_invoices', 'online_payment_pending',
+                'overdue_invoices', 'invoices_due_soon', 'online_payment_exceptions', 'draft_invoices', 'online_payment_pending',
             ]],
             'manager' => ['manager', [
                 'dispatch_unassigned', 'sla_breached', 'sla_due_soon', 'customer_replied', 'approvals',
                 'warehouse_requests', 'return_queue', 'low_stock',
-                'overdue_invoices', 'online_payment_exceptions', 'draft_invoices', 'online_payment_pending',
+                'overdue_invoices', 'invoices_due_soon', 'online_payment_exceptions', 'draft_invoices', 'online_payment_pending',
             ]],
             // Operator persona: it prepares and issues but cannot approve, so no approvals card.
             'staff' => ['staff', [
                 'sla_breached', 'sla_due_soon', 'customer_replied',
                 'warehouse_requests', 'return_queue', 'low_stock',
-                'overdue_invoices', 'online_payment_exceptions', 'draft_invoices', 'online_payment_pending',
+                'overdue_invoices', 'invoices_due_soon', 'online_payment_exceptions', 'draft_invoices', 'online_payment_pending',
             ]],
             // The technician's own web dashboard is closed (app-only); the role keeps its permission set.
             'technician' => ['technician', ['sla_breached', 'sla_due_soon', 'customer_replied', 'low_stock']],
@@ -111,7 +111,7 @@ class DashboardPersonaTest extends TestCase
                 'operations', 'operations', 'operations', 'operations', 'operations',
                 'approvals',
                 'warehouse', 'warehouse', 'warehouse',
-                'finance', 'finance', 'finance', 'finance',
+                'finance', 'finance', 'finance', 'finance', 'finance',
             ],
             array_column($this->sections($this->dashboard($admin)), 'group'),
         );
@@ -133,6 +133,7 @@ class DashboardPersonaTest extends TestCase
             'return_queue' => 'Antrean retur material',
             'low_stock' => 'Stok di bawah minimum',
             'overdue_invoices' => 'Tagihan jatuh tempo',
+            'invoices_due_soon' => 'Jatuh tempo ≤ 3 hari',
             'online_payment_exceptions' => 'Pembayaran online bermasalah',
             'draft_invoices' => 'Tagihan draf menunggu dikirim',
             'online_payment_pending' => 'Pembayaran online tertunda > 1 jam',
@@ -209,19 +210,19 @@ class DashboardPersonaTest extends TestCase
     public static function billingCapabilities(): array
     {
         return [
-            'billing.view alone only reads what is overdue' => [['billing.view'], ['overdue_invoices']],
+            'billing.view alone only reads what is overdue or due soon' => [['billing.view'], ['overdue_invoices', 'invoices_due_soon']],
             'recording payments without billing.view opens nothing' => [['billing.payment.record'], []],
             'a payment recorder who can read billing settles online payments' => [
                 ['billing.view', 'billing.payment.record'],
-                ['overdue_invoices', 'online_payment_exceptions', 'online_payment_pending'],
+                ['overdue_invoices', 'invoices_due_soon', 'online_payment_exceptions', 'online_payment_pending'],
             ],
             'a sender without payment recording sees drafts, not online payments' => [
                 ['billing.view', 'billing.send'],
-                ['overdue_invoices', 'draft_invoices'],
+                ['overdue_invoices', 'invoices_due_soon', 'draft_invoices'],
             ],
             'both permissions see every finance card' => [
                 ['billing.view', 'billing.send', 'billing.payment.record'],
-                ['overdue_invoices', 'online_payment_exceptions', 'draft_invoices', 'online_payment_pending'],
+                ['overdue_invoices', 'invoices_due_soon', 'online_payment_exceptions', 'draft_invoices', 'online_payment_pending'],
             ],
         ];
     }
@@ -517,6 +518,32 @@ class DashboardPersonaTest extends TestCase
         ksort($types);
         ksort($titles);
         $this->assertSame($types, $titles);
+    }
+
+    public function test_the_approvals_card_tells_a_maker_that_their_own_waiting_spk_need_another_admin(): void
+    {
+        $company = $this->makeCompany();
+        $manager = $this->userWithRole($company, 'manager');
+        $admin = $this->userWithRole($company, 'admin');
+        $this->workOrder($company, ['status' => 'waiting_review', 'created_by' => $manager->id]);
+        $this->workOrder($company, ['status' => 'draft', 'created_by' => $manager->id]);
+        $this->workOrder($this->makeCompany(), ['status' => 'waiting_review', 'created_by' => $manager->id]);
+
+        $own = collect($this->sections($this->dashboard($manager)))->firstWhere('key', 'approvals');
+
+        $this->assertSame(0, $own['count'], 'the maker-checker rule keeps their own SPK out of the count');
+        $this->assertSame(1, $own['maker_blocked']);
+        $this->assertSame('neutral', $own['severity']);
+
+        $this->workOrder($company, ['status' => 'waiting_review', 'created_by' => $admin->id]);
+
+        $both = collect($this->sections($this->dashboard($manager)))->firstWhere('key', 'approvals');
+        $this->assertSame(1, $both['count']);
+        $this->assertSame(1, $both['maker_blocked']);
+
+        $adminCard = collect($this->sections($this->dashboard($admin)))->firstWhere('key', 'approvals');
+        $this->assertSame(1, $adminCard['count'], 'the admin sees the manager\'s SPK; their own is the blocked one');
+        $this->assertSame(1, $adminCard['maker_blocked']);
     }
 
     private function dashboard(User $user): TestResponse

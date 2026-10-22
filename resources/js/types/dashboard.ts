@@ -45,14 +45,18 @@ export type DashboardSection =
     | CountSection<'sla_due_soon', 'operations'>
     /** Open tickets whose newest public comment is the customer's, so nobody on staff has answered since. */
     | CountSection<'customer_replied', 'operations'>
-    | CountSection<'approvals', 'approvals'>
-    | CountSection<'warehouse_requests', 'warehouse'>
+    /** `maker_blocked` counts SPK waiting for review that the actor made: another admin decides those, so they are not in `count`. */
+    | (CountSection<'approvals', 'approvals'> & { maker_blocked: number })
+    /** `count` is what the actor can act on now; `breakdown.queue` is the whole queue the tab lists (null when the actor may only reject). */
+    | (CountSection<'warehouse_requests', 'warehouse'> & { breakdown: { queue: number | null } })
     /** `count` is awaiting receipt plus exceptions. */
     | (CountSection<'return_queue', 'warehouse'> & { breakdown: { exceptions: number } })
     /** Stock rows (product x location), as the Stocks list shows them. */
     | CountSection<'low_stock', 'warehouse'>
     /** `outstanding` is a decimal string with two decimals, for example "1550000.50". */
     | (CountSection<'overdue_invoices', 'finance'> & { outstanding: string })
+    /** Open invoices due today through three days ahead, by the company's calendar: the list behind it is `?due_within=3`. */
+    | CountSection<'invoices_due_soon', 'finance'>
     /** Money Midtrans took that nobody has settled: the "Perlu dicek" list on Tunggakan. */
     | CountSection<'online_payment_exceptions', 'finance'>
     /** `total` is what the draft invoices add up to, a decimal string like `outstanding`. */
@@ -73,8 +77,18 @@ export interface OnboardingStep {
     href: string;
 }
 
+/** A numbered entity and the prefix its codes start with, for example Tiket / TKT. */
+export interface OnboardingPrefix {
+    entity: string;
+    /** Indonesian name of the entity. */
+    label: string;
+    prefix: string;
+}
+
 export interface OnboardingChecklist {
     steps: OnboardingStep[];
+    /** Ticket, invoice and SPK, in that order. */
+    prefixes: OnboardingPrefix[];
     done: number;
     total: number;
 }

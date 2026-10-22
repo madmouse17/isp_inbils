@@ -53,6 +53,10 @@ function detailsOf(section: DashboardSection, company: Company | null): Detail[]
                 { label: 'Tiket', value: formatNumber(section.breakdown.tickets) },
                 { label: 'SPK', value: formatNumber(section.breakdown.spk) },
             ];
+        case 'warehouse_requests':
+            return section.breakdown.queue === null
+                ? []
+                : [{ label: 'Seluruh antrean', value: formatNumber(section.breakdown.queue) }];
         case 'return_queue':
             return [{ label: 'Pengecualian', value: formatNumber(section.breakdown.exceptions) }];
         case 'overdue_invoices':
@@ -107,6 +111,11 @@ export function SectionCard({ section, company, className }: SectionCardProps) {
                             </div>
                         ))}
                     </dl>
+                )}
+                {section.key === 'approvals' && section.maker_blocked > 0 && (
+                    <p className="mt-3 text-xs text-muted-foreground">
+                        {formatNumber(section.maker_blocked)} SPK menunggu admin (Anda pembuatnya)
+                    </p>
                 )}
             </Link>
             {section.key === 'sla_breached' && section.items.length > 0 && (

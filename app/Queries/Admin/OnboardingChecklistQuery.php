@@ -5,8 +5,10 @@ namespace App\Queries\Admin;
 use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\Core\Location;
+use App\Models\Core\NumberSequence;
 use App\Models\User;
 use App\Services\Core\CompanyService;
+use App\Support\NumberSequences\NumberSequenceRegistry;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use InvalidArgumentException;
 use Modules\Service\Models\ServicePackage;
@@ -30,8 +32,11 @@ final class OnboardingChecklistQuery
         'billing' => ['label' => 'Atur penagihan otomatis', 'route' => 'admin.company.settings.edit', 'fragment' => 'tagihan'],
     ];
 
+    /** The codes a new company meets first; the card shows their prefixes so the format is known before the first record. */
+    private const NUMBERED = ['ticket', 'invoice', 'spk'];
+
     /**
-     * @return array{steps: list<array{key: string, label: string, done: bool, href: string}>, done: int, total: int}|null
+     * @return array{steps: list<array{key: string, label: string, done: bool, href: string}>, prefixes: list<array{entity: string, label: string, prefix: string}>, done: int, total: int}|null
      */
     public static function for(User $user): ?array
     {
@@ -60,7 +65,24 @@ final class OnboardingChecklistQuery
 
         $done = count(array_filter($steps, fn (array $step): bool => $step['done']));
 
-        return $done === count($steps) ? null : ['steps' => $steps, 'done' => $done, 'total' => count($steps)];
+        return $done === count($steps) ? null : ['steps' => $steps, 'prefixes' => self::prefixes($companyId), 'done' => $done, 'total' => count($steps)];
+    }
+
+    /**
+     * The prefix each numbered entity uses now: the company's saved one, else the default a new row would start with.
+     *
+     * @return list<array{entity: string, label: string, prefix: string}>
+     */
+    private static function prefixes(int $companyId): array
+    {
+        $registry = app(NumberSequenceRegistry::class);
+        $saved = NumberSequence::forCompany($companyId)->whereIn('entity_type', self::NUMBERED)->pluck('prefix', 'entity_type');
+
+        return array_map(function (string $entity) use ($registry, $saved): array {
+            $definition = $registry->get($entity);
+
+            return ['entity' => $entity, 'label' => $definition->label, 'prefix' => $saved[$entity] ?? $definition->defaultPrefix];
+        }, self::NUMBERED);
     }
 
     /** The three company steps need nothing beyond the card's own gate; the others need what their page needs, and what it asks. */
