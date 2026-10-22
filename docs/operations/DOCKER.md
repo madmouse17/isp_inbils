@@ -243,7 +243,7 @@ One-time steps on the host, run by the owner:
 
    Firefox keeps its own list: Settings, Privacy & Security, Certificates, View Certificates, Authorities, Import. The authority can sign a certificate for any name, and its key is in the `caddy_data` volume: never copy that volume off this machine, and keep the volume, or every browser must trust a new authority.
 
-Limits: `npm run dev` (Vite HMR on `http://localhost:5173`) does not work behind `https://inbils.test`, because the browser blocks the plain-HTTP script; use <http://localhost> for HMR, or `npm run build`. The Android emulator cannot resolve `*.test`, so the apps keep `10.0.2.2`. To remove it all: `docker compose -f docker/devproxy/compose.yaml down`, delete `/etc/systemd/resolved.conf.d/inbils-test.conf` and restart `systemd-resolved`.
+Limits: `npm run dev` (Vite HMR on `http://localhost:5173`) does not work behind `https://inbils.test`, because the browser blocks the plain-HTTP script; use <http://localhost> for HMR, or `npm run build`. The Android emulator cannot resolve `*.test`, so the apps keep `10.0.2.2`. Caddy reaches the stacks by their service names on their networks; if a `*.test` address answers 502 after Sail or the 8080 stack was taken down and up again, reattach the proxy with `DOCKER_CONTEXT=default docker compose -f docker/devproxy/compose.yaml up -d --force-recreate`. To remove it all: `docker compose -f docker/devproxy/compose.yaml down`, delete `/etc/systemd/resolved.conf.d/inbils-test.conf` and restart `systemd-resolved`.
 
 ## Local MySQL CLI
 
