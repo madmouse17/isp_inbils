@@ -98,11 +98,15 @@ Skema: `docs/DATABASE.md` Section 10 (Ticketing).
   `resolution_note` text nullable, `created_by` FK→users.id NOT NULL, created_at,
   updated_at, deleted_at. Saat `close`, dua kolom nama beku diisi:
   `category_name_snapshot` string nullable dan `assignee_name_snapshot` string
-  nullable (lihat "Snapshot tiket tertutup").
+  nullable (lihat "Snapshot tiket tertutup"). Penilaian pelanggan: `customer_rating`
+  tinyint unsigned nullable (1 sampai 5), `customer_rating_comment` text nullable,
+  `customer_rated_at` timestamp nullable; kosong sampai pelanggan menilai (lihat
+  "Penilaian pelanggan (K14)").
 - Unique: `(company_id, code)`. Index: `(company_id, status)`,
   `(company_id, source)`, `(company_id, category_id)`,
   `(company_id, assigned_to)`, `(company_id, customer_id)`,
-  `(company_id, sla_deadline)`, `(company_id, spawned_spk_id)`. Trait
+  `(company_id, sla_deadline)`, `(company_id, spawned_spk_id)`,
+  `(company_id, customer_rated_at, customer_rating)` (angka kepuasan satu periode). Trait
   `BelongsToCompany`. Soft delete.
 - Check: `source IN ('customer','noc','internal')`, `status IN ('open',
   'assigned','on_progress','resolved','closed')`, `priority IN ('low',
@@ -146,14 +150,17 @@ Lihat `docs/WORKFLOW.md` Section 8 (Ticketing). Ringkas state machine:
 | open/assigned/on_progress | sama | balasan publik staf | Balasan publik pertama mengisi `first_response_at` dan `first_response_source=reply`; catatan internal tidak dihitung. |
 | on_progress | resolved | resolve(resolution_note) | `resolved_at` dan `resolution_note` diisi. |
 | resolved | assigned atau open | balasan pelanggan | Komentar disimpan, lalu tiket dibuka kembali ke `assigned` bila masih punya petugas atau `open` bila tidak; `resolved_at` dan `resolution_note` dikosongkan, `reopened_at` diisi, tenggat tidak diulang. |
+| resolved atau closed | assigned atau open | staf dengan `ticket.reopen`, memakai alasan (`reopenByStaff`) | Sama dengan baris di atas, ditambah `closed_at` dikosongkan; alasan dan pelaku masuk audit `reopened`; petugas dan pelanggan diberi tahu. |
 | resolved | closed | close | `closed_at` diisi, snapshot nama kategori dan petugas dibekukan. |
 
-Tiket `closed` menolak komentar staf dengan 422 "Tiket sudah ditutup." dan menolak balasan atau lampiran pelanggan dengan API 422 `ticket_closed`, "Tiket ditutup. Masih bermasalah? Buat tiket baru.". Tiket tertutup tetap final. Pembukaan kembali manual oleh staf berada di gelombang berikutnya.
+Tiket `closed` menolak komentar staf dengan 422 "Tiket sudah ditutup." dan menolak balasan atau lampiran pelanggan dengan API 422 `ticket_closed`, "Tiket ditutup. Masih bermasalah? Buat tiket baru.". Hanya pemegang `ticket.reopen` yang bisa membukanya kembali, dengan alasan (lihat "Buka kembali oleh staf" di gelombang 3); pelanggan menilai tiket tertutup lewat `confirmation` tetapi tidak membukanya.
 
 ### SLA
 - Saat create: `TicketService::computeDeadlines` menghitung dua tenggat dari
-  `created_at` (jam kalender, bukan jam kerja): `sla_deadline` (resolusi) dan
-  `response_deadline` (respons pertama, kosong bila targetnya kosong). Sumber
+  `created_at`: `sla_deadline` (resolusi) dan `response_deadline` (respons
+  pertama, kosong bila targetnya kosong). Targetnya dihitung dalam jam kalender
+  (24 jam), kecuali tingkat SLA berhitungan `business` pada perusahaan yang
+  sudah mengisi `service_hours` (lihat gelombang 3 di bawah). Sumber
   targetnya (`slaTarget`):
   1. Tingkat SLA dari **versi paket** yang dipakai langganan tiket
      (`subscription.packageVersion.slaTier`: `response_time_hours` dan
@@ -179,10 +186,19 @@ Tiket `closed` menolak komentar staf dengan 422 "Tiket sudah ditutup." dan menol
 - Terbuka berarti status selain `resolved` dan `closed`. `Ticket::scopeDueSoon($menit = 30)` memilih tiket terbuka yang `response_deadline` (selama `first_response_at` kosong) atau `sla_deadline` jatuh antara sekarang dan sekarang + `$menit`. `Ticket::scopeAwaitingStaffReply()` memilih tiket terbuka yang komentar publik terbarunya ditulis akun portal pelanggan tiket itu dan tidak ada komentar publik sesudahnya. Keduanya hanya memakai query builder dan dilayani indeks `tickets (company_id, response_deadline)`, `tickets (company_id, sla_deadline)` dan `ticket_comments (ticket_id, created_at)`.
 - `GET admin.tickets.index` dan `admin.tickets.export` memakai satu `filteredQuery()` dengan parameter tambahan `unassigned` (terbuka tanpa petugas), `due_soon`, `awaiting_reply` dan `sort_by=response_deadline`. "Tiket saya" memakai `assigned_to` milik sendiri. Cakupan petugas di `TicketController` tetap berlaku di atasnya, jadi petugas tanpa `ticket.assign` mendapat daftar kosong untuk `unassigned`. Ekspor memuat kolom "Petugas" dan "Respons sebelum".
 - Dashboard memakai predikat yang sama untuk kartu `sla_due_soon` ("Hampir terlampaui (≤ 30 menit)") dan `customer_replied` ("Pelanggan membalas"), dengan audiens dan cakupan kartu `sla_breached`. Tidak ada lonceng baru untuk keduanya.
-- `TicketService::deadlineSource()` mengembalikan `{type: tier|category, name, response_hours, resolution_hours, urgent_halved}`. Halaman menulis hitungannya, misalnya "6 jam ÷ 2 karena Mendesak = 3 jam"; `computeDeadlines()` tidak berubah.
+- `TicketService::deadlineSource()` mengembalikan `{type: tier|category, name, response_hours, resolution_hours, urgent_halved, calendar}`. Halaman menulis hitungannya, misalnya "6 jam ÷ 2 karena Mendesak = 3 jam"; `computeDeadlines()` memakai `calendar` yang sama (lihat gelombang 3 di bawah).
 - Data pelanggan di payload tiket: baris daftar membawa id, kode dan nama. Halaman tiket menambah `user_id` akun portal dan `phone`. Record penuh (email, NPWP, catatan, alamat) hanya untuk pemegang `customer.view`. Penulis komentar hanya id dan nama.
 - `GET admin.evaluations.create?ticket=<id>` mengisi karyawan dan tiket untuk tiket perusahaan ini yang `closed` dan punya petugas, tanpa nilai. Id yang asing, terbuka, tanpa petugas atau tidak dikenal memberi form kosong, bukan galat.
 - API teknisi `GET /api/v1/technician/my-work`: baris tiket membawa `response_due_at` (ISO, = `response_deadline` selama `first_response_at` kosong, selain itu `null`). Aplikasi menampilkan hitungan mundur dan kartu tiket mendesak di Beranda.
+
+### Pembukaan kembali, tenggat jam layanan dan aturan lapangan (flow-audit-fixes gelombang 3)
+- **Buka kembali oleh staf (K13).** `POST admin.tickets.reopen` (`TicketPolicy::reopen`): izin `ticket.reopen`, perusahaan yang sama, pengguna aktif, status `resolved` atau `closed`. Alasan wajib, 5 sampai 500 karakter ("Alasan" di dialog "Buka kembali tiket {kode}?"). Status kembali ke `assigned` bila tiket masih punya petugas, selain itu `open`; `resolved_at`, `resolution_note` dan `closed_at` dikosongkan, `reopened_at` diisi, tenggat tidak dihitung ulang dan penilaian pelanggan tetap. Status lain: 422 "Hanya tiket yang diselesaikan atau ditutup yang bisa dibuka kembali." Audit `ticket` / `reopened` (`by`, `reason`, `previous_status`). Notifikasi: petugas aktif (bila tidak ada, pemegang `ticket.assign`; pelaku tidak diberi tahu soal tindakannya sendiri) dan pelanggan ("Tiket {kode} dibuka kembali dan akan ditangani lagi."). Balasan pelanggan pada tiket `resolved` tetap membuka tiket seperti sebelumnya, hanya staf yang diberi tahu. Template Admin, Manajer dan NOC memegang izin ini (migrasi `2026_11_02_100700`); peran milik perusahaan yang bukan salinan Manajer atau NOC mendapatkannya dari admin perusahaan di **Peran**.
+- **Tugaskan ke saya.** `POST admin.tickets.assign-self` untuk tiket yang belum punya petugas; pemegang `ticket.assign`. Bila petugas lain lebih cepat: 409. Daftar petugas di dialog "Tugaskan tiket" menulis "{nama} · {n} pekerjaan aktif" (tiket yang belum selesai ditambah SPK yang belum selesai milik orang itu) dan, saat sistem memberi saran, menandai yang paling sedikit dengan "Paling sedikit pekerjaan". Email petugas tidak lagi ikut dikirim ke halaman.
+- **Tenggat dan sumbernya.** `TicketService::deadlineSource()` kini mengembalikan `{type, name, response_hours, resolution_hours, urgent_halved, calendar}`. `calendar` bernilai `24h` atau `business`: tingkat SLA punya kolom `sla_tiers.calendar` (default `24h`, tampil sebagai "Hitungan tenggat": "24 jam" atau "Jam layanan"), sedangkan kategori selalu `24h`. Pada `business`, `App\Support\ServiceHours::add` menghitung target dalam menit buka saja, menurut pengaturan `service_hours` perusahaan (`{mon..sun: null atau ["HH:MM","HH:MM"]}`, `null` = tutup, jam tutup tidak ikut dihitung, zona waktu perusahaan). Tiket yang masuk di luar jam buka mulai dihitung saat buka berikutnya. Selama `service_hours` kosong, tenggat dihitung 24 jam, `deadlineSource().calendar` tetap `24h` dan Pengaturan Perusahaan menulis "Jam layanan belum diisi; tenggat dihitung 24 jam." Teks `support_hours` untuk pelanggan tidak berubah dan tidak dibaca perhitungan.
+- **Pratinjau SLA.** Form tiket baru memanggil `GET admin.tickets.sla-preview` dan menulis "Target respons {jam}, selesai {jam}" (atau "Tanpa target respons").
+- **Jarak check-in (K10).** Saat teknisi memulai tiket atau SPK (`Mulai`), jarak ke lokasi pelanggan dibandingkan dengan `checkin_max_distance_m` (default 500 m, 50 sampai 100000, Pengaturan Perusahaan, bagian Lapangan). Lebih jauh dari batas tanpa `check_in.far_reason` (sampai 300 karakter): 422 pada `check_in.far_reason`, "Anda berjarak {jarak} dari lokasi pelanggan. Tulis alasannya untuk melanjutkan." Check-in yang tersimpan memuat `far` dan `far_reason`, dan halaman tiket, SPK serta lembar tinjauan persetujuan menulis "Jauh dari lokasi: {alasan}". Pemberitahuan berangkat (en route) tidak dibatasi. Titik GPS yang tidak bisa diambil, atau lokasi tanpa koordinat, tidak pernah dianggap jauh. Jarak ditulis "820 m" di bawah 1 km dan "1,2 km" dari 1 km.
+- **Lampiran.** Web dan API menerima jpg, jpeg, png dan pdf (sampai 10 MB); doc dan txt ditolak. Keterangan (`caption`, opsional: 200 karakter di web, 255 di API) disimpan bersama berkasnya. `TicketAttachmentResource` melaporkan `caption`, `uploaded_at` dan `uploader_first_name` untuk aplikasi. Pada tiket `closed` halaman menulis "Tiket sudah ditutup. Lampiran baru tidak bisa ditambahkan." dan tidak menampilkan kotak unggah.
+- **Muatan data.** Payload tiket memuat ringkasan pelanggan (`{id, kode, nama}`), ringkasan langganan (`{id, kode}`) dan ringkasan aset jaringan (`{id, kode, nama}`), bukan record penuh. API teknisi tiket menambah `site {address, lat, lng, source}` (`installation` atau `pop`).
 
 ### Snapshot tiket tertutup
 - `TicketService::close` mengunci baris tiket, lalu menyimpan nama kategori
@@ -201,6 +217,7 @@ Tiket `closed` menolak komentar staf dengan 422 "Tiket sudah ditutup." dan menol
 - Migrasi `2026_10_23_100400_add_snapshot_columns_to_tickets_table` mengisi
   tiket tertutup yang sudah ada sekali, dengan nama saat migrasi dijalankan, dan
   hanya baris yang kolomnya masih kosong.
+- Membuka kembali tiket tertutup (staf atau, untuk tiket `resolved`, balasan pelanggan) mengosongkan `category_name_snapshot` dan `assignee_name_snapshot`: tiket yang terbuka lagi mengikuti nama hidup, dan `close` berikutnya membekukannya lagi.
 - Hapus dan pulihkan: tiket `closed` dihapus lunak (aturan lama tidak berubah).
   Filter **Status** daftar tiket punya pilihan **Dihapus** dan **Semua,
   termasuk dihapus**, dan baris yang dihapus punya aksi **Pulihkan**
@@ -229,10 +246,11 @@ Tiket `closed` menolak komentar staf dengan 422 "Tiket sudah ditutup." dan menol
 - Trigger: Kepala Unit manual (button "Spawn SPK") OR auto saat resolve-
   but-needs-field-work.
 
-### Customer rating (v2 hook)
-- Saat close: customer rating (1-5) optional. v1: field disimpan tapi
-  customer portal v2. v1: staff input rating atas nama customer (optional).
-- EmployeeEvaluation reference_type=Ticket bisa catat rating + score.
+### Penilaian pelanggan (K14)
+- Pelanggan menilai 1 sampai 5 lewat `POST /api/v1/customer/tickets/{ticket}/confirmation` (izin `evaluation.customer.submit`), dengan komentar opsional. Tiket `resolved` ditutup oleh jawaban itu ("Sudah beres" di aplikasi) memakai rutinitas penutupan yang sama dengan staf, termasuk snapshot nama. Tiket `closed` yang belum dinilai hanya menerima penilaian.
+- Kolom `tickets.customer_rating`, `customer_rating_comment` dan `customer_rated_at` kosong sampai pelanggan menilai (kosong bukan nol, jadi rata-rata melewatinya). Satu tiket dinilai satu kali; penilaian bertahan saat tiket dibuka kembali.
+- Halaman tiket staf menulis "Penilaian pelanggan: 4 dari 5" beserta komentar. Form evaluasi yang dibuka dari tiket mengisi `customer_rating` dari penilaian itu; staf tetap bisa mengetik nilai atas nama pelanggan.
+- Laporan Kepatuhan SLA menghitung CSAT dari kolom ini (lihat `docs/business/reporting.md`). EmployeeEvaluation reference_type=Ticket bisa mencatat rating + score.
 
 ## Permission
 
@@ -245,7 +263,7 @@ ticket.assign         (Kepala Unit)
 ticket.start          (handler, self-assigned)
 ticket.resolve        (handler)
 ticket.close          (Kepala Unit)
-ticket.reopen         (v2)
+ticket.reopen         (Admin, Manajer, NOC; staf membuka kembali tiket selesai atau tertutup dengan alasan)
 ticket.comment.create
 ticket.comment.internal   (post internal comment)
 ticket.attachment.upload
@@ -270,12 +288,16 @@ Lihat `docs/API.md` Section 8 (Ticketing group). Ringkas:
 - `POST   /admin/tickets/{ticket}/resolve` (body: resolution_note)
 - `POST   /admin/tickets/{ticket}/close`
 - `POST   /admin/tickets/{ticket}/comments` (body: body, is_internal)
-- `POST   /admin/tickets/{ticket}/attachments` (multipart upload)
+- `POST   /admin/tickets/{ticket}/attachments` (multipart: `file` jpg, jpeg, png or pdf up to 10 MB, `caption` optional up to 200 characters)
 - `GET    /admin/tickets/{ticket}/attachments`
 - `DELETE /admin/tickets/{ticket}/attachments/{att}`
-- `GET    /api/v1/customer/tickets/{ticket}` dan daftar menambah `can_reply` serta `reopened_at`
+- `POST   /admin/tickets/{ticket}/reopen` (body: `reason` 5 to 500 characters; `ticket.reopen`; only `resolved` or `closed`)
+- `POST   /admin/tickets/{ticket}/assign-self` (`admin.tickets.assign-self`: "Tugaskan ke saya", an unassigned ticket; 409 when somebody was quicker)
+- `GET    /admin/tickets/sla-preview` (`category_id`, optional `subscription_id` and `priority`; answers `response_due`, `resolution_due`, `source` and `calendar` without saving anything; `ticket.create`)
+- `GET    /api/v1/customer/tickets/{ticket}` dan daftar menambah `can_reply`, `reopened_at`, `rating`, `can_confirm` dan `can_rate`
 - `POST   /api/v1/customer/tickets/{ticket}/comments`: tiket `resolved` dibuka kembali; tiket `closed` menjawab 422 `ticket_closed`
-- Unggah lampiran pelanggan mengikuti penolakan tiket `closed` yang sama
+- `POST   /api/v1/customer/tickets/{ticket}/confirmation` (body: `rating` 1 sampai 5, `comment` opsional sampai 1000 karakter; `evaluation.customer.submit`; `Idempotency-Key`): tiket `resolved` ditutup dan dinilai, tiket `closed` yang belum dinilai hanya dinilai. 409 `ticket_already_rated` "Tiket ini sudah dinilai."; 422 `ticket_not_resolved` "Tiket belum diselesaikan."
+- Unggah lampiran pelanggan mengikuti penolakan tiket `closed` yang sama dan tipe berkas yang sama (jpg, jpeg, png, pdf, sampai 10 MB; `caption` opsional sampai 255 karakter)
 - `POST   /admin/tickets/{ticket}/spawn-spk` (create SPK maintenance from ticket)
 - `GET    /admin/ticket-categories` (+ POST/PUT/DELETE)
 - `GET    /admin/tickets/export`
@@ -287,7 +309,7 @@ Lihat `docs/API.md` Section 8 (Ticketing group). Ringkas:
 2. A public staff reply before **Mulai** sets `first_response_source=reply`; an internal note or customer reply does not.
 3. If no reply exists, H01 starts the ticket and sets `first_response_source=start`, status `on_progress`.
 4. H01 resolves the ticket. A customer reply reopens it to `assigned`, clears the resolution fields, retains both deadlines, and notifies H01 plus `ticket.assign` holders.
-5. Closing makes the ticket terminal. Staff comments and customer comments or attachments are refused.
+5. The customer answers "Masalah sudah beres?" with a rating: the resolved ticket closes and `customer_rating` is stored. Closing makes the ticket final for comments: staff comments and customer comments or attachments are refused. A holder of `ticket.reopen` can still bring it back with a reason; the deadlines and the rating stay.
 
 ### Spawn SPK from ticket
 1. Ticket fiber_issue, on_progress, needs field work (fiber cut).

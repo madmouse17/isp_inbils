@@ -368,12 +368,36 @@ Notes:
 - A later release that adds a permission does it with `PermissionCatalogue::release()` in a migration (`docs/SECURITY.md` 2.5), never with the seeder.
 - **Rollback**: `php artisan down`; `php artisan migrate:rollback --step=6`; redeploy the previous release; then `config:cache`, `permission:cache-reset`, `queue:restart` and `up`. Migration 5 refuses to roll back once companies have diverged (two companies hold different permissions under one role name, a company lacks a role name another has, a user's role names differ between his companies, or a top-up role has users). It then stops with "Roles changed per company since the cutover; restore the pre-deploy backup instead." Restore the backup taken in step 1.
 
+## Flow audit wave 3 release (lane `flow-audit-fixes`)
+
+Web, notifications, mail and reports change; the mobile API only gains fields and one route (`POST api/v1/customer/tickets/{ticket}/confirmation`), so old app builds keep working. Release the web first, the two apps after.
+
+1. Deploy the tenant roles release first (its migrations are `2026_10_28_*`).
+2. Before the deploy, set `MAIL_FROM_ADDRESS` and `MAIL_FROM_NAME` in `.env.docker` (the template has `no-reply@inbils.local` and `"${APP_NAME}"`, with `APP_NAME=Inbils`). In production `/ready` reports `mail` as `fail`, so the overall status is `degraded`, while the address is empty, ends with `.local` or ends with `example.com`. Use an address on a domain the platform owns. A company with its own e-mail integration keeps its own sender; this address is the platform sender (reset links, invitations, subsidiary requests).
+3. Build and start the new release, then `php artisan migrate --force`. The seven migrations of `2026_11_02_1001xx` to `1007xx` are additive:
+
+   | Migration | What it does | Online DDL |
+   |---|---|---|
+   | `100100_add_customer_rating_to_tickets_table` (Ticketing) | `tickets.customer_rating`, `customer_rating_comment`, `customer_rated_at` (all `NULL` until a customer rates) and the index `tickets_company_id_customer_rated_at_customer_rating_index` | `INSTANT` for the columns, `INPLACE, LOCK=NONE` for the index |
+   | `100200_localise_default_ticket_categories` (Ticketing) | renames the five seeded English category names to Indonesian and fills an empty `customer_hint`; only a name that still equals the seeded English one is touched | none (data) |
+   | `100300_add_calendar_to_sla_tiers_table` (Service) | `sla_tiers.calendar` enum `24h` or `business`, default `24h`, so every tier keeps counting 24 hours | `INSTANT` |
+   | `100400_move_inventory_request_numbers_to_yearly` (Inventory) | companies still on `{PREFIX}-{YYYY}{MM}{DD}-{SEQ:4}` with a daily reset move to `{PREFIX}-{YYYY}-{SEQ:5}` with a yearly reset and the counter at 1; a company that changed its template or reset period is left alone | none (data) |
+   | `100500_add_receipt_fields_to_stock_movements_table` (Inventory) | `stock_movements.supplier_name`, `purchase_reference`, `unit_cost` | `INSTANT` |
+   | `100600_add_last_disconnect_at_to_network_accounts_table` (NetworkAsset) | `network_accounts.last_disconnect_at` | `INSTANT` |
+   | `100700_release_ticket_reopen_to_templates` | grants `ticket.reopen` to the templates Manager and NOC and to company roles copied from them, through `PermissionCatalogue::release()`; a company's own roles are left alone, its administrator adds the permission in **Peran** | none (data) |
+
+   Request codes already issued keep their text (`REQ-20261020-0003`); the new shape (`REQ-2026-00001`) cannot collide with them. Rollback of each migration undoes only its own rows: `migrate:rollback` drops the columns, restores the old template on rows that still hold the new pair, and takes `ticket.reopen` away from the two templates and the roles copied from them.
+4. Afterwards run `php artisan config:cache`, `php artisan permission:cache-reset` (the new grant) and `php artisan queue:restart`, so workers load the new notifications and the new job `WriteNasDeviceJob`. The scheduler needs no change: `php artisan schedule:list` now also shows `customers:document-expiry` (daily 00:30, `withoutOverlapping(120)`). Jobs and mail details: [JOBS_NOTIFICATIONS.md](./JOBS_NOTIFICATIONS.md).
+5. Check `/up`, `/ready` (`storage_link` and `mail` must read `ok` in production; if `storage_link` fails, `public/storage` is not a symbolic link: run `php artisan storage:link`) and `/platform/login`.
+6. Two company settings have defaults and need no migration: **Jarak check-in maksimal** (`checkin_max_distance_m`, 500 meter, 50 to 100000) in the section Lapangan, and **Jam layanan** (`service_hours`, empty) on Pengaturan Perusahaan. While **Jam layanan** is empty, tiers on the business calendar count 24 hours and the page shows "Jam layanan belum diisi; tenggat dihitung 24 jam." The administrator of each ISP sets both.
+7. The development database `inbils` takes the additive `migrate` only. There is no reseed and no cleanup, so it keeps the old English category names and `E2E-SUB` rows.
+
 ## Health and readiness
 
 - `/up` is the liveness endpoint.
 - `/ready` is the operational readiness endpoint.
 - `/ready` must fail when the database is unavailable and must not expose exception text, hostnames, SQLSTATE, or credentials.
-- Readiness includes database, cache, queue, failed jobs, scheduler heartbeat, and backup marker checks.
+- Readiness includes database, cache, queue, failed jobs, scheduler heartbeat, backup marker, `storage_link` (every `config/filesystems.php` link is a symbolic link to its target) and `mail` (production only: a real `MAIL_FROM_ADDRESS`) checks.
 - The backup marker is set by `php artisan ops:backup-heartbeat` after every verified backup. If the marker is older than 25 hours, `/ready` reports backup `fail` (degraded). If the marker was never set, it reports `unknown`.
 
 ## Scheduler ownership

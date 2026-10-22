@@ -113,11 +113,31 @@ FCM `notification` messages survive aggressive vendor battery savers (Xiaomi, Op
 
 The committed `docs/api/mobile-v1.openapi.json` is the final enum of bell notification `type` values. Push-enabled types are:
 
-- customer: `invoice_issued`, `invoice_due_soon`, `invoice_overdue`, `payment_received`, `technician_en_route`, `visit_completed`, `announcement_published` for outage/maintenance;
-- technician: `ticket_assigned`, `ticket_sla_breached`, `ticket_first_response_due`, `spk_scheduled`, `spk_approved`, `spk_rejected`, `inventory_request_ready`.
+- customer: `invoice_issued`, `invoice_due_soon`, `invoice_overdue`, `payment_received`, `technician_en_route`, `visit_completed`, `announcement_published` for outage/maintenance, and the ticket stages `ticket_created`, `ticket_assigned`, `ticket_started`, `ticket_replied`, `ticket_resolved`, `ticket_closed`, `ticket_reopened`;
+- technician: `ticket_assigned`, `ticket_created`, `ticket_customer_replied`, `ticket_reopened`, `ticket_sla_breached`, `ticket_first_response_due`, `spk_scheduled`, `spk_approved`, `spk_rejected`, `inventory_request_ready`.
 - both apps: `push_test`, the test push of Akun → Notifikasi uji (below); it goes to the requesting install only.
 
 `invoice_reminder` remains in the API enum for bell rows written before the split into due-soon and overdue.
+
+`customer_document_expiring` is in the enum too, but it is a web bell row for staff who may update customers (channel `database` only). It is never pushed.
+
+### Texts of the bell and the push
+
+`App\Http\Resources\NotificationResource` builds `title` and `message` once, for the bell list and for the push (`FcmChannel` calls it), so the two always read the same. Wave 3 made the invoice and ticket texts say what happened. The text comes from keys the notification stores in its `data`; a row written before those keys existed keeps the generic text of the old release, so nothing breaks.
+
+| `type` | Title | Message | Keys read from `data` |
+|---|---|---|---|
+| `invoice_issued` | Tagihan {number} | Tagihan {number} sebesar Rp {total}, jatuh tempo {tanggal}. | `invoice_number`, `total`, `due_date` |
+| `invoice_due_soon` (stage H-3, H-1 or `manual`) | {number} jatuh tempo 3 hari lagi, besok, or the date | Sisa Rp {outstanding}. Bayar lewat aplikasi. | `invoice_number`, `outstanding`, `due_date`, `stage` |
+| `invoice_overdue` | {number} lewat jatuh tempo | Sisa Rp {outstanding} belum dibayar sejak {tanggal}. | `invoice_number`, `outstanding`, `due_date` |
+| `payment_received` | Pembayaran diterima | Rp {amount} untuk {number} sudah kami terima. Terima kasih. | `invoice_number`, `amount` |
+| `ticket_assigned` (technician) | Tiket {code} · {prioritas} | {title}. Respons sebelum {jam}. | `ticket_code`, `priority`, `title`, `response_due_local` |
+| `ticket_resolved` (customer) | Tiket {code} diselesaikan | {first 80 characters of the resolution} Sudah beres? | `ticket_code`, `resolution_excerpt` |
+| `ticket_reopened` (staff, by staff) | Tiket {code} dibuka kembali | Oleh {nama}: {alasan} | `ticket_code`, `by`, `actor_name`, `reason` |
+| `ticket_reopened` (customer) | Tiket dibuka kembali | Tiket {code} dibuka kembali dan akan ditangani lagi. | `ticket_code` |
+| `customer_document_expiring` (bell only) | Dokumen {jenis} {pelanggan} segera habis | Berlaku sampai {tanggal}. | `document_type`, `customer_name`, `expires_at` |
+
+Notes: `invoice_due_soon` with stage `manual` is the reminder staff send with **Kirim pengingat** on the tab **Per tagihan** of Tunggakan; the type becomes `invoice_overdue` when the due date is already behind the company's today. `invoice_reminder` keeps its old generic text. `response_due_local` is the response deadline in the company's time ("21.17", or "08.30 besok" on the next day). The reason in the staff `ticket_reopened` text is cut at 140 characters; the audit row keeps all of it. Staff reopening sends the customer stage `reopened`. A customer's own reply on a resolved ticket also reopens it, but then only staff are told (generic text "Pelanggan membalas tiket {code} yang sudah diselesaikan, jadi tiket dibuka kembali.").
 
 ## Smoke test
 

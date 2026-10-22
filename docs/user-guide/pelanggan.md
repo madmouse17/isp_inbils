@@ -37,7 +37,7 @@ Saat aplikasi dibuka, layar menampilkan logo Inbils dengan kilau cahaya yang mel
 3. Isi **Kata sandi**. Ketuk ikon mata untuk menampilkan atau menyembunyikan kata sandi.
 4. Ketuk **Masuk**.
 
-Bila email atau kata sandi salah, muncul "Email atau kata sandi salah." Setelah beberapa kali salah, aplikasi menampilkan "Terlalu banyak percobaan"; tunggu sesuai waktu yang tertera.
+Bila email atau kata sandi salah, muncul "Email atau kata sandi salah." tepat di bawah kolom **Email**, dan pesan itu hilang begitu Anda mengubah email. Pesan lain dari server tampil di tempat yang sama, misalnya "Akun perusahaan Anda sedang ditangguhkan. Hubungi dukungan." Setelah beberapa kali salah, aplikasi menampilkan "Terlalu banyak percobaan"; tunggu sesuai waktu yang tertera.
 
 Anda tetap masuk di ponsel ini sampai Anda keluar, mengganti kata sandi, atau masa berlaku sesi berakhir (sampai 90 hari; aplikasi memperbarui sesi sendiri selama dipakai). Lihat "Kesalahan umum".
 
@@ -88,7 +88,7 @@ Warna aplikasi mengikuti warna merek ISP Anda, dan logo ISP tampil di kiri atas 
    - **Tagihan**: "Sisa yang harus dibayar" dengan jumlahnya, tanggal jatuh tempo, dan nomor tagihan. Bila tidak ada tagihan terbuka, kartu menulis "Semua tagihan lunas" dan "Tagihan berikutnya {tanggal}". Warna kartu mengikuti keadaan: warna merek ISP bila aman, warna peringatan bila jatuh tempo dalam 1 sampai 7 hari ("Jatuh tempo 7 hari lagi") atau hari ini ("Jatuh tempo hari ini"), dan merah bila terlambat ("Lewat 3 hari") atau layanan diisolir. Teks dan ikon di dalam kartu menyampaikan hal yang sama, jadi warna bukan satu-satunya petunjuk. Aplikasi menampilkan tagihan terbuka yang paling awal pada semua kartu layanan, lengkap dengan nomornya.
    - Tombol besar **Bayar** membuka tagihan itu (tombolnya **Lihat tagihan** bila tagihan tidak bisa dibayar online). Di bawahnya tertulis QRIS, VA bank, e-wallet, dan minimarket sebagai metode yang bisa muncul di halaman pembayaran. Metode yang benar-benar tersedia ditentukan oleh Midtrans dan ISP.
    - Layanan **Diisolir** karena tunggakan menampilkan semua tagihan yang masih menahan reaktivasi di bawah judul **Lunasi tagihan berikut agar layanan aktif kembali**. Setiap baris memuat nomor, jumlah, dan jatuh tempo, lalu **Total**. Satu tagihan memakai tombol **Bayar**. Dua tagihan atau lebih memakai **Bayar semua (Rp {total})**. Layanan **Ditangguhkan** karena alasan lain menulis "Layanan Anda sedang ditangguhkan. Hubungi {nama ISP} untuk informasi lebih lanjut." dengan tombol **Hubungi ISP**. Layanan **Menunggu** menulis "Layanan Anda belum aktif."
-4. **Aksi cepat**: **Bayar**, **Laporkan gangguan**, **Riwayat pembayaran**, dan **Hubungi ISP**. **Bayar** membuka tagihan paling awal yang belum dibayar, atau tab **Tagihan** bila tidak ada. **Laporkan gangguan** membuka formulir tiket baru (bab 6). **Hubungi ISP** membuka lembar kontak dengan WhatsApp, telepon, email, situs web, dan jam layanan yang diisi ISP. Ketuk satu baris untuk membukanya. Bila ISP belum mengisi kontak, lembar itu mengarahkan Anda ke tab **Bantuan**.
+4. **Aksi cepat**: **Bayar**, **Lapor masalah**, **Riwayat pembayaran**, dan **Hubungi ISP**. **Bayar** membuka tagihan paling awal yang belum dibayar, atau tab **Tagihan** bila tidak ada. **Lapor masalah** membuka layar **Ada masalah?** dengan jenis masalah dan langkah cepat (bab 6). **Hubungi ISP** membuka lembar kontak dengan WhatsApp, telepon, email, situs web, dan jam layanan yang diisi ISP. Ketuk satu baris untuk membukanya. Bila ISP belum mengisi kontak, lembar itu mengarahkan Anda ke tab **Bantuan**.
 5. **Sedang berjalan**: kunjungan teknisi yang berikutnya, lalu sampai tiga tiket aktif Anda. Kartu kunjungan memuat nomor SPK, jenis kunjungan (misalnya **Instalasi** atau **Perawatan**), tahap sekarang (**Ditugaskan**, **Dalam perjalanan**, atau **Sedang dikerjakan**), dan tanggal jadwal bila ada. Ketuk kartu itu untuk membuka detail kunjungan (bagian **Kunjungan teknisi** di bab 5). Kartu tiket menampilkan statusnya; ketuk satu tiket untuk membukanya, atau **Lihat semua** untuk ke tab **Bantuan**. Bila tidak ada kunjungan dan tidak ada tiket, tertulis "Tidak ada tiket aktif".
 
    ![Beranda dengan kartu kunjungan SPK pada bagian Sedang berjalan, tahap Dalam perjalanan](images/customer/redesign/kunjungan-beranda-dalam-perjalanan.png)
@@ -133,28 +133,33 @@ Tagihan yang masih berupa konsep di ISP tidak tampil di aplikasi.
 
 Layar detail memuat, dari atas ke bawah:
 
-- Tanggal terbit dan jatuh tempo.
+- Tanggal terbit dan jatuh tempo, serta **Periode tagihan** bila ISP mengisinya.
 - **Sisa yang harus dibayar** dengan status tagihan.
 - Subtotal, Diskon, Pajak, **Total**, dan **Sudah dibayar**.
-- Tombol **Bayar** dengan catatan tentang halaman Midtrans (lihat di bawah).
+- Tombol **Bayar** dengan catatan tentang halaman Midtrans (lihat di bawah). Tagihan yang belum lunas tetapi tidak bisa dibayar di aplikasi menampilkan tombol **Hubungi ISP**, yang membuka lembar kontak ISP, jadi Anda tidak pernah buntu.
+- **Pembayaran online terakhir** dan alasan bila percobaan bayar terakhir tidak berhasil (lihat di bawah).
 - **Rincian tagihan**: tiap baris dengan jumlah × harga satuan.
-- **Pembayaran**: pembayaran yang sudah tercatat pada tagihan ini, dan tautan **Lihat riwayat pembayaran**.
+- **Pembayaran**: pembayaran yang sudah tercatat pada tagihan ini, masing-masing dengan metode, tanggal dan jam, nomor referensi ("Ref. ...") bila ada, dan jumlahnya, serta tautan **Lihat riwayat pembayaran**.
+- Tagihan **Lunas** punya tombol **Unduh bukti bayar**. Aplikasi menyiapkan PDF ("Menyiapkan bukti bayar…"), lalu membuka lembar bagikan Android: simpan, kirim, atau buka dengan aplikasi pembaca PDF. Bila gagal, tertulis "Bukti bayar tidak bisa diunduh. Coba lagi."
+
+![Detail tagihan yang tidak bisa dibayar di aplikasi: tombol Hubungi ISP](images/customer/detail-tagihan-tidak-bisa-dibayar.png)
 
 Tarik layar ke bawah untuk memuat ulang.
-
-Tersedia pada versi berikutnya: periode tagihan, referensi dan metode pada tiap pembayaran, dan **struk PDF** untuk tagihan yang sudah lunas. Datanya sudah dikirim server, tetapi aplikasi belum menampilkannya.
 
 ## Bayar lewat Midtrans
 
 Pembayaran online dilakukan di halaman milik Midtrans, bukan di dalam aplikasi. Anda membayar **seluruh sisa** tagihan, bukan sebagian.
 
 1. Buka tagihan yang belum dibayar, atau yang lewat jatuh tempo, atau yang dibayar sebagian.
-2. Ketuk **Bayar**. Tombol menampilkan indikator sementara aplikasi meminta halaman pembayaran.
-3. Halaman pembayaran Midtrans terbuka di browser dalam aplikasi (atau browser ponsel bila perlu).
-4. Pilih metode pembayaran di halaman itu dan ikuti petunjuknya sampai selesai. Metode yang muncul ditentukan oleh Midtrans dan pengaturan akun merchant ISP; aplikasi tidak membatasi atau memilihkannya.
-5. Setelah selesai, kembali ke aplikasi Inbils.
+2. Ketuk **Bayar**. Aplikasi bertanya "Bayar tagihan sekarang?" dan menjelaskan bahwa Anda akan diarahkan ke halaman pembayaran. Ketuk **Lanjut bayar**.
+3. Layar **Menyiapkan pembayaran** tampil sebentar dengan sisa yang dibayar, jatuh tempo, dan bilah kemajuan, sementara aplikasi meminta halaman pembayaran. Tombol kembali ditahan selama layar ini, paling lama sekitar 30 detik.
+4. Halaman pembayaran Midtrans terbuka di browser dalam aplikasi (atau browser ponsel bila perlu).
+5. Pilih metode pembayaran di halaman itu dan ikuti petunjuknya sampai selesai. Metode yang muncul ditentukan oleh Midtrans dan pengaturan akun merchant ISP; aplikasi tidak membatasi atau memilihkannya.
+6. Setelah selesai, kembali ke aplikasi Inbils.
 
 Halaman pembayaran yang sudah dibuat dipakai ulang selama belum kedaluwarsa (24 jam) dan jumlahnya masih sama dengan sisa tagihan. Jadi mengetuk **Bayar** dua kali tidak membuat dua tagihan pembayaran.
+
+Selama halaman pembayaran yang sudah dibuat masih berlaku, bagian **Pembayaran online terakhir** menulis **Menunggu pembayaran** dan "Bayar sebelum 08.30 besok" (batas waktunya, ditulis seperti orang menyebut jam). Setelah lewat, tertulis **Kedaluwarsa**; ketuk **Bayar** untuk membuat halaman baru.
 
 ### Setelah bayar
 
@@ -181,7 +186,7 @@ Bila percobaan bayar terakhir tidak selesai, detail tagihan menulis alasannya di
 
 Bila ISP sudah mengaktifkan WhatsApp dan Anda menyetujuinya, pesan "pembayaran diterima" juga dikirim ke WhatsApp. Lihat bab 7.
 
-Bila pembayaran online tidak tersedia, detail tagihan menampilkan "Pembayaran online belum tersedia. Hubungi kami untuk membayar tagihan ini." Bayar lewat kantor atau rekening ISP; petugas mencatatnya dan tagihan berubah di aplikasi. Tagihan yang sudah lunas atau dibatalkan tidak punya tombol **Bayar**.
+Bila pembayaran online tidak tersedia, detail tagihan menampilkan "Pembayaran online belum tersedia. Hubungi kami untuk membayar tagihan ini." dengan tombol **Hubungi ISP**. Bayar lewat kantor atau rekening ISP; petugas mencatatnya dan tagihan berubah di aplikasi. Tagihan yang sudah lunas atau dibatalkan tidak punya tombol **Bayar**.
 
 Jangan bayar dua kali. Bila Anda ragu apakah pembayaran sudah masuk, periksa status tagihan dan Riwayat pembayaran dulu.
 
@@ -231,7 +236,7 @@ Setiap baris memuat nama paket, biaya bulanan, dan status. Ketuk satu baris untu
 
 Data yang belum ada tertulis "Tidak tersedia". Data langganan hanya bisa dibaca; perubahan paket atau alamat dilakukan lewat ISP.
 
-Tersedia pada versi berikutnya: kecepatan paket (misalnya **Hingga 50 Mbps**), tingkat SLA beserta target respons dan penyelesaiannya, nama pengguna PPPoE, peta alamat pemasangan, dan waktu penangguhan. Datanya sudah dikirim server, tetapi aplikasi belum menampilkannya.
+Detail langganan juga memuat bagian **Janji layanan** ("Paket SLA {nama}" dengan "Respons ≤ 4 jam, selesai ≤ 24 jam", bila paket Anda punya SLA), **Koneksi** dengan **Username PPPoE** yang bisa disalin ("Username PPPoE disalin."), dan peta alamat pemasangan dengan tombol **Buka di Maps**. Langganan yang ditangguhkan menulis penyebabnya dan sejak kapan.
 
 ## Status langganan
 
@@ -293,20 +298,21 @@ Kunjungan yang dibatalkan menulis **Dibatalkan** tanpa langkah. Aplikasi tidak m
 
 # 6. Bantuan dan tiket
 
-Tab **Bantuan** dipakai untuk melaporkan gangguan atau meminta bantuan ISP. Isinya jalan pintas **Ada masalah?**, daftar tiket Anda, dan kontak ISP. Setiap tiket tercatat dengan nomor dan bisa dibalas petugas.
+Tab **Bantuan** dipakai untuk melapor masalah atau meminta bantuan ISP. Isinya kartu gangguan dari ISP (bila ada), jalan pintas **Ada masalah?**, daftar tiket Anda, dan kontak ISP. Setiap laporan tercatat sebagai tiket dengan nomor dan bisa dibalas petugas. Pintu untuk melapor hanya satu dan selalu bernama **Lapor masalah**: jenis masalah dulu, lalu langkah cepat, lalu formulir.
 
 ## Daftar tiket
 
-![Tab Bantuan: kartu Ada masalah?, filter Aktif dan Selesai, dan kartu tiket dengan tahap progres](images/customer/redesign/bantuan-teal-dark.png)
+![Tab Bantuan dengan kartu gangguan di atas, kartu Ada masalah?, dan daftar tiket](images/customer/bantuan-gangguan.png)
 
 Layar menampilkan, dari atas ke bawah:
 
-1. Kartu **Ada masalah?** ("Coba langkah cepat dulu sebelum membuat tiket."). Ketuk untuk membuka langkah cepat (bagian berikut).
-2. **Tiket Anda** dengan filter **Aktif** (tiket Terbuka, Ditugaskan, dan Diproses) atau **Selesai** (tiket Selesai dan Ditutup).
-3. Kartu tiket. Setiap kartu memuat kode tiket, judul, status, tanggal "Diperbarui", dan tiga tahap progres: **Dibuka**, **Ditangani**, dan **Selesai**. Tahap **Ditangani** menyala saat tiket Ditugaskan atau Diproses, dan tahap **Selesai** saat tiket Selesai atau Ditutup. Pembaca layar mendengar "Tahap 2 dari 3: Ditangani". Ikon salin di kanan atas kartu menyalin kode tiket ("Nomor tiket disalin."). Berikan kode itu bila menghubungi ISP lewat telepon atau WhatsApp. Ketuk kartu untuk membuka detail.
-4. Gulir ke bawah untuk memuat tiket berikutnya, lalu kartu **Hubungi {nama ISP}** dengan WhatsApp, telepon, email, situs web, dan jam layanan yang diisi ISP (bagian ini sama dengan kartu di tab **Akun**, bab 8).
+1. **Kartu gangguan** bila ISP menerbitkan pengumuman jenis Gangguan untuk area atau paket Anda: judul pengumuman, "Ada gangguan di area Anda sejak 19.40." dan "Perkiraan pulih 22.00." (perkiraan hanya tampil bila ISP mengisinya dan waktunya belum lewat). Ketuk **Ikuti pembaruan** untuk membaca pengumumannya. Kartu yang sama tampil di layar **Ada masalah?**, jadi Anda tahu penyebabnya sebelum membuat tiket kedua.
+2. Kartu **Ada masalah?** ("Coba langkah cepat dulu sebelum melapor masalah."). Ketuk untuk membuka jenis masalah (bagian berikut).
+3. **Tiket Anda** dengan filter **Aktif** (tiket Terbuka, Ditugaskan, dan Dikerjakan) atau **Selesai** (tiket Diselesaikan dan Ditutup).
+4. Kartu tiket. Setiap kartu memuat kode tiket, judul, status, tanggal "Diperbarui", dan tiga tahap progres: **Dibuka**, **Ditangani**, dan **Selesai**. Tahap **Ditangani** menyala saat tiket Ditugaskan atau Dikerjakan, dan tahap **Selesai** saat tiket Diselesaikan atau Ditutup. Pembaca layar mendengar "Tahap 2 dari 3: Ditangani". Ikon salin di kanan atas kartu menyalin kode tiket ("Nomor tiket disalin."). Berikan kode itu bila menghubungi ISP lewat telepon atau WhatsApp. Ketuk kartu untuk membuka detail.
+5. Gulir ke bawah untuk memuat tiket berikutnya, lalu kartu **Hubungi {nama ISP}** dengan WhatsApp, telepon, email, situs web, dan jam layanan yang diisi ISP (bagian ini sama dengan kartu di tab **Akun**, bab 8).
 
-Tombol **Buat tiket** melayang di pojok kanan bawah.
+Tombol **Lapor masalah** melayang di pojok kanan bawah dan membuka layar yang sama dengan kartu **Ada masalah?**. Tarik layar ke bawah untuk memuat ulang daftar dan kartu gangguan.
 
 Kosong: "Tidak ada tiket aktif." atau "Belum ada tiket selesai."
 
@@ -316,42 +322,44 @@ Status tiket:
 | --- | --- |
 | Terbuka | Tiket diterima dan menunggu penanganan. |
 | Ditugaskan | Tiket sudah diserahkan ke petugas. |
-| Diproses | Petugas sedang menangani. |
-| Selesai | Petugas menyatakan masalah sudah selesai. |
-| Ditutup | Tiket ditutup dan tidak menerima balasan atau lampiran baru. Bila masalah masih ada, buat tiket baru. |
+| Dikerjakan | Petugas sedang menangani. |
+| Diselesaikan | Petugas menyatakan masalah sudah selesai. Tiket menunggu konfirmasi Anda (bagian "Masalah sudah beres?"). |
+| Ditutup | Tiket ditutup dan tidak menerima balasan atau lampiran baru. Bila masalah masih ada, lapor lagi lewat tombol **Buat tiket baru** di tiket itu. |
 
 ## Ada masalah? Coba langkah cepat dulu
 
-Sebelum membuat tiket, aplikasi menawarkan langkah yang bisa Anda coba sendiri. Banyak gangguan koneksi selesai dengan langkah ini.
+Sebelum mengirim laporan, aplikasi menawarkan langkah yang bisa Anda coba sendiri. Banyak gangguan koneksi selesai dengan langkah ini.
 
 ![Ada masalah?: pilih jenis masalah](images/customer/redesign/ada-masalah-kategori-teal-dark.png)
 
-1. Di tab **Bantuan**, ketuk kartu **Ada masalah?**. Layar menulis "Pilih jenis masalah yang Anda alami."
+1. Di tab **Bantuan**, ketuk kartu **Ada masalah?** atau tombol **Lapor masalah**. Dari Beranda, ketuk **Lapor masalah** di aksi cepat. Layar menulis "Pilih jenis masalah yang Anda alami."
 2. Ketuk kategori, misalnya **No Internet** atau **Slow Connection**. Daftar kategori mengikuti yang diatur ISP.
 3. Baca kartu **Coba dulu**. Bila ISP menulis **Saran untuk pelanggan** untuk kategori itu, kartu menampilkan teks ISP apa adanya, termasuk baris barunya. Bila ISP belum menulis, kartu menampilkan tiga langkah umum:
    - Cek lampu modem. Catat lampu yang mati atau berwarna merah.
    - Cabut kabel listrik modem, tunggu 30 detik, lalu pasang lagi.
    - Cek kabel di modem. Pastikan tidak longgar, tertekuk, atau putus.
 4. Bila Anda punya lebih dari satu layanan yang bisa dilaporkan, pilih **Layanan yang bermasalah** (atau biarkan "Tidak terkait layanan"). Bila hanya satu, aplikasi memilihnya sendiri.
-5. Bila masalah belum hilang, ketuk **Masih bermasalah? Buat tiket**. Formulir tiket terbuka dengan kategori dan layanan yang sudah terisi.
+5. Bila masalah belum hilang, ketuk **Masih bermasalah? Lapor masalah**. Formulir terbuka dengan kategori dan layanan yang sudah terisi.
 
-![Ada masalah?: langkah umum di kartu Coba dulu dan tombol Masih bermasalah? Buat tiket](images/customer/redesign/ada-masalah-hint-teal-dark.png)
+![Ada masalah?: langkah umum di kartu Coba dulu dan tombol Masih bermasalah? Lapor masalah](images/customer/ada-masalah-langkah-cepat.png)
 
-Layar ini hanya memberi saran. Tidak ada yang terkirim ke ISP sampai Anda mengetuk **Kirim tiket**. Bila daftar kategori kosong, layar menulis "Belum ada kategori masalah." dan Anda tetap bisa membuat tiket dari tombol **Buat tiket** di tab **Bantuan**.
+Layar ini hanya memberi saran. Tidak ada yang terkirim ke ISP sampai Anda mengetuk **Kirim tiket**. Bila ISP belum mengatur kategori, layar menulis "Belum ada kategori masalah. Tarik layar ke bawah untuk memuat ulang." Hubungi ISP lewat kartu kontak di tab **Bantuan**.
 
-## Buat tiket
+## Lapor masalah
 
-![Tiket baru dengan Kategori dan Layanan yang sudah terisi dari Ada masalah?](images/customer/redesign/tiket-baru-prefilled-teal-dark.png)
+![Formulir Lapor masalah dengan Kategori dan Layanan terisi, dan kartu tiket aktif yang sama](images/customer/tiket-baru.png)
 
-1. Ketuk **Masih bermasalah? Buat tiket** (dari **Ada masalah?**), **Buat tiket** (tombol di tab Bantuan), atau **Laporkan gangguan** (di Beranda). Dari **Laporkan gangguan** dan **Buat tiket**, formulir terbuka tanpa isian awal.
-2. Pilih **Kategori**. Wajib. Dari **Ada masalah?** isian ini sudah terisi. Begitu kategori terpilih, **Judul** terisi dengan nama kategori ("No Internet", misalnya). Ganti judulnya bila perlu. Judul yang sudah Anda tulis sendiri tidak ditimpa saat Anda mengganti kategori.
-3. Pilih **Layanan (opsional)** bila masalahnya terkait satu langganan. Pilihan hanya memuat layanan yang aktif atau ditangguhkan. Biarkan "Tidak terkait layanan" bila tidak ada.
+1. Ketuk **Masih bermasalah? Lapor masalah** di layar **Ada masalah?**. Formulir **Lapor masalah** terbuka dengan **Kategori** dan **Layanan** yang sudah terisi.
+2. Pilih **Kategori**. Wajib. Begitu kategori terpilih, **Judul** terisi dengan nama kategori ("No Internet", misalnya). Ganti judulnya bila perlu. Judul yang sudah Anda tulis sendiri tidak ditimpa saat Anda mengganti kategori.
+3. Pilih **Layanan (opsional)** bila masalahnya terkait satu langganan. Pilihan hanya memuat layanan yang aktif atau ditangguhkan. Bila hanya ada satu layanan, aplikasi memilihnya sendiri. Biarkan "Tidak terkait layanan" bila tidak ada.
 4. Isi atau ubah **Judul**, wajib, paling banyak 255 karakter.
 5. Isi **Deskripsi (opsional)**: apa yang terjadi, sejak kapan, lampu apa yang menyala di perangkat. Di bawah kolom ada lima jawaban cepat: "Gangguan sejak hari ini.", "Gangguan sejak kemarin.", "Lampu LOS di modem menyala merah.", "Lampu modem normal." dan "Modem sudah dinyalakan ulang." Ketuk satu untuk menambahkannya sebagai satu baris di deskripsi, ketuk lagi untuk mencabutnya. Anda bisa menambah kalimat sendiri di sekitarnya.
 6. Untuk menambah foto, ketuk **Tambah lampiran** (lihat di bawah). Bisa lebih dari satu.
-7. Ketuk **Kirim tiket**.
+7. Ketuk **Kirim tiket**. Tombol ini tetap terlihat di atas keyboard.
 
-Tiket terkirim, lalu aplikasi membuka halaman detailnya. Prioritas ditentukan sistem menurut kategori. Foto diunggah setelah tiket terbuat; bila sebagian gagal, aplikasi menampilkan "Tiket terkirim, tetapi N lampiran gagal diunggah. Tambahkan lagi dari halaman tiket."
+**Peringatan tiket ganda.** Bila Anda sudah punya tiket aktif dengan kategori yang sama (dan layanan yang sama, atau salah satunya tanpa layanan), kartu kuning di bawah kolom pilihan menulis "Anda sudah punya tiket aktif TKT-0031 (Terbuka)." dengan dua tombol: **Lihat tiket** membuka tiket itu, **Tetap buat baru** menyembunyikan kartu. Kartu ini hanya saran; **Kirim tiket** tetap bisa diketuk.
+
+Tiket terkirim, lalu aplikasi membuka halaman detailnya. Tombol kembali dari halaman itu membawa Anda ke daftar tiket, bukan ke formulir. Prioritas ditentukan sistem menurut kategori. Foto diunggah setelah tiket terbuat; bila sebagian gagal, aplikasi menampilkan "Tiket terkirim, tetapi N lampiran gagal diunggah. Tambahkan lagi dari halaman tiket."
 
 Bila Kategori atau Judul kosong, aplikasi menampilkan "Pilih kategori." atau "Isi judul tiket." dan tidak mengirim. Bila daftar kategori gagal dimuat, tertulis "Kategori tidak bisa dimuat."; coba lagi setelah koneksi pulih.
 
@@ -361,34 +369,54 @@ Bila ISP mengaktifkan WhatsApp untuk Anda, pesan "tiket dibuat" dikirim setelah 
 
 ![Detail tiket](images/customer/detail-tiket.png)
 
-Layar memuat kartu judul dengan status, tahap progres (**Dibuka**, **Ditangani**, **Selesai**), kategori, dan layanan terkait, lalu **Deskripsi**, **Catatan penyelesaian** (bila petugas mengisi), **Lampiran**, dan **Balasan**. Ikon salin di bilah atas menyalin kode tiket. Tarik ke bawah untuk memuat ulang.
+Layar memuat kartu judul dengan status, tahap progres (**Dibuka**, **Ditangani**, **Selesai**), kategori, dan layanan terkait. Di bawah garis pemisahnya ada ringkasan:
 
-Tiket **Ditutup** mengganti kolom balasan dengan kartu **Tiket ditutup. Masih bermasalah? Buat tiket baru** dan tombol **Buat tiket baru**. Tombol membuka formulir tiket baru dengan kategori dan layanan dari tiket lama sudah terisi. Tiket tertutup tidak menerima komentar atau lampiran baru.
+- **Prioritas** ("Prioritas sedang"), "Dibuat {tanggal}", dan "Dibuka kembali {tanggal}" bila tiket pernah dibuka lagi.
+- Janji ISP untuk jawaban pertama: "Dijawab sebelum 08.30 besok", dengan penghitung "sisa 17 jam" (kuning bila kurang dari 4 jam, merah dengan "terlambat 2 jam" bila lewat). Setelah dijawab tertulis "Dijawab {tanggal}".
+- Janji penyelesaian: "Diselesaikan sebelum Sen 17.00", dengan penghitung yang sama. Setelah selesai tertulis "Diselesaikan {tanggal}".
+- "Ditangani oleh {nama depan petugas}".
 
-## Komentar (balasan)
+![Detail tiket dengan batas jawaban dan penyelesaian](images/customer/detail-tiket-tenggat.png)
 
-1. Buka detail tiket yang belum **Ditutup**.
-2. Tiket **Selesai** menampilkan petunjuk **Membalas akan membuka kembali tiket ini.** Balasan Anda mengubah tiket menjadi **Ditugaskan** bila petugasnya masih ada, atau **Terbuka** bila tidak.
+Batas waktu yang masih di depan ditulis seperti orang menyebutnya: "21.17" untuk hari ini, "08.30 besok", "Sen 08.30" untuk dua sampai enam hari lagi, dan "18 Okt 08.30" untuk lebih jauh. Batas yang sudah lewat ditulis dengan tanggal lengkap. Lalu ada **Deskripsi**, **Catatan penyelesaian** (bila petugas mengisi), kartu konfirmasi (bila ada), dan **Balasan**. Ikon salin di bilah atas menyalin kode tiket. Tarik ke bawah untuk memuat ulang.
+
+Tiket **Ditutup** mengganti kotak balasan dengan kartu **Tiket ditutup. Masih bermasalah? Buat tiket baru** dan tombol **Buat tiket baru**. Tombol membuka formulir **Lapor masalah** dengan kategori dan layanan dari tiket lama sudah terisi. Tiket tertutup tidak menerima balasan atau lampiran baru.
+
+## Masalah sudah beres?
+
+Saat petugas menyatakan tiket **Diselesaikan**, detail tiket menampilkan kartu **Masalah sudah beres?** ("Beri nilai untuk menutup tiket ini. Kalau belum beres, balas tiket ini dan kami buka kembali.") dengan dua tombol.
+
+![Detail tiket Diselesaikan dengan kartu Masalah sudah beres?](images/customer/detail-tiket-sudah-beres.png)
+
+1. Ketuk **Sudah beres** bila masalah Anda selesai. Lembar **Beri nilai** terbuka: "Seberapa puas Anda dengan penanganan tiket ini?"
+2. Ketuk bintang 1 sampai 5. Di bawah bintang tertulis artinya: Sangat buruk, Kurang, Cukup, Baik, atau Sangat baik. Tanpa bintang, tertulis "Pilih jumlah bintang."
+3. Bila mau, tulis di **Ceritakan pengalaman Anda (opsional)**.
+4. Ketuk **Kirim nilai**. Aplikasi menulis "Terima kasih. Tiket ditutup." dan tiket menjadi **Ditutup**.
+
+![Lembar Beri nilai dengan lima bintang dan kolom pengalaman](images/customer/beri-nilai.png)
+
+Ketuk **Masih bermasalah** bila belum beres: kolom balasan di bawah layar langsung aktif. Balasan Anda membuka kembali tiket (bagian berikut) dan penilaian Anda tidak diminta.
+
+Tiket yang ditutup tanpa Anda menilainya menampilkan kartu "Bagaimana penanganan tiket ini?" dengan tombol **Beri nilai**. Sesudah dinilai, kartu berubah menjadi **Penilaian Anda**: bintang dan komentar Anda. Satu tiket dinilai satu kali. Bila tiket sudah dinilai dari tempat lain, aplikasi menulis "Tiket ini sudah dinilai.", dan bila petugas membuka kembali tiket itu lebih dulu, "Tiket ini belum diselesaikan, jadi belum bisa dinilai."
+
+## Balasan, foto, dan PDF
+
+Balasan teks dan foto memakai satu kotak di bawah layar dan tampil di satu lini masa di atasnya.
+
+1. Buka detail tiket yang belum **Ditutup**. Kotak di bawah punya ikon klip (**Tambah lampiran**), kolom **Balasan Anda**, dan ikon kirim (**Kirim balasan**). Di atas keyboard, kotak tetap terlihat.
+2. Tiket **Diselesaikan** menampilkan petunjuk **Membalas akan membuka kembali tiket ini.** Balasan Anda mengubah tiket menjadi **Ditugaskan** bila petugasnya masih ada, atau **Terbuka** bila tidak.
 3. Ketik di kolom **Balasan Anda**. Batas 2000 karakter; penghitung di bawah kolom menunjukkan jumlahnya.
-4. Ketuk ikon kirim.
+4. Untuk menyertakan foto, ketuk ikon klip. Pilih sumber di lembar "Lampirkan foto dari": **Kamera** atau **Galeri**, ambil atau pilih foto, isi **Keterangan (opsional)** di jendela "Keterangan lampiran" (paling banyak 255 karakter), lalu ketuk **Lampirkan**. Foto menunggu di atas kolom dengan tombol **Lepas {nama}** untuk menariknya kembali. Anda bisa menyertakan beberapa foto.
+5. Ketuk ikon kirim. Teks terkirim lebih dulu, lalu foto satu per satu. Bagian yang gagal tetap di kotak untuk ketukan berikutnya, dan teks yang sudah terkirim tidak dikirim dua kali.
 
-Balasan Anda tampil di sisi kanan dengan label "Anda"; balasan petugas berlabel nama petugas atau "Tim Inbils". Setelah tiket **Selesai** dibuka kembali, aplikasi memuat status baru dan petugas ISP menerima pemberitahuan. Bila tiket ditutup saat layar masih terbuka, server menolak balasan dengan kartu **Tiket ditutup. Masih bermasalah? Buat tiket baru**.
+Teks dan foto tampil bercampur menurut waktunya. Balasan Anda di sisi kanan berlabel "Anda"; dari petugas berlabel nama petugas atau "Tim Inbils". Tiap foto memuat pengirim, waktunya, dan keterangannya. Setelah Anda mengirim, layar menggulir ke pesan terbaru. Setelah tiket **Diselesaikan** dibuka kembali, aplikasi memuat status baru dan petugas ISP menerima pemberitahuan. Bila tiket ditutup saat layar masih terbuka, server menolak balasan dengan kartu **Tiket ditutup. Masih bermasalah? Buat tiket baru**.
 
-## Lampiran
+Foto juga bisa ditambahkan saat membuat tiket, lewat **Tambah lampiran** di formulir. Aplikasi mengecilkan foto lebih dulu (JPEG, sisi terpanjang 1920 piksel) dan membuang data lokasi (EXIF) dari foto yang dikirim. Server menerima berkas jpg, jpeg, png, atau pdf dengan ukuran paling besar 10 MB per berkas; dari aplikasi Anda hanya mengirim foto.
 
-Di tiket yang belum ditutup, bagian **Lampiran** punya tombol **Tambah lampiran**. Foto bisa ditambahkan saat membuat tiket maupun sesudahnya.
-
-1. Ketuk **Tambah lampiran**.
-2. Pilih sumber di lembar "Lampirkan foto dari": **Kamera** atau **Galeri**.
-3. Ambil atau pilih foto.
-4. Di jendela "Keterangan lampiran" isi **Keterangan (opsional)**, paling banyak 255 karakter, lalu ketuk **Lampirkan**. Ketuk **Batal** untuk membatalkan.
-5. Tombol berubah menjadi "Mengunggah lampiran" sampai selesai. Foto lalu tampil di daftar lampiran.
-
-Aplikasi mengecilkan foto lebih dulu (JPEG, sisi terpanjang 1920 piksel) dan membuang data lokasi (EXIF) dari foto yang dikirim. Server menerima berkas jpg, jpeg, png, atau pdf dengan ukuran paling besar 10 MB per berkas; dari aplikasi Anda hanya mengirim foto.
-
-- Ketuk foto di daftar untuk membukanya layar penuh; ketuk **Tutup** untuk kembali. Bila gambar tidak termuat, tertulis "Gambar tidak bisa dimuat." dengan tombol coba lagi.
-- Berkas non-gambar (misalnya PDF dari petugas) tampil dengan nama dan ukurannya, tetapi tidak bisa dibuka di aplikasi.
-- Untuk menghapus lampiran yang Anda unggah sendiri, ketuk **Hapus lampiran**, lalu **Hapus** di konfirmasi. Penghapusan hanya bisa dilakukan oleh pengunggahnya dan selama tiket masih Terbuka, Ditugaskan, atau Diproses. Lampiran dari petugas tidak bisa Anda hapus.
+- Foto tampil utuh di lini masa. Ketuk untuk membukanya layar penuh; ketuk **Tutup** untuk kembali. Bila gambar tidak termuat, tertulis "Gambar tidak bisa dimuat." dengan tombol coba lagi.
+- PDF dari petugas tampil dengan namanya ("Buka PDF {nama}"). Ketuk untuk mengunduhnya; aplikasi lalu membuka lembar bagikan Android, tempat Anda memilih aplikasi pembaca PDF. Bila gagal, tertulis "PDF tidak bisa dibuka. Coba lagi."
+- Berkas lain tampil dengan nama dan ukurannya, tetapi tidak bisa dibuka di aplikasi.
+- Untuk menghapus foto yang Anda kirim sendiri, ketuk **Hapus lampiran**, lalu **Hapus** di konfirmasi. Penghapusan hanya bisa dilakukan oleh pengunggahnya dan selama tiket masih Terbuka, Ditugaskan, atau Dikerjakan. Lampiran dari petugas tidak bisa Anda hapus.
 
 # 7. Notifikasi
 
@@ -423,6 +451,8 @@ Jenis notifikasi untuk pelanggan:
 
 Kolom **Push** menunjukkan notifikasi yang juga masuk ke layar ponsel (bagian berikut). Semua notifikasi, termasuk yang tidak dikirim sebagai push, tetap ada di daftar lonceng.
 
+Judul dan isi notifikasi menyebut hal yang penting, tidak hanya jenisnya: nomor tagihan, jumlah, dan jatuh tempo ("Tagihan INV-012", "INV-012 jatuh tempo besok", "Rp 154.600 untuk INV-012 sudah kami terima"), kode tiket, dan cuplikan catatan penyelesaian dengan "Sudah beres?" (ketuk untuk membuka tiket dan menutupnya). Petugas yang membuka kembali tiket Anda juga memberi tahu lewat notifikasi "Tiket {kode} dibuka kembali dan akan ditangani lagi." Notifikasi yang dibuat sebelum pembaruan ini tetap memakai teks umum.
+
 ## Notifikasi di layar ponsel (push)
 
 Aplikasi bisa memunculkan notifikasi di layar ponsel Android Anda, juga saat aplikasi tertutup. Isinya sama dengan yang ada di daftar lonceng.
@@ -436,6 +466,8 @@ Aplikasi bisa memunculkan notifikasi di layar ponsel Android Anda, juga saat apl
 Bila Anda menolak izinnya, aplikasi tetap berfungsi dan lonceng tetap menerima semua notifikasi. Untuk mengaktifkan push kemudian, nyalakan notifikasi aplikasi Inbils di pengaturan Android (**Pengaturan > Aplikasi**), lalu buka aplikasi lagi. Aplikasi memeriksa izinnya setiap kali dibuka dan mendaftarkan ponsel saat izin sudah menyala.
 
 Saat **Keluar**, aplikasi menghapus pendaftaran ponsel ini, sehingga tidak ada push lagi sampai Anda masuk kembali, dan semua notifikasi aplikasi ini dihapus dari bayangan notifikasi, juga bila ponsel sedang offline. Aplikasi yang tidak punya sesi masuk tidak memunculkan notifikasi apa pun. Ponsel yang dikeluarkan dari daftar **Perangkat** (bab 8), kata sandi yang diganti, atau akun yang dinonaktifkan juga berhenti menerima push. Push tidak bergantung pada WhatsApp dan tidak membutuhkan persetujuan WhatsApp.
+
+Di layar ponsel, nama ISP tampil sebagai teks kecil di notifikasi, bukan di judulnya. Daftar di lonceng mempertahankan posisi gulir Anda saat isinya diperbarui.
 
 Bila push tidak muncul, pastikan izin notifikasi menyala, ponsel punya internet dan Anda masih masuk di aplikasi ini. ISP juga harus sudah mengaktifkan push di servernya. Bila ISP belum mengaktifkannya, notifikasi tetap muncul di lonceng. Aplikasi sendiri yang menggambar notifikasi, juga saat tertutup. Beberapa merek ponsel (misalnya Xiaomi dan Oppo) menghemat baterai dengan menahan aplikasi yang tertutup. Bila notifikasi datang terlambat atau tidak datang saat aplikasi tertutup, buka pengaturan baterai untuk aplikasi Inbils dan pilih **Tanpa pembatasan** (atau matikan optimalisasi baterai, dan izinkan mulai otomatis bila ponsel memintanya).
 
@@ -542,7 +574,7 @@ Anda harus masuk lagi untuk memakai aplikasi.
 | --- | --- |
 | "Tidak ada koneksi internet. Periksa sinyal, lalu coba lagi." / banner "Anda sedang offline. Data yang tampil mungkin belum terbaru." | Ponsel tidak punya internet. Aplikasi tidak menyimpan antrean tindakan: tagihan tidak bisa dibayar, tiket tidak terkirim, dan balasan tidak terkirim sampai koneksi pulih. Hubungkan ponsel, lalu ulangi. |
 | "Sesi Anda berakhir. Silakan masuk lagi." | Sesi login habis (maksimal 90 hari), kata sandi diganti, atau perangkat dikeluarkan. Masuk lagi dengan email dan kata sandi. |
-| "Email atau kata sandi salah." | Periksa ejaan email dan huruf besar-kecil kata sandi. Bila lupa, pakai **Lupa kata sandi?**. |
+| "Email atau kata sandi salah." | Pesan ini tampil di bawah kolom **Email**. Periksa ejaan email dan huruf besar-kecil kata sandi. Bila lupa, pakai **Lupa kata sandi?**. |
 | "Demi keamanan, atur ulang kata sandi lewat link yang kami kirim ke email Anda." | Akun lama yang kata sandinya masih nomor telepon. Ketuk **Kirim link** di lembar yang muncul, buka email, dan atur kata sandi baru di halaman web. Lalu masuk lagi di aplikasi. |
 | Tautan atur kata sandi tidak berfungsi | Tautan berlaku 60 menit dan hanya satu tautan aktif per akun; tautan terbaru menggantikan yang lama. Minta tautan baru lewat **Lupa kata sandi?**. |
 | "Akun ini tidak terdaftar sebagai pelanggan." | Akun belum tertaut ke data pelanggan, belum aktif, atau emailnya belum terverifikasi. Hubungi ISP. |
@@ -553,6 +585,8 @@ Anda harus masuk lagi untuk memakai aplikasi.
 | "Data sudah berubah. Kami memuat ulang." | Data berubah di server saat Anda melihatnya. Periksa layar yang dimuat ulang lalu ulangi. |
 | "Server sedang bermasalah. Coba lagi beberapa saat lagi." | Gangguan sementara di server. Coba lagi nanti. |
 | "Halaman pembayaran tidak bisa dibuka. Coba lagi." / "Halaman pembayaran belum tersedia. Muat ulang tagihan, lalu coba lagi." | Ulangi **Bayar** setelah memuat ulang tagihan. Bila tetap gagal, bayar lewat ISP. |
+| "PDF tidak bisa dibuka. Coba lagi." / "Bukti bayar tidak bisa diunduh. Coba lagi." | Unduhan PDF gagal atau tidak ada aplikasi pembaca. Periksa internet, lalu ketuk lagi. |
+| "Tiket ini sudah dinilai." / "Tiket ini belum diselesaikan, jadi belum bisa dinilai." | Tiket berubah saat Anda menilainya. Aplikasi memuat ulang tiket; periksa statusnya. |
 | "Pembayaran online belum tersedia. Silakan bayar lewat kantor Inbils." | Pembayaran online sedang tidak aktif. Hubungi ISP. |
 | Sudah membayar tetapi tagihan masih Belum dibayar | Ketuk **Periksa status**. Sistem juga memeriksa ke Midtrans secara berkala. Bila tidak berubah, hubungi ISP dengan nomor tagihan dan bukti pembayaran. |
 | Lampiran gagal diunggah | Batas berkas: jpg, jpeg, png, atau pdf, paling besar 10 MB. Coba ambil foto lagi atau pilih dari galeri. Tidak bisa menambah lampiran di tiket yang sudah Ditutup. |
@@ -574,6 +608,10 @@ Anda harus masuk lagi untuk memakai aplikasi.
 **Bagaimana mengubah alamat, nama tagihan, atau paket?** Hubungi ISP. Profil dan langganan di aplikasi hanya bisa dibaca; yang bisa Anda ubah sendiri hanya nama akun, telepon, dan kata sandi.
 
 **Layanan saya diisolir. Apa yang harus dilakukan?** Bayar tagihan yang terbuka lewat aplikasi (gunakan data seluler). Setelah lunas, layanan aktif kembali otomatis. Lihat bab 5.
+
+**Tiket saya sudah Diselesaikan. Bagaimana menutupnya?** Di detail tiket, ketuk **Sudah beres** pada kartu "Masalah sudah beres?" lalu beri nilai. Bila belum beres, ketuk **Masih bermasalah** dan balas tiketnya; tiket dibuka kembali.
+
+**Kenapa muncul "Anda sudah punya tiket aktif"?** Anda sedang melapor masalah dengan kategori dan layanan yang sama dengan tiket yang belum selesai. Ketuk **Lihat tiket** untuk membalas di sana, atau **Tetap buat baru** bila masalahnya lain.
 
 **Ponsel saya hilang.** Dari ponsel lain, masuk, buka **Akun** → **Perangkat** dan **Keluarkan** ponsel yang hilang, lalu ganti kata sandi. Bila Anda tidak bisa masuk, hubungi ISP.
 

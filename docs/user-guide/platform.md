@@ -2,7 +2,7 @@
 
 ## 1.1 Siapa memakai panduan ini
 
-Panduan ini untuk operator Inbils, yang juga disebut superadmin. Operator menjalankan satu instalasi Inbils untuk banyak perusahaan ISP. Operator memakai panel `/platform` untuk membuat perusahaan, memeriksa kondisi tenant, membantu pengguna, memelihara templat peran dan memperbaiki peran perusahaan, meminta ekspor data, dan membaca audit lintas perusahaan.
+Panduan ini untuk operator Inbils, yang juga disebut superadmin. Operator menjalankan satu instalasi Inbils untuk banyak perusahaan ISP. Operator memakai panel `/platform` untuk membuat perusahaan, memeriksa kondisi tenant, menanggapi permintaan anak perusahaan, membantu pengguna, memelihara templat peran dan memperbaiki peran perusahaan, meminta ekspor data, dan membaca audit lintas perusahaan.
 
 Peran yang dapat memakai: semua operator platform dengan akun aktif. Panel operator tidak membagi operator ke dalam peran atau izin yang berbeda. Aksesnya berlaku penuh setelah operator lolos autentikasi dua langkah (2FA) pada sesi itu.
 
@@ -57,7 +57,7 @@ Tindakan sensitif membuka dialog. Isian yang mungkin muncul:
 
 - **Alasan**, 5 sampai 200 karakter. Keterangan di bawahnya menulis bahwa alasan tercatat di audit.
 - **Ketik {kode} untuk melanjutkan**. Huruf besar dan kecil harus sama.
-- **Kata sandi operator**. Gunakan kata sandi akun operator, bukan akun perusahaan.
+- **Kata sandi operator**. Gunakan kata sandi akun operator, bukan akun perusahaan. Isian ini hanya tampil bila konfirmasi kata sandi terakhir sudah lewat 5 menit. Selama konfirmasi masih berlaku, dialog menulis "Terkonfirmasi sampai HH.mm" (bagian 2.5).
 
 Tombol tindakan tetap nonaktif sampai semua isian wajib memenuhi syarat.
 
@@ -143,7 +143,7 @@ Inbils menerima kode TOTP pada langkah waktu sekarang, satu langkah sebelum, ata
 - Dua puluh kegagalan dalam satu menit dari satu alamat IP menahan alamat itu, meski email yang dicoba berubah.
 - Tantangan 2FA menerima paling banyak 5 percobaan per menit untuk satu operator dan alamat, serta 10 percobaan per 15 menit untuk operator itu dari semua alamat.
 
-Saat dibatasi, Inbils menulis "Terlalu banyak percobaan masuk. Coba lagi dalam N detik." Kode atau kata sandi yang benar tetap ditolak sampai waktu tunggu habis. Akun operator nonaktif memakai pesan kredensial salah yang sama agar orang lain tidak dapat menebak status akun.
+Saat dibatasi, Inbils menulis "Terlalu banyak percobaan. Coba lagi dalam N menit." N dibulatkan ke atas ke menit penuh. Kode atau kata sandi yang benar tetap ditolak sampai waktu tunggu habis. Akun operator nonaktif memakai pesan kredensial salah yang sama agar orang lain tidak dapat menebak status akun.
 
 ## 2.4 Mengelola kode pemulihan
 
@@ -155,7 +155,7 @@ Peran yang dapat memakai: operator untuk akunnya sendiri.
    ![Halaman Autentikasi dua langkah operator aktif dengan jumlah kode pemulihan dan tombol Buat kode pemulihan baru](images/web/platform-two-factor-status.png)
 
 3. Klik **Buat kode pemulihan baru** bila kode tersisa sedikit atau salinannya tidak lagi aman.
-4. Dialog **Buat kode pemulihan baru?** menulis bahwa kode lama langsung tidak berlaku. Isi **Kata sandi operator**, lalu klik **Buat kode baru**.
+4. Dialog **Buat kode pemulihan baru?** menulis bahwa kode lama langsung tidak berlaku. Isi **Kata sandi operator** bila dialog memintanya (bagian 2.5), lalu klik **Buat kode baru**.
 5. Simpan 8 kode baru sebelum meninggalkan halaman.
 
 Kode pemulihan yang dipakai tercatat di **Audit platform** sebagai **Kode pemulihan dipakai**. Pembuatan ulang kode tercatat sebagai **Kode pemulihan dibuat ulang**.
@@ -164,11 +164,13 @@ Panel operator tidak mempunyai tombol mematikan 2FA. Reset 2FA pada halaman peru
 
 ## 2.5 Konfirmasi kata sandi untuk tindakan sensitif
 
-Konfirmasi kata sandi platform terpisah dari konfirmasi kata sandi pengguna tenant. Konfirmasi berlaku 5 menit pada sesi operator.
+Konfirmasi kata sandi platform terpisah dari konfirmasi kata sandi pengguna tenant. Satu konfirmasi berlaku 5 menit pada sesi operator dan mencakup semua tindakan sensitif, tidak hanya dialog tempat Anda mengetik kata sandi.
 
-Sebagian dialog meminta **Kata sandi operator** langsung. Untuk tindakan tanpa isian itu, misalnya **Mode ubah** pada banner dukungan, server membuka halaman **Konfirmasi kata sandi** bila konfirmasi terakhir sudah lewat 5 menit. Isi **Kata sandi**, lalu klik **Konfirmasi**. Inbils kembali ke halaman tenant yang sama. Klik **Mode ubah** lagi.
+Dialog yang meminta **Kata sandi operator** menanyakannya sekali. Setelah berhasil, dialog sensitif berikutnya dalam 5 menit tidak menampilkan isian itu dan menulis "Terkonfirmasi sampai HH.mm" (jam di browser Anda). Bila 5 menit habis selagi dialog terbuka, isian muncul lagi. Server memeriksa batas itu pada setiap tindakan, jadi menyembunyikan isian hanya menghemat mengetik.
 
-Kata sandi salah menampilkan "Kata sandi tidak sesuai." Lima kegagalan per operator dan alamat dalam satu menit menahan percobaan berikutnya. Kata sandi hanya dikirim di body request. Inbils tidak menyimpannya di URL, audit, properti Inertia, atau riwayat browser.
+Untuk tindakan tanpa isian itu, misalnya **Mode ubah** pada banner dukungan, server membuka halaman **Konfirmasi kata sandi** bila konfirmasi terakhir sudah lewat 5 menit. Isi **Kata sandi**, lalu klik **Konfirmasi**. Inbils kembali ke halaman yang Anda buka sebelum diminta mengonfirmasi, atau ke **Dasbor** bila halaman itu bukan bagian panel. Dari banner dukungan, Inbils kembali ke halaman tenant yang sama. Klik **Mode ubah** lagi.
+
+Kata sandi salah menampilkan "Kata sandi tidak sesuai." Lima kegagalan per operator dan alamat dalam satu menit menahan percobaan berikutnya dengan "Terlalu banyak percobaan. Coba lagi dalam N menit." Kata sandi hanya dikirim di body request. Inbils tidak menyimpannya di URL, audit, properti Inertia, atau riwayat browser.
 
 Ringkasan tindakan ada di bagian 13.1.
 
@@ -196,6 +198,8 @@ Dasbor adalah halaman pertama setelah login. Empat kartu di atas merangkum tenan
 ![Dasbor operator dengan kartu ringkasan, filter perusahaan, dan tabel tenant](images/web/platform-dashboard.png)
 
 Bila ada job gagal tanpa perusahaan, alert kuning menjelaskan bahwa job itu tidak masuk ke baris perusahaan mana pun. Tim server perlu membaca `failed_jobs` dan log aplikasi untuk menemukan asalnya.
+
+Bila ada tenant yang meminta anak perusahaan, kartu **Permintaan anak perusahaan** tampil di atas tabel tenant. Kartu itu hanya ada selama ada permintaan terbuka. Cara menanggapinya ada di bagian 5.3.
 
 ## 3.2 Mencari dan membaca perusahaan
 
@@ -239,12 +243,16 @@ Peran yang dapat memakai: semua operator platform.
 1. Klik **Perusahaan baru**.
 2. Pada kartu **Data perusahaan**, isi:
    - **Nama perusahaan**, wajib, paling banyak 255 karakter;
-   - **Kode perusahaan**, wajib, unik, paling banyak 50 karakter. Gunakan huruf, angka, strip, atau garis bawah. Karakter pertama harus huruf atau angka. Kode yang hanya berbeda huruf besar-kecil dengan kode lain ditolak ("kode sudah digunakan.");
+   - **Kode perusahaan**, wajib, unik, paling banyak 50 karakter. Gunakan huruf, angka, strip, atau garis bawah. Karakter pertama harus huruf atau angka. Kode yang hanya berbeda huruf besar-kecil dengan kode lain ditolak ("kode sudah digunakan."). Kode terisi sendiri dari nama (huruf besar, tanpa aksen, kata dipisah strip, misalnya "Nusa Net" menjadi `NUSA-NET`) sampai Anda mengetik kode sendiri. Bila Anda mengosongkan isian, kode kembali mengikuti nama begitu nama diubah lagi. Sesaat setelah Anda berhenti mengetik, Inbils memeriksa kodenya. Bila sudah ada, "Kode sudah dipakai" tampil di bawah isian. Pemeriksaan ini hanya untuk kode berformat benar dan tidak menggantikan pemeriksaan saat **Buat perusahaan**;
    - **Zona waktu**, wajib. Ketik untuk mencari, lalu pilih;
    - **Mata uang**, wajib: IDR, USD, SGD, atau EUR;
    - **Logo**, opsional, paling besar 10 MB. Gunakan JPG, PNG, atau WebP. Form juga menulis SVG, tetapi aturan server menolak SVG, jadi jangan memakainya.
 
    ![Form Perusahaan baru dengan data perusahaan dan admin pertama](images/web/platform-company-create.png)
+
+   Bila kode saran sudah dipakai perusahaan lain, pesan "Kode sudah dipakai" tampil di bawah isian **Kode perusahaan**.
+
+   ![Isian Kode perusahaan menampilkan "Kode sudah dipakai" setelah nama Demo diketik](images/web/platform-company-create-code-taken.png)
 
 3. Kode perusahaan tidak dapat diubah setelah dibuat. Kode dipakai untuk mengonfirmasi penangguhan, ekspor, pengajuan hapus, dan mode ubah dukungan. Admin tenant juga hanya dapat membacanya di menu Perusahaan.
 4. Logo diubah menjadi WebP dan diperkecil bila sisi terpanjang melebihi 512 piksel.
@@ -280,7 +288,7 @@ Bila **Isi data contoh** dicentang:
 5. Email undangan memakai subjek **Undangan admin {nama perusahaan} di Inbils** dan tombol **Atur kata sandi**. Tautan berlaku 60 menit.
 6. Minta admin menetapkan kata sandi, lalu masuk melalui halaman web tenant.
 
-Email yang membawa tautan kredensial selalu memakai mailer platform (`MAIL_*`), bukan SMTP milik perusahaan. Job data contoh memakai antrean `platform`. Tanpa worker `platform`, job tetap menunggu. Detail worker ada di bagian 11.2.
+Email yang membawa tautan kredensial selalu memakai mailer platform (`MAIL_*`), bukan SMTP milik perusahaan. Email dari platform memakai nama Inbils di kepala dan kaki email. Job data contoh memakai antrean `platform`. Tanpa worker `platform`, job tetap menunggu. Detail worker ada di bagian 11.2.
 
 Kolom **Masuk terakhir** pada halaman tenant menunjukkan posisi undangan selama admin belum masuk:
 
@@ -294,6 +302,7 @@ Kolom **Masuk terakhir** pada halaman tenant menunjukkan posisi undangan selama 
 
 - "Perusahaan belum dapat dibuat. Periksa isian yang ditandai.": baca pesan di bawah setiap isian.
 - "kode sudah digunakan.": pilih kode lain. Kode unik pada seluruh perusahaan.
+- "Kode sudah dipakai" di bawah isian **Kode perusahaan**: kode itu sudah ada pada perusahaan lain. Ubah kode saran sebelum klik **Buat perusahaan**.
 - "Format kode tidak valid.": pakai huruf, angka, strip, atau garis bawah, dan mulai dengan huruf atau angka.
 - "email admin sudah digunakan.": akun dengan email itu sudah ada. Jangan membuat akun kedua untuk orang yang sama.
 - "Data contoh butuh Katalog awal.": pilih **Katalog awal** atau matikan **Isi data contoh**.
@@ -311,6 +320,7 @@ Klik nama tenant pada Dasbor. Bagian atas halaman memuat:
 
 - judul nama perusahaan dan subjudul **Kode {kode}**;
 - lencana status dan tombol lifecycle;
+- kartu **Permintaan anak perusahaan**, hanya bila tenant ini punya permintaan terbuka (bagian 5.3);
 - kartu **Profil perusahaan**;
 - kartu **Ringkasan**;
 - kartu **Status perusahaan**.
@@ -355,15 +365,47 @@ Kartu **Anak perusahaan** menampilkan Nama dan Kode, Status, Mata uang, Zona wak
 4. Di bagian **Akses admin**, centang admin yang boleh berpindah ke anak perusahaan baru. Daftar ini memakai admin yang tampil pada kartu **Admin perusahaan**.
 5. Klik **Tambah anak perusahaan**.
 
+Membuat anak perusahaan tidak meminta **Kata sandi operator**.
+
 Anak perusahaan mengikuti mata uang dan zona waktu induk. Inbils mengisi Katalog awal, bukan data contoh, dan menyalin templat peran ke anak perusahaan itu. Pengguna yang dicentang mendapat keanggotaan tanpa mengubah perusahaan asalnya, dan mendapat peran di anak perusahaan yang berasal dari templat yang sama dengan perannya di perusahaan asal, selama isi peran itu tidak melebihi hak akses yang ia pegang di perusahaan asal. Anggota yang hanya memegang peran buatan perusahaan tidak mendapat peran. Toast "Anak perusahaan dibuat." lalu menambahkan "Anggota ini belum punya peran di anak perusahaan baru dan perlu diberi peran di Pengguna:" disusul namanya, dan untuk peran yang lebih luas "Peran ini lebih luas daripada yang dipegang anggotanya di perusahaan asal, jadi tidak disalin dan perlu diberikan sendiri di Pengguna:" disusul anggota dan perannya. Minta admin perusahaan memberi peran di menu **Pengguna**.
 
 Seeder membuat akun internal `system-seed-...@inbils.internal` bila anak perusahaan belum mempunyai pengguna asal saat katalog diisi. Akun itu memakai kata sandi acak dan dapat terlihat di tabel **Pengguna**. Akun tersebut bukan operator platform.
+
+### Permintaan anak perusahaan dari tenant
+
+Admin perusahaan induk tidak membuat anak perusahaan sendiri. Admin dengan izin `company.manage` meminta lewat tombol **Minta anak perusahaan** pada kartu **Anak perusahaan** di halaman **Perusahaan** web tenant. Admin mengisi **Nama**, **Kode usulan** (boleh kosong), dan **Catatan** (paling banyak 500 karakter). Satu tenant hanya boleh punya satu permintaan terbuka. Anak perusahaan tidak bisa mengajukan permintaan, hanya perusahaan induk.
+
+Saat permintaan masuk:
+
+- Inbils mengirim email dengan subjek **Permintaan anak perusahaan dari {nama perusahaan}** ke setiap operator platform yang aktif, lewat mailer platform. Email memuat nama yang diminta, kode usulan, catatan, dan pemohon. Tombol **Tinjau permintaan** membuka halaman tenant dengan dialog permintaan itu sudah terbuka.
+- Kartu **Permintaan anak perusahaan** tampil di **Dasbor** (permintaan semua tenant, yang paling lama di atas) dan di halaman tenant. Tiap baris menulis nama, "Kode usulan: {kode}" bila ada, "Diminta oleh {nama}, {waktu}", dan catatan. Di Dasbor baris juga menulis "Untuk {perusahaan} ({kode})".
+- Audit platform mencatat **Anak perusahaan diminta** (`tenant.subsidiary_requested`).
+- Email yang gagal diantrekan tidak membatalkan permintaan. Permintaan tetap tampil di kartu.
+
+Membuat anak perusahaan dari permintaan:
+
+1. Klik **Buat anak perusahaan** pada baris permintaan. Di Dasbor, tombol ini membuka halaman tenant dengan dialognya. Di halaman tenant, tombol ini nonaktif selama tenant belum **Aktif**.
+2. Dialog **Buat anak perusahaan dari permintaan** memuat nama pemohon dan catatannya. **Nama** dan **Kode** sudah terisi dari permintaan. Bila permintaan tidak membawa kode, Inbils menyarankannya dari nama. Nama dan kode boleh diubah.
+3. Pilih **Akses admin** seperti pada penambahan biasa, lalu klik **Buat anak perusahaan**.
+
+Toast menulis "Anak perusahaan dibuat. Permintaannya ditutup." Membuat anak perusahaan tidak meminta kata sandi operator, juga bila berasal dari permintaan. Audit platform mencatat **Anak perusahaan dibuat** dan **Permintaan anak perusahaan {nama} dibuat** (`tenant.subsidiary_request_closed`, hasil `created`). Inbils tidak mengirim email ke pemohon saat anak perusahaan dibuat.
+
+Menolak permintaan:
+
+1. Klik **Tolak** pada baris permintaan.
+2. Dialog **Tolak permintaan {nama}?** menulis bahwa alasan dicatat di audit dan dikirim lewat email ke pemohon.
+3. Isi **Alasan**, 5 sampai 200 karakter. Tulis dengan kalimat yang bisa dipahami admin perusahaan. Isi **Kata sandi operator** bila diminta.
+4. Klik **Tolak permintaan**.
+
+Inbils mengirim email **Permintaan anak perusahaan ditolak** ke pemohon dengan nama permintaan dan alasan Anda. Toast menulis "Permintaan ditolak. Alasannya dikirim ke pemohon lewat email." Bila pemohon sudah nonaktif atau emailnya tidak bisa diantrekan, toast menulis "Permintaan ditolak. Pemohon tidak bisa dikirimi email, jadi sampaikan alasannya langsung." Audit platform mencatat **Permintaan anak perusahaan {nama} ditolak** dengan alasannya. Tenant bisa mengajukan permintaan baru setelah permintaan ditutup. Tombol **Tolak** tetap aktif pada tenant yang ditangguhkan, dan kartu menulis "Aktifkan kembali perusahaan sebelum membuat anak perusahaan. Permintaan masih bisa ditolak."
 
 ### Kesalahan umum
 
 - Tombol nonaktif dan teks menulis "Aktifkan kembali perusahaan sebelum menambah anak perusahaan.": aktifkan kembali tenant lebih dulu.
 - "Perusahaan sedang ditangguhkan: aktifkan kembali sebelum menambah anak perusahaan.": status berubah setelah halaman dibuka. Muat ulang, lalu aktifkan kembali.
 - Admin yang dicari tidak ada: kartu **Admin perusahaan** hanya menampilkan 25 admin pertama. Gunakan perintah membership pada bagian 11.1 bila perlu penanganan server.
+- "Permintaan ini sudah ditutup. Muat ulang halaman untuk melihat yang terbaru." atau "Permintaan tidak ditemukan atau sudah ditutup.": operator lain sudah membuat anak perusahaan dari permintaan itu atau menolaknya. Muat ulang halaman.
+- Kartu **Permintaan anak perusahaan** tidak tampil: tidak ada permintaan terbuka untuk tenant itu.
 
 ## 5.4 Membaca tabel pengguna
 
@@ -403,11 +445,11 @@ Toast berhasil menulis "Kunci masuk pengguna dibuka." Tindakan tercatat sebagai 
 **Atur ulang 2FA** hanya tampil bila pengguna mempunyai 2FA.
 
 1. Buka **Aksi lain**, lalu klik **Atur ulang 2FA**.
-2. Dialog menulis bahwa 2FA akan dimatikan, semua sesi masuk berakhir, dan pengguna harus mengaktifkannya lagi.
-3. Isi **Kata sandi operator**.
+2. Dialog menulis bahwa 2FA pengguna dimatikan dan pengguna perlu mengaktifkannya lagi. Soal sesi, pada deployment dengan sesi database dialog menulis "Semua sesi masuknya berakhir." Pada driver sesi lain dialog menulis "Sesi yang sedang berjalan berakhir sendiri setelah N menit tanpa dipakai.", dengan N dari masa sesi aplikasi (`SESSION_LIFETIME`).
+3. Isi **Kata sandi operator** bila dialog memintanya.
 4. Klik **Atur ulang 2FA**.
 
-Inbils menghapus secret dan kode pemulihan pengguna, memutar token **Ingat saya**, menghapus sesi web pengguna pada deployment dengan sesi database, serta mencabut token aplikasi. Pengguna masuk lagi dengan kata sandi dan mendaftarkan 2FA sendiri.
+Inbils menghapus secret dan kode pemulihan pengguna, memutar token **Ingat saya**, dan mencabut token aplikasi. Pada deployment dengan sesi database, Inbils juga menghapus semua sesi web pengguna. Pada driver sesi lain, sesi web yang sedang berjalan tidak dihapus dan berakhir setelah masa sesi habis tanpa dipakai. Pengguna masuk lagi dengan kata sandi dan mendaftarkan 2FA sendiri.
 
 Tindakan hanya berlaku untuk pengguna yang berasal dari tenant itu, bukan orang dari tenant lain yang sekadar mempunyai keanggotaan tambahan. 2FA berlaku untuk seluruh akun pengguna.
 
@@ -432,7 +474,7 @@ Halaman tenant menampilkan dua kartu kegagalan:
 
 Tampilan awal berisi paling banyak 10 kegagalan selama 7 hari. Klik **Lihat 30 hari terakhir** untuk membuka daftar paginasi 30 hari. Tombol berubah menjadi **Kembali ke ringkasan**. Bila daftar gagal dimuat, klik **Coba lagi**.
 
-Kartu **Audit terbaru** menampilkan 10 kegiatan terbaru pada induk dan anak perusahaan. Kolomnya Waktu, Kegiatan, Sumber, Pelaku, dan Alasan. Klik **Lihat semua audit** untuk membuka **Audit platform** dengan filter perusahaan itu.
+Kartu **Audit terbaru** menampilkan 10 kegiatan terbaru pada induk dan anak perusahaan. Kolomnya Waktu, Kegiatan, Sumber, Pelaku, dan Alasan. **Kegiatan** memuat kalimat kegiatan tanpa rincian, sama seperti di halaman **Audit platform** (bagian 10.1). Klik **Lihat semua audit** untuk membuka **Audit platform** dengan filter perusahaan itu. **Sumber** pada halaman itu awalnya **Platform**.
 
 ### Kesalahan umum
 
@@ -452,10 +494,19 @@ Peran yang dapat memakai: semua operator platform.
 2. Klik **Tangguhkan**.
 3. Isi **Alasan**, 5 sampai 200 karakter.
 4. Isi **Ketik {kode} untuk melanjutkan** dengan kode induk yang sama persis.
-5. Isi **Kata sandi operator**.
+5. Isi **Kata sandi operator** bila dialog memintanya (bagian 2.5).
 6. Klik **Tangguhkan perusahaan**.
 
 ![Dialog Tangguhkan perusahaan dengan alasan, kode perusahaan, dan kata sandi operator](images/web/platform-company-suspend-dialog.png)
+
+Di bawah keterangan, dialog menulis dampak penangguhan. Angkanya dihitung saat halaman tenant dimuat:
+
+- "{n} pengguna aktif tidak bisa masuk lagi." menghitung pengguna aktif pada induk dan anak perusahaan;
+- "{n} sesi yang sedang berjalan langsung berakhir." hanya tampil pada deployment dengan sesi database, dan menghitung sesi yang masih dalam masa sesi;
+- "{n} token aplikasi seluler berhenti berlaku." menghitung token aplikasi pengguna itu yang belum kedaluwarsa;
+- "{n} faktur terbuka senilai {jumlah}." menghitung faktur yang sudah terkirim dan belum lunas, termasuk yang dibayar sebagian atau lewat jatuh tempo. Jumlahnya sisa tagihan dalam mata uang perusahaan induk. Bila tidak ada, dialog menulis "Tidak ada faktur terbuka."
+
+Dialog hanya menulis jumlah, bukan daftar nama pengguna.
 
 Penangguhan menonaktifkan perusahaan induk dan anak perusahaan yang saat itu aktif. Anak perusahaan yang sudah nonaktif tetap nonaktif. Data tidak dihapus.
 
@@ -487,7 +538,7 @@ Setelah syarat terpenuhi:
 
 1. Klik **Ajukan hapus**.
 2. Ketik kode perusahaan dengan besar-kecil huruf yang sama.
-3. Isi **Kata sandi operator**.
+3. Isi **Kata sandi operator** bila dialog memintanya.
 4. Klik **Ajukan hapus**.
 
 Panel hanya mencatat pengajuan. Toast menulis "Pengajuan hapus dicatat. Tidak ada data yang dihapus." Status berubah menjadi **Pengajuan hapus**. Aktifkan kembali tenant untuk membatalkan pengajuan.
@@ -540,7 +591,7 @@ Akses dukungan membuka web tenant persis seperti pengguna target. Kebijakan dan 
 1. Buka halaman tenant, lalu bagian **Pengguna**.
 2. Klik **Masuk sebagai** pada pengguna yang akan dibantu.
 3. Dialog **Masuk sebagai {nama}?** terbuka. Isi **Alasan**, 5 sampai 200 karakter.
-4. Isi **Kata sandi operator**.
+4. Isi **Kata sandi operator** bila dialog memintanya.
 5. Klik **Mulai akses dukungan**.
 
 ![Dialog Masuk sebagai pengguna dengan alasan dan kata sandi operator](images/web/platform-support-dialog.png)
@@ -584,7 +635,7 @@ Untuk mengubah data:
 5. Bila konfirmasi kata sandi platform sudah lewat 5 menit, Inbils membuka **Konfirmasi kata sandi**. Setelah berhasil, Inbils kembali ke halaman tenant. Klik **Mode ubah** dan ketik kode lagi.
 6. Banner berubah menjadi **mode Ubah**. Klik **Mode baca** untuk kembali ke mode aman.
 
-Setiap request perubahan pada mode Ubah mencatat rute, metode HTTP, path, dan status respons sebagai **Perubahan saat akses dukungan**.
+Setiap request perubahan pada mode Ubah mencatat rute, metode HTTP, path, dan status respons sebagai **Data diubah saat akses dukungan**.
 
 ## 7.4 Tindakan yang tetap dilarang
 
@@ -605,8 +656,8 @@ Penolakan pengaturan pribadi menulis "Pengaturan akun pribadi tidak tersedia sel
 Satu sesi memakai satu kode kelompok (`batch_uuid`). Audit platform mencatat:
 
 - **Akses dukungan dimulai**;
-- **Mode akses diubah**;
-- **Perubahan saat akses dukungan** untuk setiap perubahan;
+- **Mode akses dukungan diubah**;
+- **Data diubah saat akses dukungan** untuk setiap perubahan;
 - **Akses dukungan berakhir**, alasan berakhir, dan durasi.
 
 Tenant melihat baris modul **Akses dukungan** di **Log Audit**. Nama dan email operator tidak ditampilkan. Deskripsi memakai kalimat seperti:
@@ -663,7 +714,7 @@ Kunci templat tetap sama walau namanya diubah. Peran perusahaan yang berasal dar
 2. Isi **Nama**. Nama wajib, unik di antara templat, dan paling banyak 255 karakter. Nama harus memuat huruf atau angka. Inbils membuat kunci dari nama itu, dan kunci tidak dapat diubah kemudian.
 3. Pilih hak akses dengan **Cari hak akses**, daftar kategori di kiri, dan kotak kategori untuk memilih atau mengosongkan semua izin yang tampil pada kategori itu.
 4. Klik **Buat templat**.
-5. Dialog **Konfirmasi perubahan templat** terbuka. Isi **Kata sandi operator**, lalu klik **Buat templat**.
+5. Dialog **Konfirmasi perubahan templat** terbuka. Isi **Kata sandi operator** bila dialog memintanya, lalu klik **Buat templat**.
 
 Toast menulis "Templat dibuat." Audit platform menyimpan kunci, nama, dan daftar hak akses. Peran dari templat baru muncul di perusahaan yang dibuat sesudahnya. Untuk perusahaan yang sudah ada, tambahkan dari templat (bagian 8.6).
 
@@ -671,7 +722,7 @@ Toast menulis "Templat dibuat." Audit platform menyimpan kunci, nama, dan daftar
 
 Klik nama templat atau **Ubah**. Halaman berjudul "Ubah templat" diikuti nama templat, dengan subjudul "Kunci {kunci}. Perusahaan yang sudah ada tidak ikut berubah." Alert **Berlaku untuk perusahaan baru** mengulang aturan itu.
 
-Ubah nama atau hak akses, klik **Simpan templat**, lalu konfirmasi dengan kata sandi operator. Toast menulis "Templat diperbarui. Peran perusahaan yang sudah ada tidak berubah."
+Ubah nama atau hak akses, klik **Simpan templat**, lalu konfirmasi dengan kata sandi operator bila dialog memintanya. Toast menulis "Templat diperbarui. Peran perusahaan yang sudah ada tidak berubah."
 
 Templat Admin harus tetap memuat `roles.manage` dan `app.web`. Tanpa keduanya perusahaan baru tidak punya admin, dan form menolak dengan "Templat Admin harus tetap memuat roles.manage dan app.web, kalau tidak perusahaan baru tidak punya admin."
 
@@ -687,7 +738,7 @@ Pesan diawali "Pemisahan tugas (...)" dan menyebut izin yang berbenturan. Izin d
 ## 8.5 Menghapus templat
 
 1. Pada templat selain Admin dan Pelanggan, klik **Hapus**.
-2. Dialog **Hapus templat {nama}?** menulis "Perusahaan baru tidak lagi mendapat peran ini. Peran yang sudah disalin ke perusahaan tidak berubah." Isi **Kata sandi operator**.
+2. Dialog **Hapus templat {nama}?** menulis "Perusahaan baru tidak lagi mendapat peran ini. Peran yang sudah disalin ke perusahaan tidak berubah." Isi **Kata sandi operator** bila dialog memintanya.
 3. Klik **Hapus templat**.
 
 Toast menulis "Templat dihapus." Templat Admin dan Pelanggan tidak mempunyai tombol **Hapus**. Admin dipakai sebagai peran admin pertama, dan Pelanggan dipakai untuk akun pelanggan baru. Server menolaknya dengan "Templat ini dipakai saat perusahaan dibuat."
@@ -707,7 +758,7 @@ Kartu memuat satu bagian per perusahaan dalam tenant, perusahaan induk lebih dul
 1. Pada bagian perusahaan yang dituju, pilih templat di **Templat untuk {kode}**.
 2. Klik **Tambah dari templat**. Halaman **Tambah peran** terbuka dengan nama dan hak akses terisi dari templat.
 3. Ubah isian bila perlu, lalu klik **Tambah peran**.
-4. Dialog **Konfirmasi perbaikan peran** terbuka. Isi **Kata sandi operator**, lalu klik **Tambah peran**.
+4. Dialog **Konfirmasi perbaikan peran** terbuka. Isi **Kata sandi operator** bila dialog memintanya, lalu klik **Tambah peran**.
 
 Toast menulis "Peran dibuat." Cara ini juga dipakai untuk perusahaan lama yang kehilangan peran Admin-nya.
 
@@ -715,7 +766,7 @@ Toast menulis "Peran dibuat." Cara ini juga dipakai untuk perusahaan lama yang k
 
 1. Klik **Perbaiki** pada baris peran. Halaman berjudul "Perbaiki peran" diikuti nama peran, dengan nama dan kode perusahaan serta jumlah pengguna yang memegangnya.
 2. Alert **Perbaikan oleh operator** menulis "Perbaikan oleh operator tercatat di audit perusahaan (support)." Ubah **Nama** (harus unik di perusahaan itu) dan hak akses.
-3. Klik **Simpan peran**, lalu isi **Kata sandi operator** pada dialog **Konfirmasi perbaikan peran**.
+3. Klik **Simpan peran**, lalu isi **Kata sandi operator** pada dialog **Konfirmasi perbaikan peran** bila dialog memintanya.
 
 Toast menulis "Peran diperbarui." Perubahan langsung berlaku bagi pengguna perusahaan itu, dan hanya di perusahaan itu.
 
@@ -723,7 +774,7 @@ Toast menulis "Peran diperbarui." Perubahan langsung berlaku bagi pengguna perus
 
 1. Di halaman **Perbaiki peran**, gulir ke kartu **Hapus peran**.
 2. Bila ada pengguna yang memegang peran, pilih peran pengganti di **Pindahkan {n} pengguna ke**. Pengguna yang belum memegang peran itu mendapatkannya.
-3. Klik **Hapus peran**, lalu konfirmasi di dialog **Hapus peran {nama}?** dengan kata sandi operator.
+3. Klik **Hapus peran**, lalu konfirmasi di dialog **Hapus peran {nama}?** dengan kata sandi operator bila dialog memintanya.
 
 Toast menulis "Peran dihapus." Peran Pelanggan (dari templat `customer`) tidak dapat dihapus.
 
@@ -756,7 +807,7 @@ Peran yang dapat memakai: semua operator platform.
 2. Gulir ke kartu **Ekspor data**.
 3. Klik **Minta ekspor**.
 4. Dialog menjelaskan bahwa arsip dibuat di latar belakang, tersedia selama 24 jam, dan hanya satu ekspor boleh berjalan untuk satu perusahaan.
-5. Ketik kode induk dan isi **Kata sandi operator**.
+5. Ketik kode induk dan isi **Kata sandi operator** bila dialog memintanya.
 6. Klik **Minta ekspor**.
 
 Toast menulis "Ekspor data dijadwalkan." Job berjalan pada antrean `platform`, satu job per tenant, satu percobaan, dengan timeout satu jam.
@@ -780,6 +831,8 @@ Tabel memuat **Perusahaan**, **Status**, **Diminta**, **Ukuran**, **Baris**, **B
 Halaman memuat ulang data setiap 5 detik selama baris yang terlihat masih **Antrean** atau **Berjalan**.
 
 Klik **Unduh** pada ekspor **Siap diunduh**. URL bertanda tangan berlaku sampai **Berlaku sampai**, paling lama 24 jam sejak selesai, dan tetap memerlukan sesi operator aktif dengan 2FA. Nama berkas `{kode-lowercase}-tenant-export.zip`. Respons memakai `private, no-store`.
+
+Kartu **Ekspor data** pada halaman tenant juga mempunyai kolom **Unduh**. Kolomnya Dibuat, Status, Diminta oleh, Ukuran, Baris, Selesai, Kedaluwarsa, Catatan, dan Unduh. Tombol **Unduh** tampil selama ekspor **Siap diunduh** dan masa berlakunya belum lewat. Pada ekspor lain kolom itu kosong. Tombol memakai URL bertanda tangan dan aturan yang sama dengan halaman **Ekspor**, dan setiap unduhan tercatat sebagai **Ekspor data diunduh**.
 
 ## 9.3 Isi arsip dan data yang dikecualikan
 
@@ -819,7 +872,7 @@ Baris **Kedaluwarsa** tetap ada. Baris itu dapat menjadi bukti ekspor selesai se
 - "Ekspor perusahaan ini masih diproses.": tunggu ekspor aktif selesai atau menjadi gagal. Hanya satu build berjalan per tenant.
 - Status lama di **Antrean**: worker `platform` tidak berjalan. Periksa bagian 11.2.
 - Status **Gagal**: baca **Catatan**, **Audit platform**, dan `failed_jobs`. Setelah penyebab diperbaiki, minta ekspor baru.
-- Tombol **Unduh** hilang: ekspor belum siap atau sudah kedaluwarsa.
+- Tombol **Unduh** hilang di halaman **Ekspor** atau di kartu **Ekspor data** pada halaman tenant: ekspor belum siap atau sudah kedaluwarsa. Muat ulang halaman bila ekspor baru saja selesai.
 - Unduhan menjawab 403: URL kedaluwarsa atau tanda tangannya tidak valid. Unduhan menjawab 404: ekspor belum siap atau file fisiknya hilang. Minta ekspor baru.
 
 # 10. Audit platform
@@ -828,24 +881,27 @@ Baris **Kedaluwarsa** tetap ada. Baris itu dapat menjadi bukti ekspor selesai se
 
 Peran yang dapat memakai: semua operator platform.
 
-Klik **Audit platform**. Halaman memuat kegiatan operator dan akses dukungan pada seluruh tenant.
+Klik **Audit platform**. Halaman memuat kegiatan operator pada seluruh tenant dan, bila Anda memilihnya, salinan yang dilihat tenant sebagai akses dukungan.
 
 ![Halaman Audit platform dengan filter dan daftar kegiatan operator](images/web/platform-audit.png)
 
 Filter:
 
-- **Cari**: kode kegiatan, nama atau email operator, atau nama/kode perusahaan;
+- **Cari**: kata dari kalimat kegiatan seperti yang tampil di tabel (misalnya "ditangguhkan"), kode kegiatan, nama atau email operator, atau nama atau kode perusahaan, paling banyak 100 karakter;
 - **Perusahaan**: satu tenant, termasuk anak perusahaannya;
 - **Operator**: satu admin platform;
-- **Kegiatan**: satu kode audit dengan label Indonesia;
+- **Kegiatan**: satu kegiatan dari semua yang tercatat. Pilihannya memakai kalimat yang sama seperti di tabel, dengan kode kegiatan di bawahnya;
+- **Sumber**: **Platform** (pilihan awal), **Akses dukungan**, atau **Semua sumber**;
 - **Rentang tanggal**: tanggal mulai dan akhir dalam UTC.
+
+**Platform** adalah log operator sendiri, satu baris untuk satu tindakan. **Akses dukungan** adalah salinan yang dilihat tenant. Satu tindakan yang juga diberitahukan ke tenant, misalnya penangguhan, tercatat sebagai satu baris **Platform** dan satu salinan **Akses dukungan** untuk tiap perusahaan yang terkena, semuanya dengan kode kelompok yang sama. **Semua sumber** menampilkan keduanya, tetapi menyembunyikan salinan yang mengulang baris **Platform**, sehingga satu tindakan tampil sekali.
 
 Tabel memuat:
 
 | Kolom | Arti |
 | --- | --- |
 | **Waktu** | Waktu pada zona waktu browser. |
-| **Kegiatan** | Label Indonesia dan kode kegiatan di bawahnya. |
+| **Kegiatan** | Kalimat kegiatan, misalnya "Perusahaan ditangguhkan", dan kode kegiatan di bawahnya. |
 | **Sumber** | **Platform** atau **Akses dukungan**. |
 | **Pelaku** | Nama operator atau pengguna, atau **Sistem**. |
 | **Perusahaan** | Nama/kode tenant. Klik nama bila tenant masih ada. |
@@ -853,6 +909,8 @@ Tabel memuat:
 | **Rincian** | Tombol **Lihat**. |
 
 Rentang filter dihitung menurut hari UTC. Waktu di tabel mengikuti jam browser. Halaman menampilkan 10 baris per halaman secara standar.
+
+Filter yang tidak bisa dipakai tidak menolak halaman. Halaman tetap terbuka dengan filter lain yang sah, dan pesan tampil di bawah isian yang bermasalah, misalnya "Tanggal akhir tidak boleh sebelum tanggal mulai." atau "Sumber tidak dikenal. Pilih Platform, Akses dukungan, atau Semua sumber." Kesalahan pada nomor halaman atau jumlah baris tampil sebagai alert kuning di atas tabel, misalnya "Pilih 10, 25, atau 50 baris per halaman." Nomor halaman yang melewati halaman terakhir menampilkan halaman terakhir, bukan tabel kosong.
 
 ## 10.2 Membaca rincian kegiatan
 
@@ -871,7 +929,7 @@ Dialog memuat:
 - Kelompok kegiatan;
 - Properti tercatat.
 
-**Kelompok kegiatan** adalah UUID yang menghubungkan seluruh baris satu sesi dukungan. Properti skalar tampil apa adanya, boolean sebagai Ya/Tidak, dan array sebagai JSON ringkas. Properti id internal bertipe integer disembunyikan dari tampilan. Nilai pribadi yang dimask tetap menulis `[disembunyikan]`.
+**Kelompok kegiatan** adalah UUID yang menghubungkan baris yang termasuk satu tindakan: baris **Platform** dengan salinan **Akses dukungan**-nya, atau seluruh baris satu sesi dukungan. **Subjek** menulis jenis record dan nama atau kodenya bila ada, misalnya `PlatformAdmin` dengan nama operator. Tanpa nama atau kode, dialog menulis jenis dan id. Judul dialog memakai kalimat kegiatan. Properti skalar tampil apa adanya, boolean sebagai Ya/Tidak, dan array sebagai JSON ringkas. Properti id internal bertipe integer disembunyikan dari tampilan. Nilai pribadi yang dimask tetap menulis `[disembunyikan]`.
 
 Setelah purge permanen, audit platform tetap ada. Kolom perusahaan menampilkan nama dan kode yang disimpan pada properti, tetapi tidak lagi menjadi tautan.
 
@@ -884,12 +942,12 @@ Label utama:
 | Akun operator | **Operator dibuat**, **Operator masuk**, **Operator keluar**, **Sesi operator berakhir**, **Operator gagal masuk**, **Masuk operator diblokir** |
 | 2FA operator | **Pendaftaran 2FA dimulai**, **2FA diaktifkan**, **Kode 2FA benar**, **Kode 2FA salah**, **Kode pemulihan dipakai**, **Kode pemulihan dibuat ulang** |
 | Peran | **Peran dibuat**, **Peran diubah**, **Peran dihapus** (perbaikan peran perusahaan), **Templat peran dibuat**, **Templat peran diubah**, **Templat peran dihapus** |
-| Tenant | **Perusahaan dibuat**, **Anak perusahaan dibuat**, **Perusahaan ditangguhkan**, **Perusahaan diaktifkan**, **Pengajuan hapus dicatat** |
-| Data contoh | **Data contoh terisi**, **Data contoh gagal** |
-| Ekspor | **Ekspor diminta**, **Ekspor selesai**, **Ekspor gagal**, **Ekspor kedaluwarsa**, **Ekspor diunduh** |
-| Purge | **Penghapusan dimulai**, **Penghapusan gagal**, **Penghapusan selesai** |
+| Tenant | **Perusahaan dibuat**, **Anak perusahaan dibuat**, **Anak perusahaan {nama} diminta** (`tenant.subsidiary_requested`), **Permintaan anak perusahaan {nama} dibuat** atau **ditolak** (`tenant.subsidiary_request_closed`, dengan alasan penolakan), **Perusahaan ditangguhkan**, **Perusahaan diaktifkan kembali**, **Permintaan hapus data dicatat** |
+| Data contoh | **Data contoh terisi**, **Data contoh gagal diisi** |
+| Ekspor | **Ekspor data diminta**, **Ekspor data selesai**, **Ekspor data gagal**, **Ekspor data kedaluwarsa**, **Ekspor data diunduh** |
+| Purge | **Penghapusan data dimulai**, **Penghapusan data gagal**, **Penghapusan data selesai** |
 | Dukungan pengguna | **2FA pengguna diatur ulang**, **Undangan dikirim ulang**, **Kunci masuk dibuka**, **Undangan gagal terkirim** |
-| Akses dukungan | **Akses dukungan dimulai**, **Mode akses diubah**, **Perubahan saat akses dukungan**, **Akses dukungan berakhir** |
+| Akses dukungan | **Akses dukungan dimulai**, **Mode akses dukungan diubah**, **Data diubah saat akses dukungan**, **Akses dukungan berakhir** |
 
 Kolom IP dan user agent disimpan untuk penelusuran server dan tidak tampil sebagai kolom di halaman ini. Baris masuk dan keluar operator mencatat IP di **Properti tercatat**. Kata sandi, token, QR secret, kode pemulihan, isi request, dan stack trace tidak masuk ke properti audit.
 
@@ -905,12 +963,16 @@ Audit internal bersumber **Platform** tidak tampil pada Log Audit tenant. Tindak
 
 Tenant melihat pelaku sebagai **Tim dukungan Inbils**, tanpa email atau id internal operator. Log `platform`, `support`, dan `security` disimpan 730 hari. Scheduler menjalankan `inbils:activity-log:prune` setiap hari.
 
+Permintaan anak perusahaan dari tenant dan penutupannya hanya tercatat dengan sumber **Platform**. Tenant melihat permintaannya selama masih terbuka di halaman **Perusahaan**, dan menerima email bila operator menolaknya.
+
 ### Kesalahan umum
 
-- Pencarian label Indonesia tidak menemukan baris: coba kode kegiatan, misalnya `tenant.export_requested`.
+- Pencarian tidak menemukan baris: cari dengan kata dari kalimat kegiatan (misalnya "ditangguhkan") atau dengan kode kegiatan, misalnya `tenant.export_requested`. Periksa juga **Sumber**. Sumber awalnya **Platform**, jadi baris **Akses dukungan** baru tampil bila Anda memilih **Akses dukungan** atau **Semua sumber**.
 - Perusahaan terhapus tetap muncul tanpa tautan: ini perilaku audit yang disengaja.
 - Tanggal yang dipilih tampak bergeser: filter memakai hari UTC, sementara tabel memakai jam browser.
 - Audit tenant tidak menampilkan login operator biasa: hanya sumber **Akses dukungan** yang terlihat oleh tenant.
+- Pesan merah di bawah satu filter: isian itu tidak dipakai, dan halaman menampilkan hasil filter lain. Perbaiki isiannya.
+- Alert kuning di atas tabel menulis soal nomor halaman atau jumlah baris: nomor halaman mulai dari 1, dan jumlah baris 10, 25, atau 50.
 
 # 11. Tugas konsol dan antrean
 
@@ -1021,6 +1083,15 @@ Host terpisah harus memakai rencana sesi dan cookie yang tetap dapat dibaca apli
 10. Bila ada sisa berkas, hapus `disk:path` yang dicantumkan terminal.
 11. Periksa **Audit platform**. Baris lama harus tetap menampilkan nama dan kode tenant tanpa tautan.
 
+## 12.4 Menanggapi permintaan anak perusahaan
+
+1. Operator menerima email **Permintaan anak perusahaan dari {nama perusahaan}**, atau melihat kartu **Permintaan anak perusahaan** di **Dasbor**.
+2. Baca nama yang diminta, kode usulan, catatan, dan pemohon.
+3. Bila permintaan wajar, klik **Buat anak perusahaan**. Periksa **Nama** dan **Kode** (kode harus unik), pilih **Akses admin**, lalu klik **Buat anak perusahaan**. Permintaan ditutup. Beri tahu admin perusahaan, karena Inbils tidak mengirim email ke pemohon saat anak perusahaan dibuat.
+4. Bila permintaan tidak bisa dipenuhi, klik **Tolak**, tulis alasan yang jelas, lalu klik **Tolak permintaan**. Inbils mengirim alasan itu ke pemohon.
+5. Bila tenant sedang ditangguhkan, aktifkan kembali lebih dulu untuk membuat anak perusahaan. Menolak tetap bisa.
+6. Baca **Audit platform** bila perlu bukti: **Anak perusahaan diminta**, **Anak perusahaan dibuat**, dan **Permintaan anak perusahaan {nama} dibuat** atau **ditolak**.
+
 # 13. Lampiran
 
 ## 13.1 Konfirmasi tindakan sensitif
@@ -1041,6 +1112,10 @@ Host terpisah harus memakai rencana sesi dan cookie yang tetap dapat dibaca apli
 | Buat kode pemulihan operator baru | Tidak | Tidak | Ya |
 | Tambah anak perusahaan | Tidak | Tidak | Tidak |
 | Buat perusahaan | Tidak | Tidak | Tidak |
+| Buat anak perusahaan dari permintaan tenant | Tidak | Tidak | Tidak |
+| Tolak permintaan anak perusahaan | Ya | Tidak | Ya |
+
+Tanda "Ya" pada kolom **Kata sandi operator** berarti dialog meminta kata sandi hanya bila konfirmasi terakhir sudah lewat 5 menit (bagian 2.5).
 
 ## 13.2 Batas penting
 
@@ -1048,7 +1123,7 @@ Host terpisah harus memakai rencana sesi dan cookie yang tetap dapat dibaca apli
 | --- | --- |
 | Sesi operator tanpa aktivitas | 30 menit |
 | Sesi akses dukungan | paling lama 30 menit sejak dimulai |
-| Konfirmasi kata sandi operator | 5 menit |
+| Konfirmasi kata sandi operator | 5 menit, berlaku untuk semua tindakan sensitif |
 | Login yang menunggu kode 2FA | 10 menit |
 | Kode TOTP | berubah setiap 30 detik, satu kali pakai |
 | Kode pemulihan baru | 8 kode, masing-masing satu kali pakai |
@@ -1079,9 +1154,10 @@ Host terpisah harus memakai rencana sesi dan cookie yang tetap dapat dibaca apli
 | Mode ubah | Mode akses dukungan yang mengizinkan perubahan sesuai izin target. |
 | Operator platform | Akun terpisah di `platform_admins` yang mengelola seluruh instalasi. |
 | Pengajuan hapus | Penanda bahwa tenant siap dipurge setelah syarat terpenuhi. Tidak menghapus data dari web. |
+| Permintaan anak perusahaan | Permintaan admin perusahaan induk agar operator membuat anak perusahaan. Terbuka sampai operator membuat anak perusahaan atau menolaknya. Satu tenant hanya punya satu yang terbuka. |
 | Templat peran | Peran awal yang disalin ke perusahaan baru saat dibuat. Mengubahnya tidak mengubah perusahaan yang sudah ada. |
 | Platform queue | Antrean khusus untuk data contoh dan ekspor tenant. |
 | Purge | Penghapusan permanen tenant melalui konsol server. |
-| Step-up | Konfirmasi ulang kata sandi operator untuk tindakan sensitif. |
+| Step-up | Konfirmasi ulang kata sandi operator untuk tindakan sensitif. Berlaku 5 menit dan dipakai bersama oleh semua dialog. |
 | Tenant | Satu perusahaan induk beserta anak perusahaannya. |
 | Undangan admin | Email bertaut 60 menit agar admin pertama menetapkan kata sandi. |

@@ -12,6 +12,8 @@ Pembagian izin yang rinci ada di bagian 10.1. Peran dimiliki perusahaan Anda: ad
 
 Teknisi dan pelanggan tidak memakai web. Akun yang tidak memegang izin akses web (`app.web`) dialihkan ke halaman **Gunakan aplikasi Inbils**, yang menyebut aplikasi Android yang harus dipakai: Inbils Teknisi atau Inbils Pelanggan. Halaman itu punya tombol **Buka Play Store** (tampil bila tautan Play Store sudah diatur), **Kelola akun & 2FA**, dan **Keluar**. Pekerjaan teknisi (memulai dan menyerahkan SPK, mengerjakan tiket, mengembalikan material) dan pekerjaan pelanggan (melihat dan membayar tagihan, membuat tiket) dilakukan di aplikasi masing-masing, dengan panduan terpisah: Panduan Aplikasi Teknisi dan Panduan Aplikasi Pelanggan. Di web, mereka hanya membuka halaman masuk, lupa kata sandi, profil (termasuk 2FA), dan halaman hasil pembayaran. Di halaman profil, tautan **Kembali ke halaman aplikasi** membawa mereka kembali. Akun yang juga memegang peran lain dengan izin akses web, misalnya Admin, Manajer, atau Staf, tidak dialihkan. Akun yang tidak memegang peran apa pun di perusahaan, atau yang perannya tidak memuat akses teknisi maupun pelanggan, membuka halaman **Akun ini belum punya akses aplikasi web** dengan keterangan "Minta admin perusahaan Anda memberi peran yang memuat akses web."
 
+Bila tautan Play Store untuk aplikasi itu belum diatur, halaman **Gunakan aplikasi Inbils** menulis "Minta tautan aplikasi ke admin ISP Anda." di tempat tombol **Buka Play Store**.
+
 ### Cara membaca panduan
 
 - Nama menu, tombol, tab, dan isian ditulis tebal persis seperti tulisan di layar. Semua layar Inbils berbahasa Indonesia. Singkatan dan nama produk berikut tidak diterjemahkan: SPK, ODN, ODP, OLT, PON, NAS, IP, CIDR, MAC, VLAN, SLA, MRR, KPI, SKU, RADIUS, Midtrans, WhatsApp, 2FA, dan Email.
@@ -23,7 +25,7 @@ Bila menu yang disebut panduan tidak ada di sidebar Anda, peran Anda belum memil
 
 ## 1.2 Masuk
 
-Akun dibuat oleh admin lewat menu Pengguna (bagian 8.5). Web tidak menyediakan pendaftaran sendiri.
+Akun dibuat oleh admin lewat menu Pengguna (bagian 8.5). Web tidak menyediakan pendaftaran sendiri. Admin tidak mengetik kata sandi untuk akun staf: Inbils mengirim email undangan ke alamat akun, dan pemilik akun memasang kata sandinya lewat tombol **Atur kata sandi** di email itu. Tautan undangan berlaku 60 menit. Bila undangan hilang atau kedaluwarsa, admin memakai **Kirim ulang undangan** di halaman detail pengguna (bagian 8.5), atau pemilik akun memakai **Lupa kata sandi?** (bagian 1.3).
 
 Peran yang dapat memakai: semua pengguna dengan akun aktif. Akun nonaktif ditolak dengan pesan yang sama seperti kata sandi salah.
 
@@ -58,8 +60,8 @@ Inbils menampilkan toast hijau "Pengaturan awal selesai." dan membuka **Dasbor**
 ### Kesalahan umum
 
 - Pesan "Email atau kata sandi salah." berarti email atau kata sandi salah, atau akun Anda nonaktif. Periksa tulisan email, lalu minta admin memeriksa status akun bila kata sandi sudah benar.
-- Pesan "Terlalu banyak percobaan masuk. Coba lagi dalam N detik." muncul setelah lima percobaan gagal dari alamat dan email yang sama. Tunggu sampai hitungan detik habis, lalu coba lagi.
-- Pesan "Akun perusahaan Anda sedang ditangguhkan. Hubungi dukungan." muncul bila email dan kata sandi benar, tetapi semua perusahaan yang boleh Anda masuki ditangguhkan. Hubungi admin server.
+- Pesan "Terlalu banyak percobaan. Coba lagi dalam N menit." muncul setelah lima percobaan gagal dari alamat dan email yang sama. Tunggu sampai menit itu habis, lalu coba lagi.
+- Pesan "Akun perusahaan Anda sedang ditangguhkan. Hubungi dukungan." muncul bila email dan kata sandi benar, tetapi semua perusahaan yang boleh Anda masuki ditangguhkan. Hubungi admin server. Pesan yang sama muncul di bawah **Email** bila perusahaan Anda ditangguhkan saat Anda sedang bekerja dan tidak ada perusahaan lain yang bisa Anda masuki: Inbils mengeluarkan Anda dan membuka halaman masuk.
 - Halaman **Sesi berakhir** muncul bila halaman masuk terbuka terlalu lama. Klik **Muat ulang halaman**, lalu masuk lagi.
 - Di **Pengaturan awal**, langkah yang belum lengkap ditolak dengan pesan merah, misalnya "Nama dan kode perusahaan wajib diisi." Di langkah **Konfirmasi**, bila server menolak data (misalnya kode perusahaan sudah dipakai), pesan "Data belum bisa disimpan:" disusul alasannya. Klik **Kembali** ke langkah yang bersangkutan untuk memperbaikinya.
 
@@ -77,10 +79,12 @@ Peran yang dapat memakai: semua pengguna. Inbils mengirim tautan ke email akun, 
 5. Di halaman **Atur ulang kata sandi**, isian **Email** sudah terisi. Isi **Kata sandi baru** dan **Ulangi kata sandi baru** dengan kata sandi yang sama (minimal 8 karakter), lalu klik **Simpan kata sandi**.
 6. Inbils membawa Anda ke halaman masuk dengan pesan hijau "Kata sandi Anda telah diatur ulang." Masuk dengan kata sandi baru.
 
+Akun pelanggan hidup di aplikasi, bukan di web. Bila Anda memasang kata sandi dari tautan di email akun pelanggan, Inbils membawa Anda ke halaman masuk dengan pesan "Kata sandi tersimpan. Masuk lewat aplikasi Inbils." dan **Email** sudah terisi. Tombol **Buka aplikasi Inbils** di atas isian membuka aplikasi pelanggan: lewat tautan Play Store bila perusahaan sudah mengaturnya, atau, bila belum, langsung ke aplikasi di ponsel Android (bila aplikasinya belum terpasang, Chrome membuka halaman Play Store-nya). Di komputer tanpa tautan Play Store, tombol itu tidak tampil.
+
 ### Kesalahan umum
 
 - Pesan "Token pengaturan ulang kata sandi tidak valid." di bawah **Email** berarti tautan sudah lewat 60 menit atau sudah dipakai. Ulangi dari langkah 1 dan pakai tautan dari email terbaru.
-- Pesan "Kami tidak menemukan pengguna dengan alamat email tersebut." berarti isian **Email** di halaman atur ulang berbeda dari alamat yang menerima tautan. Kembalikan ke alamat itu.
+- Alamat di isian **Email** yang tidak punya akun mendapat pesan yang sama dengan tautan yang salah, "Token pengaturan ulang kata sandi tidak valid.", supaya halaman ini tidak membocorkan alamat mana yang punya akun. Samakan **Email** dengan alamat yang menerima tautan, atau minta tautan baru.
 - Pesan "kata sandi minimal 8 karakter." atau "Konfirmasi kata sandi tidak cocok." muncul di bawah **Kata sandi baru**. Perpanjang kata sandinya, atau samakan kedua isian.
 - Email tidak datang: tunggu beberapa menit, periksa folder spam, lalu minta ulang. Permintaan kedua dalam 60 detik tidak mengirim email baru, tetapi layar tetap menampilkan pesan yang sama. Satu alamat IP dibatasi enam permintaan per menit.
 - Setelah kata sandi berganti, login aplikasi Android milik akun yang sama berakhir. Masuk lagi di aplikasi dengan kata sandi baru.
@@ -130,7 +134,7 @@ Admin perusahaan (pemegang `company.manage`) dapat mewajibkan 2FA untuk semua ad
 
 - Pesan "Kode autentikasi dua langkah tidak valid." berarti kode salah, sudah berganti, atau sudah dipakai. Ketik kode terbaru dari aplikasi dan pastikan jam ponsel akurat.
 - Satu kode hanya diterima sekali. Setelah kode dipakai untuk masuk, tunggu kode berikutnya untuk masuk lagi.
-- Lima percobaan salah dalam semenit dari satu alamat menghentikan percobaan berikutnya sementara, bahkan bila kode yang diketik benar. Sepuluh percobaan salah dalam 15 menit menghentikannya untuk akun itu dari alamat mana pun. Tunggu sampai hitungan detik pada pesan "Terlalu banyak percobaan masuk. Coba lagi dalam N detik." habis.
+- Lima percobaan salah dalam semenit dari satu alamat menghentikan percobaan berikutnya sementara, bahkan bila kode yang diketik benar. Sepuluh percobaan salah dalam 15 menit menghentikannya untuk akun itu dari alamat mana pun. Tunggu sampai menit pada pesan "Terlalu banyak percobaan. Coba lagi dalam N menit." habis.
 - Ponsel hilang dan kode pemulihan habis: minta admin mereset 2FA akun Anda lewat tombol **Atur ulang 2FA** di halaman detail pengguna (bagian 8.5). Setelah reset, Anda masuk dengan kata sandi saja dan bisa mendaftar ulang.
 - Menyalakan, mematikan, atau membuat ulang kode pemulihan mengakhiri login Anda di browser dan perangkat lain, termasuk login "Ingat saya" dan login aplikasi Android. Sesi yang sedang Anda pakai tetap berjalan. Masuk lagi di aplikasi setelahnya.
 
@@ -146,6 +150,7 @@ Hampir semua menu memakai kerangka yang sama. Bagian ini menjelaskan kerangka it
 - Di layar sempit, sidebar tersembunyi. Klik tombol tiga garis di kiri atas (**Menu navigasi**) untuk membukanya. Tombol Esc menutupnya.
 - Di bilah atas, nama halaman tampil di kiri. Lonceng di kanan membuka halaman **Notifikasi** (bagian 2.2). Angka merah pada lonceng adalah jumlah yang belum dibaca, ditulis 99+ bila lebih dari 99.
 - Klik nama Anda di kanan atas untuk membuka menu dengan nama dan email Anda, disusul **Profil**, **Mode gelap** (atau **Mode terang**), dan **Keluar**. Pilihan tema disimpan di browser.
+- Saat halaman baru dibuka, tekan Tab sekali: tautan **Langsung ke konten** muncul di kiri atas. Tekan Enter untuk melompat ke isi halaman tanpa melewati seluruh menu.
 
 ### Daftar dan tabel
 
@@ -203,8 +208,8 @@ Bila nama saat ini berbeda, halaman detail menulis nama yang beku, disusul "(saa
 
 ### Formulir dan pesan
 
-- Isian wajib ditandai bintang merah di belakang namanya dan harus terisi sebelum menyimpan. Pesan merah di bawah isian menjelaskan apa yang salah. Di kanan atas layar, toast merah "Data gagal disimpan. Periksa input." menandai bahwa penyimpanan gagal.
-- Toast hijau menandai penyimpanan berhasil. Teksnya berbahasa Indonesia dan datang dari server, misalnya "Pelanggan dihapus." Toast hilang sendiri setelah sekitar 4 detik. Klik tombol x di toast untuk menutupnya lebih cepat.
+- Isian wajib ditandai bintang merah di belakang namanya dan harus terisi sebelum menyimpan. Pesan merah di bawah isian menjelaskan apa yang salah. Bila formulir memakai pemeriksaan browser, gelembung kecil berbahasa Indonesia muncul di isian yang bermasalah, misalnya "Wajib diisi.", "Format tidak sesuai.", "Nilai paling kecil 1.", "Nilai paling besar 5." atau "Paling sedikit 5 karakter." Di kanan atas layar, toast merah "Data gagal disimpan. Periksa input." menandai bahwa penyimpanan gagal.
+- Toast hijau menandai penyimpanan berhasil. Teksnya berbahasa Indonesia dan datang dari server, misalnya "Pelanggan dihapus." Toast hilang sendiri setelah sekitar 4 detik. Klik tombol x di toast untuk menutupnya lebih cepat. Bila banner akses dukungan atau pita anak perusahaan (bagian 1.6) tampil di atas halaman, toast muncul tepat di bawahnya, jadi tidak menutup tombol di banner itu.
 - Tombol yang sedang memproses menampilkan indikator putar dan tidak bisa diklik dua kali.
 - Rupiah baru dihitung sebagai rupiah penuh dengan pembulatan setengah ke atas. Layar, aplikasi, dan PDF menampilkan nilai penuh seperti `Rp 147.702`. Data lama yang masih punya sen tetap tampil tanpa kehilangan nilainya, misalnya `Rp 147.701,62`. Persentase dan angka desimal memakai koma desimal, misalnya `63,6%` dan `4,8`. Format tanggal mengikuti pengaturan perusahaan, dan jam memakai format 24 jam.
 
@@ -213,14 +218,14 @@ Bila nama saat ini berbeda, halaman detail menulis nama yang beku, disusul "(saa
 Empat pesan ini berarti server menolak penyimpanan Anda karena keadaan data sudah berubah, dan tidak ada yang tersimpan. Pesannya tampil sebagai toast merah di kanan atas.
 
 - "Permintaan yang sama baru saja dikirim.": Anda mengirim isian yang persis sama ke halaman yang sama dua kali dalam 10 detik, misalnya karena klik ganda atau dua tab. Permintaan pertama tetap berlaku, jadi cukup periksa hasilnya di daftar. Isian yang ditolak karena salah tidak dihitung, jadi setelah memperbaikinya Anda bisa mengirim lagi langsung. Bila Anda memang perlu mengirim dua isian yang sama persis, tunggu 10 detik di antaranya.
-- "Data diubah pengguna lain; muat ulang.": orang lain menyimpan data yang sama sejak Anda membuka formulir ubah. Banner dengan judul pesan itu, keterangan "Muat ulang halaman untuk melihat data terbaru, lalu ulangi perubahan Anda." dan tombol **Muat ulang** tampil di atas formulir. Klik **Muat ulang** untuk membuka ulang halaman dengan data terbaru, lalu ulangi perubahan Anda. Isian yang sudah Anda ketik hilang. Pesan ini berlaku di **Ubah Pelanggan**, **Ubah Barang**, **Ubah Paket Layanan**, dialog **Ubah Karyawan**, dan **Pengaturan Perusahaan**.
+- "Data diubah pengguna lain; muat ulang.": orang lain menyimpan data yang sama sejak Anda membuka formulir ubah. Banner dengan judul pesan itu, keterangan "Muat ulang halaman untuk melihat data terbaru, lalu ulangi perubahan Anda." dan tombol **Muat ulang** tampil di atas formulir. Klik **Muat ulang** untuk membuka ulang halaman dengan data terbaru, lalu ulangi perubahan Anda. Isian yang sudah Anda ketik hilang. Pesan ini berlaku di **Ubah Pelanggan**, **Ubah Barang**, **Ubah Paket Layanan**, **Ubah SPK**, dialog **Ubah Karyawan**, dan **Pengaturan Perusahaan**.
 - "Perusahaan aktif berubah di tab lain.": lihat bagian 1.6, **Kesalahan umum**.
 - "Stok berubah sejak dihitung; hitung ulang.": hanya saat menyetujui penyesuaian stok, lihat bagian 6.5.
 
 ### Isian pilihan, tanggal, dan jam
 
-- Isian yang memilih data lain (pelanggan, lokasi, barang, pengguna, dan sebagainya) adalah kotak pencarian: ketik untuk mencari, lalu pilih. Klik isian, ketik sebagian nama atau kode, lalu klik hasilnya, atau tekan tombol panah dan Enter. Tidak ada isian yang meminta Anda mengetik ID.
-- Pada tabel besar (misalnya pelanggan, langganan, dan barang), pencarian berjalan di server setelah Anda mengetik minimal 2 huruf, dan daftar menampilkan paling banyak 20 hasil. Di bawah 2 huruf daftar menulis "Ketik minimal 2 huruf untuk mencari.", selama mencari menulis "Mencari...", dan bila tidak ada yang cocok menulis "Tidak ada hasil." atau kalimat khusus isian itu.
+- Isian yang memilih data lain (pelanggan, lokasi, barang, pengguna, dan sebagainya) adalah kotak pencarian: klik isian, ketik sebagian nama atau kode, lalu klik hasilnya, atau tekan tombol panah dan Enter. Tidak ada isian yang meminta Anda mengetik ID. Saat daftar dibuka, pilihan yang sudah dipilih tersorot dan tergulir ke dalam tampilan.
+- Pada tabel besar (misalnya pelanggan, langganan, dan barang), daftar dimuat dari server. Begitu Anda membuka isian yang masih kosong, daftar menampilkan paling banyak 10 data terbaru di bawah judul **Terakhir dipakai**. Setelah Anda mengetik minimal 2 huruf, pencarian berjalan di server dan daftar menampilkan paling banyak 20 hasil. Dengan 1 huruf daftar menulis "Ketik minimal 2 huruf untuk mencari.", selama mencari menulis "Mencari...", dan bila tidak ada yang cocok menulis "Tidak ada hasil." atau kalimat khusus isian itu. Pencarian tidak menambahkan apa pun ke alamat halaman, jadi menyalin alamat atau memuat ulang halaman tidak membawa kata yang Anda cari.
 - Pilihan yang sudah dipilih tetap ada selama Anda mengetik. Pilihan berubah hanya bila Anda memilih hasil lain atau mengklik tombol x (**Hapus pilihan**).
 - Isian tanggal menerima format perusahaan dan format angka `20/10/2026`, `20-10-2026`, atau `2026-10-20`. Tekan Enter atau pindah ke isian lain untuk menetapkannya. Anda juga dapat klik ikon kalender (**Buka kalender**), pilih hari, atau klik **Hari ini**. Tombol x (**Hapus tanggal**) mengosongkan isian. Isian kosong menampilkan petunjuk seperti "Pilih tanggal". Tulisan yang bukan tanggal ditolak dengan pesan "Format tanggal tidak valid." disusul contoh, dan formulir tidak dapat dikirim sampai tanggal diperbaiki.
 - Isian tanggal dan jam ("Pilih tanggal dan jam"), bulan ("Pilih bulan"), dan jam ("Pilih jam") bekerja dengan cara yang sama: ketik, atau buka pemilihnya. Jam dipilih dari daftar per 30 menit atau diketik dalam format 24 jam. Pada tanggal dan jam, hari yang dipilih tanpa jam dimulai pukul 00:00, dan jam tanpa hari memakai hari ini.
@@ -252,9 +257,13 @@ Peran yang dapat memakai: admin dan manajer (izin `company.switch`, **Ganti peru
 1. Lihat bagian atas sidebar. Tombol di bawah nama perusahaan menampilkan nama perusahaan aktif dan tulisan **Ganti perusahaan**.
 2. Klik tombol itu. Menu **Ganti perusahaan** terbuka dengan nama dan kode setiap perusahaan. Perusahaan asal akun Anda diberi tulisan "bawaan" setelah kodenya.
 3. Pilih perusahaan tujuan. Inbils membuka **Dasbor** perusahaan itu dan menampilkan toast hijau "Sekarang bekerja di" disusul nama perusahaan.
-4. Untuk kembali, ulangi langkah 1 sampai 3 dan pilih perusahaan asal.
+4. Untuk kembali, ulangi langkah 1 sampai 3 dan pilih perusahaan asal, atau klik **Kembali ke induk** di pita bila Anda sedang di anak perusahaan (lihat di bawah).
 
 Perpindahan berlaku selama sesi login. Setiap login baru dimulai lagi di perusahaan asal. Peran dan izin Anda tidak berubah saat pindah. Di layar sempit, sidebar menutup sendiri setelah perpindahan.
+
+Selama perpindahan berjalan, tombol ganti perusahaan nonaktif dan menampilkan indikator putar, jadi klik kedua tidak memulai perpindahan lain. Setelah selesai, fokus keyboard kembali ke tombol itu.
+
+Di anak perusahaan, pita di bagian paling atas halaman menulis "Sedang di anak perusahaan {nama}". Tombol **Kembali ke induk** di pita itu memindahkan Anda ke perusahaan induk (Head) tanpa membuka menu, lalu toast "Sekarang bekerja di" disusul nama induk muncul. Tombol hanya tampil bila akun Anda boleh berpindah ke induk itu (izin `company.switch` dan akses ke perusahaan induk). Pita tidak tampil di Head maupun di perusahaan yang berdiri sendiri.
 
 Akses ke perusahaan lain dan anak perusahaan dibuat oleh administrator server dengan perintah `inbils:company:grant-membership` dan `inbils:company:create-subsidiary`, bukan lewat layar web.
 
@@ -302,7 +311,7 @@ Peran yang dapat memakai: semua akun web dengan izin `dashboard.view` (**Lihat d
 
 1. Klik **Dasbor** di sidebar. Dasbor juga terbuka otomatis setelah masuk.
 
-   ![Dasbor admin dengan judul Dasbor, kartu antrean di kiri, dan panel Notifikasi di kanan](images/web/dashboard.png)
+   ![Dasbor admin dengan judul Dasbor, kartu antrean di kiri termasuk kartu Jatuh tempo ≤ 3 hari, dan panel Notifikasi di kanan](images/web/dashboard.png)
 
 2. Baca kartu per grup: **Operasional**, **Persetujuan**, **Gudang**, **Keuangan**. Grup yang tidak relevan untuk peran Anda tidak tampil.
 3. Perhatikan penanda di kanan atas kartu. **Perlu tindakan** (kuning) dan **Segera tangani** (merah) muncul hanya bila angkanya lebih dari nol, dan hanya pada kartu yang menandai pengecualian. Kartu **Pekerjaan saya** dan **Antrean permintaan gudang** tidak punya penanda. Angka nol tampil abu-abu dengan tulisan "Tidak ada yang perlu ditangani."
@@ -316,11 +325,12 @@ Peran yang dapat memakai: semua akun web dengan izin `dashboard.view` (**Lihat d
 | Pekerjaan saya | SPK dan tiket yang ditugaskan kepada Anda. Rincian: **Belum dimulai**, **Dikerjakan**, **Menunggu tindakan** | **Pekerjaan Saya** (3.6) | Pemegang izin kerja lapangan (**Mulai SPK**, **Kirim SPK untuk ditinjau**, **Mulai menangani tiket**, **Selesaikan tiket**, atau **Tutup tiket**) yang punya profil karyawan aktif |
 | Belum ditugaskan | Tiket dan SPK tanpa penerima. Rincian: **Tiket**, **SPK** | **Penugasan** (3.1), dengan **Status penugasan** di **Belum ditugaskan** | Pengguna aktif dengan izin **Tugaskan tiket**, **Tugaskan ulang tiket**, **Tugaskan SPK**, atau **Tugaskan ulang SPK** |
 | SLA terlampaui | Tiket yang belum selesai dan sudah lewat batas SLA | **Tiket** (3.4), daftar hanya berisi tiket yang lewat batas SLA. Layar Tiket tidak punya chip untuk ini | Pemegang `ticket.view` yang juga menugaskan, mengerjakan, atau melaporkan SLA tiket |
-| Menunggu persetujuan saya | SPK dan permintaan barang yang menunggu keputusan Anda | **Persetujuan** (3.2) | Pemegang izin **Setujui SPK**, **Tolak SPK**, **Setujui permintaan barang**, atau **Tolak permintaan barang** |
-| Antrean permintaan gudang | Permintaan barang di antrean gudang | **Permintaan Barang** (6.1), tab **Persiapan & Antrean Gudang** | Pemegang `inventory.request.view.all` yang juga boleh menyetujui, menyiapkan, atau mengeluarkan permintaan barang |
+| Menunggu persetujuan saya | SPK dan permintaan barang yang menunggu keputusan Anda. Bila Anda sendiri pembuat SPK yang menunggu review, baris abu-abu di bawah angka menulis "{n} SPK menunggu admin (Anda pembuatnya)", karena SPK itu tidak ikut dihitung | **Persetujuan** (3.2) | Pemegang izin **Setujui SPK**, **Tolak SPK**, **Setujui permintaan barang**, atau **Tolak permintaan barang** |
+| Antrean permintaan gudang | Permintaan barang di antrean gudang yang bisa Anda kerjakan sekarang: menyetujui, menyiapkan, atau menyerahkan. Rincian: **Seluruh antrean**, jumlah seluruh antrean gudang | **Permintaan Barang** (6.1), tab **Persiapan & Antrean Gudang** | Pemegang `inventory.request.view.all` yang juga boleh menyetujui, menyiapkan, atau mengeluarkan permintaan barang |
 | Antrean retur material | Pengembalian material yang menunggu diproses. Rincian: **Pengecualian** | **Permintaan Barang**, tab **Antrean Pengembalian** (6.8) | Pemegang `inventory.return.view.all` yang juga boleh menerima atau menyelesaikan pengembalian, dan boleh membuka Permintaan Barang |
 | Stok di bawah minimum | Baris stok (satu barang di satu lokasi) yang jumlahnya sama dengan atau di bawah stok minimum | **Stok** (6.5), daftar hanya berisi baris stok rendah. Layar Stok tidak punya kontrol filter untuk ini | Pemegang `inventory.view` |
 | Tagihan jatuh tempo | Tagihan terbuka yang lewat jatuh tempo dan masih bersisa. Rincian: **Terutang** | **Tagihan** (7.1), dengan **Status** di **Lewat jatuh tempo** | Pemegang `billing.view` |
+| Jatuh tempo ≤ 3 hari | Tagihan **Belum dibayar** atau **Dibayar sebagian** yang masih bersisa dan jatuh tempo mulai hari ini sampai 3 hari ke depan, menurut kalender perusahaan | **Tagihan** (7.1), dengan chip filter **Jatuh tempo ≤ 3 hari** menyala | Pemegang `billing.view` |
 | Tagihan draf menunggu dikirim | Tagihan draf perusahaan dan total nilainya | **Tagihan** (7.1), dengan **Status** di **Draf** | Pemegang `billing.send` |
 | Hampir terlampaui (≤ 30 menit) | Tiket yang belum selesai dan target responsnya (bila belum dijawab) atau target penyelesaiannya jatuh tempo dalam 30 menit ke depan | **Tiket** (3.4), chip **Hampir terlampaui** menyala | Sama dengan kartu **SLA terlampaui** |
 | Pelanggan membalas | Tiket yang belum selesai dan balasan terakhirnya (bukan catatan internal) ditulis pelanggan, jadi belum ada petugas yang menjawab | **Tiket**, chip **Pelanggan membalas** menyala | Sama dengan kartu **SLA terlampaui** |
@@ -343,12 +353,15 @@ Admin perusahaan (pemegang `company.manage`) melihat kartu **Mulai dari sini** d
 
 Langkah yang selesai tampil dengan tanda centang. Langkah yang belum selesai berupa tautan ke halaman yang mengerjakannya. Inbils mencentang dari data yang tersimpan, jadi tidak ada tombol untuk mencentang atau menyembunyikan langkah. Langkah yang halamannya tidak boleh Anda buka tidak tampil. Kartu hilang sendiri setelah semua langkah selesai.
 
+Kartu ini juga menulis satu baris awalan kode dokumen, misalnya "Kode dokumen dimulai dengan Tiket TKT, Tagihan INV, SPK SPK." Baris itu menunjukkan awalan yang sedang dipakai perusahaan Anda untuk tiket, tagihan, dan SPK, sebelum rekam pertamanya dibuat. Awalan diubah di Penomoran (bagian 7.13).
+
 ### Kesalahan umum
 
 - Angka kartu berbeda dengan daftar di menu tujuan: periksa perusahaan yang sedang aktif (bagian 1.6). Kartu dan daftar memakai aturan hitung yang sama untuk perusahaan aktif, kecuali kartu **Tagihan jatuh tempo** (bullet di bawah).
 - Daftar Tiket atau Stok yang dibuka dari kartu hanya berisi sebagian baris, dan layarnya tidak menampilkan filter yang aktif. Buka menu itu lewat sidebar untuk melihat semua baris.
 - Kartu **Tagihan jatuh tempo** dihitung dari tanggal jatuh tempo dan sisa tagihan. Filter **Lewat jatuh tempo** di Tagihan memakai status tagihan, yang diperbarui otomatis setiap hari pukul 03:00 UTC (10:00 WIB). Sampai pembaruan itu jalan, daftar bisa memuat lebih sedikit tagihan daripada kartu.
-- Kartu **Menunggu persetujuan saya** tidak menghitung SPK yang Anda buat atau tugaskan ke diri sendiri, dan permintaan barang yang Anda ajukan sendiri. Aturan pemisahan tugas melarang Anda menyetujuinya (bagian 3.2).
+- Kartu **Menunggu persetujuan saya** tidak menghitung SPK yang Anda buat atau tugaskan ke diri sendiri, dan permintaan barang yang Anda ajukan sendiri. Aturan pemisahan tugas melarang Anda menyetujuinya (bagian 3.2). Untuk SPK yang Anda buat sendiri, kartu menulis baris abu-abu "{n} SPK menunggu admin (Anda pembuatnya)", jadi angka 0 tidak membuat Anda mengira tidak ada yang menunggu.
+- Angka kartu **Antrean permintaan gudang** lebih kecil dari jumlah baris di tab **Persiapan & Antrean Gudang**: kartu hanya menghitung permintaan yang bisa Anda kerjakan sekarang, dan tidak menghitung yang menunggu orang lain atau yang dilarang aturan pemisahan tugas (pemohon tidak memutuskan atau menyerahkan permintaannya sendiri, dan penyetuju tidak menyiapkan atau menyerahkannya). Baris **Seluruh antrean** di kartu menulis jumlah seluruh antrean.
 - Angka **SLA terlampaui** lebih kecil dari yang Anda duga: pemegang izin mengerjakan tiket yang tidak boleh menugaskan hanya menghitung tiket yang ditugaskan kepadanya.
 - Kartu **Pekerjaan saya** tidak ada padahal Anda punya izin: akun Anda perlu profil karyawan yang aktif di perusahaan ini (bagian 8.3).
 - Dasbor kosong dengan judul "Belum ada antrean untuk akun Anda": peran Anda belum punya izin ke antrean mana pun. Hubungi admin untuk menambah izin.
@@ -356,7 +369,13 @@ Langkah yang selesai tampil dengan tanda centang. Langkah yang belum selesai ber
 
 ## 2.2 Notifikasi
 
-Notifikasi adalah pemberitahuan yang ditujukan ke akun Anda, misalnya tiket yang ditugaskan kepada Anda ("Tiket ditugaskan"), tiket yang melewati batas SLA ("SLA tiket terlampaui"), permintaan barang yang siap diambil, atau kegagalan penjadwalan tagihan ("Jadwal penagihan gagal"). Notifikasi tampil di tiga tempat: panel di dasbor, angka di lonceng bilah atas, dan halaman **Notifikasi**.
+Notifikasi adalah pemberitahuan yang ditujukan ke akun Anda, misalnya tiket yang ditugaskan kepada Anda, tiket yang melewati batas SLA ("SLA tiket terlampaui"), tiket yang dibuka kembali, dokumen pelanggan yang akan habis, permintaan barang yang siap diambil, atau kegagalan penjadwalan tagihan ("Jadwal penagihan gagal"). Notifikasi tampil di tiga tempat: panel di dasbor, angka di lonceng bilah atas, dan halaman **Notifikasi**. Beberapa teks memuat rincian supaya Anda tidak perlu membuka halamannya:
+
+- Tiket ditugaskan: judulnya memuat kode dan prioritas tiket, misalnya "Tiket {kode} · Tinggi", dan pesannya memuat judul tiket dan batas respons, misalnya "{judul}. Respons sebelum 21.17." Jam ditulis "21.17" untuk hari ini, "08.30 besok" untuk besok, dan tanggal disusul jam untuk hari yang lebih jauh. Tiket tanpa target respons tidak memuat kalimat "Respons sebelum".
+- Tiket dibuka kembali oleh staf: "Tiket {kode} dibuka kembali", dengan pesan "Oleh {nama}: {alasan}". Petugas tiket yang menerimanya, atau pemegang `ticket.assign` bila tiket tidak punya petugas aktif. Orang yang membuka kembali tiket tidak menerimanya.
+- Dokumen pelanggan akan habis: "Dokumen {jenis} {nama pelanggan} segera habis", dengan pesan "Berlaku sampai {tanggal}." Pemegang `customer.update` menerimanya sekali per dokumen, saat dokumen itu masuk 30 hari terakhir masa berlakunya. Sistem memeriksanya setiap hari.
+
+Notifikasi lama yang dibuat sebelum teks ini ada tetap memakai kalimat umum, misalnya "Tiket ditugaskan". Notifikasi untuk pelanggan (tagihan, tiket selesai, tiket dibuka kembali) tampil di aplikasi pelanggan, bukan di halaman ini.
 
 Peran yang dapat memakai: semua pengguna web, untuk notifikasi miliknya sendiri.
 
@@ -366,7 +385,7 @@ Peran yang dapat memakai: semua pengguna web, untuk notifikasi miliknya sendiri.
    ![Halaman Notifikasi dengan judul, tombol Tandai semua dibaca, dan daftar notifikasi](images/web/notifications.png)
 
 3. Baca daftar. Setiap notifikasi memuat judul, pesan, dan waktu. Notifikasi yang belum dibaca berjudul tebal dan berlatar tipis. Daftar menampilkan 20 notifikasi per halaman.
-4. Klik **Lihat detail** untuk membuka tiketnya. Notifikasi yang belum dibaca otomatis ditandai sudah dibaca.
+4. Klik **Lihat detail** untuk membuka halaman yang dimaksud notifikasi: tiket, SPK, tagihan, atau pelanggan. Notifikasi yang belum dibaca otomatis ditandai sudah dibaca.
 5. Klik **Tandai dibaca** pada satu notifikasi untuk menandainya tanpa membuka halamannya.
 6. Klik **Tandai semua dibaca** di kanan atas untuk menandai semuanya. Tombol ini nonaktif bila tidak ada yang belum dibaca.
 7. Bila daftar panjang, pakai **Sebelumnya** dan **Berikutnya** di bawah daftar.
@@ -374,7 +393,7 @@ Peran yang dapat memakai: semua pengguna web, untuk notifikasi miliknya sendiri.
 ### Kesalahan umum
 
 - Lonceng tanpa angka hanya berarti tidak ada yang belum dibaca. Notifikasi lama tetap ada di halaman **Notifikasi**. Layar ini tidak menyediakan tombol hapus.
-- Tombol **Lihat detail** hanya ada pada notifikasi tiket ("Tiket ditugaskan" dan "SLA tiket terlampaui") yang boleh Anda buka di perusahaan aktif. Notifikasi lain, atau notifikasi tiket dari perusahaan lain (bagian 1.6), tidak punya tombol itu.
+- Tombol **Lihat detail** hanya ada pada notifikasi yang punya halaman tujuan: tiket, SPK yang menunggu review, tagihan draf, ringkasan isolir otomatis (membuka **Tunggakan**), dan dokumen pelanggan yang akan habis (membuka halaman pelanggan). Tombol itu tampil bila datanya ada di perusahaan aktif dan boleh Anda buka. Notifikasi lain, atau notifikasi dari perusahaan lain (bagian 1.6), tidak punya tombol itu.
 - Notifikasi hanya untuk akun Anda. Admin tidak melihat notifikasi pengguna lain.
 
 ## 2.3 Ringkasan administrasi
@@ -386,7 +405,7 @@ Peran yang dapat memakai: pengguna dengan izin `users.manage` (**Kelola pengguna
 1. Buka **Dasbor** lalu gulir ke bawah sampai judul **Administrasi**.
 2. Baca empat kartu angka: **Pengguna** (pengguna perusahaan aktif), **Pengguna aktif**, **Peran**, dan **Izin akses**. Angka **Peran** dan **Izin akses** mencakup seluruh sistem, bukan satu perusahaan.
 3. Lihat kartu **Perusahaan**: **Nama**, **Kode**, **Mata uang**, dan **Zona waktu** perusahaan aktif.
-4. Lihat **Aktivitas terbaru**: sepuluh catatan audit terakhir di perusahaan aktif. Setiap baris memuat satu kalimat pendek yang menyebut objek dan kejadiannya, misalnya "Tiket ditugaskan", disusul waktunya. Bila Inbils belum punya padanan Indonesia untuk objek atau kejadian itu, nama aslinya tampil dengan tanda garis bawah diganti spasi. Bila belum ada catatan, kartu menulis "Belum ada aktivitas." Untuk telusur lengkap, buka halaman **Log audit** (bagian 7.12).
+4. Lihat **Aktivitas terbaru**: sepuluh catatan audit terakhir di perusahaan aktif. Setiap baris memuat satu kalimat pendek dari server yang menyebut objek dan kejadiannya, misalnya "Tiket ditugaskan", disusul waktunya. Kalimat itu memakai kamus yang sama dengan halaman **Log audit** (bagian 7.12). Kejadian yang belum punya kalimat Indonesia ditulis sebagai "objek: kejadian" dengan tanda garis bawah diganti spasi. Bila belum ada catatan, kartu menulis "Belum ada aktivitas. Setiap perubahan data di perusahaan ini akan tercatat di sini." Untuk telusur lengkap, buka halaman **Log audit** (bagian 7.12).
 5. Di kartu **Modul**, klik satu modul (Pelanggan, Layanan, Inventaris, Aset jaringan, SPK, Tagihan, Tiket) untuk membuka menunya. Setiap kotak modul bertuliskan "Buka modul". Angka di lencana adalah jumlah data modul itu di perusahaan aktif. Modul yang menunya tidak boleh Anda buka tidak tampil.
 
 ### Kesalahan umum
@@ -422,7 +441,7 @@ Peran yang dapat memakai: admin dan manajer pada peran bawaan, staf tidak. Izin:
    - Tombol **Reset filter** muncul saat ada filter aktif. Tombol ini mengosongkan filter dan memilih **Belum ditugaskan**.
 5. Saat menu baru dibuka, pilihan **Status penugasan** tampak **Belum ditugaskan** (begitu pula chipnya) tetapi belum menyaring apa pun bagi pemegang izin assign dan reassign (admin dan manajer). Daftar memuat item yang belum dan sudah ditugaskan sekaligus. Pilih statusnya sendiri bila ingin menyaring.
 6. Baca tabel antrean.
-   - Antrean memuat tiket berstatus **Terbuka** dan **Ditugaskan**, serta SPK berstatus **Draf**, **Menunggu penugasan**, **Ditolak**, dan **Ditugaskan**. Tiket dan SPK yang sudah dikerjakan tidak ada di sini.
+   - Antrean memuat tiket berstatus **Terbuka** dan **Ditugaskan**, serta SPK berstatus **Draf**, **Menunggu penugasan**, **Dikembalikan**, dan **Ditugaskan**. Tiket dan SPK yang sudah dikerjakan tidak ada di sini.
    - Kolom: **Kode** (kode sebagai tautan ke detail bila Anda boleh membukanya, dengan lencana **Tiket** atau **SPK** di bawahnya), **Judul dan kebutuhan** (judul, lalu "Kategori: ..." untuk tiket atau "Jenis: ..." untuk SPK, dan tanda "SLA terlampaui" bila batas SLA lewat), **Pemohon atau pelanggan** (nama dan kode pelanggan; SPK tanpa pelanggan menampilkan pembuatnya), **Prioritas dan umur** (lencana prioritas dan umur item, misalnya "5 jam lalu"), **Batas atau jadwal** ("SLA: ..." untuk tiket, "Jadwal: ..." untuk SPK), **Petugas saat ini** (nama petugas, atau tulisan "Belum ditugaskan"; SPK berstatus **Ditugaskan** yang teknisinya sudah menekan **Saya berangkat** di aplikasi menampilkan lencana **Dalam perjalanan** di bawah nama teknisi), dan **Tindakan** (tombol **Tugaskan** atau **Ganti petugas**).
    - Lencana **Dalam perjalanan** bukan status dan bukan filter. SPK tetap berstatus **Ditugaskan** dan tetap ada di antrean sampai teknisi menekan **Mulai**. Lencana hilang bila SPK dipindah ke teknisi lain, atau dikembalikan lalu ditugaskan lagi.
    - Judul kolom **Kode**, **Judul dan kebutuhan**, dan **Prioritas dan umur** bisa diurutkan. Urutan awal: terbaru di atas.
@@ -433,13 +452,14 @@ Peran yang dapat memakai: admin dan manajer pada peran bawaan, staf tidak. Izin:
 
 1. Di baris yang dituju, klik **Tugaskan** (item belum punya petugas) atau **Ganti petugas** (item sudah punya petugas). **Tugaskan** butuh `ticket.assign` atau `spk.assign`. **Ganti petugas** butuh `ticket.reassign` atau `spk.reassign`.
 
-   ![Dialog Tugaskan SPK dengan ringkasan item, baris Alasan, Dampak, dan Berikutnya, isian Pilih teknisi lapangan, serta tombol Batal dan Simpan penugasan](images/web/dispatch-assign.png)
+   ![Dialog Tugaskan SPK dengan ringkasan item, baris Alasan, Dampak, dan Berikutnya, isian Pilih teknisi lapangan, isian Tanggal kunjungan, serta tombol Batal dan Simpan penugasan](images/web/dispatch-assign.png)
 
 2. Baca dialog **Tugaskan Tiket** atau **Tugaskan SPK**, yang diikuti kode item. Bagian atas memuat **Judul**, **Pemohon**, **Prioritas**, **Umur antrean**, dan **Batas SLA** (tiket) atau **Jadwal kerja** (SPK). Bila SLA sudah lewat, tampil "SLA sudah terlampaui." Baris **Alasan**, **Dampak**, dan **Berikutnya** menjelaskan akibat penugasan.
-3. Pilih petugas di isian **Pilih petugas tiket** (tiket) atau **Pilih teknisi lapangan** (SPK). Isian ini wajib. Ketik untuk mencari, lalu pilih: pencarian memeriksa nama dan email, dan tiap pilihan menampilkan nama dengan email di bawahnya. Tombol **Hapus pilihan** di isian mengosongkannya. Saat mengganti petugas, isian sudah berisi petugas lama.
+3. Pilih petugas di isian **Pilih petugas tiket** (tiket) atau **Pilih teknisi lapangan** (SPK). Isian ini wajib. Ketik untuk mencari, lalu pilih: pencarian memeriksa nama. Tiap pilihan menulis nama petugas disusul jumlah pekerjaan aktifnya, misalnya "{nama} · 2 pekerjaan aktif", dan daftar terurut dari yang paling sedikit. Pekerjaan aktif adalah tiket **Ditugaskan** atau **Dikerjakan** ditambah SPK **Ditugaskan** atau **Dikerjakan** yang dipegang orang itu. Bila jumlahnya berbeda antarpetugas, petugas dengan pekerjaan paling sedikit diberi catatan "Paling sedikit pekerjaan" di bawah namanya. Itu hanya saran: Anda yang memilih. Tombol **Hapus pilihan** di isian mengosongkannya. Saat mengganti petugas, isian sudah berisi petugas lama.
    - Pilihan untuk tiket: pengguna aktif di perusahaan Anda yang memegang `ticket.start`, `ticket.resolve`, atau `ticket.close`.
    - Pilihan untuk SPK: pengguna aktif di perusahaan Anda yang memegang `spk.start` atau `spk.submit` dan punya profil karyawan berstatus Aktif di perusahaan itu.
-4. Klik **Simpan penugasan**. Dialog tertutup, daftar dimuat ulang, dan toast hijau muncul, misalnya "Tiket E2E-DISPATCH-TICKET berhasil ditugaskan." atau "SPK E2E-DISPATCH-SPK berhasil ditugaskan." Klik **Batal** untuk menutup dialog tanpa menyimpan.
+4. Untuk SPK, isi **Tanggal kunjungan** bila perlu. Isian ini opsional, dengan petunjuk "Opsional. Kosong berarti jadwal SPK tidak berubah." Isian sudah berisi jadwal SPK bila tanggalnya belum lewat, dan kosong bila SPK belum berjadwal atau jadwalnya sudah lewat. Tanggal sebelum hari ini (menurut zona waktu perusahaan) ditolak dengan pesan "Tanggal kunjungan tidak boleh sebelum hari ini." di bawah isian. Tiket tidak punya isian ini.
+5. Klik **Simpan penugasan**. Dialog tertutup, daftar dimuat ulang, dan toast hijau muncul dengan bentuk "{kode} ditugaskan ke {nama petugas}." Klik **Batal** untuk menutup dialog tanpa menyimpan.
 
 Setelah penugasan tersimpan:
 
@@ -447,9 +467,9 @@ Setelah penugasan tersimpan:
 - SPK berstatus **Ditugaskan**. Riwayat penugasan mencatat petugas baru. Saat mengganti petugas, riwayat juga menutup penugasan lama. Sistem mengantrekan pesan WhatsApp ke teknisi yang baru ditunjuk (kode, judul, tanggal kunjungan, tautan SPK), dan satu pesan ke pelanggan pada penugasan pertama bila SPK punya pelanggan dan tanggal kunjungan.
 - Item pindah dari **Belum ditugaskan** ke **Sudah ditugaskan**. Teknisi mengerjakannya di aplikasi teknisi. Pengguna web yang ditunjuk membukanya di **Pekerjaan Saya** (bagian 3.6).
 
-### Menugaskan ulang SPK yang ditolak
+### Menugaskan ulang SPK yang dikembalikan
 
-SPK yang ditolak reviewer di **Persetujuan** (bagian 3.2) berstatus **Ditolak** dan kembali ke antrean ini.
+SPK yang ditolak peninjau di **Persetujuan** (bagian 3.2) berstatus **Dikembalikan** dan kembali ke antrean ini.
 
 1. Pilih **Sudah ditugaskan** di **Status penugasan**, lalu cari kode SPK itu di kotak **Pencarian**.
 2. Klik **Ganti petugas** (butuh `spk.reassign`), pilih teknisi (boleh teknisi yang sama), lalu klik **Simpan penugasan**.
@@ -464,6 +484,7 @@ SPK yang ditolak reviewer di **Persetujuan** (bagian 3.2) berstatus **Ditolak** 
 - Alert **Terjadi kesalahan** memuat pesan dari server, misalnya bila pengguna yang dipilih bukan petugas perusahaan Anda.
 - Penolakan server "Tiket harus berstatus terbuka atau ditugaskan untuk bisa ditugaskan." atau "SPK harus berstatus draf, menunggu penugasan, ditolak, ditugaskan, atau dikerjakan untuk bisa ditugaskan.": status item sudah berubah dan tidak menerima penugasan. Muat ulang halaman.
 - Penolakan server "Kebijakan perusahaan melarang menugaskan diri sendiri.": perusahaan Anda melarang menugaskan item ke akun sendiri. Pilih orang lain. Pengaturan larangan ini tidak ada di layar **Pengaturan Perusahaan**.
+- Pesan merah "Tanggal kunjungan tidak boleh sebelum hari ini." di bawah **Tanggal kunjungan**: pilih hari ini atau sesudahnya, atau kosongkan isian agar jadwal SPK tidak berubah.
 
 ## 3.2 Persetujuan
 
@@ -480,7 +501,7 @@ Peran yang dapat memakai: admin dan manajer pada peran bawaan. Izin: `spk.approv
 2. Ketahui apa yang tidak tampil. Antrean hanya memuat item yang boleh Anda putuskan (aturan maker-checker). SPK yang Anda buat atau yang ditugaskan kepada Anda dan permintaan barang yang Anda ajukan tidak tampil dan tidak ikut dihitung. Aturan ini berlaku juga bagi admin.
 3. Baca dua chip di atas daftar. Chip ini hanya menampilkan angka dan tidak bisa diklik.
    - Chip **Menunggu saya** menghitung SPK berstatus **Menunggu review** dan permintaan barang berstatus **Menunggu persetujuan** yang boleh Anda putuskan. Angkanya sama dengan angka di sidebar.
-   - Chip **Sudah diproses** menghitung SPK **Selesai** atau **Ditolak** dan permintaan barang yang sudah **Disetujui**, **Disiapkan**, **Siap diambil**, **Diserahkan**, atau **Ditolak**. Hitungannya mencakup keputusan siapa pun, kecuali item milik Anda sendiri.
+   - Chip **Sudah diproses** menghitung SPK **Selesai** atau **Dikembalikan** dan permintaan barang yang sudah **Disetujui**, **Disiapkan**, **Siap diambil**, **Diserahkan**, atau **Ditolak**. Hitungannya mencakup keputusan siapa pun, kecuali item milik Anda sendiri.
 4. Bila Anda memegang izin SPK dan izin permintaan barang, tab **Semua antrean**, **SPK**, dan **Permintaan barang** muncul di atas filter. Memilih tab membatasi daftar dan angka chip pada jenis itu. Dengan satu jenis izin saja, tab tidak muncul.
 5. Persempit daftar dengan filter:
    - Kotak **Pencarian** ("Cari kode, judul, atau alasan...") mencari kode, judul, atau alasan. Pencarian berjalan setelah Anda berhenti mengetik. Antrean ini tidak punya tombol **Cari**.
@@ -488,13 +509,13 @@ Peran yang dapat memakai: admin dan manajer pada peran bawaan. Izin: `spk.approv
    - Isian **Pemohon** berisi pembuat item yang ada di antrean Anda ("Semua pemohon" bila kosong). Ketik untuk mencari, lalu pilih.
    - Pilihan **Prioritas** berisi **Semua prioritas**, **Rendah**, **Sedang**, **Tinggi**, dan **Mendesak**.
    - Tombol **Reset filter** muncul saat ada filter aktif. Antrean ini tidak punya filter tanggal.
-6. Baca kolom tabel: **Kode** (kode sebagai tautan ke detail bila Anda boleh membukanya, dengan lencana **SPK** atau **Permintaan barang**), **Judul dan dampak** (judul, lalu jenis dan dua nama barang pertama dengan jumlah jenis dan total unit), **Status dan prioritas** (dua lencana: **Menunggu review** untuk SPK, **Menunggu persetujuan** untuk permintaan barang; prioritas permintaan barang selalu **Sedang**), **Pemohon** (pembuat SPK atau pengaju permintaan), **Waktu dan jadwal** ("Diajukan" dengan tanggal dan umur item, lalu "Jadwal" untuk SPK atau "Dibutuhkan" untuk permintaan barang), dan **Tindakan**. Untuk SPK, tanggal "Diajukan" adalah tanggal SPK dibuat. Kolom **Kode**, **Judul dan dampak**, **Status dan prioritas**, dan **Waktu dan jadwal** bisa diurutkan.
+6. Baca kolom tabel: **Kode** (kode sebagai tautan ke detail bila Anda boleh membukanya, dengan lencana **SPK** atau **Permintaan barang**), **Judul dan dampak** (judul, lalu jenis dan dua barang pertama, masing-masing dengan jumlah dalam satuannya sendiri, misalnya "Kabel Drop 18 m, Konektor 2 pcs (+1)"), **Status dan prioritas** (dua lencana: **Menunggu review** untuk SPK, **Menunggu persetujuan** untuk permintaan barang; prioritas permintaan barang selalu **Sedang**), **Pemohon** (pembuat SPK atau pengaju permintaan), **Waktu dan jadwal** ("Diajukan" dengan tanggal dan umur item, lalu "Jadwal" untuk SPK atau "Dibutuhkan" untuk permintaan barang), dan **Tindakan**. Untuk SPK, tanggal "Diajukan" adalah tanggal SPK dibuat. Jumlah dari satuan yang berbeda tidak dijumlahkan, jadi tabel tidak menulis total. Di layar sempit, tiap item tampil sebagai kartu dengan baris **Dampak material** yang sama dan "{n} jenis barang". Kolom **Kode**, **Judul dan dampak**, **Status dan prioritas**, dan **Waktu dan jadwal** bisa diurutkan.
 7. Tanpa data, tabel menampilkan "Tidak ada persetujuan yang menunggu" dan "Semua antrean sudah diproses. Item baru muncul di sini setelah diajukan.". Bila filter aktif, tabel menampilkan "Tidak ada persetujuan yang cocok" dengan tombol **Reset filter**.
 
 ### Meninjau, menyetujui, atau menolak
 
 1. Di kolom **Tindakan**, klik **Tinjau**. Panel **Tinjau SPK** atau **Tinjau permintaan barang**, diikuti kode item, terbuka di sisi kanan.
-2. Baca panel. Bagian atas memuat lencana **SPK** atau **Permintaan barang**, lalu status, prioritas, dan jenis. Kartu **Informasi SPK** atau **Informasi permintaan barang** memuat judul, **Pemohon**, **Status**, **Pengajuan** (umur), **Tanggal pengajuan**, dan **Jadwal pelaksanaan** (SPK) atau **Tanggal dibutuhkan** (permintaan barang). Kartu **Dampak material dan penggunaan barang** memuat **Jenis item** dan **Total kuantitas**. Kartu di bawahnya dimuat saat panel terbuka, dengan kerangka abu-abu selama menunggu. Untuk SPK, kartu **Bukti pekerjaan** menampilkan nama **Teknisi**, hasil **Check-in** (status dan jarak dari lokasi) dan sampai tiga foto bukti. Untuk permintaan barang, kartu **Barang diminta** menampilkan setiap barang dengan jumlah diminta dan "Tersedia: n" di gudang sumber. Bila gagal dimuat, kartu menulis "Rincian belum bisa dimuat" dengan tombol **Coba lagi**, dan Anda tetap bisa memutuskan. Klik **Lihat detail** untuk membuka halaman SPK (bagian 3.3) atau permintaan barang (bagian 6.1) di tab yang sama. Tombol **Tutup** menutup panel.
+2. Baca panel. Bagian atas memuat lencana **SPK** atau **Permintaan barang**, lalu status, prioritas, dan jenis. Kartu **Informasi SPK** atau **Informasi permintaan barang** memuat judul, **Pemohon**, **Status**, **Pengajuan** (umur), **Tanggal pengajuan**, dan **Jadwal pelaksanaan** (SPK) atau **Tanggal dibutuhkan** (permintaan barang). Kartu **Dampak material dan penggunaan barang** memuat **Jenis item** (jumlah barang yang berbeda) dan satu baris per barang dengan jumlahnya dalam satuan barang itu, misalnya "Kabel Drop 18 m". Jumlah dari satuan yang berbeda tidak dijumlahkan, jadi panel tidak menulis total kuantitas. Kartu di bawahnya dimuat saat panel terbuka, dengan kerangka abu-abu selama menunggu. Untuk SPK, kartu **Bukti pekerjaan** menampilkan nama **Teknisi**, hasil **Check-in** (jarak dari lokasi, dan alasan teknisi bila ia memulai jauh dari lokasi) dan sampai tiga foto bukti. Untuk permintaan barang, kartu **Barang diminta** menampilkan setiap barang dengan jumlah diminta dan "Tersedia: n" di gudang sumber. Bila gagal dimuat, kartu menulis "Rincian belum bisa dimuat" dengan tombol **Coba lagi**, dan Anda tetap bisa memutuskan. Klik **Lihat detail** untuk membuka halaman SPK (bagian 3.3) atau permintaan barang (bagian 6.1) di tab yang sama. Tombol **Tutup** menutup panel.
 3. Untuk menyetujui, klik **Setujui**. Dialog **Setujui pengajuan {kode}?** terbuka. Pada SPK, dialog memuat daftar dampak, misalnya "Pelanggan ... dan langganan ... menjadi aktif.", "Tagihan pemasangan Rp ... dibuat dan langsung dikirim ke pelanggan." (atau "... dibuat sebagai draf. Kirim dari halaman tagihan."), "Akun PPPoE dibuat dari kode pelanggan ..." dan "Material terpakai dikurangi dari stok: n barang." Baca daftar itu, lalu klik **Setujui** di dialog. Pada permintaan barang Anda dapat mengisi **Catatan persetujuan (opsional)** lebih dulu, maksimal 1000 karakter. Kotak masuk ini menyetujui jumlah sesuai permintaan. Untuk menyetujui sebagian, buka **Lihat detail** dan setujui di sana.
 4. Untuk menolak, klik **Tolak**. Blok **Konfirmasi penolakan SPK** (atau **Konfirmasi penolakan permintaan barang**) muncul. Isi **Alasan penolakan** (wajib, maksimal 500 karakter, penghitung "n/500 karakter" tampil di blok itu). Permintaan barang butuh minimal 3 karakter. Klik **Konfirmasi tolak**, atau **Batal** untuk kembali ke tinjauan. Alasan tersimpan di riwayat audit dan diteruskan kepada pemohon.
 5. Setelah berhasil, panel menutup, item keluar dari antrean, dan toast muncul: "SPK disetujui." atau "SPK ditolak." untuk SPK, "Permintaan barang disetujui dan stok berhasil direservasi." atau "Permintaan barang telah ditolak." untuk permintaan barang.
@@ -503,7 +524,7 @@ Peran yang dapat memakai: admin dan manajer pada peran bawaan. Izin: `spk.approv
 Hasil setiap keputusan:
 
 - SPK disetujui: status **Selesai**. Sistem memakai stok material yang tercatat di SPK, memasang aset berseri pada SPK pemasangan, dan mengaktifkan langganan pelanggan yang masih **Menunggu**.
-- SPK ditolak: status **Ditolak**. Stok tidak berubah, karena SPK tidak mencadangkan stok. Alasan tersimpan di SPK dan riwayat audit. SPK muncul lagi di **Penugasan** (bagian 3.1) untuk ditugaskan ulang.
+- SPK ditolak: status **Dikembalikan**. Stok tidak berubah, karena SPK tidak mencadangkan stok. Alasan tersimpan di SPK dan riwayat audit. SPK muncul lagi di **Penugasan** (bagian 3.1) untuk ditugaskan ulang.
 - Permintaan barang disetujui: status **Disetujui**, stok direservasi di gudang sumber, dan pemohon menerima notifikasi di lonceng serta push. Gudang lalu menyiapkan dan menyerahkan barang (bagian 6.1).
 - Permintaan barang ditolak: status **Ditolak**, dan pemohon menerima lonceng serta push berisi alasan.
 
@@ -514,8 +535,8 @@ Hasil setiap keputusan:
 - Pesan "Alasan penolakan wajib diisi.", "Alasan penolakan minimal 3 karakter." (permintaan barang), atau "Alasan penolakan maksimal 500 karakter.": sesuaikan isian **Alasan penolakan**, lalu klik **Konfirmasi tolak**.
 - Alert **Gagal memproses tindakan** dengan pesan "SPK harus berstatus menunggu review untuk bisa disetujui." (untuk menolak: "... untuk bisa ditolak."), "Permintaan barang bukan berstatus menunggu persetujuan." atau "Hanya permintaan berstatus menunggu persetujuan yang dapat ditolak.": pengguna lain sudah memproses item itu. Klik **Muat ulang antrean**.
 - Setujui SPK gagal dengan pesan "SPK belum bisa disetujui sampai seluruh retur material berstatus direkonsiliasi atau diselesaikan.": selesaikan retur material SPK itu di Pengembalian Barang (bagian 6.8) sampai berstatus **Diterima** atau **Selisih diselesaikan**, klik **Muat ulang antrean**, lalu setujui lagi.
-- Setujui SPK gagal dengan pesan seperti "Stok Kabel Fiber Optic di POP Bandung tersisa 0 m, dibutuhkan 18 m.": stok produk di lokasi yang disebut kurang dari jumlah **Terpakai**. Tambah stok (bagian 6.5), lalu setujui lagi.
-- Setujui permintaan barang gagal dengan pesan `Stok {nama barang} di {nama gudang} tersisa {tersedia} {satuan}, dibutuhkan {diminta} {satuan}.`: stok gudang sumber kurang. Tambah stok (bagian 6.5), atau setujui sebagian jumlah dari **Lihat detail**.
+- Setujui SPK gagal dengan pesan seperti "Stok Kabel Fiber Optic di POP Bandung tidak cukup: tersedia 0 m, diminta 18 m.": stok produk di lokasi yang disebut kurang dari jumlah **Terpakai**. Tambah stok (bagian 6.5), lalu setujui lagi.
+- Setujui permintaan barang gagal dengan pesan `Stok {nama barang} di {nama gudang} tidak cukup: tersedia {tersedia} {satuan}, diminta {diminta} {satuan}.`: stok gudang sumber kurang. Tambah stok (bagian 6.5), atau setujui sebagian jumlah dari **Lihat detail**.
 - Setujui permintaan barang gagal dengan pesan "Lokasi gudang sumber wajib ditentukan untuk reservasi.": permintaan itu tersimpan tanpa gudang, dan kotak masuk ini tidak punya pilihan gudang. Buka permintaannya lewat **Lihat detail** (bagian 6.1). Dialog setujui di halaman itu juga belum punya pilihan gudang, jadi permintaan seperti ini belum bisa disetujui dari web.
 
 ## 3.3 SPK
@@ -538,7 +559,7 @@ Pengguna yang memegang `spk.start` atau `spk.submit` tetapi tidak `spk.assign` (
 2. Baca daftar SPK.
 
    - Kotak **Cari** mencari pada nomor dan judul SPK (isian bertuliskan "Nomor atau judul...").
-    - Pilihan **Jenis** berisi **Semua jenis**, **Instalasi**, **Perawatan**, **Peningkatan layanan**, dan **Pindah lokasi**. Pilihan **Status** berisi **Semua status**, delapan status SPK (**Draf**, **Menunggu penugasan**, **Ditugaskan**, **Dikerjakan**, **Menunggu review**, **Selesai**, **Ditolak**, dan **Dibatalkan**), **Dihapus**, dan **Semua, termasuk dihapus**.
+    - Pilihan **Jenis** berisi **Semua jenis**, **Instalasi**, **Perawatan**, **Peningkatan layanan**, dan **Pindah lokasi**. Pilihan **Status** berisi **Semua status**, delapan status SPK (**Draf**, **Menunggu penugasan**, **Ditugaskan**, **Dikerjakan**, **Menunggu review**, **Selesai**, **Dikembalikan**, dan **Dibatalkan**), **Dihapus**, dan **Semua, termasuk dihapus**.
    - Kolom: **Nomor** (tautan ke detail), **Judul**, **Jenis**, **Status** (lencana), **Pelanggan**, **Jadwal**, **Dibuat**. Semua kolom kecuali **Pelanggan** bisa diurutkan, dan urutan awal menaruh SPK terbaru di atas.
    - Tombol **Ekspor** (pemegang `spk.export`) membuka menu **Ekspor CSV** dan **Ekspor PDF**. Berkas memuat kolom Kode, Judul, Tipe, Status, Prioritas, Pelanggan, dan Teknisi sesuai pencarian dan filter aktif. Kolom Tipe, Status, dan Prioritas berisi nilai tersimpan (misalnya `maintenance`), bukan label lencana.
    - Tombol **Buat SPK** (pemegang `spk.create`) membuka form buat.
@@ -550,20 +571,22 @@ Pengguna yang memegang `spk.start` atau `spk.submit` tetapi tidak `spk.assign` (
 
 ### Status SPK
 
-SPK dari **Buat SPK** berstatus **Draf** dan bersumber manual. SPK dari pendaftaran pelanggan baru (bagian 4.1) dan dari tiket (bagian 3.4) langsung berstatus **Menunggu penugasan**.
+SPK dari **Buat SPK** berstatus **Draf** dan bersumber manual. SPK dari pendaftaran pelanggan baru (bagian 4.1) dan dari tiket (bagian 3.4) langsung berstatus **Menunggu penugasan**. Bila pendaftaran memakai blok **Tugaskan sekarang**, SPK-nya langsung **Ditugaskan** (bagian 4.1).
 
 | Status | Arti | Langkah berikut | Siapa |
 |---|---|---|---|
-| **Draf** | SPK baru, belum siap | **Terbitkan**, atau langsung **Tugaskan** | **Terbitkan**: `spk.update`. **Tugaskan**: `spk.assign` |
-| **Menunggu penugasan** | Siap ditugaskan | **Tugaskan** | `spk.assign` |
+| **Draf** | SPK baru, belum siap | **Ubah**, **Terbitkan**, atau langsung **Tugaskan** | **Ubah** dan **Terbitkan**: `spk.update`. **Tugaskan**: `spk.assign` |
+| **Menunggu penugasan** | Siap ditugaskan | **Ubah** atau **Tugaskan** | **Ubah**: `spk.update`. **Tugaskan**: `spk.assign` |
 | **Ditugaskan** | Teknisi sudah ditunjuk. Setelah teknisi menekan **Saya berangkat** di aplikasi, status tetap **Ditugaskan** dan kartu **Tahap kunjungan** menunjukkan **Dalam perjalanan** | **Mulai** | Teknisi yang ditugaskan |
 | **Dikerjakan** | Teknisi bekerja di lokasi | **Ajukan review** | Teknisi yang ditugaskan |
 | **Menunggu review** | Hasil menunggu tinjauan | **Setujui** atau **Tolak** | `spk.approve` atau `spk.reject`, bukan pembuat dan bukan teknisi SPK |
-| **Ditolak** | Ditolak, alasan tampil di **Alasan penolakan** | **Tugaskan** ulang untuk kerja ulang | `spk.reassign` |
+| **Dikembalikan** | Ditolak peninjau lewat **Tolak**, alasan tampil di **Alasan penolakan** | **Tugaskan** ulang untuk kerja ulang | `spk.reassign` |
 | **Selesai** | Disetujui, final | Tidak ada | Tidak ada |
 | **Dibatalkan** | Dibatalkan, final | Tidak ada | Tidak ada |
 
 **Terbitkan** hanya menandai SPK siap, jadi boleh dilewati. **Batalkan** (izin `spk.cancel`) tersedia pada semua status selain **Selesai** dan **Dibatalkan**. Teknisi yang ditugaskan berarti pengguna yang ditunjuk pada SPK itu, berstatus karyawan aktif, dan memegang `spk.start` atau `spk.submit`.
+
+**Dikembalikan** adalah nama di layar untuk SPK yang ditolak peninjau lewat **Tolak**: SPK kembali ke kantor untuk ditugaskan ulang. Notifikasi dan toast untuk kejadian itu tetap menulis "SPK ditolak.", dan kolom Status di berkas ekspor berisi kode tersimpan.
 
 SPK dari pendaftaran pelanggan baru berjenis **Instalasi** dan berjudul "Pemasangan &lt;kode langganan&gt; - &lt;nama pelanggan&gt;". SPK dari tiket berjenis **Perawatan** dan berjudul "SPK dari tiket TKT-..." (kode tiket).
 
@@ -585,16 +608,29 @@ SPK dari pendaftaran pelanggan baru berjenis **Instalasi** dan berjudul "Pemasan
    - Pada ketiga isian pencarian, teks yang diketik belum memilih apa pun. Pilihan berubah hanya saat Anda memilih hasil lain atau klik tombol **Hapus pilihan**.
 3. Klik **Simpan**. Daftar SPK terbuka dengan toast "SPK berhasil dibuat." SPK baru berstatus **Draf** dan bernomor otomatis (aturan nomor di bagian 7.13). **Batal** kembali ke daftar tanpa menyimpan.
 
+### Mengubah SPK
+
+Izin: `spk.update` (admin, manajer). SPK hanya bisa diubah selama berstatus **Draf** atau **Menunggu penugasan**. Setelah ditugaskan, halaman ubah tidak bisa dibuka: jadwal bisa diganti lewat **Ganti teknisi** dengan mengisi **Tanggal kunjungan** (bagian "Menugaskan teknisi" di bawah), dan isian lain hanya bisa diperbaiki dengan membatalkan SPK lalu membuat yang baru.
+
+1. Buka detail SPK berstatus **Draf** atau **Menunggu penugasan**, lalu klik **Ubah** di samping **Kembali**.
+
+   ![Halaman Ubah SPK dengan kartu Data pekerjaan: Judul, Pelanggan, Langganan, Lokasi, Prioritas, Tanggal kunjungan, dan Deskripsi](images/web/spk-edit.png)
+
+2. Ubah isian di kartu **Data pekerjaan**. Di bawah judul kartu tertulis jenis dan status SPK, yang tidak bisa diubah di sini. **Judul** wajib. **Pelanggan** dan **Langganan** wajib untuk jenis **Instalasi**, **Peningkatan layanan**, dan **Pindah lokasi**, dan dicari seperti di **Buat SPK**: mengganti **Pelanggan** mengosongkan **Langganan**, jadi pilih langganannya lagi. **Lokasi**, **Prioritas**, dan **Deskripsi** bekerja seperti di **Buat SPK**. **Tanggal kunjungan** opsional.
+3. Klik **Simpan**. Daftar SPK terbuka dengan toast "SPK berhasil diubah." Klik **Batal** untuk kembali ke detail tanpa menyimpan.
+
+**Tanggal kunjungan** tidak boleh sebelum hari ini menurut zona waktu perusahaan: pesannya "Tanggal kunjungan tidak boleh sebelum hari ini." Tanggal yang sudah tersimpan di SPK boleh tetap, walau sudah lewat. Bila orang lain mengubah SPK itu sejak Anda membuka halaman, banner "Data diubah pengguna lain; muat ulang." muncul (bagian 1.5, **Pesan benturan**). Bila status SPK sudah berubah, Inbils kembali ke detail SPK dengan toast "SPK hanya bisa diubah saat berstatus draf atau menunggu penugasan."
+
 ### Membuka detail SPK
 
 1. Di daftar, klik nomor SPK di kolom **Nomor**.
 
-   ![Detail SPK dengan kartu Rincian, Tindakan, Item, dan Bukti](images/web/spk-show.png)
+   ![Detail SPK dengan tombol Ubah di kanan atas dan kartu Rincian, Tindakan, Item, dan Bukti](images/web/spk-show.png)
 
 2. Baca halaman dari atas ke bawah:
-   - Judul halaman memuat judul SPK, dengan nomor SPK di bawahnya. Tombol **Kembali** kembali ke daftar.
+   - Judul halaman memuat judul SPK, dengan nomor SPK di bawahnya. Tombol **Kembali** kembali ke daftar. Tombol **Ubah** di sampingnya tampil bagi pemegang `spk.update` selama SPK berstatus **Draf** atau **Menunggu penugasan** (bagian "Mengubah SPK").
    - Kartu **Rincian** memuat **Status** dan **Jenis** (lencana), **Prioritas** (lencana), **Pelanggan**, **Langganan**, **Lokasi**, **Teknisi**, **Jadwal**, **Dimulai**, **Check-in**, dan **Selesai**. **Deskripsi**, **Hasil**, dan **Alasan penolakan** tampil bila terisi. Pada SPK **Selesai**, baris **Teknisi** dan **Lokasi** menulis nilai saat SPK disetujui (lihat "Yang terjadi saat SPK disetujui").
-   - Baris **Lokasi** menunjukkan POP atau gudang SPK, bukan alamat pelanggan. Baris **Check-in** menunjukkan jarak ke alamat pemasangan pelanggan (ke **Lokasi** bila SPK tanpa langganan) bila aplikasi teknisi mencatat lokasi saat memulai, atau alasan lokasi tidak tersedia. Tanpa catatan, tertulis "Belum ada check-in". Baris **Port drop** (ODP dan nomor port yang dicadangkan untuk pelanggan, bagian 5.5) tampil pada SPK **Instalasi** yang punya langganan, bagi pemegang `odn.view`.
+   - Baris **Lokasi** menunjukkan POP atau gudang SPK, bukan alamat pelanggan. Baris **Check-in** menunjukkan jarak ke alamat pemasangan pelanggan (ke **Lokasi** bila SPK tanpa langganan) bila aplikasi teknisi mencatat lokasi saat memulai, misalnya "820 m dari lokasi (akurasi ±12 m)". Jarak 1 km atau lebih ditulis dalam km, misalnya "119,3 km". Bila teknisi memulai lebih jauh dari batas jarak perusahaan, alasannya ditambahkan: "Jauh dari lokasi: {alasan}" (bagian "Jarak check-in saat memulai" di bawah). Bila lokasi tidak tersedia, baris menulis alasannya. Tanpa catatan, tertulis "Belum ada check-in". Baris **Port drop** (ODP dan nomor port yang dicadangkan untuk pelanggan, bagian 5.5) tampil pada SPK **Instalasi** yang punya langganan, bagi pemegang `odn.view`.
    - Kartu **Tindakan** memuat tombol langkah berikut sesuai status. Pada gambar, SPK berstatus **Menunggu penugasan**, jadi hanya **Tugaskan** dan **Batalkan** yang tampil.
    - Kartu **Tahap kunjungan** di bawah **Tindakan** menunjukkan empat langkah kunjungan dengan waktunya (bagian **Tahap kunjungan** di bawah).
    - Kartu **Item** (kolom **Barang**, **Aset jaringan**, **Satuan**, **Terpakai**, **Catatan**), **Bukti**, dan **Riwayat penugasan** (kolom **Teknisi**, **Ditugaskan**, **Dicabut**).
@@ -608,7 +644,7 @@ Kartu **Tahap kunjungan** di kolom kanan halaman SPK menunjukkan jalannya kunjun
 - Langkah yang sudah dilalui memakai ikon centang dan menulis waktunya dalam format tanggal perusahaan. Langkah yang sedang berjalan memakai ikon bertitik dan menulis "Tahap sekarang," diikuti waktunya. Langkah yang belum tercapai memakai lingkaran kosong dan menulis "Belum dicapai". Ikon dan tulisan membawa artinya, bukan warna saja.
 - Langkah yang sudah dilalui tanpa waktu menulis "waktu tidak tercatat". Ini wajar untuk SPK lama, atau bila teknisi langsung menekan **Mulai** tanpa **Saya berangkat**.
 - **Selesai dipasang** tercapai saat teknisi mengirim hasil kerja (status **Menunggu review**) dan tetap tercentang setelah status **Selesai**. Waktunya adalah waktu pengiriman pertama pada kunjungan itu.
-- SPK **Ditolak** menaruh lencana **Perlu perbaikan** di langkah **Sedang dikerjakan**, dan **Selesai dipasang** kembali "Belum dicapai".
+- SPK **Dikembalikan** menaruh lencana **Perlu perbaikan** di langkah **Sedang dikerjakan**, dan **Selesai dipasang** kembali "Belum dicapai".
 - Bila SPK ditugaskan ulang (kepada teknisi lain, atau setelah ditolak), kartu mulai lagi dari **Ditugaskan** dengan waktu penugasan yang baru. Waktu berangkat dan waktu selesai dipasang dari kunjungan sebelumnya tidak tampil lagi.
 - SPK **Dibatalkan** mengganti keempat langkah dengan tulisan **Dibatalkan**. SPK **Draf** dan **Menunggu penugasan** menampilkan keempat langkah "Belum dicapai".
 
@@ -618,10 +654,11 @@ Pelanggan melihat langkah yang sama di aplikasinya (bagian **Kunjungan teknisi**
 
 Izin: `spk.assign`, atau `spk.reassign` bila SPK sudah punya teknisi (misalnya setelah ditolak).
 
-1. Buka SPK berstatus **Draf**, **Menunggu penugasan**, atau **Ditolak**.
+1. Buka SPK berstatus **Draf**, **Menunggu penugasan**, atau **Dikembalikan**.
 2. Klik **Tugaskan**. Dialog **Tugaskan SPK** terbuka.
-3. Di **Teknisi** (wajib), ketik nama, nomor karyawan, organisasi, atau telepon ("Cari karyawan teknisi"), lalu klik teknisi dari hasil pencarian. Teks yang diketik belum memilih teknisi.
-4. Klik **Tugaskan**. Muncul toast "SPK berhasil ditugaskan.", status menjadi **Ditugaskan**, dan **Riwayat penugasan** menambah satu baris. **Batal** menutup dialog tanpa menyimpan.
+3. Di **Teknisi** (wajib), ketik nama, nomor karyawan, organisasi, atau telepon ("Cari karyawan teknisi"), lalu klik teknisi dari hasil pencarian. Teks yang diketik belum memilih teknisi. Selama isian kosong, tombol saran "Gunakan: {nama} (beban terendah: {n} SPK hari ini)" menunjuk teknisi dengan SPK terbuka paling sedikit hari ini. Klik tombol itu untuk memakainya, atau pilih orang lain: saran tidak memilih apa pun.
+4. Isi **Tanggal kunjungan** bila perlu. Isian opsional ini sudah berisi jadwal SPK bila tanggalnya belum lewat, dan "Kosong berarti jadwal SPK tidak berubah" (petunjuk di bawah isian). Aturan tanggalnya sama dengan di Penugasan (bagian 3.1). Dialog **Ganti teknisi** punya isian yang sama.
+5. Klik **Tugaskan**. Muncul toast "{kode} ditugaskan ke {nama teknisi}.", status menjadi **Ditugaskan**, dan **Riwayat penugasan** menambah satu baris. **Batal** menutup dialog tanpa menyimpan.
 
 Pada penugasan pertama SPK **Instalasi**, Inbils membuat akun PPPoE langganan secara otomatis bila belum ada. Nama pengguna berasal dari kode pelanggan dan dibuat unik. Kegagalan karena profil RADIUS atau realm belum siap tidak membatalkan penugasan. Perbaiki pengaturan jaringan, lalu gunakan proses sinkronisasi yang tersedia.
 Teknisi yang ditugaskan melihat kartu **Akun PPPoE** di aplikasi teknisi. Nama pengguna selalu terlihat. Kata sandi hanya terbuka setelah **Tampilkan**, tersamar lagi setelah 60 detik atau saat layar ditutup, dibatasi 5 kali per menit, dan setiap pengungkapan dicatat di Log Audit. Secret tidak disimpan di cache offline atau log aplikasi.
@@ -646,11 +683,15 @@ Server hanya menerima kedua tindakan dari teknisi yang ditugaskan pada SPK itu. 
 
 Pengajuan juga ditolak dengan pesan "Bukti pekerjaan wajib diunggah sebelum SPK diajukan." bila SPK belum punya bukti. Ia ditolak pula dengan pesan "Seluruh sisa material dari permintaan barang harus dideklarasikan terlebih dahulu sebelum SPK diajukan." bila permintaan barang berstatus **Diserahkan** yang ditautkan ke SPK (bagian 6.1) masih punya sisa material yang belum dideklarasikan (bagian 6.8).
 
+### Jarak check-in saat memulai
+
+Saat teknisi menekan **Mulai** di aplikasi teknisi, aplikasi mengirim lokasinya. Bila jaraknya ke alamat pemasangan pelanggan (ke **Lokasi** SPK bila SPK tanpa langganan) lebih jauh dari batas perusahaan, aplikasi menulis "Jauh dari lokasi pelanggan" dan meminta **Alasan** lebih dulu. Tanpa alasan, SPK tidak dimulai. Admin mengatur batas itu di **Pengaturan Perusahaan**, kartu **Lapangan**, isian **Jarak check-in maksimal (meter)** (bagian 8.1). Selama belum diubah, batasnya 500 meter. **Saya berangkat** tidak kena aturan ini, dan **Mulai** dari web tidak mengirim lokasi, jadi aturan ini hanya berlaku di aplikasi. Hasilnya tampil di baris **Check-in** pada kartu **Rincian**, di panel tinjau **Persetujuan**, dan di halaman tiket untuk tiket (bagian 3.4): jaraknya, disusul "Jauh dari lokasi: {alasan}". Lokasi yang tidak tersedia (izin ditolak, GPS mati) dan alamat tanpa koordinat tidak dihitung jauh.
+
 ### Mengelola item material
 
 Izin: `spk.update` (admin, manajer). Kartu **Item** mencatat barang dan perangkat SPK. **Terpakai** adalah jumlah yang dipakai, dan stok baru berkurang saat SPK disetujui, sebesar **Terpakai**. SPK tidak mencadangkan stok.
 
-1. Di kartu **Item**, klik **Tambah item**. Dialog **Tambah item** terbuka. Tombol ini tampil selama SPK berstatus **Draf**, **Menunggu penugasan**, **Ditugaskan**, **Dikerjakan**, atau **Ditolak**. Pada SPK **Menunggu review**, **Selesai**, dan **Dibatalkan** tombolnya hilang dan kartu menulis "Item dikunci selama SPK menunggu review.", "SPK selesai, item tidak bisa diubah." atau "SPK dibatalkan, item tidak bisa diubah." Bila SPK belum punya baris, kartu menampilkan "Belum ada barang di SPK ini." dengan petunjuk memakai **Tambah item**.
+1. Di kartu **Item**, klik **Tambah item**. Dialog **Tambah item** terbuka. Tombol ini tampil selama SPK berstatus **Draf**, **Menunggu penugasan**, **Ditugaskan**, **Dikerjakan**, atau **Dikembalikan**. Pada SPK **Menunggu review**, **Selesai**, dan **Dibatalkan** tombolnya hilang dan kartu menulis "Item dikunci selama SPK menunggu review.", "SPK selesai, item tidak bisa diubah." atau "SPK dibatalkan, item tidak bisa diubah." Bila SPK belum punya baris, kartu menampilkan "Belum ada barang di SPK ini." dengan petunjuk memakai **Tambah item**.
 
    ![Dialog Tambah item dengan isian Barang, Jumlah terpakai, dan Catatan](images/web/spk-add-item.png)
 
@@ -687,7 +728,7 @@ Izin: `spk.approve` untuk **Setujui**, `spk.reject` untuk **Tolak**, `spk.cancel
 2. Untuk menyetujui, klik **Setujui**. Dialog **Setujui SPK** terbuka dan memuat daftar dampak persetujuan: pelanggan dan langganan yang menjadi aktif, tagihan pemasangan (jumlah, dan apakah langsung dikirim atau menjadi draf), akun PPPoE yang dibuat, dan jumlah barang yang dikurangi dari stok. Daftar hanya memuat langkah yang benar-benar terjadi pada SPK itu.
 3. Klik **Setujui** di dialog. Muncul toast "SPK disetujui.", status menjadi **Selesai**, dan **Selesai** di kartu **Rincian** terisi.
 4. Untuk menolak, klik **Tolak**. Dialog **Tolak SPK** terbuka.
-5. Isi **Alasan** (wajib, maksimal 500 karakter), lalu klik **Tolak** di dialog. Muncul toast "SPK ditolak.", status menjadi **Ditolak**, dan alasan tampil di baris **Alasan penolakan**.
+5. Isi **Alasan** (wajib, maksimal 500 karakter), lalu klik **Tolak** di dialog. Muncul toast "SPK ditolak.", status menjadi **Dikembalikan**, dan alasan tampil di baris **Alasan penolakan**.
 6. Untuk membatalkan, klik **Batalkan** di kartu **Tindakan**. Dialog **Batalkan SPK** terbuka.
 7. Isi **Alasan** (wajib, maksimal 500 karakter), lalu klik **Batalkan** di dialog. Muncul toast "SPK dibatalkan." dan status menjadi **Dibatalkan**.
 
@@ -727,15 +768,17 @@ Pada SPK **Instalasi** berstatus **Selesai**, kartu **Langkah berikut** tampil d
 - Pesan "Pelanggan dan langganan wajib diisi untuk jenis SPK ini." muncul di **Pelanggan**: jenis **Instalasi**, **Peningkatan layanan**, dan **Pindah lokasi** butuh pelanggan dan langganan. Isi keduanya (pilih pelanggan dulu, lalu langganannya), atau pilih **Perawatan** bila pekerjaan tidak terkait langganan.
 - Pesan "Langganan bukan milik pelanggan yang dipilih." muncul di **Langganan**: langganan yang dipilih milik pelanggan lain. Pilih pelanggan lebih dulu, lalu pilih langganan dari daftar yang sudah menyempit.
 - Staf membuat SPK tetapi tidak melihatnya di daftar: daftar staf hanya memuat SPK yang ditugaskan kepadanya. SPK tetap ada dan terlihat oleh manajer dan admin.
-- Isian SPK salah setelah **Simpan**: web tidak punya layar ubah atau hapus untuk SPK. Batalkan dengan **Batalkan**, lalu buat SPK baru. Server hanya menghapus SPK **Draf** atau **Dibatalkan**, untuk pemegang `spk.delete` (admin), tetapi tidak ada layar yang memanggilnya.
+- Isian SPK salah setelah **Simpan**: selama SPK masih **Draf** atau **Menunggu penugasan**, klik **Ubah** di halaman SPK. Setelah SPK ditugaskan, hanya jadwalnya yang bisa diganti, lewat **Ganti teknisi**. Untuk perbaikan lain, **Batalkan** SPK lalu buat SPK baru. Server hanya menghapus SPK **Draf** atau **Dibatalkan**, untuk pemegang `spk.delete` (admin), tetapi tidak ada layar yang memanggilnya.
 - Tombol **Mulai**, **Ajukan review**, atau **Tugaskan** tampil tetapi ditolak: tombol mengikuti status, sedangkan izin dan penunjukan teknisi diperiksa server. Hanya teknisi yang ditugaskan boleh memulai dan mengajukan, termasuk bila Anda admin.
 - **Setujui** gagal dan hanya muncul toast "Data gagal disimpan. Periksa input.": dialog di halaman SPK tidak menulis penyebabnya. Penyebab yang mungkin: Anda pembuat atau teknisi SPK itu, bukti belum ada, retur material belum **Diterima** atau **Selisih diselesaikan**, atau stok di **Lokasi** kurang. Buka SPK dari **Persetujuan** (bagian 3.2) supaya penyebabnya tampil di panel tinjauan, atau minta orang lain menyetujui.
-- Tombol **Tambah item** hilang dan kartu **Item** menulis "Item dikunci selama SPK menunggu review.", "SPK selesai, item tidak bisa diubah." atau "SPK dibatalkan, item tidak bisa diubah.": item hanya bisa diubah sampai SPK diajukan untuk review. SPK **Ditolak** masih bisa diubah itemnya. Bila SPK berpindah status saat dialog **Tambah item** terbuka, server menolak dengan "Item SPK tidak bisa diubah saat SPK menunggu review, selesai, atau dibatalkan."
-- Stok tidak berkurang dan aset tidak terpasang setelah **Setujui**: SPK tidak punya **Lokasi**. Isi **Lokasi** saat membuat SPK, karena tidak bisa diubah sesudahnya.
+- Tombol **Tambah item** hilang dan kartu **Item** menulis "Item dikunci selama SPK menunggu review.", "SPK selesai, item tidak bisa diubah." atau "SPK dibatalkan, item tidak bisa diubah.": item hanya bisa diubah sampai SPK diajukan untuk review. SPK **Dikembalikan** masih bisa diubah itemnya. Bila SPK berpindah status saat dialog **Tambah item** terbuka, server menolak dengan "Item SPK tidak bisa diubah saat SPK menunggu review, selesai, atau dibatalkan."
+- Stok tidak berkurang dan aset tidak terpasang setelah **Setujui**: SPK tidak punya **Lokasi**. Isi **Lokasi** lewat **Ubah** selama SPK masih **Draf** atau **Menunggu penugasan**. Setelah SPK ditugaskan, **Lokasi** tidak bisa diubah: batalkan SPK dan buat yang baru dengan **Lokasi** terisi.
 - Tagihan tidak muncul setelah **Setujui**: SPK bukan jenis **Instalasi**, atau SPK tidak punya biaya pemasangan dan tidak punya bahan yang diaktifkan untuk ditagih. Periksa **Kirim tagihan pemasangan otomatis** untuk menentukan apakah tagihan yang dibuat langsung dikirim atau tetap **Draf**.
 - Jumlah salah pada **Tambah item**: tambahkan lagi produk yang sama dengan jumlah yang benar, dan baris lama diganti.
 - Unggahan bukti ditolak: berkas bukan `jpg`, `jpeg`, `png`, `pdf`, `doc`, atau `docx`, atau lebih dari 10 MB. Formulir unggah tidak tampil bagi pengguna tanpa `spk.update`, atau bila SPK sudah **Selesai** atau **Dibatalkan**.
 - Tombol **Batal** di dalam dialog hanya menutup dialog. Untuk membatalkan SPK, klik **Batalkan** di kartu **Tindakan**.
+- Pesan "Tanggal kunjungan tidak boleh sebelum hari ini." di **Ubah SPK** atau di dialog **Tugaskan** dan **Ganti teknisi**: pilih hari ini atau sesudahnya. Isian **Tanggal jadwal** di **Buat SPK** tidak punya batas ini.
+- Tombol **Ubah** tidak tampil: SPK sudah **Ditugaskan** atau lebih jauh, atau Anda tidak memegang `spk.update`. Membuka alamat ubah langsung mengembalikan Anda ke detail SPK dengan toast "SPK hanya bisa diubah saat berstatus draf atau menunggu penugasan."
 
 ## 3.4 Tiket
 
@@ -744,7 +787,7 @@ Tiket mencatat keluhan atau gangguan layanan, dari pelanggan, dari NOC (pemantau
 Peran yang dapat memakai: admin, manajer, staf. Izin `ticket.view` membuka menu, `ticket.create` membuat tiket, `ticket.export` mengekspor daftar. Dengan peran bawaan:
 
 - Admin memegang semua izin tiket.
-- Manajer memegang `ticket.view`, `ticket.create`, `ticket.update`, `ticket.assign`, `ticket.reassign`, `ticket.close`, `ticket.spawn_spk`, `ticket.export`, `ticket.manage`, dan `ticket.category.manage`.
+- Manajer memegang `ticket.view`, `ticket.create`, `ticket.update`, `ticket.assign`, `ticket.reassign`, `ticket.close`, `ticket.reopen`, `ticket.spawn_spk`, `ticket.export`, `ticket.manage`, dan `ticket.category.manage`.
 - Staf memegang `ticket.view`, `ticket.create`, `ticket.comment.create`, dan `ticket.attachment.upload`.
 
 Pengguna yang memegang `ticket.start`, `ticket.resolve`, atau `ticket.close` tetapi tidak `ticket.assign` hanya melihat tiket yang ditugaskan kepadanya.
@@ -774,13 +817,13 @@ Kartu **SLA terlampaui** di Dasbor (bagian 2.1) membuka daftar ini dengan filter
 
 | Status | Arti | Langkah berikut | Siapa |
 |---|---|---|---|
-| **Terbuka** | Tiket baru, belum ada petugas | **Tugaskan** | `ticket.assign` |
+| **Terbuka** | Tiket baru, belum ada petugas | **Tugaskan**, atau **Tugaskan ke saya** | `ticket.assign` |
 | **Ditugaskan** | Petugas sudah ditunjuk | **Mulai** | Petugas tiket itu, izin `ticket.start` |
 | **Dikerjakan** | Petugas bekerja. **Respons pertama** terisi saat petugas pertama kali menekan **Mulai** atau mengirim balasan publik | **Selesaikan** dengan catatan | Petugas tiket itu, izin `ticket.resolve` |
-| **Diselesaikan** | Selesai, menunggu pemeriksaan. Balasan pelanggan membuka tiket kembali | **Tutup**, atau tunggu balasan pelanggan | Pemegang `ticket.close` yang bukan petugas tiket itu |
-| **Ditutup** | Selesai dan ditutup, final. Komentar serta lampiran baru ditolak | Buat tiket baru bila masalah muncul lagi | Tidak ada |
+| **Diselesaikan** | Selesai, menunggu pemeriksaan. Balasan pelanggan membuka tiket kembali, dan pelanggan bisa menutupnya sendiri di aplikasi dengan memberi nilai | **Tutup**, **Buka kembali**, atau tunggu balasan pelanggan | **Tutup**: pemegang `ticket.close` yang bukan petugas tiket itu. **Buka kembali**: pemegang `ticket.reopen` |
+| **Ditutup** | Selesai dan ditutup. Komentar serta lampiran baru ditolak | **Buka kembali** bila masalah muncul lagi, atau buat tiket baru | Pemegang `ticket.reopen` |
 
-Mengganti petugas tiket **Ditugaskan** memakai `ticket.reassign` lewat Penugasan (bagian 3.1), karena tombol **Tugaskan** di halaman tiket hanya tampil pada tiket **Terbuka**. Balasan pelanggan pada tiket **Diselesaikan** membuka tiket menjadi **Ditugaskan** bila masih punya petugas, atau **Terbuka** bila tidak. Tiket **Ditutup** tidak dapat dibalas oleh staf atau pelanggan. Masalah yang muncul lagi harus dicatat sebagai tiket baru.
+Mengganti petugas tiket **Ditugaskan** memakai `ticket.reassign` lewat Penugasan (bagian 3.1), karena tombol **Tugaskan** di halaman tiket hanya tampil pada tiket **Terbuka**. Balasan pelanggan pada tiket **Diselesaikan** membuka tiket menjadi **Ditugaskan** bila masih punya petugas, atau **Terbuka** bila tidak. Tiket **Ditutup** tidak dapat dibalas oleh staf atau pelanggan. Staf dengan `ticket.reopen` bisa membuka kembali tiket **Diselesaikan** atau **Ditutup** dengan menulis alasannya (bagian "Membuka kembali tiket"). Tanpa izin itu, masalah yang muncul lagi dicatat sebagai tiket baru.
 
 ### Membuat tiket
 
@@ -789,44 +832,54 @@ Mengganti petugas tiket **Ditugaskan** memakai `ticket.reassign` lewat Penugasan
    ![Form Buat Tiket dengan kartu Data tiket](images/web/tickets-create.png)
 
 2. Isi kartu **Data tiket**:
-   - **Judul**: wajib, maksimal 255 karakter.
+   - **Judul**: wajib, maksimal 255 karakter. Terisi nama kategori begitu Anda memilih **Kategori**, dan tidak berganti lagi setelah Anda menulis judul sendiri.
    - **Sumber**: wajib. Pilih **Pelanggan** (isian awal), **NOC**, atau **Internal**.
-   - **Kategori**: wajib. Ketik untuk mencari, lalu pilih. Daftar memuat kategori aktif perusahaan. Kategori menjadi sumber target hanya bila tiket tidak punya **Langganan**. Bila tiket punya langganan, tingkat SLA versi paket langganan itu dipakai dan kategori tidak menentukan jam.
-   - **Prioritas**: **Rendah**, **Sedang** (isian awal), **Tinggi**, atau **Mendesak**. Isian ini dipakai apa adanya, prioritas bawaan kategori tidak diterapkan form ini.
+   - **Kategori**: wajib. Ketik untuk mencari, lalu pilih. Daftar memuat kategori aktif perusahaan. Kategori menjadi sumber target hanya bila tiket tidak punya **Langganan**, atau langganannya tidak punya tingkat SLA. Bila tiket punya langganan dengan tingkat SLA, tingkat SLA versi paket langganan itu dipakai dan kategori tidak menentukan jam.
+   - **Prioritas**: **Rendah**, **Sedang** (isian awal), **Tinggi**, atau **Mendesak**. Memilih **Kategori** mengisi prioritas bawaan kategori itu dan menulis "Bawaan kategori {nama kategori}." di bawah isian. Begitu Anda memilih prioritas sendiri, kategori tidak mengubahnya lagi. Prioritas **Mendesak** memotong target menjadi separuh (bagian "SLA dan tenggat").
    - **Pelanggan**: opsional di form. Ketik nama atau kode pelanggan (minimal 2 huruf), lalu pilih. Daftar memuat pelanggan aktif, paling banyak 20 hasil. Isi untuk tiket dari pelanggan, karena pelanggan hanya menerima WhatsApp bila tiket punya **Pelanggan**.
-   - **Langganan**: opsional. Ketik kode langganan, lalu pilih. Daftar memuat langganan berstatus `active` dan `suspended`. Setelah Anda memilih pelanggan, daftar hanya memuat langganan milik pelanggan itu.
+   - **Langganan**: opsional. Ketik kode langganan, lalu pilih. Daftar memuat langganan berstatus `active` dan `suspended`. Setelah Anda memilih pelanggan, daftar hanya memuat langganan milik pelanggan itu, dan bila pelanggan itu hanya punya satu langganan, **Langganan** terisi sendiri.
    - **Aset jaringan**: opsional. Ketik kode atau nama aset, lalu pilih. Daftar tidak memuat aset `retired` atau `decommissioned`. Aset yang sudah terkait pelanggan atau langganan hanya muncul bila cocok dengan pilihan Anda, sedangkan aset tanpa keterkaitan muncul untuk siapa pun.
    - **Lokasi**: opsional. Ketik kode atau nama lokasi, lalu pilih. Daftar memuat lokasi aktif, ditulis sebagai kode, tanda hubung, dan nama.
    - **Deskripsi**: opsional.
 
    Mengganti **Pelanggan** mengosongkan pilihan **Langganan** dan **Aset jaringan**, dan mengganti **Langganan** mengosongkan **Aset jaringan**, supaya pilihan tidak saling bertentangan. Untuk mengosongkan sebuah isian, klik tombol **Hapus pilihan** di sebelahnya.
+
+   Begitu **Kategori** terpilih, di bawah **Deskripsi** tampil satu baris target: "Target respons {tanggal dan jam}, selesai {tanggal dan jam}", atau "Tanpa target respons, selesai {tanggal dan jam}" bila tidak ada target respons. Baris itu dihitung ulang setiap kali Anda mengganti kategori, langganan, atau prioritas, dengan sumber dan hitungan yang sama seperti tiket yang akan disimpan (bagian "SLA dan tenggat"). Tenggat baru tetap saat tiket disimpan.
+
+   ![Form Buat Tiket setelah memilih kategori, dengan judul terisi nama kategori, prioritas bawaan kategori, dan baris Target respons dan selesai](images/web/tickets-create-target.png)
+
 3. Klik **Simpan**. Daftar tiket terbuka dengan toast "Tiket berhasil dibuat." Tiket baru berstatus **Terbuka**, bernomor otomatis, dan **Target respons** serta **Target penyelesaian** sudah terisi (bagian "SLA dan tenggat" di bawah). Bila tiket punya **Pelanggan**, pelanggan menerima WhatsApp bahwa tiketnya dibuat, bila WhatsApp perusahaan aktif. Klik **Batal** atau **Kembali** untuk keluar tanpa menyimpan.
 
 ### Membuka detail tiket
 
 1. Di daftar, klik nomor tiket.
 
-   ![Detail tiket berstatus Terbuka dengan kartu Rincian, kartu Status, dan kartu Tindakan berisi tombol Tugaskan dan Tambah komentar](images/web/tickets-show.png)
+   ![Detail tiket berstatus Terbuka dengan kartu Rincian, kartu Status, dan kartu Tindakan berisi tombol Tugaskan, Tugaskan ke saya, dan Tambah komentar](images/web/tickets-show.png)
 
-2. Baca halaman dari atas ke bawah. Judul halaman adalah judul tiket, dengan nomor tiket di bawahnya.
+2. Baca halaman dari atas ke bawah. Judul halaman adalah judul tiket, dengan nomor tiket di bawahnya. Saat halaman terbuka, fokus keyboard berada di judul itu.
    - Kartu **Rincian** memuat **Kategori**, **Sumber** (lencana **Pelanggan**, **NOC**, atau **Internal**), **Pelanggan**, **Telepon**, **Alamat**, **Langganan**, **Aset jaringan**, **Lokasi**, **Petugas**, dan **Deskripsi**. **Pelanggan** menjadi tautan ke halaman pelanggan, dan **Alamat** tampil, hanya bagi pemegang `customer.view`. **Telepon** berupa tautan telepon yang bisa diketuk di ponsel. Pengguna tanpa `customer.view` tidak melihat email, NPWP, atau catatan pelanggan di halaman tiket. **Catatan penyelesaian** muncul setelah tiket diselesaikan. Isian kosong tampil sebagai `-`. Tiket **Ditutup** menyimpan nama kategori dan nama petugas saat ditutup: mengganti nama kategori atau akun petugas sesudahnya tidak mengubah tiket itu, dan bila nama sekarang berbeda halaman menulis nama beku disusul "(saat ditutup)". Tiket yang belum ditutup mengikuti nama yang berlaku.
+   - Bila pelanggan sudah menilai tiket di aplikasi, kartu **Rincian** menambah baris **Penilaian pelanggan**, ditulis "4 dari 5" dengan komentar pelanggan di bawahnya bila ada. Nilai itu tetap ada walau tiket dibuka kembali.
    - Kartu **Status** memuat **Kode**, **Status**, **Prioritas**, **Target respons**, **Respons pertama**, **Target penyelesaian**, **Check-in**, **Diselesaikan**, dan **Ditutup**. **Target respons** dan **Target penyelesaian** memuat waktu tenggat dan sumbernya dalam tanda kurung. Selama target masih berlaku, lencana hitungan mundur ("sisa 2 j 5 mnt", kuning bila 30 menit atau kurang, "lewat 12 mnt" merah) tampil di sampingnya, dan satu baris kecil di bawahnya menjelaskan hitungannya, misalnya "Dihitung sejak tiket dibuat: 6 jam ÷ 2 karena Mendesak = 3 jam". **Respons pertama** menyebut **lewat balasan** atau **lewat tombol Mulai**. Tiket yang dibuka kembali menampilkan lencana **Dibuka kembali {waktu}**. Semua waktu tampil dalam format tanggal perusahaan diikuti jam.
-   - **Check-in** memuat catatan lokasi dari aplikasi teknisi saat tiket dimulai: jarak dari lokasi dan akurasinya, atau alasan lokasi tidak tersedia. Tanpa catatan, tertulis "Belum ada check-in".
+   - Baris kecil di bawah target menulis "Dihitung sejak tiket dibuat: 6 jam" untuk tingkat SLA atau kategori yang dihitung 24 jam, dan "Dihitung sejak tiket dibuat, dalam jam layanan: 6 jam" untuk tingkat yang dihitung dalam **Jam layanan** (bagian "SLA dan tenggat").
+   - **Check-in** memuat catatan lokasi dari aplikasi teknisi saat tiket dimulai: jarak dari lokasi dan akurasinya, misalnya "820 m dari lokasi (akurasi ±12 m)", atau alasan lokasi tidak tersedia. Jarak 1 km atau lebih ditulis dalam km, misalnya "119,3 km". Bila teknisi memulai lebih jauh dari batas jarak perusahaan, alasannya ditambahkan: "Jauh dari lokasi: {alasan}" (bagian 3.3, "Jarak check-in saat memulai"). Tanpa catatan, tertulis "Belum ada check-in".
    - Kartu **Tindakan** hanya menampilkan tindakan yang diizinkan untuk akun dan status saat ini. Tiket **Ditutup** tidak menampilkan **Tambah komentar** dan menulis "Tiket sudah ditutup. Komentar baru tidak bisa ditambahkan.". Tiket **Ditutup** yang punya petugas menampilkan tombol **Evaluasi teknisi** bagi pengguna yang boleh membuat evaluasi (bagian 3.5).
+   - Kartu **Tindakan** juga memuat **Tugaskan ke saya** (tiket **Terbuka**) dan **Buka kembali** (tiket **Diselesaikan** atau **Ditutup**) bagi pemegang izinnya. Keduanya dijelaskan di bawah.
    - Kartu **Komentar** dan **Lampiran**. Setiap komentar dan lampiran membawa lencana **Pelanggan** (ditulis akun aplikasi pelanggan) atau **Petugas**, supaya jelas siapa yang menjawab. Penulis komentar hanya tampil sebagai nama.
 
 ### Menugaskan petugas
 
-Izin: `ticket.assign` untuk tiket **Terbuka**.
+Izin: `ticket.assign` untuk tiket **Terbuka**. Tombol **Tugaskan ke saya** memakai izin yang sama (lihat di bawah).
 
 1. Buka tiket berstatus **Terbuka**.
 2. Klik **Tugaskan**. Dialog **Tugaskan tiket** terbuka.
-3. Isi **Petugas** (wajib). Ketik untuk mencari, lalu pilih. Setiap baris menampilkan nama petugas dan emailnya. Daftar memuat pengguna aktif perusahaan yang memegang `ticket.start`, `ticket.resolve`, atau `ticket.close`. Bila tidak ada yang cocok, daftar menulis "Tidak ada petugas yang cocok."
+3. Isi **Petugas** (wajib). Ketik untuk mencari, lalu pilih. Setiap baris menampilkan nama petugas disusul jumlah pekerjaan aktifnya, misalnya "{nama} · 2 pekerjaan aktif", terurut dari yang paling sedikit. Bila jumlahnya berbeda antarpetugas, petugas dengan pekerjaan paling sedikit diberi catatan "Paling sedikit pekerjaan" sebagai saran. Daftar memuat pengguna aktif perusahaan yang memegang `ticket.start`, `ticket.resolve`, atau `ticket.close`. Bila tidak ada yang cocok, daftar menulis "Tidak ada petugas yang cocok."
 4. Klik **Tugaskan**. Muncul toast "Tiket berhasil ditugaskan.", status menjadi **Ditugaskan**, dan **Petugas** terisi. Klik **Batal** untuk menutup dialog tanpa menugaskan.
 
-Petugas harus pengguna aktif perusahaan ini yang berperan `admin`, `manager`, `noc`, `staff`, atau `technician` (peran buatan sendiri tidak diterima) dan memegang `ticket.start`, `ticket.resolve`, atau `ticket.close`. Petugas menerima email dan notifikasi di lonceng (bagian 2.2). Pada penugasan pertama, pelanggan tiket menerima WhatsApp bahwa tiketnya ditangani, bila WhatsApp perusahaan aktif.
+Petugas harus pengguna aktif perusahaan ini yang memegang `ticket.start`, `ticket.resolve`, atau `ticket.close`, lewat peran apa pun, termasuk peran buatan sendiri. Petugas menerima email berjudul "Tiket {kode} ditugaskan kepada Anda" yang memuat judul tiket, pelanggan, prioritas, batas respons, dan tombol **Buka tiket**, serta notifikasi di lonceng (bagian 2.2). Pada penugasan pertama, pelanggan tiket menerima WhatsApp bahwa tiketnya ditangani, bila WhatsApp perusahaan aktif.
 
 Bila dialog menampilkan **Tiket sudah berubah**, pengguna lain mengubah tiket lebih dulu: klik **Muat ulang tiket**, lalu ulangi dari langkah 2.
+
+**Tugaskan ke saya** menugaskan tiket **Terbuka** kepada Anda dengan satu klik, tanpa dialog. Tombolnya tampil bagi pemegang `ticket.assign` yang sendiri memegang `ticket.start`, `ticket.resolve`, atau `ticket.close`, kecuali perusahaan melarang menugaskan diri sendiri (bagian 3.1). Muncul toast "Tiket {kode} ditugaskan ke Anda." Bila orang lain lebih dulu mengambil tiket itu, toast merah "Tiket gagal ditugaskan." menulis alasannya, dan halaman memuat ulang supaya **Petugas** menunjukkan siapa yang memegangnya.
 
 ### Mengerjakan dan menutup tiket
 
@@ -836,12 +889,27 @@ Petugas memulai dan menyelesaikan tiket di aplikasi teknisi. Di web, langkah yan
 2. Pada tiket **Dikerjakan**, klik **Selesaikan**. Dialog **Selesaikan tiket** terbuka.
 3. Isi **Catatan penyelesaian** (wajib, maksimal 1000 karakter).
 4. Klik **Selesaikan**. Muncul toast "Tiket diselesaikan.", status menjadi **Diselesaikan**, dan catatan tampil di **Catatan penyelesaian**. Izin `ticket.resolve`.
-5. Pada tiket **Diselesaikan**, klik **Tutup**. Dialog **Tutup tiket** terbuka.
+5. Pada tiket **Diselesaikan**, klik **Tutup**. Dialog "Tutup tiket {kode}?" terbuka dengan keterangan "Pelanggan tidak bisa membalas lagi; tiket masuk laporan."
 6. Klik **Tutup tiket**. Muncul toast "Tiket ditutup.", status menjadi **Ditutup**, dan **Ditutup** terisi. Izin `ticket.close`.
 
 Hanya petugas yang ditunjuk pada tiket yang boleh memulai dan menyelesaikan, termasuk bila Anda admin. Saat tiket diselesaikan, pelanggan tiket menerima WhatsApp bahwa tiketnya selesai.
 
+Pelanggan juga bisa menutup tiket **Diselesaikan** sendiri di aplikasi pelanggan: ia menjawab bahwa masalahnya sudah beres dan memberi nilai 1 sampai 5, dengan komentar bila mau. Tiket langsung **Ditutup**, dan nilainya tampil di kartu **Rincian** sebagai **Penilaian pelanggan**. Tiket yang sudah **Ditutup** tetapi belum dinilai juga bisa dinilai di aplikasi. Satu tiket dinilai sekali.
+
 **Selesaikan** juga tampil pada tiket **Ditugaskan**, tetapi server menolaknya dengan halaman **Akses ditolak** sampai petugas menekan **Mulai**. Petugas tiket tidak boleh menutup tiketnya sendiri, jadi pemegang `ticket.close` lain yang menutupnya.
+
+Bila petugas memulai tiket di aplikasi teknisi dan berada jauh dari alamat pelanggan, aplikasi meminta alasan lebih dulu (aturan jarak check-in, bagian 3.3). Alasan itu tampil di baris **Check-in** pada kartu **Status**.
+
+### Membuka kembali tiket
+
+Izin: `ticket.reopen`. Admin, Manajer, dan peran NOC memegangnya. Peran buatan sendiri mendapatkannya lewat menu Peran (bagian 8.6).
+
+1. Buka tiket berstatus **Diselesaikan** atau **Ditutup**.
+2. Klik **Buka kembali** di kartu **Tindakan**. Dialog "Buka kembali tiket {kode}?" terbuka dengan keterangan "Tiket kembali ditangani, pelanggan diberi tahu, dan target waktunya tidak dihitung ulang."
+3. Isi **Alasan** (wajib, 5 sampai 500 karakter). Petunjuk di bawah isian: "Tulis apa yang masih bermasalah, paling sedikit 5 karakter."
+4. Klik **Buka kembali**. Muncul toast "Tiket {kode} dibuka kembali."
+
+Status tiket menjadi **Ditugaskan** bila tiket masih punya petugas, atau **Terbuka** bila tidak. Kartu **Status** menampilkan lencana **Dibuka kembali {waktu}**, dan **Diselesaikan**, **Ditutup**, dan **Catatan penyelesaian** dikosongkan di halaman (catatan lama tetap ada di Log Audit). Target waktu tidak dihitung ulang, dan nilai dari pelanggan tetap ada. Tiket **Ditutup** yang dibuka kembali memakai lagi nama kategori dan petugas yang berlaku. Petugas tiket, atau pemegang `ticket.assign` bila tiket tidak punya petugas aktif, menerima notifikasi "Tiket {kode} dibuka kembali" dengan pesan "Oleh {nama}: {alasan}", kecuali orang yang membuka kembali tiket itu. Pelanggan menerima notifikasi "Tiket {kode} dibuka kembali dan akan ditangani lagi."
 
 ### Komentar dan lampiran
 
@@ -852,9 +920,10 @@ Hanya petugas yang ditunjuk pada tiket yang boleh memulai dan menyelesaikan, ter
 Izin `ticket.comment.create`. Komentar tidak bisa diubah atau dihapus. Server menolak komentar pada tiket **Ditutup** dengan "Tiket sudah ditutup.". Balasan pelanggan pada tiket **Diselesaikan** membuka tiket kembali dan memberi tahu petugas serta pemegang `ticket.assign`.
 
 4. Untuk melampirkan berkas, klik **telusuri** pada area "Seret berkas ke sini atau telusuri" di kartu **Lampiran**, atau seret satu berkas ke area itu.
-5. Klik **Unggah**. Bilah **Mengunggah lampiran** menunjukkan kemajuan, lalu muncul toast "Lampiran berhasil diunggah."
+5. Isi **Keterangan (opsional)** bila perlu, maksimal 200 karakter. Teks di bawah isian itu mengingatkan "Terlihat oleh pelanggan".
+6. Klik **Unggah**. Bilah **Mengunggah lampiran** menunjukkan kemajuan, lalu muncul toast "Lampiran berhasil diunggah."
 
-Izin `ticket.attachment.upload`. Berkas boleh `jpg`, `jpeg`, `png`, `pdf`, `doc`, `docx`, atau `txt`, maksimal 10 MB. Lampiran baru pada tiket **Ditutup** ditolak. Berkas tampil dengan nama, waktu, tombol **Unduh**, dan **Buka** untuk gambar.
+Izin `ticket.attachment.upload`. Berkas boleh `jpg`, `jpeg`, `png`, atau `pdf`, maksimal 10 MB. Area unggah menolak jenis lain di tempat, dan server memeriksa isi berkas juga. Bila unggahan gagal, toast merah "Lampiran gagal diunggah." menulis alasannya, atau "Berkas harus JPG, PNG, atau PDF dengan ukuran paling besar 10 MB." Pada tiket **Ditutup**, kartu **Lampiran** tidak punya area unggah dan menulis "Tiket sudah ditutup. Lampiran baru tidak bisa ditambahkan." Berkas tampil dengan nama, lencana **Pelanggan** atau **Petugas**, keterangan bila ada, waktu, tombol **Unduh**, dan **Buka** untuk gambar.
 
 ### Membuat SPK dari tiket
 
@@ -872,7 +941,7 @@ Satu tiket hanya boleh melahirkan satu SPK. Halaman tiket tidak menampilkan taut
 
 ### SLA dan tenggat
 
-Setiap tiket baru mendapat dua tenggat saat dibuat. Keduanya dihitung dalam jam kalender dari waktu pembuatan:
+Setiap tiket baru mendapat dua tenggat saat dibuat. Keduanya dihitung dari waktu pembuatan, dalam jam kalender atau dalam jam layanan perusahaan (lihat "Hitungan tenggat" di bawah):
 
 - **Target respons**: batas waktu sampai petugas mengirim balasan publik pertama atau menekan **Mulai**.
 - **Target penyelesaian**: batas waktu sampai tiket diselesaikan lewat **Selesaikan**.
@@ -884,9 +953,11 @@ Sumber kedua target:
 
 Tenggat dihitung saat tiket dibuat, dan dihitung ulang hanya saat prioritas tiket **Terbuka** diubah. Tiket yang sudah ada tidak berubah bila paket atau tingkat SLA langganannya diganti kemudian.
 
-Prioritas **Mendesak** memotong kedua target menjadi separuh, dibulatkan ke atas, apa pun sumbernya. Contoh: 5 jam menjadi 3 jam. Kategori bawaan perusahaan baru: **No Internet** 4 jam penyelesaian dan 2 jam respons, **Slow Connection** 8 dan 4, **Packet Loss** 8 dan 4, **Device Issue** 12 dan 6, **Fiber Issue** 12 dan 6. Target respons bawaan adalah separuh target penyelesaian, dibulatkan ke atas.
+Prioritas **Mendesak** memotong kedua target menjadi separuh, dibulatkan ke atas, apa pun sumbernya. Contoh: 5 jam menjadi 3 jam. Kategori bawaan perusahaan baru: **Internet mati** 4 jam penyelesaian dan 2 jam respons, **Koneksi lambat** 8 dan 4, **Koneksi putus-sambung** 8 dan 4, **Masalah perangkat** 12 dan 6, **Kabel fiber bermasalah** 12 dan 6. Perusahaan lama yang belum mengganti nama kategorinya ikut memakai nama Indonesia ini setelah pembaruan sistem (sebelumnya **No Internet**, **Slow Connection**, **Packet Loss**, **Device Issue**, dan **Fiber Issue**). Target respons bawaan adalah separuh target penyelesaian, dibulatkan ke atas.
 
 Tenggat tersimpan di tiket saat tiket dibuat. Mengubah tingkat, kategori, atau prioritas sesudahnya tidak menghitung ulang tiket yang sudah ada. Tiket yang dibuat sebelum target respons ada tetap memakai tenggat penyelesaiannya dan tidak punya target respons: halaman menulis "Tanpa target respons".
+
+**Hitungan tenggat.** Tingkat SLA punya isian **Hitungan tenggat** (bagian 4.5). **24 jam** menghitung setiap jam, siang dan malam. **Jam layanan** hanya menghitung jam buka perusahaan: tiket yang masuk di luar jam buka mulai dihitung saat buka berikutnya, dan tenggatnya jatuh di dalam jam buka. Jam buka diisi per hari, dengan pilihan **Tutup**, di **Pengaturan Perusahaan**, kartu **Jam layanan** (bagian 8.1). Selama jam layanan belum diisi, tingkat yang memakai **Jam layanan** dihitung 24 jam, dan **Pengaturan Perusahaan** menulis "Jam layanan belum diisi; tenggat dihitung 24 jam." Kategori selalu dihitung 24 jam. Kartu **Status** di halaman tiket dan baris target di form buat tiket memakai hitungan yang sama.
 
 Halaman tiket menandai pelanggaran dengan dua lencana:
 
@@ -904,21 +975,21 @@ Peran yang dapat memakai: admin dan manajer pada peran bawaan, staf tidak. Izin:
 1. Di sidebar, buka grup **Pelanggan & Layanan**, lalu klik **Kategori Tiket** (di bawah **Tingkat SLA**).
 2. Baca daftar. Subjudulnya menyebut bahwa target ini cadangan untuk tiket tanpa langganan atau tanpa tingkat SLA aktif, dan bahwa tiket urgent memakai setengah dari target (dibulatkan ke atas). Kolomnya **Kode**, **Nama**, **Target respons (jam)**, **Target penyelesaian (jam)**, **Status** (lencana **Aktif** atau **Nonaktif**), dan **Aksi** (hanya bagi pemegang izin). Daftar kosong menulis "Belum ada kategori tiket untuk perusahaan ini."
 
-   ![Dialog Ubah kategori di atas daftar Kategori Tiket, dengan isian Nama, Target respons (jam), Target penyelesaian (jam), saklar Aktif, Saran untuk pelanggan, serta tombol Batal dan Simpan](images/web/ticket-categories-edit.png)
+   ![Dialog Ubah kategori di atas daftar Kategori Tiket, dengan isian Nama, Target respons (jam), Target penyelesaian (jam), saklar Aktif, Saran untuk pelanggan, kotak Pelanggan melihat, serta tombol Batal dan Simpan](images/web/ticket-categories-edit.png)
 
 3. Klik **Ubah** pada sebuah baris. Dialog **Ubah kategori** diikuti kode kategori terbuka dengan isian berikut:
    - **Nama**: wajib.
    - **Target respons (jam)**: wajib, bilangan bulat 1 sampai 720, tidak boleh melebihi target penyelesaian.
    - **Target penyelesaian (jam)**: wajib, bilangan bulat 1 sampai 720. Keterangan di bawah isian menulis "Hanya berlaku untuk tiket baru."
    - **Aktif**: saklar. Kategori nonaktif tidak muncul di pilihan **Kategori** pada form tiket.
-   - **Saran untuk pelanggan**: opsional, teks bebas maksimal 500 karakter dengan penghitung di keterangan ("Tampil di aplikasi pelanggan saat memilih kategori ini. Kosongkan jika tidak perlu."). Tulis langkah singkat yang bisa dicoba pelanggan sebelum membuat tiket, misalnya cara memeriksa lampu modem. Baris baru ikut tampil. Mengosongkan isian menghapus saran, dan aplikasi lalu menampilkan tiga langkah umum: cek lampu modem, cabut listrik modem 30 detik, cek kabel di modem.
+   - **Saran untuk pelanggan**: opsional, teks bebas maksimal 500 karakter dengan penghitung di keterangan ("Tampil di aplikasi pelanggan saat memilih kategori ini. Kosongkan jika tidak perlu."). Tulis langkah singkat yang bisa dicoba pelanggan sebelum membuat tiket, misalnya cara memeriksa lampu modem. Baris baru ikut tampil. Di bawah isian, kotak **Pelanggan melihat:** menampilkan saran persis seperti yang dibaca pelanggan dan berubah saat Anda mengetik. Kategori bawaan sudah berisi saran, misalnya **Internet mati**: "Periksa lampu modem. Cabut adaptor 10 detik lalu pasang lagi. Bila lampu LOS merah, kirim laporan ini." Mengosongkan isian menghapus saran, dan aplikasi lalu menampilkan tiga langkah umum: cek lampu modem, cabut listrik modem 30 detik, cek kabel di modem.
 4. Klik **Simpan**. Muncul toast "Kategori tiket diperbarui." Klik **Batal** untuk menutup dialog tanpa menyimpan.
 
 Layar ini tidak punya tombol untuk menambah atau menghapus kategori, dan kode kategori tidak bisa diubah. Pesan "Target respons tidak boleh lebih lama dari target penyelesaian." muncul bila target respons lebih besar dari target penyelesaian. Pesan "saran untuk pelanggan tidak boleh lebih dari 500 karakter." di bawah **Saran untuk pelanggan** berarti isinya kepanjangan. Kolom daftar tidak menampilkan saran: buka **Ubah** untuk membacanya.
 
 ### Kesalahan umum
 
-- **Tugaskan** menampilkan "penangani wajib diisi.": pilih petugas dari daftar, lalu klik **Tugaskan**. Pesan "penangani yang dipilih harus berupa pengguna aktif dengan peran yang sesuai." muncul bila petugas yang dipilih tidak aktif atau tidak berperan `admin`, `manager`, `noc`, `staff`, atau `technician`.
+- **Tugaskan** menampilkan "penangani wajib diisi.": pilih petugas dari daftar, lalu klik **Tugaskan**. Pesan "penangani yang dipilih harus berupa pengguna aktif dengan hak akses yang sesuai." muncul bila petugas yang dipilih tidak aktif atau tidak memegang `ticket.start`, `ticket.resolve`, atau `ticket.close`.
 - Alert **Tiket sudah berubah** dengan keterangan "Konflik penugasan: tiket ini sudah ditugaskan oleh pengguna lain." (atau "Konflik: status tiket sudah diubah oleh pengguna lain." pada **Selesaikan** dan **Tutup**): klik **Muat ulang tiket**. Pada **Mulai**, perubahan status serupa menampilkan toast "Tiket gagal dimulai." dengan keterangan yang sama.
 - **Selesaikan** ditolak pada tiket **Ditugaskan**: tombolnya tampil, tetapi hanya tiket **Dikerjakan** yang bisa diselesaikan. Petugas klik **Mulai** dulu.
 - **Mulai** atau **Selesaikan** ditolak untuk Anda dengan halaman **Akses ditolak**: hanya petugas yang ditunjuk pada tiket yang boleh, dan peran manajer atau staf bawaan tidak memegang `ticket.start` maupun `ticket.resolve`. Tugaskan tiket ke pengguna yang berhak, atau biarkan teknisi mengerjakannya di aplikasi.
@@ -932,6 +1003,8 @@ Layar ini tidak punya tombol untuk menambah atau menghapus kategori, dan kode ka
 - Toast "Data gagal disimpan. Periksa input." muncul bersama pesan di bawah isian: baca pesan di bawah setiap isian yang bermasalah.
 - Daftar tiket tampak terpotong setelah dibuka dari Dasbor: filter `sla_breached` masih aktif. Klik **Tiket** di sidebar.
 - Judul atau prioritas tiket salah: web tidak punya layar ubah, **Ubah**, maupun **Hapus** untuk tiket. Server hanya mengubah tiket **Terbuka** (izin `ticket.update`) dan menghapus tiket **Ditutup** (izin `ticket.delete`), tetapi tidak ada layar yang memanggilnya. Tulis koreksi sebagai komentar. Tiket yang dihapus lewat jalur lain tampil di filter **Status** **Dihapus** dan bisa dikembalikan dengan **Pulihkan** (izin `ticket.delete`).
+- **Buka kembali** tidak tampil: tiket belum **Diselesaikan** atau **Ditutup**, atau Anda tidak memegang `ticket.reopen`. Pesan "Hanya tiket yang diselesaikan atau ditutup yang bisa dibuka kembali." di dialog berarti orang lain sudah mengubah tiket: tutup dialog dan muat ulang halaman. Pesan "alasan wajib diisi." atau "alasan minimal 5 karakter." di bawah **Alasan**: tulis alasan paling sedikit 5 karakter.
+- **Tugaskan ke saya** tidak tampil: tiket sudah punya petugas, Anda tidak memegang `ticket.assign`, Anda sendiri tidak memegang `ticket.start`, `ticket.resolve`, atau `ticket.close`, atau perusahaan melarang menugaskan diri sendiri. Toast merah "Tiket gagal ditugaskan." berarti orang lain lebih dulu mengambil tiket itu.
 
 ## 3.5 Evaluasi
 
@@ -948,7 +1021,7 @@ Peran yang dapat memakai: admin, manajer, dan staf pada peran bawaan. Izin: `eva
 2. Tombol **Buat evaluasi** di kanan atas tampil bagi pemegang `evaluation.create`.
 3. Isi filter. Daftar langsung menyesuaikan diri sesaat setelah Anda mengetik atau memilih, tanpa tombol filter:
    - Isian **Cari** mencari nama karyawan (isian bertuliskan "Nama karyawan").
-   - Isian **Karyawan** memilih satu karyawan: ketik nama atau email (minimal 2 huruf), lalu pilih. Daftar memuat pengguna aktif perusahaan yang berperan `technician`, `staff`, atau `noc`, paling banyak 20 hasil. Pengguna berperan `technician` hanya mendapat dirinya sendiri di daftar ini. Klik **Hapus pilihan** untuk mencabut filter ini.
+   - Isian **Karyawan** memilih satu karyawan: ketik nama atau email (minimal 2 huruf), lalu pilih. Daftar memuat anggota aktif perusahaan yang memegang izin **Dapat dinilai di Evaluasi** (`evaluation.evaluable`), paling banyak 20 hasil. Pengguna tanpa `evaluation.view` hanya mendapat dirinya sendiri di daftar ini. Klik **Hapus pilihan** untuk mencabut filter ini.
    - Pilihan **Jenis referensi** berisi **Semua jenis**, **SPK**, dan **Tiket**. Filter **Status** berisi **Semua status**, **Dihapus**, dan **Semua, termasuk dihapus**.
 4. Baca tabel. Kolom: **Karyawan**, **Referensi**, **Nilai**, **Penilaian pelanggan**, **Penilai**, **Tanggal**, dan **Aksi**. Kolom **Referensi** memuat lencana jenis (**SPK** atau **Tiket**) dan kode tiket atau SPK-nya. Bila tiket atau SPK itu sudah tidak ada, kolom menulis `#` dan nomor id internalnya. Kolom **Tanggal** memuat tanggal dan jam dalam format tanggal perusahaan. Kolom **Referensi**, **Nilai**, dan **Tanggal** bisa diurutkan. Setiap baris hanya punya tombol **Lihat**, kecuali evaluasi yang dihapus: barisnya tidak punya tombol dan menu **Aksi lainnya** berisi **Pulihkan** (izin `evaluation.delete`, toast "Evaluasi dipulihkan.").
 5. Daftar memuat 10 evaluasi per halaman, terbaru di atas. Bila ada lebih dari satu halaman, di bawah tabel tampil "Menampilkan" rentang baris dan jumlah total, tombol **Sebelumnya** dan **Berikutnya**, serta "Halaman" nomor dan jumlah halaman.
@@ -961,12 +1034,12 @@ Daftar yang kosong menulis **Belum ada evaluasi** dengan tombol **Buat evaluasi*
 
    ![Form Buat Evaluasi dengan kartu Data evaluasi: isian Karyawan, Jenis referensi, Tiket, Nilai (1,0 sampai 5,0), Penilaian pelanggan (opsional), dan Komentar](images/web/evaluations-create.png)
 
-2. Isi kartu **Data evaluasi**. Bila Anda datang dari tombol **Evaluasi teknisi** di tiket **Ditutup**, **Karyawan**, **Jenis referensi** (**Tiket**) dan **Tiket** sudah terisi, dan hanya **Nilai** yang perlu Anda pilih:
-   - **Karyawan**: wajib. Ketik nama atau email karyawan (minimal 2 huruf), lalu pilih. Daftar memuat pengguna aktif dari perusahaan yang sedang aktif dan berperan `technician`, `staff`, atau `noc`, paling banyak 20 hasil. Bila tidak ada yang cocok, daftar menulis "Tidak ada karyawan yang cocok."
+2. Isi kartu **Data evaluasi**. Bila Anda datang dari tombol **Evaluasi teknisi** di tiket **Ditutup**, **Karyawan**, **Jenis referensi** (**Tiket**) dan **Tiket** sudah terisi, dan **Penilaian pelanggan** ikut terisi bila pelanggan sudah menilai tiket itu di aplikasi. Hanya **Nilai** yang perlu Anda pilih:
+   - **Karyawan**: wajib. Ketik nama atau email karyawan (minimal 2 huruf), lalu pilih. Daftar memuat anggota aktif perusahaan yang sedang aktif dan memegang izin **Dapat dinilai di Evaluasi** (`evaluation.evaluable`), paling banyak 20 hasil. Bila tidak ada yang cocok, daftar menulis "Tidak ada karyawan yang cocok."
    - **Jenis referensi**: wajib. Pilih **Tiket** (nilai awal) atau **SPK**. Mengganti jenis mengosongkan pilihan referensi.
    - **Tiket** atau **SPK** (nama isian mengikuti jenis referensi): wajib. Ketik kode atau judul (minimal 2 huruf), lalu pilih. Isian tiket memuat tiket berstatus **Diselesaikan** atau **Ditutup** yang sudah punya petugas. Isian SPK memuat SPK berstatus **Selesai** yang sudah punya teknisi. Keduanya terbatas pada perusahaan yang sedang aktif, paling banyak 20 hasil. Tidak ada lagi isian ID yang diketik.
    - **Nilai (1,0 sampai 5,0)**: wajib. Angka 1,0 sampai 5,0 dengan langkah 0,1. Isian ini selalu kosong saat form dibuka, karena nilai adalah penilaian Anda. Menyimpan dengan nilai kosong menampilkan "Pilih nilai 1 sampai 5.".
-   - **Penilaian pelanggan (opsional)**: opsional. Angka 1,0 sampai 5,0 dengan langkah 0,1. Isi bila Anda mencatat rating dari pelanggan.
+   - **Penilaian pelanggan (opsional)**: opsional. Angka 1,0 sampai 5,0 dengan langkah 0,1. Dari tombol **Evaluasi teknisi** pada tiket yang sudah dinilai pelanggan di aplikasi, isian ini sudah berisi nilai itu dan boleh Anda ubah. Selain itu, isi bila Anda mencatat rating dari pelanggan.
    - **Komentar**: opsional, maksimal 1000 karakter.
 3. Klik **Simpan**. Daftar terbuka dan toast "Evaluasi berhasil dibuat." muncul. Klik **Batal** atau **Kembali** untuk kembali tanpa menyimpan.
 
@@ -986,13 +1059,14 @@ Tombol **Ubah** tampil bagi semua orang yang bisa membuka halaman detail. Halama
 ### Kesalahan umum
 
 - Pesan "referensi yang dipilih tidak valid untuk perusahaan ini." di bawah isian tiket atau SPK: tiket atau SPK itu milik perusahaan lain. Pastikan perusahaan aktif Anda benar (bagian 1.6), lalu pilih ulang dari daftar.
-- Pesan "karyawan yang dipilih tidak valid." di bawah **Karyawan**: karyawan itu bukan anggota aktif dari perusahaan yang sedang aktif. Pindah ke perusahaan yang tepat atau pilih karyawan lain. Pesan "karyawan yang dipilih harus berupa pengguna aktif dengan peran yang sesuai." berarti karyawan itu tidak berperan `technician`, `staff`, atau `noc`.
+- Pesan "karyawan yang dipilih tidak valid." di bawah **Karyawan**: karyawan itu bukan anggota aktif dari perusahaan yang sedang aktif. Pindah ke perusahaan yang tepat atau pilih karyawan lain. Pesan "karyawan yang dipilih harus berupa pengguna aktif dengan hak akses yang sesuai." berarti karyawan itu tidak memegang izin **Dapat dinilai di Evaluasi**.
 - "karyawan wajib diisi.", "referensi wajib diisi.", atau "nilai wajib diisi.": pilih karyawan dan referensi, lalu isi nilai.
 - Pesan "nilai harus bernilai antara 1.0 dan 5.0." (untuk **Penilaian pelanggan**: "penilaian pelanggan harus bernilai antara 1.0 dan 5.0."): isi angka 1,0 sampai 5,0.
 - Pesan "komentar tidak boleh lebih dari 1000 karakter.": persingkat komentar.
 - Evaluasi kedua oleh penilai yang sama untuk tiket atau SPK yang sama ditolak basis data, karena satu penilai hanya boleh punya satu evaluasi per referensi. Layar tidak menangkap penolakan ini sebagai pesan isian, jadi yang tampil adalah halaman **Terjadi kesalahan di server**. Perbaiki evaluasi yang ada lewat **Ubah**.
 - **Respons pertama** atau **Penyelesaian** kosong: tiket belum dimulai atau diselesaikan, atau SPK belum disetujui, saat evaluasi dibuat. **Ubah** tidak mengisinya ulang, jadi buat evaluasi setelah pekerjaan selesai.
 - Evaluasi lama tidak terlihat di halaman pertama: daftar memuat 10 baris per halaman. Pakai **Sebelumnya** dan **Berikutnya**, atau persempit dengan **Cari**, **Karyawan**, dan **Jenis referensi**.
+- Di **Ubah Evaluasi**, **Nilai** atau **Penilaian pelanggan** di luar 1 sampai 5 ditolak lebih dulu oleh gelembung browser berbahasa Indonesia, misalnya "Nilai paling kecil 1." atau "Nilai paling besar 5." **Buat Evaluasi** memeriksa sendiri dan menulis pesan merah di bawah isian.
 
 ## 3.6 Pekerjaan Saya
 
@@ -1072,7 +1146,8 @@ Peran yang dapat membuka daftar: admin, manajer, dan staf. Izin dasar: Lihat pel
 |---|---|---|
 | Melihat pelanggan | Lihat pelanggan (`customer.view`) | Admin, manajer, staf |
 | Onboarding lengkap | Buat pelanggan (`customer.create`), Kelola alamat pelanggan (`customer.address.manage`), Kelola langganan (`customer.subscription.manage`), Buat SPK (`spk.create`) | Admin, manajer |
-| Mengubah pelanggan dan mengirim link akses | Ubah pelanggan (`customer.update`) | Admin, manajer, staf |
+| Menugaskan teknisi saat mendaftarkan pelanggan | Tugaskan SPK (`spk.assign`) | Admin, manajer |
+| Mengubah pelanggan, mengirim link akses, serta mengunggah dan menghapus dokumen pelanggan | Ubah pelanggan (`customer.update`) | Admin, manajer, staf |
 | Mengelola alamat dan kontak | Kelola alamat pelanggan (`customer.address.manage`) | Admin, manajer, staf |
 | Menghapus pelanggan | Hapus pelanggan (`customer.delete`) | Admin |
 | Mengekspor pelanggan | Ekspor pelanggan (`customer.export`) | Admin, manajer |
@@ -1135,13 +1210,13 @@ Admin dapat mengubah susunan izin melalui **Peran** dan **Hak Akses**. Tombol ya
    - **Diperoleh oleh**: muncul dengan Tetapkan pemeroleh pelanggan. Ketik untuk mencari karyawan, lalu pilih, atau biarkan kosong (**Belum ditentukan**). Klik **Hapus pilihan** untuk mengosongkannya lagi. Pilihan hanya memuat akun aktif dalam perusahaan yang memiliki profil karyawan aktif dan memegang Buat pelanggan. Bila pembuat memenuhi syarat, namanya terisi sebagai nilai awal. Bila tidak ada karyawan yang cocok, kotak menulis **Tidak ada karyawan yang memenuhi syarat.**
 4. Buka tab **Alamat**. Sediakan sedikitnya satu alamat dan pilih tepat satu alamat utama serta satu alamat pemasangan. Alamat pertama sudah menjadi keduanya. Setiap alamat adalah kartu bernomor (judul **Alamat** diikuti nomor urut):
    - **Label**: wajib, maksimal 100 karakter, dan tidak boleh sama dengan label alamat lain milik pelanggan ini. Contoh pada kolom: Rumah / Kantor / Pemasangan.
-   - Peta: klik peta, geser pin merah, atau pakai kotak pencarian di atas peta. Tombol **Alamat** mencari lokasi lewat teks dan membutuhkan sedikitnya 3 karakter. Klik **Cari**, lalu pilih salah satu hasil. Tombol **Lintang / Bujur** membuka dua kotak untuk mengetik koordinat. Klik **Cari** untuk menaruh pin. Tombol **Lokasi saat ini** memakai lokasi perangkat Anda. Bila hasil pencarian kosong, peta menulis **Lokasi tidak ditemukan. Coba alamat yang lebih spesifik.**
+   - Peta: klik peta, geser pin merah, atau pakai kotak pencarian di atas peta. Tombol **Alamat** mencari lokasi lewat teks dan membutuhkan sedikitnya 3 karakter. Klik **Cari**, lalu pilih salah satu hasil. Bila isian **Alamat** (jalan) di kartu yang sama masih kosong, atau masih berisi jalan dari hasil pencarian sebelumnya, hasil yang Anda pilih mengisinya dengan nama jalan dan nomor rumah (bila OpenStreetMap punya jalan itu). Alamat yang Anda ketik sendiri tidak ditimpa. Tombol **Lintang / Bujur** membuka dua kotak untuk mengetik koordinat. Klik **Cari** untuk menaruh pin. Tombol **Lokasi saat ini** memakai lokasi perangkat Anda. Bila hasil pencarian kosong, peta menulis **Lokasi tidak ditemukan. Coba alamat yang lebih spesifik.**
    - **Lintang** dan **Bujur**: wajib dan terisi oleh peta, tidak dapat diketik langsung pada kotaknya. Lintang harus antara -90 sampai 90. Bujur harus antara -180 sampai 180.
    - **Provinsi**, **Kota / Kabupaten**, **Kecamatan**, dan **Kelurahan / Desa**: wajib. Tiap kotak adalah kotak cari (ketik untuk mencari, lalu pilih). Pilih berurutan. Kotak berikutnya baru aktif setelah kotak di atasnya dipilih. Kombinasinya harus membentuk hierarki wilayah yang valid. Memilih hasil pencarian peta ikut mengisi wilayah dan kode pos.
    - **Alamat**: wajib. **Kode pos** dan **Catatan** opsional.
    - **Alamat utama** dan **Alamat pemasangan**: pilih satu kartu untuk masing-masing penanda. Menyalakan penanda pada satu kartu memindahkannya dari kartu lama.
    - Klik **Tambah alamat** untuk menambah kartu. Tombol **Hapus** pada kartu tidak aktif bila hanya ada satu alamat. Menghapus kartu yang membawa penanda memindahkan penanda ke alamat pertama yang tersisa.
-5. Buka tab **Kontak**. Sediakan sedikitnya satu kontak dan pilih tepat satu kontak utama.
+5. Buka tab **Kontak**. Sediakan sedikitnya satu kontak dan pilih tepat satu kontak utama. Kartu kontak utama (judul **Kontak** diikuti nomor urut) diawali saklar **Sama dengan data pelanggan**, yang menyala secara awal. Selama menyala, kontak utama memakai narahubung (atau **Nama** bila narahubung kosong), **Telepon**, dan **Email** dari tab **Data pelanggan**, jadi data yang sama tidak diketik dua kali. Mengubah isian kartu itu, memilih kontak utama lain, atau menghapus kontak utama mematikan saklar. Isian yang sudah tersalin tetap ada untuk Anda ubah. Menyalakan saklar lagi membuat data pelanggan menggantikan isian itu.
    - **Nama**: wajib, maksimal 255 karakter.
    - **Jabatan**: opsional, maksimal 255 karakter.
    - **Telepon**: wajib pada onboarding, maksimal 50 karakter, dengan format angka serta `(`, `)`, `+`, atau `-`.
@@ -1151,21 +1226,25 @@ Admin dapat mengubah susunan izin melalui **Peran** dan **Hak Akses**. Tombol ya
 6. Buka tab **Langganan & SPK**:
    - **Paket layanan**: wajib. Kotak cari (ketik untuk mencari, lalu pilih). Pilihan hanya memuat paket aktif dari kategori aktif, dikelompokkan dengan judul nama kategori. Tiap pilihan menulis nama paket dan keterangan kode paket serta harga per bulan. Mengganti **Tipe** menata ulang kelompok: **Perorangan** menampilkan **Rumahan** paling atas, **Perusahaan** menampilkan **Bisnis** lalu **Korporat**. Semua paket tetap bisa dipilih untuk tipe apa pun. Memilih paket mengisi **Biaya bulanan**, **Biaya pemasangan**, dan **Masa kontrak (bulan)** dengan nilai paket. Anda boleh mengubahnya.
    - **POP pelayan**: wajib. Kotak cari. Pilihan hanya memuat lokasi aktif dalam perusahaan, ditulis dengan kode dan nama lokasi.
-   - **Port drop (ODP)**: opsional dan hanya muncul dengan Tetapkan port ODN (`odn.assign`). Kotak ini baru aktif setelah **POP pelayan** dipilih (sebelum itu tertulis **Pilih POP layanan untuk melihat port kosongnya.**). Ketik minimal 2 huruf kode ODP atau label splitter, lalu pilih port bebas di bawah POP tersebut. Bila tidak ada, kotak menulis **Tidak ada port kosong yang cocok di bawah POP ini.** Mengganti POP mengosongkan pilihan port.
+   - **Port drop (ODP)**: opsional dan hanya muncul dengan Tetapkan port ODN (`odn.assign`). Kotak ini baru aktif setelah **POP pelayan** dipilih (sebelum itu tertulis **Pilih POP layanan untuk melihat port kosongnya.**). Ketik minimal 2 huruf kode ODP atau label splitter, lalu pilih port bebas di bawah POP tersebut. Tiap pilihan menulis kode ODP, rasio atau label splitter, dan nomor port, dengan baris keterangan berisi nama ODP, jumlah port kosong dari seluruh port ODP itu (misalnya "5/8 port kosong"), jarak ODP dari alamat pemasangan ("850 m" atau "1,4 km"), dan jalur lokasi ODP. Bila alamat bertanda pemasangan sudah punya koordinat, ODP terdekat tampil paling atas. Tanpa koordinat, jarak tidak tertulis dan urutannya mengikuti kode ODP. Bila tidak ada port, kotak menulis **Tidak ada port kosong yang cocok di bawah POP ini.** Mengganti POP mengosongkan pilihan port.
    - **Tanggal tagihan (1-28)**: wajib, bilangan bulat 1 sampai 28. Nilai awal 1.
    - **Masa kontrak (bulan)**: opsional, bilangan bulat minimal 1. Kosongkan untuk memakai masa minimum paket.
    - **Biaya bulanan** dan **Biaya pemasangan**: opsional, angka minimal 0. Kosongkan untuk memakai harga paket.
    - **Catatan langganan**: opsional.
-   - Periksa ringkasan di bagian bawah: **Alamat pemasangan** (label alamat yang bertanda pemasangan) dan **Status SPK setelah dibuat**, yaitu **Menunggu penugasan**.
+   - Periksa ringkasan di bagian bawah: **Alamat pemasangan** (label alamat yang bertanda pemasangan) dan **Status SPK setelah dibuat**, yaitu **Menunggu penugasan**, atau **Ditugaskan** bila Anda memilih teknisi di blok berikut.
+   - **Tugaskan sekarang**: blok di kartu ringkasan yang sama, dengan keterangan "Opsional. Isi bila pemasangan sudah disepakati; kosongkan untuk menugaskan nanti dari antrean Penugasan." Dengan Tugaskan SPK (`spk.assign`), blok memuat **Teknisi** dan **Tanggal kunjungan**, keduanya opsional. **Teknisi** adalah kotak cari (**Cari teknisi**) berisi teknisi aktif. Tiap pilihan menulis nama dan jumlah pekerjaan aktifnya ("... · 2 pekerjaan aktif"), dan teknisi dengan pekerjaan paling sedikit diberi keterangan **Paling sedikit pekerjaan**. Bila tidak ada yang cocok, kotak menulis "Tidak ada teknisi aktif yang cocok." **Tanggal kunjungan** tidak boleh sebelum hari ini dan menjadi jadwal SPK pemasangan. Tanpa Tugaskan SPK, blok berjudul **Jadwal kunjungan** dengan keterangan "Opsional. Kosongkan bila belum disepakati." dan hanya memuat **Tanggal kunjungan**. Teknisi yang dipilih ditugaskan dalam transaksi yang sama dengan pembuatan pelanggan, jadi bila penugasan ditolak, tidak ada pelanggan yang tersimpan. Bila **Teknisi** kosong, tugaskan nanti lewat antrean Penugasan (bagian 3.1).
+
+   ![Tab Langganan & SPK pada form Buat Pelanggan, dengan ringkasan Status SPK setelah dibuat dan blok Tugaskan sekarang](images/web/customers-create-assign.png)
+
 7. Klik **Buat pelanggan dan SPK**. Bila validasi gagal, layar berpindah ke tab yang berisi masalah dan toast **Data gagal disimpan. Periksa input.** muncul. Pesan tiap isian tampil di bawah isiannya. Klik **Batal** untuk kembali ke daftar tanpa menyimpan.
 8. Sistem menyimpan seluruh onboarding dalam satu transaksi:
    - pelanggan, alamat, kontak, persetujuan WhatsApp, dan pemeroleh;
    - akun pengguna berperan `customer`, tergabung pada perusahaan, e-mail sudah ditandai terverifikasi, dan terhubung ke pelanggan;
-   - langganan baru berstatus **Menunggu**, port ODP bila dipilih, serta SPK pemasangan berstatus **Menunggu penugasan** dengan prioritas **Sedang**. Judul SPK berbentuk **Pemasangan** diikuti kode langganan dan nama pelanggan;
+   - langganan baru berstatus **Menunggu**, port ODP bila dipilih, serta SPK pemasangan berstatus **Menunggu penugasan** (atau **Ditugaskan** bila Anda memilih teknisi) dengan prioritas **Sedang** dan jadwal kunjungan bila diisi. Judul SPK berbentuk **Pemasangan** diikuti kode langganan dan nama pelanggan;
    - catatan audit onboarding.
 9. Tidak ada isian kata sandi pada form. Sistem membuat kata sandi acak 32 karakter yang tidak pernah ditampilkan. Nomor telepon bukan kata sandi.
 10. Jika **Akun aktif** menyala, sistem mengantrekan e-mail berjudul **Akun pelanggan Anda sudah dibuat** setelah transaksi selesai. Tombol **Atur kata sandi** berlaku 60 menit. Pelanggan mengatur kata sandi melalui link itu, lalu masuk ke aplikasi Inbils Pelanggan memakai e-mail tersebut.
-11. Setelah berhasil, layar membuka detail pelanggan baru. Toast menulis **Pelanggan, langganan, dan SPK pemasangan dibuat.** diikuti kalimat bahwa link akses dikirim ke e-mail pelanggan. Kode pelanggan dan langganan mengikuti pengaturan Penomoran (bagian 7.13).
+11. Setelah berhasil, layar membuka detail pelanggan baru. Toast menulis "Pelanggan, langganan, dan SPK pemasangan dibuat", lalu "dan ditugaskan ke {nama teknisi}." bila Anda memilih teknisi, atau sekadar titik bila tidak. Bila **Akun aktif** menyala, toast menambah "Tautan akses akan dikirim ke &lt;email&gt;." Kalimat itu berupa janji: e-mail masuk antrean dan terkirim saat pekerja antrean memprosesnya. Kode pelanggan dan langganan mengikuti pengaturan Penomoran (bagian 7.13).
 12. SPK pemasangan tercatat dibuat oleh Anda. Sistem melarang pembuat SPK menyetujuinya sendiri (pesan **Pembuat SPK tidak boleh menyetujui SPK sendiri.**). Minta orang lain yang berwenang menyetujui SPK ini pada SPK (bagian 3.3).
 
 ### Membuka detail pelanggan
@@ -1176,15 +1255,31 @@ Admin dapat mengubah susunan izin melalui **Peran** dan **Hak Akses**. Tombol ya
 
 2. Baca kartu **Data pelanggan** untuk e-mail, telepon, NPWP, narahubung, **Diperoleh oleh**, dan catatan. Catatan hanya tampil bila terisi. Kartu **Status** menampilkan tipe, status layanan, dan status **Akun** (**Aktif** atau **Nonaktif**).
 3. Baca kartu **WhatsApp**. Lencana menampilkan **Setuju sejak** (dengan tanggal), **Berhenti sejak** (dengan tanggal), atau **Belum setuju**. Bila nomor telepon bukan nomor seluler Indonesia yang valid, kartu menampilkan peringatan **Nomor telepon pelanggan bukan nomor seluler Indonesia yang valid.** Tabel memuat 20 pesan terbaru dengan kolom **Pesan**, **Subjek**, **Status**, **Keterangan**, **Nomor**, dan **Waktu**. Nomor hanya menampilkan empat digit terakhir. Status pesan berupa lencana **Antrean**, **Terkirim**, **Diterima**, **Dibaca**, **Gagal**, atau **Dilewati**. Pesan yang dilewati menulis alasannya di **Keterangan**, misalnya **Pelanggan belum setuju**.
-4. Buka tab **Alamat**, **Kontak**, dan **Langganan** (masing-masing diikuti jumlah) untuk ringkasan data terkait. Tab **Tagihan**, **SPK**, dan **Tiket** muncul bila pengguna memiliki izin modul terkait. Riwayat tagihan, SPK, dan tiket masing-masing menampilkan maksimal 50 data terbaru.
-5. Tab **Langganan** pada detail hanya berupa ringkasan (**Kode**, **Paket**, **Status**, **Biaya bulanan**, **Tanggal tagih**). Halaman ini tidak menyediakan tombol untuk membuat atau membuka langganan. Tab **Alamat** dan **Kontak** juga hanya baca. Tambahkan atau ubah datanya lewat **Ubah**.
+4. Buka tab **Alamat**, **Kontak**, **Langganan**, dan **Dokumen** (masing-masing diikuti jumlah) untuk ringkasan data terkait. Tab **Tagihan**, **SPK**, dan **Tiket** muncul bila pengguna memiliki izin modul terkait. Riwayat tagihan, SPK, dan tiket masing-masing menampilkan maksimal 50 data terbaru. Tab **Dokumen** dijelaskan di bagian berikut.
+5. Tab **Langganan** pada detail berupa ringkasan (**Kode**, **Paket**, **Status**, **Biaya bulanan**, **Tanggal tagih**). Pengguna dengan Lihat langganan (`customer.subscription.view`) juga melihat kolom **Aksi** berisi link **Kelola langganan**, dan kode langganan menjadi link. Keduanya membuka detail langganan (lihat "Mengelola langganan pelanggan"). Tanpa izin itu kode hanya teks. Tab **Alamat** dan **Kontak** hanya baca. Tambahkan atau ubah datanya lewat **Ubah**.
 6. Tombol **Ubah** selalu tampil di detail. Tanpa Ubah pelanggan, klik tombol itu membuka halaman **Akses ditolak**.
+
+### Mengelola dokumen pelanggan
+
+Tab **Dokumen** menyimpan berkas milik pelanggan, misalnya KTP atau kontrak. Judul tabnya diikuti jumlah berkas, misalnya **Dokumen (2)**. Semua pengguna yang bisa membuka detail pelanggan melihat daftarnya. Formulir unggah dan tombol **Hapus** hanya ada dengan Ubah pelanggan (`customer.update`).
+
+1. Buka detail pelanggan, lalu klik tab **Dokumen**. Bila belum ada berkas, tab menulis **Belum ada dokumen. Unggah KTP atau kontrak pelanggan.**
+
+   ![Tab Dokumen pada detail pelanggan dengan isian Jenis dokumen, Berkas, dan tombol Unggah](images/web/customers-show-documents.png)
+
+2. Pilih **Jenis dokumen** (pilihan awal **Pilih jenis**). Pilihannya jenis dokumen aktif yang dibuat di **Jenis Dokumen** (bagian 8.8) dan berlaku untuk pelanggan, yaitu kolom **Berlaku untuk**-nya kosong, **Customer**, atau **Pelanggan**. Jenis yang punya masa berlaku ditulis dengan jumlah harinya, yaitu nama jenis diikuti jumlah hari dalam kurung.
+3. Pilih **Berkas**. Formatnya PDF, JPG, atau PNG dengan ukuran paling besar 10 MB (petunjuk "PDF, JPG, atau PNG. Maksimum 10 MB."). Tombol **Unggah** aktif setelah jenis dan berkas dipilih.
+4. Klik **Unggah**. Toast **Dokumen diunggah.** muncul dan berkas masuk ke tabel. Bila jenisnya punya masa berlaku, tanggal berlaku adalah hari unggah menurut kalender perusahaan ditambah jumlah hari jenis itu.
+5. Baca tabel dengan kolom **Dokumen** (nama jenis, dengan nama berkas di bawahnya), **Berlaku**, **Diunggah** (tanggal dan jam), dan **Aksi**. Kolom **Berlaku** menulis **Berlaku sampai {tanggal}**, atau **Tanpa masa berlaku** bila jenisnya tidak punya masa berlaku. Lencana **Segera habis** muncul bila tanggal berlakunya jatuh dalam 30 hari ke depan, dan lencana **Kedaluwarsa** bila tanggalnya sudah lewat.
+6. Klik **Lihat** untuk membuka berkas di tab baru. Klik **Hapus** untuk menghapusnya: dialog **Hapus {nama berkas}?** menulis "Berkas ini akan dihapus permanen dari data pelanggan." Klik **Hapus dokumen**, dan toast **Dokumen dihapus.** muncul. Unggah dan hapus tercatat di Log Audit (bagian 7.12).
+
+Setiap hari pukul 00:30 UTC, penjadwal mencari dokumen yang berlaku sampai hari ini hingga 30 hari ke depan, dengan hari menurut kalender tiap perusahaan. Untuk tiap dokumen, semua pengguna aktif perusahaan itu yang memegang Ubah pelanggan menerima satu notifikasi di lonceng berjudul "Dokumen {jenis} {nama pelanggan} segera habis" dengan isi "Berlaku sampai {tanggal}." Pengingat dikirim sekali untuk tiap tanggal berlaku, jadi dokumen yang sama tidak diingatkan lagi tiap hari. Antrean dan penjadwal harus berjalan di server. Hubungi pengelola server bila pengingat tidak muncul.
 
 ### Mengirim ulang link akses
 
 1. Buka detail pelanggan, lalu klik **Kirim ulang link akses**. Tombol membutuhkan Ubah pelanggan (`customer.update`).
 2. Pastikan pelanggan memiliki akun masuk dengan e-mail. Pastikan status pelanggan dan akun pengguna sama-sama aktif. Bila tidak, toast merah muncul dengan salah satu pesan: **Customer belum punya akun portal beremail, tautan akses tidak dikirim.** atau **Customer atau akun portalnya nonaktif, tautan akses tidak dikirim.**
-3. Sistem mengirim link ke e-mail akun masuk dan menampilkan toast **Link akses dikirim ke &lt;email&gt;.** Batasnya 3 permintaan per menit. Permintaan keempat ditolak dengan HTTP 429.
+3. Sistem mengantrekan e-mail berisi link ke e-mail akun masuk dan menampilkan toast **Tautan akses akan dikirim ke &lt;email&gt;.** E-mail terkirim saat pekerja antrean memprosesnya. Batasnya 3 permintaan per menit. Permintaan keempat ditolak dengan HTTP 429.
 4. Link baru membatalkan link lama. Link berlaku 60 menit. Setelah mengatur kata sandi, pelanggan memakai aplikasi Inbils Pelanggan.
 5. Jika pelanggan sudah menyetujui WhatsApp, sistem juga mengantrekan pemberitahuan bahwa link ada di e-mail. Pesan WhatsApp tidak membawa link atau token. Pemberitahuan ini dibatasi satu kali per akun setiap jam. Pesan itu tampil di tabel WhatsApp pada detail sebagai **Info link akses portal**.
 
@@ -1215,20 +1310,23 @@ Admin dapat mengubah susunan izin melalui **Peran** dan **Hak Akses**. Tombol ya
 
 ### Mengelola langganan pelanggan
 
-1. Halaman khusus langganan berada di `/admin/customers/<id>/subscriptions`. Dalam checkout ini, detail pelanggan tidak memiliki link menuju halaman tersebut.
+1. Halaman daftar langganan pelanggan berada di `/admin/customers/<id>/subscriptions`. Dari detail pelanggan, link **Kelola langganan** di tab **Langganan** membuka detail satu langganan, bukan daftar ini. Daftar terbuka lewat tombol **Kembali** di detail langganan.
 2. Halaman **Langganan** menulis kode dan nama pelanggan di bawah judul. Halaman menyediakan kotak **Cari** (kode atau nama paket), filter **Paket** (kotak cari, pilihan awal **Semua paket**) dan **Status** (**Semua status**, **Menunggu**, **Aktif**, **Ditangguhkan**, **Berhenti**), **Reset filter**, serta kolom **Kode**, **Paket**, **Status**, **Biaya bulanan**, **Tanggal tagihan**, dan **Aksi** (tombol **Lihat**). Kode langganan adalah link ke detail. Kolom kode dan status dapat diurutkan. Menu **Ekspor** muncul dengan Ekspor langganan (`customer.subscription.export`). Tombol **Kembali** membuka detail pelanggan.
 3. Klik **Buat Langganan**. Tombol tampil untuk semua pengguna halaman ini, tetapi server hanya menerima simpanan dengan Kelola langganan (`customer.subscription.manage`). Dialog **Buat Langganan** meminta:
    - **Paket layanan** dan **Alamat pemasangan**: wajib. Keduanya kotak cari (ketik untuk mencari, lalu pilih).
    - **Paket layanan** berisi paket aktif dari kategori aktif, dikelompokkan dengan judul nama kategori. Kategori yang cocok dengan tipe pelanggan tampil paling atas: pelanggan **Perorangan** melihat **Rumahan** dulu, pelanggan **Perusahaan** melihat **Bisnis**, lalu **Korporat**. Kategori lain mengikuti urutannya di **Kategori Paket**. Tiap pilihan menulis nama paket dan keterangan kode paket serta harga per bulan.
-   - **Alamat pemasangan** memuat alamat milik pelanggan ini. Bila belum ada, kotak menulis **Pelanggan ini belum punya alamat.** Pilihan di luar alamat pelanggan ditolak dengan pesan **Pilih salah satu alamat milik pelanggan ini.**
+   - **Alamat pemasangan** memuat alamat milik pelanggan ini. Alamat utama sudah terpilih, atau satu-satunya alamat bila pelanggan hanya punya satu. Anda tetap bisa memilih yang lain. Bila belum ada alamat, kotak menulis **Pelanggan ini belum punya alamat.** Pilihan di luar alamat pelanggan ditolak dengan pesan **Pilih salah satu alamat milik pelanggan ini.**
    - **Tanggal tagihan (1-28)**: wajib. Nilai awal 1.
    - **Biaya bulanan**, **Biaya pemasangan**, dan **Masa kontrak (bulan)**: opsional. **Biaya bulanan** kosong memakai harga paket (tertulis **Otomatis dari paket**). **Biaya pemasangan** bernilai awal 0. **Masa kontrak (bulan)** kosong memakai masa minimum paket bila paket memilikinya.
 4. Klik **Buat**. Sistem membuat kode langganan dan status **Menunggu**, lalu toast **Langganan dibuat.** muncul. Jalur ini tidak membuat SPK pemasangan dan tidak meminta POP pelayan. Buat SPK pemasangan pada SPK (bagian 3.3) bila pekerjaan lapangan diperlukan. Klik **Batal** untuk menutup dialog.
-5. Buka langganan melalui kode langganan atau tombol **Lihat** pada halaman tersebut, melalui link kode langganan di ODN, atau dari Aset Jaringan yang terpasang.
+5. Buka langganan melalui kode langganan atau tombol **Lihat** pada halaman tersebut, melalui kode langganan atau link **Kelola langganan** di tab **Langganan** pada detail pelanggan, melalui link kode langganan di ODN, atau dari Aset Jaringan yang terpasang.
 
    ![Halaman detail langganan dengan kartu Rincian langganan dan Status](images/web/subscriptions-show.png)
 
 6. Detail langganan memuat kartu **Rincian langganan** (**Pelanggan**, **Alamat pemasangan**, **POP pelayan**, **Biaya bulanan**, **Biaya pemasangan**, **Tanggal tagihan**, **Masa kontrak**, dan **Catatan** bila terisi), kartu **Paket** (nama paket, versi, dan syaratnya, lihat langkah 14), dan kartu **Status** (**Status**, **Tanggal aktivasi**, **Tanggal berakhir**, **Tagihan berikutnya**, **Berhenti pada**, dan **Alasan berhenti** bila ada). Untuk langganan yang diblokir, kartu **Status** menambah **Internet**, **Alasan blokir**, dan **Diblokir oleh**. Panel **Alamat IP** dan **Port drop** muncul bagi pengguna dengan izin lihat IPAM dan ODN. Pengisiannya dijelaskan di Alamat IP (bagian 5.4) dan ODN (bagian 5.5).
+
+   Pada kartu **Rincian langganan**, nama pelanggan adalah link ke detail pelanggan bagi pengguna dengan Lihat pelanggan (`customer.view`).
+
 7. Gunakan kartu **Aksi langganan** sesuai status dan izin:
 
    | Tombol | Syarat | Izin | Efek |
@@ -1285,12 +1383,15 @@ Bagian ini merangkum akun jaringan dari sisi langganan. Rincian lengkap ada di R
 - Label alamat harus unik untuk pelanggan, termasuk label alamat yang sudah dihapus. Form tidak memeriksanya lebih dulu. Gunakan label berbeda untuk rumah, kantor, atau titik pemasangan.
 - Pembuatan **Perusahaan** gagal tanpa **NPWP** dan **Narahubung** (pesan **NPWP wajib diisi.** dan **narahubung wajib diisi.**). Isi keduanya sebelum menyimpan.
 - Port ODP yang sudah dipakai atau berada di luar POP pelayan menolak seluruh onboarding dengan pesan seperti **Port ini sudah dipakai.** atau **ODP ini tidak berada di bawah POP layanan langganan**. Pilih port bebas di bawah POP yang benar.
-- Toast onboarding tetap menyebut link akses terkirim ketika **Akun aktif** dimatikan, tetapi kode tidak mengirim e-mail pada kondisi itu. Aktifkan akun lalu gunakan **Kirim ulang link akses**.
+- Toast onboarding menulis "Tautan akses akan dikirim ke &lt;email&gt;." hanya bila **Akun aktif** menyala. Bila dimatikan, toast tidak menyebut tautan dan sistem tidak mengirim e-mail. Aktifkan akun, lalu gunakan **Kirim ulang link akses**.
 - Mengubah e-mail atau **Akun aktif** pada pelanggan tidak mengubah akun pengguna. Perbarui akun pada Pengguna (bagian 8.5).
 - Permintaan **Kirim ulang link akses** keempat dalam satu menit menghasilkan HTTP 429. Tunggu sampai jendela satu menit berlalu.
 - Tombol siklus langganan mengikuti status, tetapi server tetap memeriksa izin. Halaman **Akses ditolak** (kode 403) berarti peran tidak memegang izin aksi itu.
 - Alamat yang dipakai langganan tidak bisa dihapus. Dialog **Hapus alamat** menulis alasannya dalam teks merah, misalnya "Alamat masih dipakai 1 langganan, jadi tidak bisa dihapus." Pilih alamat lain pada langganan yang sesuai sebelum mencoba lagi.
 - Pelanggan yang sudah punya langganan, tagihan, SPK, tiket, aset, atau riwayat pemasangan, dalam status apa pun termasuk **Berhenti**, tidak bisa dihapus permanen. Dialog menulis, misalnya, "Pelanggan masih dipakai 1 langganan, 3 tagihan. Nonaktifkan saja." Pakai **Nonaktifkan** (bagian 1.5). Pelanggan nonaktif tidak muncul di pilihan baru dan semua riwayatnya tetap utuh.
+- Pesan "Tanggal kunjungan tidak boleh sebelum hari ini." di bawah **Tanggal kunjungan**: pilih hari ini atau sesudahnya, atau kosongkan isian itu.
+- Pesan "Kebijakan perusahaan melarang menugaskan diri sendiri." di bawah **Teknisi**: perusahaan Anda melarang penugasan ke akun sendiri (lihat Penugasan, bagian 3.1), padahal teknisi yang dipilih adalah Anda. Pilih teknisi lain, atau kosongkan isian itu dan tugaskan nanti. Pelanggan tidak dibuat selama pesan ini muncul.
+- Tab **Dokumen** tidak punya formulir unggah dan tombol **Hapus**: keduanya hanya ada dengan Ubah pelanggan (`customer.update`). Tombol **Unggah** tidak aktif sampai **Jenis dokumen** dan **Berkas** dipilih. Berkas selain PDF, JPG, atau PNG, atau lebih dari 10 MB, ditolak. Bila pilihan **Jenis dokumen** kosong, belum ada jenis dokumen aktif untuk pelanggan. Buat di **Jenis Dokumen** (bagian 8.8).
 
 ## 4.2 Paket Layanan
 
@@ -1321,25 +1422,31 @@ Di setiap baris, tombol **Ubah** membuka form ubah. Menu **Aksi lainnya** berisi
 
 ### Menyiapkan bahan paket
 
-Form paket hanya menawarkan profil bandwidth, profil kecepatan dan tingkat SLA yang berstatus aktif. Buat dulu ketiganya, lihat bagian 4.3, 4.4 dan 4.5, baru buat paketnya.
+Form paket hanya menawarkan profil bandwidth, profil kecepatan dan tingkat SLA yang berstatus aktif. Buat dulu ketiganya, lihat bagian 4.3, 4.4 dan 4.5, baru buat paketnya. Atau buat yang kurang langsung dari form paket lewat tombol **+ Baru** (lihat "Membuat paket").
 
 ### Membuat paket
 
 1. Klik **Buat Paket Layanan**. Halaman **Buat Paket Layanan** terbuka dengan kartu **Data paket**.
 2. Isi form:
-   - **Kode**: wajib, maksimal 255 karakter, tidak boleh sama dengan kode paket lain di perusahaan yang sama. Contoh: `PKG-HOME-50`.
+   - **Kode**: wajib, maksimal 255 karakter, tidak boleh sama dengan kode paket lain di perusahaan yang sama. Contoh: `PKG-HOME-50`. Selama **Kode** kosong dan **Nama** sudah terisi, tombol saran muncul di bawah isian, misalnya **Gunakan: PKG-HOME-50MBPS** untuk nama `Home 50Mbps`. Klik tombol itu untuk mengisi kode. Saran berupa `PKG-` diikuti nama dalam huruf besar, tanpa tanda baca, dengan kata dipisah strip (paling panjang 50 karakter). Server tetap memeriksa bahwa kode itu belum dipakai. Tombol saran hanya ada di form buat.
    - **Nama**: wajib, maksimal 255 karakter. Contoh: `Home 50Mbps`.
    - **Kategori**: wajib. Ketik untuk mencari, lalu pilih salah satu kategori aktif (lihat Kategori Paket di bawah). Pada form ubah, kategori nonaktif yang sedang dipakai paket tetap tampil.
    - **Profil bandwidth**: wajib. Ketik untuk mencari, lalu pilih dari profil bandwidth aktif.
    - **Profil kecepatan**: wajib. Ketik untuk mencari, lalu pilih dari profil kecepatan aktif.
    - **Tingkat SLA**: wajib. Ketik untuk mencari, lalu pilih dari tingkat SLA aktif.
+   - Di bawah **Profil bandwidth**, **Profil kecepatan**, dan **Tingkat SLA** ada tombol **+ Baru**. Tombol itu membuka dialog kecil untuk membuat baris baru tanpa meninggalkan form paket (butuh Buat layanan, `service.create`, atau Kelola layanan, `service.manage`). Klik **Simpan** di dialog: baris baru langsung aktif dan terpilih di isian itu, sedangkan isian paket lain tetap seperti semula. Klik **Batal** untuk menutup dialog. Isian dialog semuanya wajib, dan pesan galat tampil di bawah isiannya. Bila server gagal, dialog menulis "Gagal menyimpan. Coba lagi." Baris yang dibuat lewat dialog tersimpan saat itu juga, walau Anda kemudian membatalkan form paket. Form ubah punya tombol yang sama.
+     - **Profil bandwidth baru**: **Nama**, **Unduh (Mbps)**, **Unggah (Mbps)**, **Tipe** (**Shared** atau **Dedicated**, isian awal **Shared**) dan, untuk **Shared**, **Rasio kontensi** (isian awal `4`).
+     - **Profil kecepatan baru**: **Nama**, **Unduh maksimum (Mbps)** dan **Unggah maksimum (Mbps)**. Kedua angka terisi dari profil bandwidth yang sudah Anda pilih di form paket, dan bisa diubah. Dialog tidak punya isian burst dan **Nama profil RADIUS**. Isi keduanya lewat **Ubah** di Profil Kecepatan (bagian 4.4), karena akun jaringan butuh nama profil RADIUS.
+     - **Tingkat SLA baru**: **Nama**, **Target respons (jam)** dan **Target penyelesaian (jam)**. Dialog menulis "Target dihitung 24 jam. Ubah hitungan tenggat di halaman Tingkat SLA bila perlu." (bagian 4.5).
    - **Harga bulanan**: wajib, angka 0 atau lebih. Ini harga langganan per bulan (MRC, Monthly Recurring Charge).
    - **Harga pemasangan**: angka 0 atau lebih, isian awal `0`. Ini biaya sekali bayar untuk pemasangan (OTC, One-Time Charge). Isi `0` bila paket tidak memungut biaya pemasangan. Jangan dikosongkan.
    - **Masa kontrak minimum (bulan)**: bilangan bulat 0 atau lebih, isian awal `0`. Isi `0` bila paket tanpa kontrak. Jangan dikosongkan.
    - **Aktif**: saklar, aktif secara awal. Paket nonaktif tidak muncul di pilihan paket pada form pelanggan dan langganan.
    - **Deskripsi**: opsional, teks bebas.
 
-   ![Form Buat Paket Layanan dengan kartu Data paket](images/web/service-packages-create.png)
+   ![Form Buat Paket Layanan dengan kartu Data paket, serta isian Profil bandwidth, Profil kecepatan, dan Tingkat SLA yang masing-masing punya tombol + Baru](images/web/service-packages-create.png)
+
+   ![Dialog Profil bandwidth baru di atas form Buat Paket Layanan, dengan isian Nama, Unduh (Mbps), Unggah (Mbps), Tipe, dan Rasio kontensi](images/web/service-packages-quick-create.png)
 
 3. Klik **Simpan**. Anda kembali ke daftar dan muncul toast `Paket layanan dibuat.` Tombol **Batal** membatalkan form.
 
@@ -1397,7 +1504,7 @@ Setiap perusahaan punya tiga kategori bawaan: **Rumahan** (urutan 1), **Bisnis**
    - **Aktif**: saklar, aktif secara awal.
 4. Klik **Simpan**. Muncul toast `Kategori paket dibuat.` Untuk mengubah, klik **Ubah** di baris. Dialog **Ubah Kategori Paket** terbuka dengan **Kode** terkunci. Ubah **Nama**, **Urutan** atau **Aktif**, lalu klik **Simpan** (`Kategori paket diperbarui.`). Tombol **Batal** menutup dialog tanpa menyimpan.
 5. Untuk berhenti memakai kategori, matikan saklar **Aktif**. Kategori nonaktif tidak muncul di pilihan **Kategori** saat membuat paket baru dan tidak muncul di pilihan paket pada form pelanggan dan langganan. Paket yang sudah memakainya tetap utuh, dan kategorinya tetap tampil di form ubah paket itu.
-6. Untuk menghapus, klik **Hapus** di baris (pemegang `service.delete` atau `service.manage`). Dialog **Hapus kategori {nama}?** terbuka. Isinya `Kategori hanya bisa dihapus selama tidak ada paket di dalamnya. Nonaktifkan kategori jika sudah dipakai.` Klik **Hapus kategori** untuk menghapus. Muncul toast `Kategori paket dihapus.` Kategori yang masih dipakai paket tidak bisa dihapus. Paket yang sudah dihapus dan paket yang pernah memakai kategori itu di versi lama ikut dihitung. Dialog tetap terbuka dan menampilkan kotak merah `Kategori masih dipakai {n} paket. Nonaktifkan saja.` Klik **Batal**, lalu nonaktifkan kategorinya sebagai gantinya. Kategori Paket memakai aturan hapus ini, bukan **Nonaktifkan**, **Hapus permanen**, dan **Pulihkan** di bagian 1.5.
+6. Untuk menghapus, buka **Aksi lainnya** di baris (menu ini ada bagi pemegang `service.delete` atau `service.manage`), lalu klik **Hapus**. Dialog **Hapus kategori {nama}?** terbuka. Isinya `Kategori hanya bisa dihapus selama tidak ada paket di dalamnya. Nonaktifkan kategori jika sudah dipakai.` Klik **Hapus** di dialog itu untuk menghapus. Muncul toast `Kategori paket dihapus.` Kategori yang masih dipakai paket tidak bisa dihapus. Paket yang sudah dihapus dan paket yang pernah memakai kategori itu di versi lama ikut dihitung. Dialog tetap terbuka dan menampilkan kotak merah `Kategori masih dipakai {n} paket. Nonaktifkan saja.` Klik **Batal**, lalu nonaktifkan kategorinya sebagai gantinya. Kategori Paket memakai aturan hapus ini, bukan **Nonaktifkan**, **Hapus permanen**, dan **Pulihkan** di bagian 1.5.
 
 Pesan galat lain di dialog kategori: kode yang sudah ada menampilkan `Kode kategori sudah dipakai.` dan kode dengan karakter lain menampilkan `Kode hanya boleh berisi huruf, angka, tanda hubung, dan garis bawah.`
 
@@ -1426,6 +1533,8 @@ Peran yang dapat memakai: sama dengan bagian 4.2. Izin: `service.view` atau `ser
    - **Aktif**: saklar, aktif secara awal.
 3. Klik **Simpan**. Muncul toast `Profil bandwidth dibuat.`
 
+Profil bandwidth juga bisa dibuat dari form paket lewat tombol **+ Baru** (bagian 4.2). Dialog itu menulis **Tipe** sebagai **Shared** atau **Dedicated**, dan **Rasio kontensi** bernilai awal `4`.
+
 Untuk mengubah, klik **Ubah**, ubah isian, lalu klik **Simpan** (toast `Profil bandwidth diperbarui.`). **Peringatan:** profil diubah di tempatnya, jadi perubahan Mbps berlaku bagi semua paket, versi paket, dan langganan yang memakai profil itu. Untuk mengubah kapasitas hanya bagi penjualan baru, buat profil baru lalu pilih di paket (versi baru). Untuk berhenti memakai profil, buka **Aksi lainnya** dan klik **Nonaktifkan**: dialog menulis berapa paket yang memakainya (misalnya "dipakai 1 paket"), dan toast `Profil bandwidth dinonaktifkan.` muncul. **Aktifkan** memakainya lagi. **Hapus permanen** hanya ada bila profil belum pernah dipakai paket atau versi paket mana pun (toast `Profil bandwidth dihapus permanen.`). Filter **Status** punya **Aktif**, **Nonaktif**, **Dihapus**, dan **Semua, termasuk dihapus**. **Pulihkan** ada di menu baris yang dihapus (bagian 1.5).
 
 ### Kesalahan umum
@@ -1452,6 +1561,7 @@ Peran yang dapat memakai: sama dengan bagian 4.2. Izin: `service.view` atau `ser
 
 1. Klik **Buat Profil Kecepatan**. Halaman dengan kartu **Data profil** terbuka.
 2. Isi form:
+   - **Isi dari profil bandwidth**: opsional, kotak cari dengan petunjuk **Pilih untuk menyalin kecepatan**. Pilihannya profil bandwidth aktif, tiap pilihan dengan keterangan kecepatannya (misalnya `50/20 Mbps`: unduh, lalu unggah). Memilih satu menyalin angkanya ke **Unduh maksimum (Mbps)** dan **Unggah maksimum (Mbps)**, yang tetap bisa Anda ubah. Kotak ini hanya alat bantu dan tidak ikut disimpan.
    - **Nama**: wajib, maksimal 255 karakter, unik per perusahaan. Contoh: `SP-Home-50`.
    - **Unduh maksimum (Mbps)**: wajib, bilangan bulat minimal 1.
    - **Unggah maksimum (Mbps)**: wajib, bilangan bulat minimal 1.
@@ -1460,6 +1570,8 @@ Peran yang dapat memakai: sama dengan bagian 4.2. Izin: `service.view` atau `ser
    - **Nama profil RADIUS**: opsional, maksimal 255 karakter. Ini nama grup kecepatan di RADIUS. Isi bila paket ini akan dipasang pada akun jaringan pelanggan.
    - **Aktif**: saklar, aktif secara awal.
 3. Klik **Simpan**. Muncul toast `Profil kecepatan dibuat.`
+
+Profil kecepatan juga bisa dibuat dari form paket lewat tombol **+ Baru** (bagian 4.2). Dialog itu hanya meminta **Nama**, **Unduh maksimum (Mbps)** dan **Unggah maksimum (Mbps)**, dengan kedua angka terisi dari profil bandwidth yang sudah dipilih di form paket. Isi burst dan **Nama profil RADIUS** lewat **Ubah** di halaman ini.
 
 Untuk mengubah, klik **Ubah**, ubah isian, lalu klik **Simpan** (toast `Profil kecepatan diperbarui.`). **Peringatan:** profil diubah di tempatnya. Mengubah **Unduh maksimum** atau **Unggah maksimum** mengubah laju semua langganan yang memakai profil itu lewat versi paket mana pun, termasuk langganan lama (lihat "Hubungan dengan RADIUS"). Untuk mengubah laju hanya bagi penjualan baru, buat profil kecepatan baru lalu pilih di paket (versi baru). Untuk berhenti memakai profil, buka **Aksi lainnya** dan klik **Nonaktifkan** (toast `Profil kecepatan dinonaktifkan.`). **Hapus permanen** hanya ada bila profil belum pernah dipakai paket atau versi paket mana pun (toast `Profil kecepatan dihapus permanen.`). Filter **Status** punya **Aktif**, **Nonaktif**, **Dihapus**, dan **Semua, termasuk dihapus**. **Pulihkan** ada di menu baris yang dihapus (bagian 1.5).
 
@@ -1486,9 +1598,9 @@ Peran yang dapat memakai: sama dengan bagian 4.2. Izin: `service.view` atau `ser
 ### Membuka dan membaca daftar
 
 1. Di sidebar, buka grup **Pelanggan & Layanan**, lalu klik **Tingkat SLA**.
-2. Baca daftar. Kolomnya **Nama**, **Target respons (jam)**, **Target penyelesaian (jam)**, **Respons tepat waktu (30 hari)**, **Penyelesaian tepat waktu (30 hari)**, **Tiket (30 hari)**, **Dibuat**, **Status** dan **Aksi**. Kotak **Cari** (isian "Nama tingkat") mencari nama tingkat. Tiga kolom 30 hari tidak bisa diurutkan dan dihitung dari tiket yang dibuat dalam 30 hari terakhir pada langganan yang versi paketnya memakai tingkat itu. Kolom persen bernilai `-` bila belum ada tiket yang bisa dinilai. Nama tingkat dan tombol **Ubah** membuka form ubah, dan menu **Aksi lainnya** berisi **Nonaktifkan** atau **Aktifkan**, dan **Hapus permanen** bila tingkat belum pernah dipakai. Tombol **Ekspor** (pemegang `service.export`) menghasilkan CSV atau PDF (judul PDF **Tingkat SLA**) dengan kolom Nama, Target respons (jam), Target penyelesaian (jam) dan Status (**Aktif** atau **Nonaktif**).
+2. Baca daftar. Kolomnya **Nama**, **Target respons (jam)**, **Target penyelesaian (jam)**, **Hitungan tenggat** (**24 jam** atau **Jam layanan**), **Respons tepat waktu (30 hari)**, **Penyelesaian tepat waktu (30 hari)**, **Tiket (30 hari)**, **Dibuat**, **Status** dan **Aksi**. Kotak **Cari** (isian "Nama tingkat") mencari nama tingkat. Tiga kolom 30 hari tidak bisa diurutkan dan dihitung dari tiket yang dibuat dalam 30 hari terakhir pada langganan yang versi paketnya memakai tingkat itu. Kolom persen memakai koma desimal dengan paling banyak satu angka di belakangnya (misalnya `83,3%`) dan bernilai `-` bila belum ada tiket yang bisa dinilai. Nama tingkat dan tombol **Ubah** membuka form ubah, dan menu **Aksi lainnya** berisi **Nonaktifkan** atau **Aktifkan**, dan **Hapus permanen** bila tingkat belum pernah dipakai. Tombol **Ekspor** (pemegang `service.export`) menghasilkan CSV atau PDF (judul PDF **Tingkat SLA**) dengan kolom Nama, Target respons (jam), Target penyelesaian (jam), Hitungan tenggat (**24 jam** atau **Jam layanan**) dan Status (**Aktif** atau **Nonaktif**).
 
-   ![Daftar Tingkat SLA dengan kolom Nama, Target respons (jam), Target penyelesaian (jam), Respons tepat waktu (30 hari), Penyelesaian tepat waktu (30 hari), Tiket (30 hari), Dibuat dan Aksi](images/web/sla-tiers.png)
+   ![Daftar Tingkat SLA dengan kolom Nama, Target respons (jam), Target penyelesaian (jam), Hitungan tenggat, Respons tepat waktu (30 hari), Penyelesaian tepat waktu (30 hari), Tiket (30 hari), Dibuat dan Aksi](images/web/sla-tiers.png)
 
 ### Membuat tingkat SLA
 
@@ -1498,15 +1610,16 @@ Peran yang dapat memakai: sama dengan bagian 4.2. Izin: `service.view` atau `ser
    - **Target respons (jam)**: wajib, bilangan bulat 1 sampai 720. Batas waktu sampai teknisi menekan **Mulai** pada tiket. Nilainya tidak boleh melebihi target penyelesaian.
    - **Target penyelesaian (jam)**: wajib, bilangan bulat 1 sampai 720. Batas waktu sampai tiket diselesaikan.
    - **Aktif**: saklar, aktif secara awal.
+   - **Hitungan tenggat**: pilih **24 jam** (isian awal) atau **Jam layanan**. **24 jam** menghitung setiap jam, siang dan malam. **Jam layanan** hanya menghitung jam buka perusahaan, yang diisi di bagian **Jam layanan** pada Pengaturan Perusahaan (bagian 8.1): tiket yang masuk di luar jam buka mulai dihitung saat buka berikutnya. Bila jam layanan belum diisi, form menulis "Jam layanan belum diisi; tenggat dihitung 24 jam." dan tenggat tetap 24 jam sampai Anda mengisinya. Pemegang Kelola perusahaan (`company.manage`) melihat link **Isi di Pengaturan Perusahaan** di peringatan itu, pengguna lain membaca "Minta admin mengisinya di Pengaturan Perusahaan."
 3. Klik **Simpan**. Muncul toast `Tingkat SLA dibuat.`
 
-Untuk mengubah, klik **Ubah** (halaman **Ubah Tingkat SLA**), ubah isian, lalu klik **Simpan** (toast `Tingkat SLA diperbarui.`). Perubahan jam hanya berlaku untuk tiket yang dibuat sesudahnya. Tiket yang sudah ada tidak dihitung ulang. **Peringatan:** tingkat SLA diubah di tempatnya, jadi perubahan jam berlaku bagi semua versi paket dan langganan yang memakai tingkat itu. Untuk mengubah target hanya bagi penjualan baru, buat tingkat baru lalu pilih di paket (versi baru). Untuk berhenti memakai tingkat, buka **Aksi lainnya** dan klik **Nonaktifkan** (toast `Tingkat SLA dinonaktifkan.`). **Hapus permanen** hanya ada bila tingkat belum pernah dipakai paket atau versi paket mana pun (toast `Tingkat SLA dihapus permanen.`). Filter **Status** punya **Aktif**, **Nonaktif**, **Dihapus**, dan **Semua, termasuk dihapus**. **Pulihkan** ada di menu baris yang dihapus (bagian 1.5).
+Untuk mengubah, klik **Ubah** (halaman **Ubah Tingkat SLA**), ubah isian, lalu klik **Simpan** (toast `Tingkat SLA diperbarui.`). Perubahan jam dan **Hitungan tenggat** hanya berlaku untuk tiket yang dibuat sesudahnya. Tiket yang sudah ada tidak dihitung ulang. **Peringatan:** tingkat SLA diubah di tempatnya, jadi perubahan jam berlaku bagi semua versi paket dan langganan yang memakai tingkat itu. Untuk mengubah target hanya bagi penjualan baru, buat tingkat baru lalu pilih di paket (versi baru). Untuk berhenti memakai tingkat, buka **Aksi lainnya** dan klik **Nonaktifkan** (toast `Tingkat SLA dinonaktifkan.`). **Hapus permanen** hanya ada bila tingkat belum pernah dipakai paket atau versi paket mana pun (toast `Tingkat SLA dihapus permanen.`). Filter **Status** punya **Aktif**, **Nonaktif**, **Dihapus**, dan **Semua, termasuk dihapus**. **Pulihkan** ada di menu baris yang dihapus (bagian 1.5).
 
 Sebuah tingkat memengaruhi tiket seperti ini:
 
 - Tiket yang punya **Langganan** mengambil kedua targetnya dari tingkat SLA **versi paket** yang dipakai langganan itu. Tingkat tetap berlaku walau sudah **Nonaktif**: menonaktifkan hanya menghentikan penjualan baru dan tidak mengubah tiket langganan yang sudah dijual. Memindahkan langganan lewat **Ganti paket** mengganti tingkatnya sesuai versi baru. Tiket tanpa langganan memakai **Kategori Tiket** (bagian 3.4).
 - Tiket berprioritas **Mendesak** memakai separuh dari kedua target, dibulatkan ke atas.
-- Jam dihitung kalender, bukan jam kerja.
+- **Hitungan tenggat** menentukan jam yang dihitung. Tingkat **24 jam** menghitung setiap jam, siang dan malam. Tingkat **Jam layanan** hanya menghitung jam buka perusahaan, dan menghitung 24 jam selama jam layanan perusahaan belum diisi. **Kategori Tiket** selalu menghitung 24 jam.
 - Hasilnya muncul di kolom 30 hari pada daftar ini dan di laporan Kepatuhan SLA (bagian 7.6). Sistem tidak memakai tingkat ini untuk menghitung uptime atau kredit tagihan. Kedua isian itu sudah dihapus dari tingkat SLA.
 
 ### Kesalahan umum
@@ -1556,7 +1669,12 @@ Kolom **Sasaran** menulis **Semua pelanggan**, atau **Pelanggan tertentu** diiku
    - **Judul**: wajib, maksimal 120 karakter.
    - **Isi**: wajib, maksimal 2000 karakter. Teks biasa, baris baru ikut tampil.
    - **Sasaran**, **Mulai tayang** dan **Selesai tayang**: lihat "Sasaran dan jadwal" di bawah.
-3. Klik **Simpan**. Pengumuman tersimpan sebagai **Draf** (toast "Pengumuman disimpan sebagai draf.") dan belum terlihat oleh pelanggan. Periksa pratinjaunya, lalu terbitkan (lihat "Menerbitkan, mengubah, dan menonaktifkan").
+3. Klik **Simpan**. Pengumuman tersimpan sebagai **Draf** (toast "Pengumuman disimpan sebagai draf.") dan belum terlihat oleh pelanggan. Periksa pratinjaunya, lalu terbitkan dari daftar (lihat "Menerbitkan, mengubah, dan menonaktifkan"). Keterangan di bawah judul dialog menyebut pilihan ini: "Simpan sebagai draf, atau pakai Simpan & Terbitkan setelah dicek di pratinjau."
+4. Untuk menyimpan dan menerbitkan dalam satu langkah, klik **Simpan & Terbitkan**. Tombol ini ada pada pengumuman baru dan pada draf, tidak pada pengumuman yang sudah terbit. Layar lebih dulu menghitung penerimanya, lalu membuka dialog **Terbitkan untuk {n} pelanggan?** dengan judul pengumuman, akibat penerbitan menurut **Jenis**, dan kalimat "Setelah terbit, pengumuman tidak bisa dihapus, hanya dinonaktifkan." {n} adalah jumlah pelanggan sasaran yang punya akun masuk aktif, sama dengan jumlah penerima notifikasi **Gangguan** dan **Pemeliharaan**. Klik **Simpan & Terbitkan** di dialog itu untuk melanjutkan, atau **Kembali ke formulir** untuk memeriksa lagi. Toast "Pengumuman disimpan dan diterbitkan." muncul.
+
+   ![Dialog Terbitkan untuk n pelanggan? di atas formulir Buat Pengumuman, dengan tombol Kembali ke formulir dan Simpan & Terbitkan](images/web/announcements-publish-confirm.png)
+
+5. Bila penerbitan ditolak (misalnya **Selesai tayang** sudah lewat), pengumuman tidak ikut tersimpan, jadi tidak ada draf ganda. Perbaiki formulir, lalu kirim lagi. Bila penghitungan penerima gagal, formulir menulis "Jumlah penerima gagal dihitung. Coba lagi." Bila **Sasaran** tertentu belum punya lokasi atau kategori, tombol langsung mengirim formulir tanpa menghitung, dan pesan penolakan tampil di bawah **Sasaran**.
 
 ![Dialog Buat Pengumuman dengan isian Jenis, Judul, Isi, Sasaran, Mulai tayang dan Selesai tayang di kiri, serta pratinjau ponsel di kanan](images/web/announcements-create.png)
 
@@ -1604,8 +1722,8 @@ Kolom **Aksi** memuat tombol menurut status baris:
 | Terjadwal, Tayang | **Ubah**, **Nonaktifkan** |
 | Selesai, Nonaktif | **Ubah** |
 
-1. **Terbitkan**: dialog **Terbitkan pengumuman {judul}?** (atau **Terbitkan banner {judul}?**) menjelaskan efeknya. Klik **Terbitkan**. Toast "Pengumuman diterbitkan." atau "Banner promo diterbitkan." Setelah terbit, item tidak bisa dihapus, hanya dinonaktifkan. Banner tanpa gambar tidak bisa diterbitkan ("Gambar banner wajib tersedia."). Pengumuman yang **Selesai tayang**-nya sudah lewat juga ditolak ("Periode pengumuman sudah berakhir."). Ubah tanggalnya dulu.
-2. **Ubah**: dialog **Ubah Pengumuman** atau **Ubah Banner Promo**. Keterangan di bawah judul dialog menyebut efek simpan menurut status. Draf disimpan sebagai draf. Item yang sudah terbit, baik **Terjadwal** maupun **Tayang**, langsung berlaku begitu disimpan. Item **Selesai** tayang lagi bila **Selesai tayang** diubah ke waktu yang akan datang. Item **Nonaktif** bisa disimpan, tetapi tidak tampil lagi.
+1. **Terbitkan**: untuk pengumuman, dialog **Terbitkan untuk {n} pelanggan?** memuat judul pengumuman, akibat penerbitan menurut **Jenis**, dan kalimat "Setelah terbit, pengumuman tidak bisa dihapus, hanya dinonaktifkan." {n} adalah jumlah pelanggan sasaran yang punya akun masuk aktif, yaitu penerima yang sama dengan notifikasi **Gangguan** dan **Pemeliharaan** (bagian "Notifikasi Gangguan dan Pemeliharaan"). Angka ini dihitung untuk draf di halaman yang sedang terbuka. Untuk banner, dialog berjudul **Terbitkan banner {judul}?** dan menjelaskan efeknya. Klik **Terbitkan**. Toast "Pengumuman diterbitkan." atau "Banner promo diterbitkan." Setelah terbit, item tidak bisa dihapus, hanya dinonaktifkan. Banner tanpa gambar tidak bisa diterbitkan ("Gambar banner wajib tersedia."). Pengumuman yang **Selesai tayang**-nya sudah lewat juga ditolak ("Periode pengumuman sudah berakhir."). Ubah tanggalnya dulu.
+2. **Ubah**: dialog **Ubah Pengumuman** atau **Ubah Banner Promo**. Keterangan di bawah judul dialog menyebut efek simpan menurut status. Draf disimpan sebagai draf, atau terbit sekaligus lewat **Simpan & Terbitkan** (hanya pengumuman). Item yang sudah terbit, baik **Terjadwal** maupun **Tayang**, langsung berlaku begitu disimpan. Item **Selesai** tayang lagi bila **Selesai tayang** diubah ke waktu yang akan datang. Item **Nonaktif** bisa disimpan, tetapi tidak tampil lagi.
 3. **Nonaktifkan**: dialog **Nonaktifkan pengumuman {judul}?** berbunyi "Tidak tampil lagi di aplikasi pelanggan. Riwayatnya tetap tersimpan, tetapi pengumuman ini tidak bisa diaktifkan lagi. Buat pengumuman baru bila perlu." Klik **Nonaktifkan** untuk melanjutkan. Tidak ada tombol untuk mengaktifkan kembali, jadi buat item baru bila perlu.
 4. **Hapus** (hanya draf): dialog **Hapus draf pengumuman {judul}?** berbunyi "Draf dihapus permanen." Klik **Hapus draf**. Item yang pernah diterbitkan tidak bisa dihapus, supaya riwayat dan tautan notifikasi tetap valid. Server menolak dengan "Pengumuman terbit hanya dapat dinonaktifkan." atau "Banner terbit hanya dapat dinonaktifkan."
 
@@ -1643,17 +1761,21 @@ Lokasi adalah daftar tempat fisik jaringan dalam satu pohon: wilayah, area, POP,
 
 Peran yang dapat memakai: admin (semua tindakan), manajer (tambah, ubah, dan pindah, tanpa hapus), staf (hanya melihat). Izin: `location.view` untuk membuka menu, `location.create` untuk **Buat Lokasi**, `location.update` untuk **Ubah**, `location.move` untuk **Pindahkan**, `location.delete` untuk **Hapus**. Daftar dan kode lokasi berlaku per perusahaan aktif (bagian 1.6).
 
+Perusahaan yang dibuat dengan **Katalog awal** memulai dengan tiga lokasi yang bertingkat: wilayah **Wilayah Utama** (kode `REG-01`), area **Area Utama** (`AREA-01`), dan POP **POP Utama** (`POP-01`). Ubah namanya lewat **Ubah** dan tambahkan POP lain sesuai jaringan Anda. Perusahaan yang dibuat sebelum perubahan ini tetap memakai nama lamanya (`Default Region`, `Default Area`, `Default POP`) sampai Anda mengubahnya.
+
 ### Membuka dan membaca daftar
 
 1. Di sidebar, buka grup **Jaringan**, lalu klik **Lokasi**.
-2. Halaman terbuka di tab **Peta**. Setiap lokasi yang punya koordinat tampil sebagai penanda. Kotak di kiri atas peta menyaring penanda: ketik sebagian kode atau nama di kotak pencarian, lalu pilih tipe (**Semua tipe**, Wilayah, Area, POP, Rak, atau Site) dan status (**Semua status**, Aktif, atau Nonaktif) dari dua pilihan di bawahnya. Lokasi **Nonaktif** memakai warna penanda yang berbeda.
+2. Halaman terbuka di tab **Peta**. Bila belum ada satu pun lokasi yang punya koordinat, halaman terbuka di tab **Tabel**, karena peta yang kosong tidak menunjukkan apa-apa. Setiap lokasi yang punya koordinat tampil sebagai penanda. Kotak di kiri atas peta menyaring penanda: ketik sebagian kode atau nama di kotak pencarian, lalu pilih tipe (**Semua tipe**, Wilayah, Area, POP, Rak, atau Site) dan status (**Semua status**, Aktif, atau Nonaktif) dari dua pilihan di bawahnya. Lokasi **Nonaktif** memakai warna penanda yang berbeda.
 
    Di kotak yang sama ada jumlah lokasi yang tampil, misalnya `3 lokasi`, dan tombol **Tampilkan semua**, yang memusatkan peta ke semua penanda yang lolos saringan. **Legenda** di kiri bawah menjelaskan bentuk penanda tiap tipe dan penanda **Nonaktif**. Klik tombolnya untuk menyembunyikan atau menampilkan daftar itu. Tombol zoom ada di kanan bawah.
+
+   Bila ada lokasi yang belum punya koordinat, satu baris di atas tab menulis `{n} lokasi belum punya koordinat. Titik muncul di peta setelah lintang dan bujurnya diisi.` Angka itu menghitung semua lokasi di pohon yang lintang atau bujurnya kosong.
 
    ![Tab Peta pada menu Lokasi dengan kotak cari, pilihan tipe dan status, jumlah lokasi, tombol Tampilkan semua, dan Legenda](images/web/locations.png)
 
 3. Klik sebuah penanda untuk membuka kartunya. Kartu memuat kode, nama, tipe, lencana **Nonaktif** (bila lokasinya nonaktif), dan koordinat, serta tombol **Ubah** dan **Hapus** sesuai izin Anda.
-4. Klik tab **Tabel** untuk melihat semua lokasi, termasuk yang tanpa koordinat. Kolomnya **Kode**, **Nama**, **Tipe**, **Jalur**, **Status**, **Koordinat**, dan **Aksi**. Tipe dan status tampil sebagai lencana.
+4. Klik tab **Tabel** untuk melihat semua lokasi, termasuk yang tanpa koordinat. Kolomnya **Kode**, **Nama**, **Tipe**, **Jalur**, **Status**, **Koordinat**, dan **Aksi**. Tipe dan status tampil sebagai lencana. Kolom **Aksi** berisi tombol **Pindahkan** dan **Ubah**, serta menu **Aksi lainnya** untuk **Nonaktifkan** dan **Hapus permanen** (bagian-bagian berikut).
 
    Kotak **Cari** (petunjuk `Kode, nama, jalur, atau alamat`) mencari di kode, nama, jalur, dan alamat, sedangkan **Tipe** dan **Status** menyaring daftar. Urutan bawaan mengikuti **Jalur**, jadi lokasi anak berada di dekat induknya. Pencarian, urutan, dan halaman bekerja seperti di layar lain (bagian 1.5). Daftar yang kosong menampilkan `Belum ada lokasi`, dan saringan yang tidak menemukan apa pun menampilkan `Tidak ada lokasi yang cocok` dengan tombol **Reset filter**.
 
@@ -1667,10 +1789,13 @@ Peran yang dapat memakai: admin (semua tindakan), manajer (tambah, ubah, dan pin
    - **Kode**: wajib, maksimal 50 karakter, unik di perusahaan, dan tanpa tanda `>` (tanda ini memisahkan tingkat di Jalur).
    - **Nama**: wajib, maksimal 255 karakter.
    - **Tipe**: wajib. Pilihannya Wilayah, Area, POP, Rak, dan Site. Isian awalnya POP.
-   - **Induk**: induk lokasi. Ketik untuk mencari kode atau jalur, lalu pilih lokasi bertipe satu tingkat di atasnya (aturan di bawah). Pilihan memuat semua lokasi perusahaan. Untuk Wilayah biarkan kosong, sesuai petunjuk `Kosongkan untuk lokasi bertipe Wilayah.`
+   - **Induk**: induk lokasi. Ketik untuk mencari kode atau jalur, lalu pilih lokasi yang tipenya diizinkan sebagai induk (aturan di bawah). Pilihan memuat semua lokasi perusahaan. Untuk Wilayah biarkan kosong, sesuai petunjuk `Kosongkan untuk lokasi bertipe Wilayah.`
    - **Alamat**: opsional.
-   - **Lintang** dan **Bujur**: opsional, tetapi isi keduanya atau kosongkan keduanya. Lintang -90 sampai 90, bujur -180 sampai 180.
+   - **Lintang** dan **Bujur**: opsional, tetapi isi keduanya atau kosongkan keduanya. Lintang -90 sampai 90, bujur -180 sampai 180. Ketik angkanya, atau pakai peta di bawah kedua isian itu.
+   - **Peta** (petunjuk "Klik peta atau seret penanda untuk mengatur koordinat."): klik peta atau seret penanda, dan **Lintang** serta **Bujur** terisi sendiri. Tombol **Gunakan lokasi saya** memakai lokasi perangkat Anda. Tanpa koordinat, penanda berdiri di pusat peta bawaan dan belum mengisi apa pun sampai Anda mengklik peta atau menggeser penanda. Dialog memuat peta, jadi layar yang pendek menggulir di dalam dialog.
 3. Klik **Simpan**. Toast "Lokasi dibuat." muncul dan lokasi tampil di daftar. Lokasi yang punya koordinat juga tampil di peta. Klik **Batal** untuk menutup dialog tanpa menyimpan.
+
+   ![Dialog Buat Lokasi dengan isian Kode, Nama, Tipe, Induk, Alamat, Lintang, Bujur, dan peta untuk menandai koordinat](images/web/locations-create.png)
 
 Setiap tipe punya induk tertentu:
 
@@ -1678,7 +1803,7 @@ Setiap tipe punya induk tertentu:
 - Area: induknya Wilayah.
 - POP: induknya Area.
 - Rak: induknya POP.
-- Site: induknya Rak.
+- Site: induknya Rak, POP, atau Area. Perusahaan kecil yang tidak memakai rak boleh menaruh site langsung di bawah POP atau Area.
 
 **Jalur** terbentuk dari jalur induk, tanda ` > `, dan kode lokasi, misalnya `REG-01 > AREA-01 > POP-01`.
 
@@ -1697,7 +1822,7 @@ Setiap tipe punya induk tertentu:
 2. Di dialog **Pindahkan** yang memuat kode lokasi di judulnya, pilih **Induk baru**. Isian ini wajib: ketik untuk mencari kode atau jalur, lalu pilih. Tombol **Pindahkan** baru aktif setelah Anda memilih.
 3. Klik **Pindahkan**. Toast "Lokasi dipindahkan." muncul, dan **Jalur** lokasi serta semua lokasi di bawahnya ikut berubah.
 
-Induk baru harus bertipe satu tingkat di atas lokasi yang dipindah, sama seperti saat menambah. Lokasi bertipe Wilayah tidak bisa dipindah. Sistem juga menolak memindahkan lokasi ke bawah dirinya sendiri atau turunannya dengan pesan "Lokasi tidak dapat dipindahkan ke bawah dirinya sendiri." di bawah **Induk baru**.
+Induk baru harus bertipe yang diizinkan untuk lokasi itu (daftarnya ada di bagian "Menambah lokasi"), sama seperti saat menambah. Lokasi bertipe Wilayah tidak bisa dipindah. Sistem juga menolak memindahkan lokasi ke bawah dirinya sendiri atau turunannya dengan pesan "Lokasi tidak dapat dipindahkan ke bawah dirinya sendiri." di bawah **Induk baru**.
 
 ### Menonaktifkan, menghapus permanen, dan memulihkan lokasi
 
@@ -1711,7 +1836,7 @@ Lokasi yang dihapus permanen tidak bisa dikembalikan. Kode lokasi yang dihapus t
 ### Kesalahan umum
 
 - "Induk lokasi wajib diisi untuk lokasi selain Wilayah." muncul di **Induk** saat menambah lokasi bila **Tipe** masih POP (isian awal) dan **Induk** kosong. Pilih induk, atau ganti **Tipe** ke Wilayah bila ini lokasi puncak.
-- "Lokasi POP harus punya induk Area." berarti induk salah tipe. Ganti **Induk** dengan lokasi bertipe satu tingkat di atasnya. Pesan yang sama berlaku untuk tipe lain, dengan nama tipenya.
+- "Lokasi POP harus punya induk Area." berarti induk salah tipe. Ganti **Induk** dengan lokasi bertipe yang diminta pesan. Pesan memuat nama tipe lokasi dan tipe induk yang boleh, misalnya "Lokasi Site harus punya induk Rak, POP atau Area."
 - "Lokasi Wilayah tidak boleh punya induk." berarti **Tipe** Wilayah tetapi **Induk** terisi. Kosongkan **Induk**.
 - "Lintang dan bujur harus diisi bersamaan." berarti hanya satu koordinat yang terisi. Isi keduanya atau kosongkan keduanya.
 - "kode sudah digunakan." berarti kode itu dipakai lokasi lain di perusahaan, termasuk lokasi yang sudah dihapus. `Kode tidak boleh memuat tanda ">".` berarti kode memuat tanda `>`. Pakai kode lain.
@@ -1759,10 +1884,10 @@ Judul halaman memuat nama aset, dengan kodenya di bawahnya. Tombol di kanan atas
 2. Isi form pada kartu **Detail**:
    - **Nama**: wajib, maksimal 255 karakter. Contoh: `OLT Huawei MA5800`.
    - **Produk**: opsional. Ketik SKU atau nama produk (sedikitnya 2 huruf), lalu pilih produk aktif dari katalog barang (bagian 6.2). Daftar menampilkan paling banyak 20 hasil. SPK memakai tautan ini untuk menawarkan aset (lihat bagian Memasang aset lewat SPK instalasi).
-   - **Tipe aset**: wajib. Pilihan Router, Switch, OLT, ONU/ONT (isian awal), Radio, Antena, Fiber, ODP, ODC, Rak, Perangkat daya dan Lainnya.
+   - **Tipe aset**: wajib. Kotak cari dengan petunjuk **Cari tipe aset**: ketik untuk mencari, lalu pilih Router, Switch, OLT, ONU/ONT (isian awal), Radio, Antena, Fiber, ODP, ODC, Rak, Perangkat daya atau Lainnya. Bila tidak ada yang cocok, kotak menulis **Tidak ada tipe aset yang cocok.** Tombol **Daftarkan ODP** di halaman ODN (bagian 5.5) membuka form ini dengan tipe ODP sudah terpilih.
    - **Nomor seri**: opsional, maksimal 255 karakter, tidak boleh sama dengan serial aset lain di perusahaan ini. Contoh: `HW-MA5800-002`.
    - **Alamat MAC**: opsional, maksimal 255 karakter. Format tidak diperiksa.
-   - **Alamat IP** dan **IP manajemen**: opsional, harus alamat IP yang sah (IPv4 atau IPv6). Inbils ikut mencatat keduanya di register Alamat IP (bagian 5.4). Isi **IP manajemen** bila router akan didaftarkan sebagai Router NAS (bagian 5.3).
+   - **Alamat IP** dan **IP manajemen**: opsional, harus alamat IP yang sah (IPv4 atau IPv6). Petunjuk **Alamat IP**: "Alamat perangkat itu sendiri, bila tetap. Boleh kosong." Petunjuk **IP manajemen**: "Alamat untuk mengelola perangkat. Router NAS memakainya sebagai alamat NAS dan target CoA." Inbils ikut mencatat keduanya di register Alamat IP (bagian 5.4). Isi **IP manajemen** bila router akan didaftarkan sebagai Router NAS (bagian 5.3). Router juga bisa dibuat langsung dari form pendaftaran Router NAS.
    - **Lokasi**: opsional. Ketik kode, nama atau jalur lokasi, lalu pilih. Hanya lokasi aktif yang tampil (bagian 5.1). Kosongkan bila aset ada di gudang, sesuai petunjuk `Kosongkan jika aset masih di gudang.`
    - **Kepemilikan**: Milik sendiri (isian awal), Sewa atau Milik pelanggan.
    - **Vendor** dan **Model**: opsional, maksimal 255 karakter.
@@ -1847,7 +1972,7 @@ Pencarian mencocokkan sebagian teks, tetapi tidak mencari nama aset. Hasil tidak
 
 Router NAS adalah daftar router perusahaan yang meminta FreeRADIUS memeriksa login pelanggan sebelum membuka internet. Buka menu ini saat Anda mendaftarkan router baru, mengganti alamat atau secret-nya, atau melihat pelanggan yang sedang online di sebuah router.
 
-Peran yang dapat memakai: admin, manajer dan staf untuk melihat, hanya admin untuk mengelola. Izin: `network_asset.nas.view` membuka menu, daftar dan rincian. `network_asset.nas.manage` mendaftarkan, mengubah dan menghapus router. Dengan peran bawaan, admin memegang keduanya, manajer dan staf hanya `network_asset.nas.view`. Router hanya bisa didaftarkan dari aset berjenis Router yang punya **IP manajemen** (bagian 5.2). Kode perusahaan harus berisi 1 sampai 24 huruf, angka atau strip, karena kode itu menjadi realm RADIUS.
+Peran yang dapat memakai: admin, manajer dan staf untuk melihat, hanya admin untuk mengelola. Izin: `network_asset.nas.view` membuka menu, daftar dan rincian. `network_asset.nas.manage` mendaftarkan, mengubah dan menghapus router. Dengan peran bawaan, admin memegang keduanya, manajer dan staf hanya `network_asset.nas.view`. Router hanya bisa didaftarkan dari aset berjenis Router yang punya **IP manajemen** (bagian 5.2), atau dibuat bersama pendaftarannya oleh pengguna yang juga memegang Buat aset jaringan (`network_asset.create`). Kode perusahaan harus berisi 1 sampai 24 huruf, angka atau strip, karena kode itu menjadi realm RADIUS.
 
 ### Membuka dan membaca daftar
 
@@ -1856,7 +1981,7 @@ Peran yang dapat memakai: admin, manajer dan staf untuk melihat, hanya admin unt
 
    - Kotak **Cari** (petunjuk `Kode, nama, atau alamat NAS`) mencari alamat NAS, serta kode, nama dan **IP manajemen** aset router.
    - Kolom: **Router** (kode aset dengan nama di bawahnya, tautan ke rincian, bisa diurutkan), **Lokasi**, **Alamat NAS**, **Port CoA**, **RADIUS** dan **Aksi**.
-   - Lencana di kolom **RADIUS** menunjukkan hasil penulisan router ke FreeRADIUS: **Tertulis ke RADIUS**, **Menunggu ditulis** (belum tercatat berhasil atau gagal) atau **Gagal ditulis** (percobaan gagal, alasannya ada di rincian).
+   - Lencana di kolom **RADIUS** menunjukkan hasil penulisan router ke FreeRADIUS: **Tertulis ke RADIUS**, **Menunggu ditulis** (belum tercatat berhasil atau gagal) atau **Gagal ditulis** (percobaan gagal, alasannya ada di rincian). Daftar tidak memeriksa lalu lintas router, jadi **Tertulis ke RADIUS** hanya berarti barisnya sudah ditulis. Apakah FreeRADIUS sudah melayani router itu terlihat di lencana halaman rincian.
    - Pemegang `network_asset.nas.manage` melihat tombol **Ubah** di tiap baris, dengan menu **Aksi lainnya** yang berisi **Lihat detail**, dan tombol **Daftarkan router** di kanan atas. Pemegang `network_asset.nas.view` saja melihat tombol **Lihat**.
    - Daftar kosong menampilkan `Belum ada router NAS`, atau `Tidak ada router NAS yang cocok` dengan tombol **Reset filter** bila pencarian tidak menemukan apa pun.
 
@@ -1866,10 +1991,18 @@ Peran yang dapat memakai: admin, manajer dan staf untuk melihat, hanya admin unt
 
 ### Mendaftarkan router
 
-Siapkan dulu aset berjenis Router dengan **IP manajemen** di Aset Jaringan (bagian 5.2). Siapkan juga secret yang sama dengan yang terpasang di router.
+Siapkan dulu aset berjenis Router dengan **IP manajemen** di Aset Jaringan (bagian 5.2), atau buat asetnya langsung dari form ini (lihat langkah 2). Siapkan juga secret yang sama dengan yang terpasang di router.
 
 1. Klik **Daftarkan router**.
-2. Pilih **Aset router**: ketik kode, nama atau IP manajemen (sedikitnya 2 huruf), lalu pilih. Pilihan memuat aset Router ber-IP manajemen yang belum terdaftar, tertulis `kode - nama - lokasi` dengan IP manajemen di baris bawahnya. Daftar menampilkan paling banyak 20 hasil. Bila tidak ada aset yang bisa dipilih, halaman menampilkan `Belum ada aset router yang tersedia. Tambahkan aset bertipe Router dengan IP manajemen di Aset Jaringan lebih dulu.` dengan tombol **Aset Jaringan**.
+2. Pilih **Aset router**: ketik kode, nama atau IP manajemen (sedikitnya 2 huruf), lalu pilih. Pilihan memuat aset Router ber-IP manajemen yang belum terdaftar, tertulis `kode - nama - lokasi` dengan IP manajemen di baris bawahnya. Daftar menampilkan paling banyak 20 hasil. Bila tidak ada aset yang bisa dipilih dan Anda tidak memegang Buat aset jaringan (`network_asset.create`), halaman menampilkan `Belum ada aset router yang tersedia. Minta pengelola aset menambahkan aset bertipe Router dengan IP manajemen di Aset Jaringan lebih dulu.` dengan tombol **Aset Jaringan**.
+
+   Bila routernya belum tercatat sebagai aset, pemegang Buat aset jaringan bisa membuatnya dari form ini:
+
+   - Klik **Router belum terdaftar? Buat aset router di sini**. Pilihan **Aset router** berganti dengan dua isian wajib, **Nama router baru** dan **IP manajemen** (petunjuk: "Alamat router di jaringan Anda. Dipakai sebagai alamat NAS dan target CoA."), serta catatan "Asetnya dibuat bersama pendaftaran ini, dengan kode otomatis." Bila belum ada aset router sama sekali, form langsung memakai kedua isian ini.
+   - Mengetik **IP manajemen** mengisi **Alamat NAS** juga, selama Anda belum mengetik di isian itu sendiri. **IP manajemen** harus alamat IPv4.
+   - Klik **Pilih dari daftar aset** untuk kembali memilih aset yang sudah ada. Tombol ini hanya ada bila ada aset router yang bisa dipilih.
+   - Aset dan pendaftarannya dibuat dalam satu langkah, jadi bila salah satunya ditolak, keduanya tidak tersimpan. Aset baru berstatus Tersedia, tanpa lokasi, dan IP manajemennya dicatat di register Alamat IP (bagian 5.4). Alamat yang sudah dipakai ditolak dengan pesan seperti `<alamat> sudah dipakai aset <kode>.` di bawah **IP manajemen**.
+   - Server meminta Kelola router NAS (`network_asset.nas.manage`) dan, untuk aset baru, Buat aset jaringan (`network_asset.create`).
 3. Isi form pada kartu **Router**:
    - **Alamat NAS**: wajib, alamat IPv4 yang dilihat FreeRADIUS sebagai asal permintaan router. Isinya terisi otomatis dari IP manajemen aset yang Anda pilih dan bisa Anda ubah. Alamat harus unik di seluruh sistem, bukan hanya di perusahaan Anda.
    - **Port CoA**: wajib, bilangan bulat 1 sampai 65535, isian awal `1700`. Ini port `/radius incoming` di MikroTik.
@@ -1878,6 +2011,8 @@ Siapkan dulu aset berjenis Router dengan **IP manajemen** di Aset Jaringan (bagi
 
    Kartu **Perintah RouterOS** di bawah formulir menyusun perintah yang perlu ditempel di terminal router: `/radius add ...`, `/radius incoming set accept=yes port=...` dan `/ppp aaa set use-radius=yes accounting=yes interim-update=5m`, dengan secret dan **Alamat NAS** dari formulir. Isi **Alamat FreeRADIUS dari router** (alamat yang dipakai router untuk menjangkau FreeRADIUS) sekali. Inbils tidak menyimpannya di server dan hanya mengingatnya di peramban ini. Klik **Salin perintah**.
 4. Klik **Daftarkan router**. Inbils membuka rincian router dan muncul toast "Router NAS didaftarkan." Klik **Batal** untuk kembali ke daftar tanpa menyimpan.
+
+   ![Form Daftarkan Router NAS dengan isian Nama router baru dan IP manajemen, menggantikan pilihan Aset router](images/web/nas-devices-create-asset.png)
 
 Bila RADIUS belum dikonfigurasi untuk perusahaan ini (kartu **RADIUS** di **Integrasi**, bagian 8.9) atau basis datanya tidak terjangkau, router tetap tersimpan dan muncul toast peringatan `Tersimpan, tetapi RADIUS belum diperbarui: <alasan> Sinkronisasi mencoba lagi setiap 15 menit.` Lencana **RADIUS** menjadi **Menunggu ditulis** atau **Gagal ditulis** sampai penulisan berhasil.
 
@@ -1890,12 +2025,25 @@ Judul halaman `Router NAS` diikuti kode aset, dengan nama aset dan alamat NAS di
 - Kartu **Status** memuat **Klien RADIUS** (lencana), **Terakhir ditulis** (waktu atau `Belum pernah`), **Alamat NAS**, **Target CoA**, **Realm** dan **Secret RADIUS** (`Tersimpan` atau `Belum diisi`). **Target CoA** adalah `IP manajemen:Port CoA`, tujuan permintaan putus sesi. Mengubah **IP manajemen** aset mengubah **Target CoA** tetapi tidak mengubah **Alamat NAS**. Bila penulisan terakhir gagal, kotak **Kesalahan terakhir** memuat alasannya.
 - Kartu **Perintah RouterOS** menampilkan perintah yang sama seperti di formulir daftar, dengan tulisan "(secret yang Anda simpan)" sebagai ganti secret. Secret hanya terlihat saat dibuat atau diganti di **Ubah**, jadi ganti penanda itu dengan secret yang Anda simpan sebelum menempel.
 - Kartu **Halaman isolir** memuat alamat halaman isolir perusahaan dan tombol **Salin URL**, yang berubah menjadi **Tersalin** sesaat setelah diklik (lihat bagian Isolir otomatis dan halaman isolir).
-- Kartu **Sesi terbuka** menampilkan sampai 100 sesi terbuka lewat router ini, dengan kolom **Nama pengguna**, **Alamat** dan **Mulai**. **Nama pengguna** menjadi tautan ke halaman **Akses jaringan** bila Inbils mengenali langganannya. Bila kosong, tertulis `Tidak ada sesi terbuka`.
+- Kartu **Sesi terbuka** menampilkan sampai 100 sesi terbuka lewat router ini, dengan kolom **Nama pengguna**, **Alamat**, **Mulai** dan **Terakhir terlihat** (waktu paket terakhir sesi itu). **Nama pengguna** menjadi tautan ke halaman **Akses jaringan** bila Inbils mengenali langganannya. Sesi yang tidak mengirim paket lebih dari 15 menit tidak ditampilkan di tabel ini. Bila kosong, tertulis `Tidak ada sesi terbuka`.
 - Untuk router yang sudah punya model, rincian juga memuat kartu **Panel router** dengan gambar port router itu (bagian 5.6).
+
+Lencana **Klien RADIUS** di kartu **Status** memeriksa lalu lintas router, bukan hanya penulisan barisnya:
+
+| Lencana | Arti |
+|---|---|
+| **Aktif** | Router sudah mengirim paket accounting sesudah barisnya ditulis, jadi FreeRADIUS melayaninya. Di bawah lencana tertulis **Paket terakhir** diikuti tanggal dan jam. |
+| **Menunggu restart FreeRADIUS** | Barisnya sudah ditulis, tetapi router belum mengirim paket sejak itu. FreeRADIUS membaca daftar kliennya hanya saat mulai, jadi ia belum mengenal router ini. Keterangannya: **Menunggu FreeRADIUS dimulai ulang. Router belum mengirim paket sejak ditulis; setelah dimulai ulang, pilih Uji koneksi.** |
+| **Menunggu ditulis** | Barisnya belum pernah ditulis ke RADIUS dan belum ada kegagalan tercatat. |
+| **Gagal ditulis** | Penulisan terakhir gagal. Alasannya ada di **Kesalahan terakhir**. |
+| **Tertulis ke RADIUS** | Barisnya pernah ditulis, tetapi RADIUS tidak menjawab saat halaman dibuka, jadi lalu lintas router tidak dapat diperiksa. |
+| **RADIUS belum dikonfigurasi** | Perusahaan belum mengisi dan mengaktifkan kartu **RADIUS** di **Integrasi**. |
+
+Umur paket dan sesi dihitung dengan jam server database RADIUS, bukan jam aplikasi. Server RADIUS yang berada di zona waktu lain tidak membuat paket tampak lama atau sesi tampak basi.
 
   ![Halaman rincian Router NAS dengan kartu Status dan Halaman isolir](images/web/nas-devices-show.png)
 
-Halaman ini tidak punya tombol uji koneksi atau sinkron manual. Selama RADIUS menyala, Inbils mengulang penulisan yang gagal tiap 15 menit.
+Dua tombol di halaman ini bekerja saat RADIUS menyala. **Uji koneksi** ada di kartu **Status** dan tampil bagi semua pemegang `network_asset.nas.view`. Tombol itu membaca ulang lencana **Klien RADIUS**, paket terakhir, dan tabel **Sesi terbuka** dari RADIUS tanpa memuat ulang seluruh halaman, lalu menulis **Diperiksa** diikuti jam. **Sinkronkan ke RADIUS** ada di kanan atas dan tampil bagi pemegang `network_asset.nas.manage`. Tombol itu mengantrekan pekerjaan yang menulis router ini ke RADIUS sekarang, tanpa menunggu sapuan tiap 15 menit, dan toast **Sinkronisasi ke RADIUS dijadwalkan.** muncul. Hasilnya tampil di **Terakhir ditulis** atau **Kesalahan terakhir** setelah pekerja antrean selesai, jadi klik **Uji koneksi** beberapa saat kemudian. Klik dua kali hanya mengantrekan satu pekerjaan, dan tombol dibatasi 6 kali per menit. Penulisan yang gagal tetap diulang sendiri tiap 15 menit selama RADIUS menyala. Inbils tidak memulai ulang FreeRADIUS.
 
 ### Mengubah router
 
@@ -1915,7 +2063,7 @@ Penghapusan tetap berjalan walau router masih punya sesi terbuka atau akun jarin
 
 - Inbils menyimpan **Secret RADIUS** router terenkripsi. Kolomnya tersamar, dan tidak ada halaman yang menampilkannya: rincian hanya menulis `Tersimpan` atau `Belum diisi`. Bila secret terlupa, isi secret baru lewat **Ubah** dan samakan dengan router.
 - Setelah Anda mengirim form, Inbils mengosongkan kolom secret, juga saat ada galat validasi. Isi ulang secret pada percobaan berikutnya.
-- Log audit (bagian 7.12) mencatat modul **Perangkat NAS**: pembuatan (`created`), perubahan (`updated`, dengan nama isian yang berubah), penggantian secret (`secret_changed`), penghapusan (`deleted`), serta kegagalan menulis ke RADIUS (`radius_failed`). Isi secret tidak pernah ikut tercatat.
+- Log audit (bagian 7.12) mencatat modul **Perangkat NAS**: pembuatan (`created`), perubahan (`updated`, dengan nama isian yang berubah), penggantian secret (`secret_changed`), permintaan **Sinkronkan ke RADIUS** (`sync_requested`, dengan kode aset), penghapusan (`deleted`), serta kegagalan menulis ke RADIUS (`radius_failed`). Isi secret tidak pernah ikut tercatat.
 
 ### Akun jaringan pelanggan
 
@@ -1928,7 +2076,7 @@ Izin: `network_asset.account.view` membuka halaman akun, `network_asset.account.
 
    - Kartu **Langganan** memuat **Langganan**, **Status**, **Pelanggan**, **Profil kecepatan** (dengan nama grup RADIUS), **POP layanan** dan **Status yang diharapkan**.
    - **Status yang diharapkan** Aktif berarti akun ada di RADIUS dengan grup kecepatan paket. Diisolir berarti akun ada di grup isolir perusahaan dan sesinya diputus. Alasannya tertulis di bawahnya: `Diisolir karena ditangguhkan.`, `Diisolir karena diblokir.`, atau `Diisolir karena ditangguhkan dan diblokir.` Dihapus berarti akun dihapus dari RADIUS.
-   - Kartu **Akun jaringan**, setelah akun dibuat, memuat **Jenis layanan**, **Nama pengguna**, **Status sinkronisasi** (Menunggu, Tersinkron atau Gagal, dengan alasan terakhir), **Grup RADIUS**, **Online**, **Alamat**, **NAS**, **Sesi mulai** dan **Bulan ini** (unggah dan unduh bulan berjalan). Baris **Alamat**, **NAS** dan **Sesi mulai** hanya tampil saat pelanggan online.
+   - Kartu **Akun jaringan**, setelah akun dibuat, memuat **Jenis layanan**, **Nama pengguna**, **Status sinkronisasi** (Menunggu, Tersinkron atau Gagal, dengan alasan terakhir), **Grup RADIUS**, **Online**, **Alamat**, **NAS**, **Sesi mulai**, **Terakhir terlihat** dan **Bulan ini** (unggah dan unduh bulan berjalan). Baris **Alamat** sampai **Terakhir terlihat** hanya tampil bila RADIUS punya baris sesi terbuka untuk akun itu. **Terakhir terlihat** menulis jam bila paket terakhir sesi itu datang hari ini, atau tanggal dan jam bila lebih lama. Bila paket terakhir lebih dari 15 menit lalu, baris itu menulis **Data sesi lebih dari 15 menit**, dan **Online** menjadi **Offline**: sesi itu tidak dihitung hidup, misalnya karena router mati atau dimulai ulang tanpa menutup sesinya.
    - Peringatan `RADIUS belum dikonfigurasi untuk perusahaan ini. Perubahan disimpan tetapi tidak dikirim ke FreeRADIUS.` muncul bila kartu **RADIUS** di **Integrasi** (bagian 8.9) belum diisi dan diaktifkan. Status online dan pemakaian tidak tersedia sampai itu selesai.
    - Langganan yang belum punya akun menampilkan `Langganan ini belum punya akun jaringan.` bagi pengguna tanpa `network_asset.account.manage`.
 
@@ -1946,7 +2094,7 @@ Langganan tidak boleh berstatus Berhenti, dan profil kecepatan paketnya harus pu
 ### Mengubah akun, sinkron ulang dan membuka kata sandi
 
 - Untuk mengubah akun, isi kartu **Ubah akun jaringan**: **Jenis layanan**, **Nama pengguna** (bagian lokal) dan **Kata sandi**. Kosongkan **Kata sandi** untuk mempertahankan yang lama. Klik **Simpan perubahan** (toast "Akun jaringan diperbarui."). Kartu ini nonaktif bila langganan Berhenti, dengan peringatan `Langganan yang sudah berhenti tidak dapat punya akun jaringan.`
-- Untuk menulis ulang akun ke RADIUS dan memutus sesinya yang sedang terbuka, klik **Sinkron ulang** di kanan atas (toast "Sinkron ulang dijadwalkan."). Pakai tombol ini bila kecepatan paket berubah dan sesi lama belum berganti.
+- Untuk menulis ulang akun ke RADIUS dan memutus sesinya yang sedang terbuka, klik **Sinkron ulang** di kanan atas (toast "Sinkron ulang dijadwalkan."). Pakai tombol ini bila kecepatan paket berubah dan sesi lama belum berganti. Setelah router mengonfirmasi pemutusan, halaman menulis **Sesi diputus {jam}, menunggu router menyambung ulang.** dan memeriksa dirinya sendiri tiap 5 detik sampai sesi baru muncul. Catatan ini tampil sampai 30 menit setelah pemutusan. Pemeriksaan otomatis berhenti setelah 5 menit, dan catatan menambah kalimat **Pembaruan otomatis berhenti; muat ulang halaman untuk memeriksa lagi.** Pemeriksaan tiap 5 detik juga berjalan selama pemutusan masih tertunda (peringatan **Router belum menjawab sejak {jam}. Pemutusan sesi dicoba lagi otomatis.**). {jam} berupa jam (misalnya `14:05`) bila kejadiannya hari ini, atau tanggal dan jam bila lebih lama.
 - Baris **Alamat** pada kartu **Akun jaringan** memuat lencana **Statis** bila langganan punya alamat statis di Alamat IP (bagian 5.4), atau **Dinamis** bila router yang membagikan alamatnya. Untuk langganan statis, baris **IP statis diharapkan** menulis alamat dan prefiks IPAM-nya. Bila sesi yang sedang online memakai alamat lain, peringatan "Sesi memakai {alamat sesi}, bukan alamat statis {alamat}. Sinkron ulang agar router memberi alamat yang benar." muncul. Pemegang `network_asset.account.manage` melihat tombol **Sinkron ulang dan putuskan sesi** di peringatan itu, yang membuka konfirmasi **Sinkron ulang** yang sama.
 - Untuk melihat kata sandi akun, klik **Tampilkan kata sandi** di kanan atas. Dialog `Tampilkan kata sandi?` menyebut bahwa kata sandi tampil satu kali dan pengungkapannya dicatat di log audit. Klik **Tampilkan**, lalu salin kata sandi dari kotak **Kata sandi hanya tampil sekali**. Inbils mencatat entri `secret_revealed` di modul **Akun jaringan** sebelum menampilkan kata sandi.
 
@@ -1993,6 +2141,7 @@ Server menolak dengan "Internet langganan sudah diblokir." bila langganan sudah 
 - `Alamat ini tidak tersedia.`: **Alamat NAS** sudah dipakai router lain di sistem. Isi alamat yang benar-benar menjadi asal permintaan router.
 - Secret router ditolak dengan `Gunakan karakter yang dapat dicetak, tanpa spasi.`: pakai 8 sampai 60 karakter ASCII tercetak, tanpa spasi.
 - Lencana **Gagal ditulis** atau **Menunggu ditulis** tidak berubah: Inbils belum berhasil menulis router ke RADIUS. Baca **Kesalahan terakhir** di rincian dan pastikan RADIUS menyala di server. Setelah tertulis, minta pengelola server me-restart FreeRADIUS.
+- Lencana **Klien RADIUS** menulis **Menunggu restart FreeRADIUS**: barisnya sudah ditulis ke RADIUS, tetapi router belum mengirim paket sejak itu. Minta pengelola server memulai ulang FreeRADIUS, lalu klik **Uji koneksi** di rincian router. Lencana berubah menjadi **Aktif** setelah router mengirim paket. **Sinkronkan ke RADIUS** tidak menggantikan langkah itu, karena tombol hanya menulis ulang barisnya.
 - Manajer atau staf tidak melihat **Daftarkan router**, **Ubah** dan **Hapus router**: hanya admin yang punya `network_asset.nas.manage`. Server juga menolak dengan galat 403.
 - Akun jaringan ditolak dengan `Profil kecepatan paket ini belum punya nama profil RADIUS.`: isi **Nama profil RADIUS** pada profil kecepatan paket (bagian 4.4). Pesan `Langganan yang sudah berhenti tidak dapat punya akun jaringan.` berarti langganannya sudah Berhenti, dan `Langganan ini sudah punya akun jaringan.` berarti akunnya sudah ada.
 - Kata sandi akun ditolak dengan `Kata sandi tidak boleh berisi spasi.`: pakai 6 sampai 64 karakter tanpa spasi. Nama pengguna ditolak dengan `Gunakan 3 sampai 40 huruf kecil, angka, titik, tanda hubung, atau garis bawah.`: pakai hanya karakter itu.
@@ -2125,7 +2274,7 @@ Untuk mengubah VLAN, klik **Ubah** pada baris, ubah isiannya di dialog **Ubah VL
 - `<CIDR> tumpang tindih sebagian dengan <CIDR lain>.` berarti blok baru memotong prefiks yang sudah terdaftar tanpa memuatnya atau berada di dalamnya. Pilih blok yang sejajar, lebih besar, atau lebih kecil dari prefiks itu.
 - CIDR yang salah ketik pada prefiks tersimpan tidak bisa diperbaiki lewat **Ubah**. Daftarkan prefiks baru dengan CIDR yang benar, lalu hapus prefiks lama setelah kosong.
 - `<CIDR> memuat prefiks lain. Hapus dulu.` dan `<CIDR> masih punya alamat. Lepas dulu.` menolak penghapusan prefiks. Hapus prefiks di dalamnya dan lepas semua alamatnya lebih dulu.
-- Tombol **Berikan IP statis** hilang, atau kartu **Alamat IP** menulis "Belum ada pool statis untuk POP langganan ini." Tidak ada pool **IP statis pelanggan** yang tidak terikat POP atau terikat ke POP pelayan langganan. Daftarkan pool lewat **Buat Prefiks** dengan **Peruntukan** **IP statis pelanggan**. Bila langganan sudah punya alamat IPv4 dan IPv6, tombol juga hilang tanpa pesan itu.
+- Tombol **Berikan IP statis** hilang, atau kartu **Alamat IP** menulis "Belum ada pool statis untuk POP langganan ini." Tidak ada pool **IP statis pelanggan** yang tidak terikat POP atau terikat ke POP pelayan langganan. Daftarkan pool lewat **Buat Prefiks** dengan **Peruntukan** **IP statis pelanggan**. Bila langganan belum punya POP pelayan, kartu menulis "Langganan ini belum punya POP. Pool statis per POP baru ditawarkan setelah POP layanan dipilih." Pool yang terikat POP baru ditawarkan kepada langganan yang punya POP pelayan. Bila langganan sudah punya alamat IPv4 dan IPv6, tombol juga hilang tanpa pesan itu.
 - `<alamat> berada di luar <CIDR>.` dan `<alamat> adalah alamat jaringan atau broadcast dari <CIDR>.` berarti alamat yang diketik berada di luar blok, atau berupa alamat network atau broadcast. Pilih alamat host di dalam blok.
 - `<alamat> sudah dipakai langganan <kode>.` berarti alamat sudah dipegang. Pesan yang sama dengan `dipakai aset <kode>` atau `dicadangkan (<catatan>)` menyebut pemegang lain. Pilih alamat lain, atau lepas alamat itu lebih dulu. `<alamat> baru saja diambil. Coba lagi.` berarti pemegangnya baru saja berubah.
 - `Langganan <kode> sudah memakai alamat IPv<versi> <alamat>. Lepas dulu.` berarti satu langganan hanya boleh punya satu alamat per versi IP. Lepas alamat lama lebih dulu.
@@ -2157,6 +2306,8 @@ Peran yang dapat memakai: admin dan manajer (semua tindakan), staf (melihat dan 
 3. Baca tab **ODP**. Namanya diikuti jumlah ODP dalam kurung. Kolom **ODP** berisi kode ODP, dan klik kode itu untuk membuka halaman ODP. Kolom **Nama** dan **Lokasi** berisi nama ODP dan path lokasinya. Kolom **Kapasitas** menghitung port keluaran semua splitter di ODP itu, dengan lencana **Tanpa splitter** bila ODP belum punya splitter. Kolom **Terpakai** menghitung keluaran yang dipegang langganan atau menyuplai splitter lain. Kolom **Kosong** adalah sisanya, dengan lencana **Penuh** bila habis. Kolom **Pemakaian** menampilkan bilah dan persen pemakaian dengan warna yang sama seperti di Alamat IP.
 4. Baca tab **Port PON**. Tiap baris adalah satu port PON milik OLT, ditulis "PON" diikuti nomor dan label bila ada. Kolom **Pelanggan** menghitung langganan di belakang port itu lewat semua tingkat splitter. Klik kode di kolom **OLT** untuk membuka halaman OLT.
 5. Baca tab **Langganan tanpa port drop**. Tab ini mendaftar langganan berstatus Aktif yang belum punya port drop, sebagai daftar untuk melengkapi data. Kolomnya **Langganan**, **Pelanggan**, **POP layanan**, dan **Status**. Klik kode di kolom **Langganan** untuk membuka halaman langganan. Langganan berstatus lain tidak tampil. Bila semua langganan aktif sudah punya port drop, tab menulis "Semua langganan aktif punya port drop".
+
+   Bila belum ada ODP sama sekali, tab **ODP** menulis **Belum ada ODP** dengan keterangan "ODP adalah aset jaringan bertipe ODP. Daftarkan satu, lalu tambahkan splitter agar punya port." Pemegang Buat aset jaringan (`network_asset.create`) juga melihat tombol **Daftarkan ODP**. Tombol itu membuka form **Buat Aset Jaringan** dengan **Tipe aset** sudah berisi ODP (bagian 5.2).
 
 Setiap tab menampilkan 25 baris per halaman, dengan **Sebelumnya** dan **Berikutnya** bila lebih dari satu halaman.
 
@@ -2205,7 +2356,7 @@ Penghapusan ini butuh `odn.manage`. Splitter yang masih punya drop atau splitter
 
 Catat port drop dari formulir pelanggan baru, dari halaman langganan, atau dari lembar port sebuah ODP di panel perangkat (**Pasang pelanggan**, bagian 5.6), bukan dari halaman daftar ODN. Halaman ODN hanya menunjukkan siapa memegang port dan menyediakan tombol **Lepas**. Semua langkah ini butuh `odn.assign`.
 
-1. Di formulir pelanggan baru, buka tab **Langganan & SPK**, pilih **POP pelayan**, lalu isi **Port drop (ODP)**. Isian ini opsional dan hanya tampil bagi pemegang `odn.assign`. Sebelum POP dipilih, isian nonaktif dengan petunjuk "Pilih POP layanan untuk melihat port kosongnya."
+1. Di formulir pelanggan baru, buka tab **Langganan & SPK**, pilih **POP pelayan**, lalu isi **Port drop (ODP)**. Isian ini opsional dan hanya tampil bagi pemegang `odn.assign`. Sebelum POP dipilih, isian nonaktif dengan petunjuk "Pilih POP layanan untuk melihat port kosongnya." Tiap port ditulis dengan nama ODP, jumlah port kosong, dan jarak ODP dari alamat pemasangan (bagian 4.1).
 2. Di halaman langganan, buka kartu **Port drop**, lalu klik **Atur port drop**. Bila langganan sudah punya port, tombolnya **Pindahkan port drop**. Kartu menulis "Belum ada port drop tercatat." bila belum ada port.
 3. Di dialog **Atur port drop** diikuti kode langganan, isi **Port drop (ODP)**: ketik kode ODP atau label splitter (paling sedikit 2 huruf), lalu pilih. Daftar menampilkan paling banyak 20 port keluaran ODP yang bebas di bawah POP pelayan langganan, ditulis `<kode ODP> · <rasio atau label splitter> · port <nomor>` dengan path lokasi di bawahnya. ODP yang sudah penuh tidak ditawarkan. Pilihan lama tetap berlaku selama Anda mengetik. Pilihan berubah hanya bila Anda memilih port lain atau menekan **Hapus pilihan**.
 4. Klik **Atur port drop**, atau **Pindahkan port drop** bila memindahkan. Tombol ini baru aktif setelah Anda memilih port. Toast "Port drop dicatat." muncul, dan port lama dibebaskan saat memindahkan.
@@ -2391,7 +2542,7 @@ Langganan tanpa port drop menulis "Belum ada port drop tercatat untuk {kode}. At
 
 Permintaan Barang mengatur pengambilan material dari gudang untuk pekerjaan lapangan: pengajuan, persetujuan, penyiapan, sampai serah terima barang. Buka menu ini untuk mengajukan barang, memutuskan pengajuan, atau memproses barang di gudang.
 
-Peran yang dapat memakai: admin (semua langkah), manajer (melihat semua, menyetujui, menolak, membatalkan), dan staf (melihat semua, menyiapkan, menandai siap, menyerahkan). Izin: `inventory.request.view.own`, `inventory.request.view.all`, `inventory.request.create`, `inventory.request.cancel.own`, `inventory.request.approve`, `inventory.request.reject`, `inventory.request.prepare`, `inventory.request.issue`. Peran khusus dapat diberi izin ini di bagian 8.6 (Peran).
+Peran yang dapat memakai: admin (semua langkah), manajer (melihat semua, menyetujui, menolak, membatalkan), dan staf (melihat semua, menyiapkan, menyerahkan). Izin: `inventory.request.view.own`, `inventory.request.view.all`, `inventory.request.create`, `inventory.request.cancel.own`, `inventory.request.approve`, `inventory.request.reject`, `inventory.request.prepare`, `inventory.request.issue`. Peran khusus dapat diberi izin ini di bagian 8.6 (Peran).
 
 Menu tampil di sidebar bagi pemegang `inventory.request.view.own` atau `inventory.request.view.all`. Pemegang `view.own` hanya melihat permintaan buatannya, sedangkan pemegang `view.all` melihat semua permintaan di perusahaan aktif (bagian 1.6). Pada peran bawaan hanya admin yang memegang `inventory.request.create`, jadi hanya admin yang melihat tombol **Buat Permintaan Barang** di web.
 
@@ -2404,14 +2555,14 @@ Pemisahan tugas berlaku untuk semua pengguna, termasuk admin. Pemohon tidak bole
 1. Di sidebar, buka grup **Inventaris**, lalu klik **Permintaan Barang**.
 2. Lihat tab di atas daftar:
    - **Permintaan Saya**: permintaan yang Anda buat. Lencana angka menghitung permintaan Anda yang masih **Draf** atau sudah **Siap diambil**.
-   - **Persiapan & Antrean Gudang**: permintaan berstatus **Menunggu persetujuan**, **Disetujui**, **Disiapkan**, atau **Siap diambil**. Tab ini tampil bagi pemegang izin setujui, siapkan, atau serahkan, dan lencana angkanya menghitung seluruh antrean itu.
+   - **Persiapan & Antrean Gudang**: permintaan berstatus **Menunggu persetujuan**, **Disetujui**, **Disiapkan**, atau **Siap diambil**. Tab ini tampil bagi pemegang izin setujui, siapkan, atau serahkan. Lencana angkanya hanya menghitung permintaan yang bisa Anda proses sekarang: yang menunggu keputusan Anda, yang siap disiapkan, atau yang siap diserahkan. Permintaan yang menunggu orang lain, atau yang tidak boleh Anda proses karena pemisahan tugas, tidak dihitung, jadi lencana bisa lebih kecil daripada jumlah baris di tab.
    - **Semua Permintaan**: semua permintaan perusahaan dalam semua status. Tab ini tampil bagi pemegang `inventory.request.view.all`.
-   - **Antrean Pengembalian**: berkas pengembalian material, dibahas di bagian 6.8.
+   - **Pengembalian material**: berkas pengembalian material, dibahas di bagian 6.8.
 
    ![Daftar Permintaan Barang dengan tab, kolom Cari permintaan, filter Status permintaan dan Tanggal Dibutuhkan, serta tabel permintaan](images/web/inventory-requests.png)
 
 3. Klik tab yang Anda perlukan, juga bila tab itu sudah tampak aktif. Saat halaman baru dibuka, daftar belum disaring menurut tab: pemegang `inventory.request.view.all` melihat semua permintaan sampai mengklik sebuah tab. Kartu **Antrean permintaan gudang** di Dasbor (bagian 2.1) membuka tab **Persiapan & Antrean Gudang** dengan penyaringan yang sudah aktif.
-4. Baca kolom: **No. Permintaan** (kode dan umur permintaan, klik untuk membuka), **Status**, **Pemohon** (nama dan email), **Lokasi Gudang**, **Barang & Jumlah** (barang pertama dengan jumlahnya, lalu jumlah barang lain), **Tanggal Dibutuhkan**, **Rujukan** (SPK atau Tiket beserta nomor ID-nya, misalnya `SPK #12`), **Aksi Berikutnya** (langkah yang menunggu) dan **Aksi** (tombol **Detail**). Kolom **Lokasi Gudang** berisi tanda hubung bila permintaan tidak punya lokasi.
+4. Baca kolom: **No. Permintaan** (kode dan umur permintaan, klik untuk membuka; kode ditulis dalam satu baris), **Status**, **Pemohon** (nama dan email), **Lokasi Gudang**, **Barang & Jumlah** (barang pertama dengan jumlahnya, lalu jumlah barang lain), **Tanggal Dibutuhkan**, **Rujukan** (jenis dan kode pekerjaan, misalnya `SPK SPK-2026-00012`; menjadi tautan ke SPK atau tiket itu bila akun Anda boleh membukanya, selain itu teks biasa), **Aksi Berikutnya** (langkah yang menunggu) dan **Aksi** (tombol **Detail**). Kolom **Lokasi Gudang** berisi tanda hubung bila permintaan tidak punya lokasi.
 5. Cari dan saring:
    - Isi **Cari permintaan** untuk mencari kode permintaan, alasan, atau nama pemohon.
    - Pilih **Status permintaan**. Pilihannya **Semua status** dan semua nama status pada tabel di bawah, sama dengan lencana di daftar.
@@ -2427,14 +2578,14 @@ Lencana di daftar, di filter, dan di halaman detail memakai nama berikut.
 |---|---|---|---|
 | **Draf** | Tersimpan, belum diajukan. Stok tidak berubah. | **Ajukan ke Gudang** | Pemohon |
 | **Menunggu persetujuan** | Menunggu keputusan penyetuju. Stok tidak berubah. | **Setujui & Reservasi Stok** atau **Tolak Permintaan** | Manajer atau admin, bukan pemohon |
-| **Disetujui** | Stok direservasi di gudang sumber. | **Mulai Penyiapan Barang** | Staf atau admin, bukan penyetuju |
-| **Disiapkan** | Gudang mengumpulkan barang. Reservasi tetap. | **Tandai Siap Diambil** | Staf atau admin |
-| **Siap diambil** | Barang siap di meja serah terima. Reservasi tetap. | **Serah Terima & Kurangi Stok** | Staf atau admin, bukan pemohon dan bukan penyetuju |
+| **Disetujui** | Stok direservasi di gudang sumber. | **Siapkan barang** | Staf atau admin, bukan penyetuju |
+| **Disiapkan** | Status lama. Hanya permintaan yang sudah berada di sini sebelum penyiapan dijadikan satu langkah. Reservasi tetap. | **Siapkan barang** | Staf atau admin |
+| **Siap diambil** | Barang siap di meja serah terima. Reservasi tetap. | **Serah terima** | Staf atau admin, bukan pemohon dan bukan penyetuju |
 | **Diserahkan** | Reservasi dilepas dan stok fisik berkurang. | Berkas pengembalian dibuat (bagian 6.8) | Teknisi dan gudang |
 | **Ditolak** | Ditolak dengan alasan. Stok tidak berubah. | Status akhir | Tidak ada |
 | **Dibatalkan** | Dibatalkan sebelum disetujui. Stok tidak berubah. | Status akhir | Tidak ada |
 
-Kolom **Aksi Berikutnya** di daftar menulis langkah yang menunggu: **Ajukan Permintaan** (draf), **Persetujuan Gudang** (menunggu persetujuan), **Mulai Penyiapan Barang**, **Tandai Siap Diambil**, **Serah Terima Barang**, **Selesai (Deklarasi Pemakaian / Pengembalian)** (diserahkan), dan **Tidak Ada** (ditolak atau dibatalkan).
+Kolom **Aksi Berikutnya** di daftar menulis langkah yang menunggu: **Ajukan Permintaan** (draf), **Setujui permintaan** (menunggu persetujuan, bagi yang boleh memutuskan) atau **Menunggu persetujuan Manajer/Admin** (menunggu persetujuan, bagi pengguna lain), **Siapkan barang** (disetujui atau disiapkan), **Serah terima** (siap diambil), **Selesai (Deklarasi Pemakaian / Pengembalian)** (diserahkan), dan **Tidak Ada** (ditolak atau dibatalkan).
 
 Stok yang direservasi atau dikurangi adalah stok di lokasi **Gudang Tujuan**. Di menu Stok (bagian 6.5), persetujuan menambah kolom **Dicadangkan** dan mengurangi **Tersedia**, sedangkan serah terima mengurangi **Jumlah**. Mutasi Stok (bagian 6.7) mencatat baris berjenis **Dicadangkan**, **Cadangan dilepas**, dan **Keluar**.
 
@@ -2442,11 +2593,12 @@ Stok yang direservasi atau dikurangi adalah stok di lokasi **Gudang Tujuan**. Di
 
 Klik kode permintaan atau tombol **Detail** untuk membuka halaman detail. Halaman itu memuat:
 
-- Judul **Permintaan Barang** dengan kode permintaan, keterangan siapa yang mengajukan dan kapan, tombol **Kembali**, dan tombol langkah yang boleh Anda lakukan pada status saat ini.
+- Judul **Permintaan Barang** dengan kode permintaan (satu baris), keterangan siapa yang mengajukan dan kapan, tombol **Kembali**, dan tombol langkah yang boleh Anda lakukan pada status saat ini.
+- Pada status **Menunggu persetujuan**, pengguna yang tidak boleh memutuskan melihat kotak **Menunggu persetujuan Manajer/Admin** di bawah judul, sebagai ganti tombol.
 - Banner **Permintaan Barang Ditolak** (dengan **Alasan Penolakan**) atau **Permintaan Dibatalkan** (dengan **Alasan Pembatalan**).
-- Kartu **Alur & Jejak Status Permintaan** dengan enam langkah: **Draf**, **Diajukan**, **Disetujui & Direservasi**, **Sedang Disiapkan Gudang**, **Siap Diambil**, dan **Selesai Diserahkan**. Langkah yang sudah dilewati memuat nama pelaksana dan tanggalnya.
-- Kartu **Daftar Barang yang Diminta** dengan kolom **Barang**, **Jumlah Diminta**, **Jumlah Disetujui**, **Jumlah Diserahkan**, dan **Catatan**.
-- Kartu **Detail Permohonan** dengan **Status**, **Gudang Penyedia**, **Tanggal Dibutuhkan**, **Rujukan** (misalnya `SPK #12`), **Alasan Permintaan**, dan **Catatan Persetujuan** bila ada.
+- Kartu **Alur & Jejak Status Permintaan**. Permintaan yang berjalan normal menampilkan enam langkah: **Draf**, **Diajukan**, **Disetujui & Direservasi**, **Disiapkan**, **Siap diambil**, dan **Diserahkan**. Langkah yang sudah dilewati memuat nama pelaksana dan tanggalnya. Permintaan yang ditolak atau dibatalkan berhenti di langkah **Ditolak** atau **Dibatalkan**, dengan nama pengambil keputusan dan tanggalnya, dan langkah yang tidak pernah dicapai tidak tampil.
+- Kartu **Daftar Barang yang Diminta** dengan kolom **Barang**, **Jumlah Diminta**, **Jumlah Disetujui**, **Jumlah Diserahkan**, dan **Catatan**. Selama status **Disetujui**, **Disiapkan**, atau **Siap diambil**, ada kolom **Ambil dari** di sebelah **Barang** yang menulis lokasi tempat tiap barang diambil, sebagai daftar kumpul untuk gudang.
+- Kartu **Detail Permohonan** dengan **Status**, **Gudang Penyedia**, **Tanggal Dibutuhkan**, **Rujukan** (misalnya `SPK SPK-2026-00012`, dengan aturan tautan yang sama seperti di daftar), **Alasan Permintaan**, dan **Catatan Persetujuan** bila ada.
 - Kartu **Pelaporan Pemakaian Aktual & Pengembalian Material**, hanya setelah status **Diserahkan** (bagian 6.8).
 
 ![Halaman detail permintaan barang berstatus Draf dengan kartu Alur & Jejak Status Permintaan, Daftar Barang yang Diminta, dan Detail Permohonan](images/web/inventory-requests-show.png)
@@ -2455,7 +2607,7 @@ Setiap perubahan status juga tercatat di Log Audit (bagian 7.12) dengan modul `i
 
 ### Membuat permintaan barang
 
-Izin: `inventory.request.create`. Sistem memberi nomor permintaan otomatis.
+Izin: `inventory.request.create`. Sistem memberi nomor permintaan otomatis, berbentuk `REQ-2026-00001`: awalan, tahun, lalu nomor urut lima angka yang mulai dari 1 lagi setiap tahun. Bentuk ini dapat diubah di menu Penomoran (bagian 7.13).
 
 1. Klik **Buat Permintaan Barang** di kanan atas halaman daftar.
 
@@ -2514,11 +2666,12 @@ Status menjadi **Ditolak**, banner **Permintaan Barang Ditolak** memuat alasanny
 
 ### Menyiapkan dan menyerahkan barang
 
-Izin: `inventory.request.prepare` untuk langkah 1 dan 2, `inventory.request.issue` untuk langkah 3. Langkah gudang ini dilakukan berurutan pada halaman detail permintaan.
+Izin: `inventory.request.prepare` untuk langkah 1, `inventory.request.issue` untuk langkah 2. Langkah gudang ini dilakukan pada halaman detail permintaan.
 
-1. Pada status **Disetujui**, klik **Mulai Penyiapan Barang**, lalu klik **Ya, Mulai Penyiapan** pada dialog **Mulai Penyiapan Barang di Gudang?**. Muncul pesan `Status permintaan diubah menjadi sedang disiapkan gudang.` dan status menjadi **Disiapkan**.
-2. Setelah barang terkumpul, klik **Tandai Siap Diambil**, lalu klik **Tandai Siap Diambil** di dialog **Tandai Barang Siap Diambil?**. Muncul pesan `Status permintaan diubah menjadi siap diambil.`, status menjadi **Siap diambil**, dan pemohon menerima lonceng serta push.
-3. Saat pemohon menerima barang fisik, klik **Serah Terima & Kurangi Stok**, lalu klik **Konfirmasi Serah Terima** di dialog **Konfirmasi serah terima barang?**. Status menjadi **Diserahkan** dan muncul pesan `Barang berhasil diserahterimakan dan stok berkurang.`
+1. Pada status **Disetujui**, klik **Siapkan barang**. Tidak ada dialog konfirmasi. Gunakan kolom **Ambil dari** di kartu **Daftar Barang yang Diminta** untuk mengumpulkan barangnya. Muncul pesan `Barang disiapkan dan siap diambil.`, status langsung menjadi **Siap diambil**, dan pemohon menerima lonceng serta push. Alur status mencatat langkah **Disiapkan** dan **Siap diambil** dengan pelaksana dan tanggalnya. Permintaan yang tertinggal di status **Disiapkan** diselesaikan dengan tombol yang sama.
+2. Saat pemohon menerima barang fisik, klik **Serah terima**, lalu klik **Konfirmasi serah terima** di dialog **Konfirmasi serah terima barang?**. Status menjadi **Diserahkan** dan muncul pesan `Barang berhasil diserahterimakan dan stok berkurang.`
+
+Bila server menolak **Siapkan barang**, alasannya tampil di kotak merah di bawah judul halaman, karena tidak ada dialog yang menampungnya.
 
 Serah terima bersifat permanen. Reservasi dilepas, stok fisik berkurang sebesar jumlah disetujui, kolom **Jumlah Diserahkan** terisi, dan sistem membuka berkas pengembalian untuk pemohon (bagian 6.8). Stok dikurangi sekali, saat serah terima: persetujuan SPK terkait tidak mengurangi lagi jumlah yang sudah diserahkan lewat permintaan ini.
 
@@ -2535,9 +2688,9 @@ Muncul pesan `Permintaan barang berhasil dibatalkan.` Status menjadi **Dibatalka
 
 ### Kesalahan umum
 
-- Tombol **Setujui & Reservasi Stok**, **Tolak Permintaan**, **Mulai Penyiapan Barang**, atau **Serah Terima & Kurangi Stok** tidak muncul. Cek status permintaan, izin peran Anda, dan apakah Anda pemohon atau penyetuju permintaan itu. Bila ya, minta pengguna lain yang berhak melanjutkan.
+- Tombol **Setujui & Reservasi Stok**, **Tolak Permintaan**, **Siapkan barang**, atau **Serah terima** tidak muncul. Cek status permintaan, izin peran Anda, dan apakah Anda pemohon atau penyetuju permintaan itu. Bila ya, minta pengguna lain yang berhak melanjutkan. Pada status **Menunggu persetujuan**, kotak **Menunggu persetujuan Manajer/Admin** menandakan bahwa Anda tidak boleh memutuskan permintaan itu.
 - Dialog persetujuan menampilkan `Permintaan barang tidak dapat disetujui karena status telah berubah atau Anda tidak berwenang.` (atau `... tidak dapat ditolak ...` pada dialog penolakan): pengguna lain sudah memutuskan lebih dulu, atau izin Anda berubah. Tutup dialog dan muat ulang halaman.
-- Dialog persetujuan menampilkan `Stok {nama barang} di {nama gudang} tersisa {tersedia} {satuan}, dibutuhkan {diminta} {satuan}.` Kurangi jumlah di dialog atau tambah stok lebih dulu (bagian 6.5), lalu setujui lagi. Bila tidak dapat dipenuhi, tolak permintaan dengan alasan.
+- Dialog persetujuan menampilkan `Stok {nama barang} di {nama gudang} tidak cukup: tersedia {tersedia} {satuan}, diminta {diminta} {satuan}.` Kurangi jumlah di dialog atau tambah stok lebih dulu (bagian 6.5), lalu setujui lagi. Bila tidak dapat dipenuhi, tolak permintaan dengan alasan.
 - Dialog persetujuan menolak jumlah 0 dengan pesan `jumlah disetujui harus lebih besar dari 0.`, dan menolak jumlah di atas permintaan dengan pesan `Jumlah barang yang disetujui (<jumlah>) tidak boleh melampaui jumlah yang diminta (<jumlah>).` Setiap barang harus disetujui lebih dari 0, jadi barang tidak dapat dicoret sebagian. Bila sebagian tidak dapat dipenuhi, tolak permintaan dan minta pemohon membuat ulang.
 - Pesan `Lokasi gudang sumber wajib ditentukan untuk reservasi.` muncul di dialog persetujuan bila **Gudang Tujuan** dikosongkan saat membuat permintaan. Dialog persetujuan tidak punya pilihan lokasi, jadi tolak permintaan itu dan buat ulang dengan lokasi terpilih.
 - Draf tidak dapat diubah setelah disimpan. Batalkan draf yang salah dan buat permintaan baru.
@@ -2710,9 +2863,9 @@ Peran yang dapat memakai dan izin: sama dengan bagian 6.3.
 
 ## 6.5 Stok
 
-Stok menunjukkan jumlah setiap barang di setiap lokasi. Dari sini Anda mencatat barang masuk, mengajukan koreksi hasil hitung fisik, dan menyetujui koreksi itu. Buka menu ini untuk mengecek ketersediaan atau mencatat penerimaan.
+Stok menunjukkan jumlah setiap barang di setiap lokasi. Dari sini Anda mencatat barang masuk, memindahkan stok antar lokasi, mengajukan koreksi hasil hitung fisik, dan menyetujui koreksi itu. Buka menu ini untuk mengecek ketersediaan atau mencatat penerimaan.
 
-Peran yang dapat memakai: admin, manajer, staf. Izin: `inventory.view` membuka daftar, `inventory.export` menampilkan **Ekspor**, `inventory.stock.receive` menampilkan **Terima Barang**, `inventory.stock.adjust.request` menampilkan **Ajukan Penyesuaian**, `inventory.stock.adjust.approve` menampilkan **Setujui** dan **Tolak**. Dengan peran bawaan, admin memegang semuanya, staf memegang `inventory.view`, `inventory.stock.receive` dan `inventory.stock.adjust.request`, dan manajer memegang `inventory.view`, `inventory.export` dan `inventory.stock.adjust.approve`.
+Peran yang dapat memakai: admin, manajer, staf. Izin: `inventory.view` membuka daftar, `inventory.export` menampilkan **Ekspor**, `inventory.stock.receive` menampilkan **Terima Barang**, `inventory.stock.transfer` menampilkan **Pindahkan stok**, `inventory.stock.adjust.request` menampilkan **Ajukan Penyesuaian**, `inventory.stock.adjust.approve` menampilkan **Setujui** dan **Tolak**. Dengan peran bawaan, admin memegang semuanya, staf memegang `inventory.view`, `inventory.stock.receive`, `inventory.stock.transfer` dan `inventory.stock.adjust.request`, dan manajer memegang `inventory.view`, `inventory.export` dan `inventory.stock.adjust.approve`.
 
 Peran yang tidak memuat `roles.manage` tidak bisa memegang izin menyetujui bersama izin mengajukan, menerima, mengeluarkan atau memindahkan stok (pemisahan tugas). Bila Anda menyimpan peran dengan pasangan itu (bagian 8.6), sistem menolak dengan pesan seperti `Pemisahan tugas (persetujuan penyesuaian stok vs operasi stok): inventory.stock.adjust.approve tidak boleh digabung dengan inventory.stock.adjust.request.` Pemohon juga tidak bisa memutuskan permintaannya sendiri, termasuk admin.
 
@@ -2741,16 +2894,19 @@ Gunakan saat barang masuk ke sebuah lokasi, misalnya dari pembelian.
 
 1. Klik **Terima Barang**. Dialog **Terima Barang** terbuka.
 
-   ![Dialog Terima Barang dengan isian Barang, Lokasi, Jumlah, dan Catatan](images/web/stocks-receive.png)
+   ![Dialog Terima Barang dengan isian Barang, Lokasi, Jumlah, Pemasok, No. faktur, Harga satuan, dan Catatan](images/web/stocks-receive.png)
 
 2. Isi form:
    - Pilih **Barang**: ketik minimal 2 huruf nama atau SKU, lalu pilih. Isian ini wajib dan hanya menawarkan barang aktif. Pilihan ditulis SKU, nama, dan satuan dalam kurung, dengan nama kategori di bawahnya.
    - Pilih **Lokasi**: ketik minimal 2 huruf kode atau nama lokasi, lalu pilih. Isian ini wajib dan hanya menawarkan lokasi aktif. Pilihan ditulis kode dan nama, dengan jalur lokasi di bawahnya. Lokasi dibuat di menu Lokasi (bagian 5.1).
    - Isi **Jumlah**. Isian ini wajib, harus lebih dari 0, dan nilai awalnya `1`.
-   - **Catatan** opsional dan menerima maksimal 500 karakter. Tulis nomor dokumen penerimaan di sini agar mudah dicari di Mutasi Stok.
+   - **Pemasok** opsional, maksimal 150 karakter. Tulis nama pemasok barang.
+   - **No. faktur** opsional, maksimal 100 karakter. Tulis nomor faktur atau dokumen penerimaan.
+   - **Harga satuan** opsional: harga satu satuan barang dalam rupiah (petunjuk `Rupiah per satuan barang.`), 0 atau lebih, dengan paling banyak dua angka desimal.
+   - **Catatan** opsional dan menerima maksimal 500 karakter.
 3. Klik **Simpan**, atau **Batal**. Dialog menutup dan muncul toast `Barang berhasil diterima.`
 
-**Jumlah** barang di lokasi itu bertambah sebesar jumlah yang diterima, dan baris stok dibuat bila belum ada. Satu mutasi berjenis **Masuk** tercatat (bagian 6.7). Penerimaan berlaku langsung, tanpa persetujuan.
+**Jumlah** barang di lokasi itu bertambah sebesar jumlah yang diterima, dan baris stok dibuat bila belum ada. Satu mutasi berjenis **Masuk** tercatat (bagian 6.7). **Pemasok**, **No. faktur**, dan **Harga satuan** ikut tersimpan pada mutasi itu dan tampil di kolom **Catatan** Mutasi Stok sebagai `Pemasok: ...`, `No. faktur: ...`, dan `Harga satuan: Rp ...`. Ketiganya hanya keterangan penerimaan dan tidak mengubah jumlah stok. Penerimaan berlaku langsung, tanpa persetujuan.
 
 ### Mengajukan penyesuaian stok
 
@@ -2761,6 +2917,7 @@ Gunakan saat hasil hitung fisik berbeda dari angka di sistem. Stok baru berubah 
    - Pilih **Barang** dan **Lokasi**, seperti pada penerimaan. Keduanya wajib.
    - Isi **Jumlah baru (hasil hitung fisik)** dengan angka 0 atau lebih. Isian ini wajib. Isi total hasil hitung, bukan selisihnya.
    - Isi **Alasan**. Isian ini wajib, maksimal 500 karakter. Alasan ini menjadi catatan mutasi saat permintaan disetujui.
+   - Setelah **Barang** dan **Lokasi** terpilih, dialog menulis **Stok sistem: {jumlah} {satuan}**, ditambah `({jumlah} dicadangkan)` bila ada cadangan. Bandingkan angka itu dengan hasil hitung Anda sebelum mengisi **Jumlah baru (hasil hitung fisik)**. Saat angka dimuat, dialog menulis `Memuat stok...`.
 3. Klik **Ajukan**, atau **Batal**. Dialog menutup dan muncul toast `Permintaan penyesuaian stok diajukan dan menunggu persetujuan.` Stok belum berubah, dan permintaan muncul di panel **Penyesuaian stok menunggu persetujuan** di atas daftar.
 
 ### Menyetujui atau menolak penyesuaian
@@ -2775,12 +2932,30 @@ Saat disetujui, stok langsung diatur ke **Jumlah baru** dan satu mutasi berjenis
 
 Sistem tidak mengirim notifikasi untuk pengajuan, persetujuan maupun penolakan. Permintaan yang sudah diputuskan hilang dari panel, dan alasan penolakan tercatat di audit trail (bagian 7.12), bukan di halaman Stok. Beri tahu pemohon secara langsung.
 
-### Pengeluaran, pemindahan dan penyesuaian langsung
+### Memindahkan stok
 
-Izin untuk tiga operasi ini ada, tetapi halaman Stok tidak menyediakan tombolnya:
+Izin: `inventory.stock.transfer`. Gunakan saat barang berpindah dari satu lokasi ke lokasi lain, misalnya dari gudang pusat ke gudang cabang. Pemindahan berlaku langsung, tanpa persetujuan.
+
+1. Klik **Pindahkan stok** di kanan atas halaman Stok. Dialog **Pindahkan stok** terbuka.
+
+   ![Dialog Pindahkan stok dengan isian Dari, Ke, Barang, Jumlah, dan Catatan](images/web/stocks-transfer.png)
+
+2. Isi form:
+   - Pilih **Dari**: lokasi asal. Ketik minimal 2 huruf kode atau nama lokasi, lalu pilih. Isian ini wajib.
+   - Pilih **Ke**: lokasi tujuan, dengan cara yang sama. Isian ini wajib dan harus berbeda dari **Dari**.
+   - Pilih **Barang**: ketik minimal 2 huruf nama atau SKU, lalu pilih. Isian ini wajib.
+   - Setelah **Barang** dan **Dari** terpilih, dialog menulis **Tersedia di lokasi asal: {jumlah} {satuan}**. Jumlah yang Anda pindahkan tidak boleh melebihi angka ini.
+   - Isi **Jumlah**. Isian ini wajib dan harus lebih dari 0.
+   - **Catatan** opsional dan menerima maksimal 500 karakter.
+3. Klik **Pindahkan**, atau **Batal**. Dialog menutup dan muncul toast `Stok berhasil ditransfer.`
+
+Stok di lokasi asal berkurang dan stok di lokasi tujuan bertambah sebesar jumlah yang sama. Mutasi Stok mencatat dua baris berjenis **Transfer** (bagian 6.7).
+
+### Pengeluaran dan penyesuaian langsung
+
+Izin untuk dua operasi ini ada, tetapi halaman Stok tidak menyediakan tombolnya:
 
 - Pengeluaran (`inventory.stock.issue`, dipegang admin, staf, dan teknisi) memerlukan barang, lokasi, jumlah lebih dari 0 dan catatan opsional. Stok tidak boleh berkurang melebihi **Tersedia**. Pada web, stok keluar lewat Permintaan Barang saat barang diserahkan (bagian 6.1), dan lewat SPK saat SPK disetujui dan menjadi `completed` (bagian 3.3).
-- Pemindahan antar lokasi (`inventory.stock.transfer`, dipegang admin dan staf) memerlukan barang, lokasi asal, lokasi tujuan, jumlah lebih dari 0 dan catatan opsional. Lokasi asal dan tujuan harus berbeda, dan stok **Tersedia** di asal harus cukup. Satu pemindahan mengurangi asal dan menambah tujuan, tetapi tidak ada layar untuk memulainya.
 - Penyesuaian langsung atau break-glass (`inventory.stock.adjust`, hanya admin) memakai barang, lokasi, jumlah baru 0 atau lebih dan alasan wajib. Perubahan berlaku langsung dan audit memberi penanda `break_glass`, tetapi tidak ada tombolnya. Koreksi stok dari layar selalu lewat pengajuan dan persetujuan di atas.
 
 ### Kesalahan umum
@@ -2792,8 +2967,9 @@ Izin untuk tiga operasi ini ada, tetapi halaman Stok tidak menyediakan tombolnya
 - Dialog keputusan menampilkan `Permintaan penyesuaian stok tidak dapat disetujui karena status telah berubah atau Anda tidak berwenang.` (atau `... tidak dapat ditolak ...`): pengguna lain sudah memutuskan lebih dulu, atau izin Anda berubah. Tutup dialog dan muat ulang halaman.
 - Toast merah `Stok berubah sejak dihitung; hitung ulang.` saat **Setujui**: stok barang itu di lokasi tersebut berubah (barang masuk, keluar, atau penyesuaian lain) antara pengajuan dan persetujuan. Stok tidak berubah dan permintaan tetap menunggu. Minta penyetuju menolaknya, lalu ajukan ulang dengan hasil hitung yang baru. Penyesuaian langsung oleh admin tidak melalui pemeriksaan ini.
 - **Jumlah baru (hasil hitung fisik)** salah isi: angka ini adalah total hasil hitung fisik, bukan selisih, dan tidak boleh negatif. Pemohon tidak bisa mengubah atau membatalkan permintaan yang sudah diajukan. Minta penyetuju menolaknya, lalu ajukan ulang.
-- Persetujuan gagal dengan pesan yang menyebut nama barang, lokasi, jumlah tersedia, dan jumlah dibutuhkan bila **Jumlah baru** lebih kecil dari jumlah **Dicadangkan**. Tolak permintaan, tunggu reservasi selesai, lalu ajukan ulang.
-- Pemindahan ditolak bila lokasi asal sama dengan tujuan (`Lokasi asal dan tujuan harus berbeda.`), atau jumlah melebihi **Tersedia** di asal dengan pesan stok bernama. Pilih dua lokasi berbeda dan kurangi jumlah.
+- Persetujuan penyesuaian gagal dengan pesan `Stok {barang} di {lokasi} tidak bisa diturunkan ke {jumlah} {satuan}, karena {jumlah} {satuan} sudah dicadangkan.` bila **Jumlah baru** lebih kecil dari jumlah **Dicadangkan**. Tolak permintaan, tunggu reservasi selesai, lalu ajukan ulang.
+- Dialog **Pindahkan stok** menolak dengan `Dari, ke, barang, dan jumlah (lebih dari 0) wajib diisi.` bila ada isian kosong, dan dengan `Lokasi tujuan harus berbeda dari lokasi asal.` bila **Dari** sama dengan **Ke**. Bila jumlah melebihi **Tersedia** di lokasi asal, pesannya `Stok {barang} di {lokasi} tidak cukup: tersedia {jumlah} {satuan}, diminta {jumlah} {satuan}.` Pilih dua lokasi berbeda dan kurangi jumlah.
+- Tombol **Pindahkan stok** tidak ada: peran Anda tidak memegang `inventory.stock.transfer`. Minta admin mengatur peran (bagian 8.6 dan 8.7).
 
 ## 6.6 Cari Barang
 
@@ -2831,12 +3007,12 @@ Peran yang dapat memakai: admin, manajer, staf. Izin: `inventory.view` (Lihat ba
 1. Di sidebar, buka grup **Inventaris**, lalu klik **Mutasi Stok**.
 2. Baca daftar.
 
-   - Kolom: **Jenis** (lencana berwarna), **Barang** (nama dengan SKU di bawahnya), **Jumlah** (bertanda minus bila stok berkurang), **Dari**, **Ke**, **Catatan** dan **Waktu** (tanggal dan jam dalam format perusahaan). **Jenis**, **Jumlah** dan **Waktu** bisa diurutkan, dan mutasi terbaru tampil paling atas. Sel kosong tampil sebagai tanda hubung (`-`).
+   - Kolom: **Jenis** (lencana berwarna), **Barang** (nama dengan SKU di bawahnya), **Jumlah** (bertanda minus bila stok berkurang), **Saldo setelah** (stok fisik barang di lokasi itu sesudah mutasi), **Dari**, **Ke**, **Oleh** (pengguna yang mencatat mutasi), **Catatan** dan **Waktu** (tanggal dan jam dalam format perusahaan). **Jenis**, **Jumlah** dan **Waktu** bisa diurutkan, dan mutasi terbaru tampil paling atas. Sel kosong tampil sebagai tanda hubung (`-`). Mutasi yang dibuat otomatis oleh sistem bisa kosong di kolom **Oleh**. Pada mutasi **Masuk** yang mencatat **Pemasok**, **No. faktur**, atau **Harga satuan** (bagian 6.5), ketiganya tampil di bawah catatan, sebagai `Pemasok: ...`, `No. faktur: ...`, dan `Harga satuan: Rp ...`.
    - Kolom **Cari mutasi** (petunjuk `Barang, SKU, lokasi, atau catatan`) mencari nama atau SKU barang, nama atau kode lokasi asal dan tujuan, catatan, dan kode jenis mutasi dalam bahasa Inggris (misalnya `receive`, bukan label **Masuk**). Daftar dimuat ulang sendiri sebentar setelah Anda berhenti mengetik.
    - Filter **Jenis** berisi **Semua jenis** dan tujuh jenis mutasi: **Masuk**, **Keluar**, **Transfer**, **Penyesuaian**, **Dicadangkan**, **Cadangan dilepas** dan **Pengembalian**.
    - Filter **Barang** (petunjuk `Semua barang`) dan **Lokasi** (petunjuk `Semua lokasi`) adalah kotak pilih dengan pencarian: ketik untuk mencari, lalu pilih. Ketik sedikitnya 2 huruf. Daftar menampilkan paling banyak 20 hasil dari barang aktif atau lokasi aktif, berbentuk `SKU - nama (satuan)` dan `kode - nama`. Pilihan tetap tampil selama Anda mengetik dan baru berganti saat Anda memilih yang lain atau mengklik **Hapus pilihan**. Filter **Lokasi** cocok dengan mutasi yang lokasi **Dari** atau lokasi **Ke**-nya adalah lokasi itu.
-   - Semua filter berlaku langsung tanpa tombol. Tidak ada filter tanggal. Untuk rentang tanggal dan saldo setelah tiap mutasi, pakai laporan Kartu Stok (bagian 7.7).
-   - Menu **Ekspor** (pemegang `inventory.export`) berisi **Ekspor CSV** dan **Ekspor PDF** dari pencarian dan filter yang berlaku. Kolomnya Jenis, Barang, Dari, Ke, Jumlah, Saldo, Catatan dan Tanggal. Kolom Saldo (saldo setelah mutasi) hanya ada di file.
+   - Semua filter berlaku langsung tanpa tombol. Tidak ada filter tanggal. Untuk rentang tanggal dan saldo di awal dan akhir periode, pakai laporan Kartu Stok (bagian 7.7).
+   - Menu **Ekspor** (pemegang `inventory.export`) berisi **Ekspor CSV** dan **Ekspor PDF** dari pencarian dan filter yang berlaku. Kolomnya Jenis, Barang, Dari, Ke, Jumlah, Saldo, Catatan dan Tanggal. Kolom **Oleh** dan keterangan penerimaan tidak ikut diekspor. Format file dibahas di bagian 7.3.
    - Tombol **Stok** membuka halaman Stok (bagian 6.5).
 
    ![Daftar Mutasi Stok dengan kolom Cari mutasi, filter Jenis, Barang dan Lokasi, menu Ekspor, dan tabel mutasi](images/web/stock-movements.png)
@@ -2850,17 +3026,17 @@ Kolom **Jenis** menampilkan salah satu dari tujuh label ini.
 
 | Jenis | Arti | Jumlah | Dari dan Ke |
 |---|---|---|---|
-| **Masuk** | Barang masuk ke lokasi, dari **Terima Barang** atau penerimaan fisik retur material | Plus | Hanya **Ke** terisi |
+| **Masuk** | Barang masuk ke lokasi dari **Terima Barang** (pembelian atau penerimaan lain) | Plus | Hanya **Ke** terisi |
 | **Keluar** | Barang keluar dari lokasi, saat permintaan barang diserahkan atau SPK disetujui | Minus | Hanya **Dari** terisi |
 | **Transfer** | Pemindahan antar lokasi, tercatat dua baris: keluar dari lokasi asal, masuk ke lokasi tujuan | Minus pada baris asal, plus pada baris tujuan | **Dari** pada baris keluar, **Ke** pada baris masuk |
 | **Penyesuaian** | Koreksi stok ke hasil hitung fisik yang sudah disetujui | Selisih, plus atau minus | **Dari** dan **Ke** sama |
 | **Dicadangkan** | Stok dicadangkan untuk permintaan barang yang disetujui, jumlah fisik tidak berubah | Plus | Hanya **Ke** terisi |
 | **Cadangan dilepas** | Cadangan dilepas, jumlah fisik tidak berubah | Minus | Hanya **Ke** terisi |
-| **Pengembalian** | Barang kembali ke lokasi | Plus | Hanya **Ke** terisi |
+| **Pengembalian** | Barang kembali ke lokasi, dari penerimaan fisik retur material (bagian 6.8) | Plus | Hanya **Ke** terisi |
 
 Satu permintaan barang meninggalkan jejak berurutan: **Dicadangkan** saat disetujui, lalu **Cadangan dilepas** dan **Keluar** saat barang diserahkan. SPK tidak membuat mutasi **Dicadangkan** atau **Cadangan dilepas**. Catatan mutasi memuat kode sumbernya: `Penyerahan Permintaan Barang: <kode>` untuk serah terima, `SPK <kode>` untuk pemakaian pada SPK (dengan tambahan `(partial IR covered <jumlah>)` bila sebagian jumlahnya sudah keluar lewat permintaan barang), dan `Penerimaan Fisik Pengembalian Material: <kode permintaan>` untuk retur material yang diterima (kode permintaan barang asalnya; tanpa permintaan asal, catatan hanya `Penerimaan Fisik Pengembalian Material`). Cari kode itu di kolom **Cari mutasi** untuk menelusuri satu permintaan atau SPK.
 
-Jenis **Pengembalian** tersedia di filter, tetapi belum ada layar web atau alur yang membuat mutasi ini. Penerimaan fisik retur material tercatat sebagai **Masuk**.
+Penerimaan fisik retur material tercatat sebagai **Pengembalian**, bukan **Masuk**, jadi barang yang pulang dari lapangan terpisah dari barang yang dibeli. Mutasi penerimaan retur yang tercatat sebelum perubahan ini tetap berjenis **Masuk**.
 
 ### Kesalahan umum
 
@@ -2886,9 +3062,9 @@ Pemilik berkas adalah pemohon permintaan, biasanya teknisi. Pemilik tidak boleh 
 Pengembalian tidak punya menu sendiri. Daftarnya adalah satu tab pada halaman Permintaan Barang.
 
 1. Di sidebar, buka grup **Inventaris**, lalu klik **Permintaan Barang**.
-2. Klik tab **Antrean Pengembalian**. Tab ini tampil bagi pemegang salah satu izin pengembalian di atas. Kartu **Antrean retur material** di Dasbor (bagian 2.1) membuka tab ini langsung pada antrean yang sesuai.
+2. Klik tab **Pengembalian material**. Tab ini tampil bagi pemegang salah satu izin pengembalian di atas. Kartu **Antrean retur material** di Dasbor (bagian 2.1) membuka tab ini langsung pada antrean yang sesuai.
 
-   ![Tab Antrean Pengembalian dengan kotak Prinsip keamanan stok pengembalian material, tombol antrean, kotak Cari pengembalian, dan kartu berkas](images/web/inventory-returns.png)
+   ![Tab Pengembalian material dengan kotak Prinsip keamanan stok pengembalian material, tombol antrean, kotak Cari pengembalian, dan kartu berkas](images/web/inventory-returns.png)
 
 3. Baca bagian atas tab. Kotak **Prinsip keamanan stok pengembalian material** mengingatkan bahwa deklarasi teknisi tidak mengubah stok gudang. Pilih antrean dengan tombol di bawahnya:
    - **Antrean Penerimaan Gudang**: berkas **Menunggu penerimaan gudang**. Tampil bagi pemegang izin terima atau izin lihat semua, dan terbuka lebih dulu bagi pemegang `inventory.return.receive`.
@@ -2916,25 +3092,25 @@ Pengembalian tidak punya menu sendiri. Daftarnya adalah satu tab pada halaman Pe
 
 ### Mendeklarasikan pemakaian
 
-Teknisi mengerjakannya di aplikasi teknisi. Untuk setiap barang, jumlah dipakai, sisa baik, dan selisih harus berjumlah sama dengan jumlah yang dikeluarkan. Jika ada selisih, deklarasi wajib menyebut jenis selisihnya. Setelah laporan masuk, status berkas menjadi **Menunggu penerimaan gudang**, pemegang `inventory.return.receive` menerima pemberitahuan di lonceng, dan stok belum berubah.
+Teknisi mengerjakannya di aplikasi teknisi. Untuk setiap barang, jumlah dipakai, sisa baik, dan selisih harus berjumlah sama dengan jumlah yang diserahkan. Jika ada selisih, deklarasi wajib menyebut jenis selisihnya. Setelah laporan masuk, status berkas menjadi **Menunggu penerimaan gudang**, pemegang `inventory.return.receive` menerima pemberitahuan di lonceng, dan stok belum berubah.
 
 Di web, tombol **Laporkan Pemakaian & Ajukan Pengembalian** hanya muncul bagi pemilik berkas yang memegang `inventory.return.declare`, misalnya admin yang membuat permintaannya sendiri. Tombol itu muncul saat status berkas **Menunggu deklarasi teknisi** atau **Perlu koreksi**.
 
 1. Buka halaman detail permintaan dari tombol **Buka Permintaan & Buat Deklarasi**. Kartu **Pelaporan Pemakaian Aktual & Pengembalian Material** hanya tampil pada permintaan berstatus **Diserahkan**.
 2. Klik **Laporkan Pemakaian & Ajukan Pengembalian**.
 3. Di dialog **Deklarasi Pemakaian Aktual & Sisa Barang**, isi per barang:
-   - **Dipakai Aktual**: jumlah yang terpakai di lapangan, paling banyak sebesar **Dikeluarkan** (angka ini tertulis di baris nama barang).
-   - **Sisa Dikembalikan**: terisi otomatis sebesar Dikeluarkan dikurangi Dipakai Aktual. Ubah bila perlu.
+   - **Dipakai Aktual**: jumlah yang terpakai di lapangan, paling banyak sebesar **Diserahkan** (angka ini tertulis di baris nama barang).
+   - **Sisa Dikembalikan**: terisi otomatis sebesar Diserahkan dikurangi Dipakai Aktual. Ubah bila perlu.
 4. Klik **Kirim Laporan Deklarasi**. Dialog tertutup dan kartu memuat status baru. Tidak ada pesan sukses terpisah.
 
-Dialog web tidak punya isian selisih, jadi **Dipakai Aktual** dan **Sisa Dikembalikan** harus berjumlah sama dengan **Dikeluarkan**. Selisih yang sudah tersimpan dari laporan sebelumnya ikut terkirim apa adanya.
+Dialog web tidak punya isian selisih, jadi **Dipakai Aktual** dan **Sisa Dikembalikan** harus berjumlah sama dengan **Diserahkan**. Selisih yang sudah tersimpan dari laporan sebelumnya ikut terkirim apa adanya.
 
 ### Menerima pengembalian fisik
 
 Izin: `inventory.return.receive`. Berkas harus berstatus **Menunggu penerimaan gudang**.
 
 1. Klik **Buka Permintaan & Terima Barang** pada kartu berkas.
-2. Pada kartu **Pelaporan Pemakaian Aktual & Pengembalian Material**, periksa tabel dengan kolom **Barang**, **Dikeluarkan**, **Dipakai Riil**, **Sisa Diharapkan**, **Diterima Fisik**, dan **Rusak / Hilang**. Cocokkan **Sisa Diharapkan** dengan barang yang dibawa teknisi.
+2. Pada kartu **Pelaporan Pemakaian Aktual & Pengembalian Material**, periksa tabel dengan kolom **Barang**, **Diserahkan**, **Dipakai Riil**, **Sisa Diharapkan**, **Diterima Fisik**, dan **Rusak / Hilang**. Setiap jumlah ditulis dengan simbol satuan barang, misalnya `12 m`. Cocokkan **Sisa Diharapkan** dengan barang yang dibawa teknisi.
 3. Klik **Terima Pengembalian Fisik**.
 4. Di dialog **Terima Pengembalian Fisik Material**, isi per barang. Baris nama barang menampilkan **Deklarasi Sisa**.
    - **Baik**: jumlah barang baik yang Anda terima, yang menambah stok. Awalnya sama dengan jumlah baik yang dideklarasikan teknisi.
@@ -2942,9 +3118,9 @@ Izin: `inventory.return.receive`. Berkas harus berstatus **Menunggu penerimaan g
    - Di bawah nama barang tertulis "Diserahkan {jumlah} · terpakai {jumlah}". Di bawah keempat isian, baris status menulis "Jumlah cocok" (hijau), "Kurang {x}" atau "Lebih {x}" (merah) menurut aturan di bawah.
 5. Klik **Konfirmasi Penerimaan Fisik**. Tombol ini menunggu sampai setiap barang cocok. Bila belum, dialog menulis "Samakan jumlah setiap barang dengan yang diserahkan."
 
-Pada setiap barang, **Dipakai Riil** ditambah **Baik** ditambah **Rusak** ditambah **Hilang** ditambah **Lainnya** harus sama dengan **Dikeluarkan**. Catat barang hilang di **Hilang**, bukan di **Rusak**, supaya selisihnya tepat.
+Pada setiap barang, **Dipakai Riil** ditambah **Baik** ditambah **Rusak** ditambah **Hilang** ditambah **Lainnya** harus sama dengan **Diserahkan**. Catat barang hilang di **Hilang**, bukan di **Rusak**, supaya selisihnya tepat.
 
-Jumlah **Baik** langsung menambah stok di **Gudang Tujuan**. Bila **Rusak**, **Hilang**, dan **Lainnya** nol di semua barang, status menjadi **Diterima**. Bila ada barang di salah satu dari ketiganya, status menjadi **Selisih perlu penyelesaian** dan pemegang `inventory.return.resolve` menerima pemberitahuan di lonceng.
+Jumlah **Baik** langsung menambah stok di **Gudang Tujuan** dan tercatat di Mutasi Stok sebagai **Pengembalian** (bagian 6.7). Bila **Rusak**, **Hilang**, dan **Lainnya** nol di semua barang, status menjadi **Diterima**. Bila ada barang di salah satu dari ketiganya, status menjadi **Selisih perlu penyelesaian** dan pemegang `inventory.return.resolve` menerima pemberitahuan di lonceng.
 
 ### Menolak penyerahan fisik
 
@@ -2974,10 +3150,10 @@ Bila permintaan memakai **Rujukan (opsional)** **SPK**, berkasnya terhubung ke S
 
 ### Kesalahan umum
 
-- Tab **Antrean Pengembalian** tampil, tetapi daftar menampilkan kotak galat merah dengan tombol **Coba lagi**. Peran Anda memegang izin lapor, terima, atau selesaikan tanpa `inventory.return.view.all` atau `inventory.return.view.own`. Minta admin perusahaan menambahkan izin lihat ke peran di menu Peran (bagian 8.6).
+- Tab **Pengembalian material** tampil, tetapi daftar menampilkan kotak galat merah dengan tombol **Coba lagi**. Peran Anda memegang izin lapor, terima, atau selesaikan tanpa `inventory.return.view.all` atau `inventory.return.view.own`. Minta admin perusahaan menambahkan izin lihat ke peran di menu Peran (bagian 8.6).
 - Tombol **Terima Pengembalian Fisik** dan **Tolak Fisik Barang** tidak muncul. Status berkas bukan **Menunggu penerimaan gudang**, Anda tidak memegang `inventory.return.receive`, atau Anda sendiri pemilik berkas. Minta pengguna lain menerimanya. Bila halaman sudah lama terbuka, server tetap menolak dengan pesan seperti `Maker-checker: teknisi pemilik barang tidak boleh menerima fisiknya sendiri di gudang.`
 - Tombol **Selesaikan Selisih** tidak muncul. Status berkas bukan **Selisih perlu penyelesaian**, Anda tidak memegang `inventory.return.resolve`, Anda pemilik berkas, atau Anda yang menerima fisiknya. Minta pengguna lain, misalnya manajer. Server menolak dengan `Teknisi tidak berhak menyelesaikan selisih barangnya sendiri.` atau `Penerima fisik gudang tidak boleh menyelesaikan selisih yang ia terima sendiri.`
-- Pesan `Jumlah tidak cocok pada baris <nomor>: diserahkan (...) harus sama dengan ...` muncul di kotak merah dialog bila angka satu barang tidak cocok dengan jumlah **Dikeluarkan**. Ubah angka di dialog sampai totalnya sama dengan **Dikeluarkan**.
+- Pesan `Jumlah tidak cocok untuk {nama barang}: diserahkan (...) harus sama dengan ...` muncul di kotak merah dialog bila angka satu barang tidak cocok dengan jumlah **Diserahkan**. Ubah angka di dialog sampai totalnya sama dengan **Diserahkan**. Pesan penolakan lain pada berkas juga menyebut nama barang, bukan kode baris.
 - Gudang tidak dapat menerima berkas yang masih **Menunggu deklarasi teknisi**: server menjawab `Kasus pengembalian harus berstatus menunggu penerimaan gudang untuk diterima.` Minta teknisi melapor di aplikasi teknisi lebih dulu.
 - Alasan penolakan atau catatan penyelesaian kurang dari 3 karakter: dialog menampilkan `Harap isi alasan penolakan minimal 3 karakter.` atau `Catatan penyelesaian minimal 3 karakter.`
 - Teknisi gagal mengirim SPK dengan pesan `Seluruh sisa material dari permintaan barang harus dideklarasikan terlebih dahulu sebelum SPK diajukan.` Minta teknisi melapor di aplikasi teknisi.
@@ -2995,26 +3171,29 @@ Peran yang dapat memakai: admin, manajer, dan staf. Izin dasar: `billing.view`. 
 | --- | --- | --- |
 | Melihat daftar dan detail, mengunduh PDF | `billing.view` | admin, manajer, staf |
 | **Buat tagihan bulanan**, **Buat tagihan** | `billing.create` | admin, manajer, staf |
-| **Tambah item** | `billing.update` | admin, manajer |
+| **Tambah item**, **Ubah** (draf) | `billing.update`, atau `billing.create` bagi pembuat draf itu | admin, manajer (pembuat draf: juga staf) |
 | **Kirim tagihan** | `billing.send` | admin, manajer, staf |
 | **Catat pembayaran** | `billing.payment.record` | admin, manajer, staf |
 | **Batalkan pembayaran** | `billing.payment.reverse` | admin, manajer |
 | **Batalkan tagihan** | `billing.cancel` | admin, manajer |
 | **Ekspor** | `billing.export` | admin, manajer |
+| **Unduh kuitansi** (tagihan lunas) | `billing.pdf.view` | admin, manajer |
+| **Batalkan di Midtrans** | `billing.payment.record` | admin, manajer, staf |
 
-Tombol **Buat tagihan bulanan**, **Buat tagihan**, dan **Ekspor** hanya tampil bagi pemilik izinnya. Di halaman detail, kartu **Aksi** menampilkan **Kirim tagihan**, **Catat pembayaran**, **Tambah item**, dan **Batalkan tagihan** menurut status tagihan, bukan menurut izin pengguna. Tombol **Batalkan pembayaran** di tabel **Pembayaran** juga memeriksa izin sebelum tampil. Server memeriksa semua izin saat tindakan disimpan dan menolak tindakan tanpa izin (galat 403).
+Tombol **Buat tagihan bulanan**, **Buat tagihan**, dan **Ekspor** hanya tampil bagi pemilik izinnya. Di kanan atas halaman detail, **Unduh PDF** selalu ada, **Ubah** tampil pada draf bagi yang boleh mengubahnya, dan **Unduh kuitansi** tampil pada tagihan **Lunas** bagi pemegang `billing.pdf.view`. Kartu **Aksi** menampilkan **Kirim tagihan**, **Catat pembayaran**, **Tambah item**, dan **Batalkan tagihan** menurut status tagihan, bukan menurut izin pengguna. Tombol **Batalkan pembayaran** di tabel **Pembayaran** dan **Batalkan di Midtrans** di kartu **Pembayaran online** juga memeriksa izin sebelum tampil. Server memeriksa semua izin saat tindakan disimpan dan menolak tindakan tanpa izin (galat 403).
 
 ### Membuka dan membaca daftar
 
 1. Di sidebar, buka grup **Keuangan & Laporan**, lalu klik **Tagihan**.
 2. Di atas daftar ada empat filter: kotak **Cari tagihan** ("Nomor tagihan atau pelanggan"), pilihan **Status**, pilihan **Pelanggan**, dan **Periode**. Daftar langsung menyesuaikan setiap kali Anda mengubah filter.
-   - **Status** berisi Semua status, Draf, Belum dibayar, Sebagian, Lunas, Lewat jatuh tempo, Dibatalkan, Dihapus, dan Semua, termasuk dihapus. Tanpa pilihan khusus, tagihan yang dihapus tidak tampil.
+   - **Status** berisi Semua status, Draf, Belum dibayar, Dibayar sebagian, Lunas, Lewat jatuh tempo, Dibatalkan, Dihapus, dan Semua, termasuk dihapus. Tanpa pilihan khusus, tagihan yang dihapus tidak tampil. Filter ini membaca status yang tersimpan, jadi **Lewat jatuh tempo** baru memuat tagihan setelah pengecekan harian menandainya.
    - **Pelanggan** berupa kotak cari ("Semua pelanggan"): ketik minimal 2 huruf nama atau kode pelanggan, lalu pilih dari hasil (paling banyak 20). Tombol **Hapus pilihan: Pelanggan** mengosongkannya lagi.
    - **Periode** menyaring menurut **Tanggal terbit**, bukan jatuh tempo. Ketik rentang tanggal dalam format tanggal perusahaan atau klik **Buka kalender**. Pilihan cepatnya **Hari ini**, **7 hari terakhir**, **30 hari terakhir**, **Bulan ini**, **Bulan lalu**, dan **Tahun ini**. Tombol **Hapus rentang tanggal** mengosongkannya. Tanggal akhir tidak boleh sebelum tanggal awal.
    - Chip **Pembayaran online tertunda > 1 jam** muncul bila daftar dibuka dari kartu Dasbor dengan nama yang sama. Daftar hanya memuat tagihan yang halaman bayar onlinenya sudah terbuka lebih dari satu jam dan belum kedaluwarsa. Klik tanda hapus pada chip untuk melihat semua tagihan lagi. Filter ini ikut ke berkas ekspor.
+   - Chip **Jatuh tempo ≤ 3 hari** muncul bila daftar dibuka dari kartu Dasbor **Jatuh tempo ≤ 3 hari**. Daftar hanya memuat tagihan **Belum dibayar** atau **Dibayar sebagian** yang masih punya sisa dan jatuh temponya dari hari ini sampai 3 hari ke depan, menurut tanggal perusahaan. Klik tanda hapus pada chip untuk melihat semua tagihan lagi. Filter ini ikut ke berkas ekspor.
 
    ![Daftar tagihan dengan kotak Cari tagihan, filter Status, Pelanggan, dan Periode, serta tombol Ekspor, Buat tagihan bulanan, dan Buat tagihan](images/web/invoices-index.png)
-3. Kolom daftar: **Nomor tagihan** (tautan ke detail), **Pelanggan** (nama dan kode), **Status** (lencana berwarna), **Tanggal terbit**, **Jatuh tempo**, **Total**, **Sisa** (yang belum dibayar), dan **Aksi**. Daftar urut menurut **Tanggal terbit**, terbaru dulu. Kolom **Nomor tagihan**, **Status**, **Tanggal terbit**, **Jatuh tempo**, dan **Total** bisa diurutkan. Halaman, jumlah baris, dan urutan bekerja seperti di bagian 1.5.
+3. Kolom daftar: **Nomor tagihan** (tautan ke detail), **Pelanggan** (nama dan kode), **Status** (lencana berwarna), **Tanggal terbit**, **Jatuh tempo**, **Total**, **Sisa** (yang belum dibayar), dan **Aksi**. Lencana **Status** membaca tanggal jatuh tempo: tagihan **Belum dibayar** atau **Dibayar sebagian** yang jatuh temponya sudah lewat langsung tampil **Lewat jatuh tempo**, tanpa menunggu pengecekan harian. Daftar urut menurut **Tanggal terbit**, terbaru dulu. Kolom **Nomor tagihan**, **Status**, **Tanggal terbit**, **Jatuh tempo**, dan **Total** bisa diurutkan. Halaman, jumlah baris, dan urutan bekerja seperti di bagian 1.5.
 4. Klik nomor tagihan atau tombol **Lihat** di kolom **Aksi** untuk membuka detail. Baris tidak punya tombol **Ubah** atau **Hapus**. Tagihan **Draf** yang dihapus muncul di filter **Status** **Dihapus**; barisnya tidak punya tombol dan menu **Aksi lainnya** berisi **Pulihkan** (izin `billing.delete`), yang mengembalikan draf dengan statusnya semula. Lihat bagian 1.5.
 5. Bila tidak ada hasil, daftar menulis "Tidak ada tagihan yang cocok" dengan tombol **Reset filter**. Bila perusahaan belum punya tagihan, daftar menulis "Belum ada tagihan" dengan tombol **Buat tagihan** (untuk pemilik izin `billing.create`).
 6. Tombol **Ekspor** menawarkan **Ekspor CSV** dan **Ekspor PDF**. Berkas memuat kolom Nomor tagihan, Pelanggan, Status, Total, Tanggal terbit, Jatuh tempo, dan Dibuat, sesuai filter yang sedang aktif. Kolom Status di berkas berisi kode status (misalnya `sent`), bukan label lencana.
@@ -3023,27 +3202,30 @@ Sistem memakai enam status tagihan. Lencana di daftar dan di detail menulis labe
 
 | Status | Arti | Langkah berikut |
 | --- | --- | --- |
-| **Draf** | Baru dibuat, belum dikirim. Pelanggan belum melihatnya. Item masih bisa ditambah. | **Kirim tagihan**, atau **Batalkan tagihan** |
+| **Draf** | Baru dibuat, belum dikirim. Pelanggan belum melihatnya. Jatuh tempo, diskon, dan catatan bisa diubah, dan item bisa ditambah atau dihapus. | **Kirim tagihan**, **Ubah**, atau **Batalkan tagihan** |
 | **Belum dibayar** | Sudah dikirim, belum ada pembayaran. Pelanggan melihatnya di aplikasi pelanggan. | **Catat pembayaran**, atau **Batalkan tagihan** |
-| **Sebagian** | Sudah dibayar sebagian. | **Catat pembayaran** untuk sisanya, atau **Batalkan pembayaran** |
+| **Dibayar sebagian** | Sudah dibayar sebagian. | **Catat pembayaran** untuk sisanya, atau **Batalkan pembayaran** |
 | **Lewat jatuh tempo** | Lewat jatuh tempo dan belum lunas. | **Catat pembayaran**, atau **Batalkan tagihan** |
 | **Lunas** | Lunas. | **Batalkan pembayaran** bila pembayaran salah |
 | **Dibatalkan** | Dibatalkan dengan alasan. | Tidak ada |
 
-Tagihan **Belum dibayar** atau **Sebagian** menjadi **Lewat jatuh tempo** lewat pengecekan harian bila jatuh tempo sudah lewat dan masih ada sisa. Pembayaran sebagian pada tagihan **Lewat jatuh tempo** mengembalikannya ke **Sebagian** sampai pengecekan berikutnya. Tagihan tidak pernah kembali ke **Draf**.
+Tagihan **Belum dibayar** atau **Dibayar sebagian** disimpan sebagai **Lewat jatuh tempo** lewat pengecekan harian bila jatuh tempo sudah lewat dan masih ada sisa. Daftar **Tagihan** dan **Tunggakan** sudah menampilkan **Lewat jatuh tempo** sejak tanggalnya lewat, tetapi halaman detail dan filter **Status** baru mengikutinya setelah pengecekan harian berjalan. Pembayaran sebagian pada tagihan **Lewat jatuh tempo** mengembalikannya ke **Dibayar sebagian** sampai pengecekan berikutnya. Tagihan tidak pernah kembali ke **Draf**.
 
 Untuk tagihan jatuh tempo, klik kartu **Tagihan jatuh tempo** di Dasbor (bab 2): daftar terbuka dengan filter **Status** **Lewat jatuh tempo**. Angka kartu dihitung dari tanggal jatuh tempo dan sisa tagihan, jadi bisa lebih besar daripada daftar sampai pengecekan harian berjalan.
 
 ### Membuka detail dan mengunduh PDF
 
 1. Klik nomor tagihan atau **Lihat** di daftar.
-2. Halaman **Tagihan &lt;nomor&gt;** memuat kartu **Detail** (Pelanggan, Langganan, Tanggal terbit, Jatuh tempo, Jenis, Sumber, Catatan), kartu **Ringkasan** (Status, Subtotal, Pajak, Diskon, Total, Terbayar, Sisa), kartu **Aksi**, tabel **Item**, dan tabel **Pembayaran**. Tombol **Kembali** membawa Anda ke daftar.
+2. Halaman **Tagihan &lt;nomor&gt;** memuat kartu **Detail** (Pelanggan, Langganan, Tanggal terbit, Jatuh tempo, Jenis, Sumber, Catatan), kartu **Ringkasan** (Status, Subtotal, Pajak, Diskon, Total, Terbayar, Sisa), kartu **Aksi**, tabel **Item** (kolom **Deskripsi**, **Jml**, **Harga satuan**, **Diskon**, **Pajak**, **Total baris**), dan tabel **Pembayaran**. Di kanan atas ada tombol **Kembali**, **Unduh PDF**, dan, menurut status dan izin, **Ubah** dan **Unduh kuitansi**.
 
    ![Detail tagihan dengan kartu Detail, Ringkasan, dan Aksi](images/web/invoices-show.png)
 3. Angka tampil sebagai rupiah penuh, misalnya Rp 120.000. Tanggal mengikuti format tanggal perusahaan, dan kolom **Dibayar pada** memakai jam 24 jam.
 4. **Jenis** dan **Sumber** menunjukkan asal tagihan. Jenis Berlangganan dengan sumber Langganan adalah tagihan bulanan. Jenis Sekali bayar dengan sumber SPK adalah tagihan dari SPK. Jenis Sekali bayar dengan sumber Manual dibuat lewat **Buat tagihan**.
-5. Klik **Unduh PDF** untuk mengunduh berkas yang dinamai nomor tagihan, misalnya `&lt;nomor&gt;.pdf`. Berkas terbuka di tab baru. PDF memuat nama dan alamat perusahaan, "TAGIHAN" dan nomornya, tanggal, jatuh tempo, periode (tagihan bulanan), status dalam huruf kapital, "Kepada:" diikuti pelanggan, alamat, "NPWP:" (bila ada), dan kode langganan dengan nama paket, tabel item, Subtotal, PPN dan Diskon (bila bernilai), Total, Terbayar dan Sisa (bila sudah ada pembayaran aktif), "Terbilang:", dan bagian "Pembayaran:" dengan isi **Rekening pembayaran** dari Pengaturan Perusahaan (bagian 8.1) bila terisi. Tanggal di PDF ditulis hari/bulan/tahun. Tagihan yang sudah terbit mencetak nama, alamat, NPWP, dan paket seperti saat terbit, walau pelanggan atau paketnya sudah diganti nama atau dipindah. Di halaman detail, blok **Detail** menulis Pelanggan, Alamat, NPWP, dan Paket yang sama, dengan "(saat terbit)" di samping nama bila nama pelanggan sekarang berbeda. Draf mengikuti data yang berlaku. Kwitansi yang diunduh pelanggan dari aplikasi memakai nama yang sama tetapi tidak mencetak NPWP.
-6. Kartu **Pembayaran online** muncul bila pembayaran online Midtrans aktif atau tagihan sudah punya percobaan bayar, dan hanya untuk dibaca. Tabelnya memuat **Status**, **Jumlah**, **Metode**, **ID transaksi**, **Dibuat**, dan **Selesai**. Pelanggan membayar lewat aplikasi pelanggan, lalu pembayaran masuk ke tagihan setelah Midtrans mengonfirmasi. Percobaan berstatus Menunggu, Lunas, Gagal, Kedaluwarsa, Perlu dicek, atau Ditutup. **Ditutup** berarti Inbils sendiri menutup halaman bayar karena tagihannya sudah dibayar (tunai atau transfer yang Anda catat, juga sebagian, sebab jumlah di halaman itu tidak lagi sama dengan sisa) atau dibatalkan selagi halaman masih terbuka. Alasannya tertulis "Tagihan dibayar atau dibatalkan saat halaman pembayaran masih terbuka." Inbils lalu meminta Midtrans membatalkan transaksinya dari antrean, jadi pembayaran tunai Anda tetap tercatat meski Midtrans sedang tidak terjangkau. Pelanggan yang masih punya sisa menekan **Bayar** lagi untuk mendapat halaman baru. Bila uang tetap masuk lewat halaman yang sudah Ditutup dan tagihan tidak bisa menerimanya lagi (misalnya sudah lunas), percobaan itu menjadi Perlu dicek. Percobaan yang gagal dibukukan (misalnya nominal berbeda atau refund) berstatus Perlu dicek, dengan "Alasan:" di bawah lencananya, dan tidak dibalik otomatis. Teks alasan itu ditulis sistem dan sebagian masih berbahasa Inggris. Pengguna dengan izin `billing.payment.reverse` membatalkan pembayaran yang sudah tercatat bila uang memang kembali.
+5. Klik **Unduh PDF** untuk mengunduh berkas yang dinamai nomor tagihan, misalnya `&lt;nomor&gt;.pdf`. Berkas terbuka di tab baru. PDF memuat nama dan alamat perusahaan, "TAGIHAN" dan nomornya, tanggal, jatuh tempo, periode (tagihan bulanan), status dalam huruf kapital, "Kepada:" diikuti pelanggan, alamat, "NPWP:" (bila ada), dan kode langganan dengan nama paket, tabel item, Subtotal, PPN dan Diskon (bila bernilai), Total, Terbayar dan Sisa (bila sudah ada pembayaran aktif), "Terbilang:", dan bagian "Pembayaran:" dengan isi **Rekening pembayaran** dari Pengaturan Perusahaan (bagian 8.1) bila terisi. Tanggal di PDF ditulis hari/bulan/tahun. Tagihan yang sudah terbit mencetak nama, alamat, NPWP, dan paket seperti saat terbit, walau pelanggan atau paketnya sudah diganti nama atau dipindah. Di halaman detail, blok **Detail** menulis Pelanggan, Alamat, NPWP, dan Paket yang sama, dengan "(saat terbit)" di samping nama bila nama pelanggan sekarang berbeda. Draf mengikuti data yang berlaku.
+6. Pada tagihan **Lunas**, klik **Unduh kuitansi** (izin `billing.pdf.view`). Berkas `Kuitansi-&lt;nomor&gt;.pdf` terbuka di tab baru. Kuitansi memuat nama dan alamat perusahaan, "KUITANSI PEMBAYARAN", "No. KWT/&lt;nomor tagihan&gt;", tanggal pelunasan, "Lunas", "Telah diterima dari:" diikuti pelanggan, alamat, dan "NPWP:" (bila ada), "Untuk pembayaran tagihan &lt;nomor&gt;" dengan periode dan kode langganan bila ada, tabel pembayaran aktif (**Tanggal bayar**, **Metode**, **Referensi**, **Jumlah**), "Total dibayar", dan "Terbilang:". Kuitansi tidak punya blok rekening pembayaran, tidak memuat pembayaran yang dibatalkan, dan hanya mencetak order ID pada pembayaran online: **Referensi** yang Anda ketik sendiri tidak dicetak. Tagihan yang belum lunas ditolak dengan "Kuitansi hanya untuk tagihan yang sudah lunas." Kuitansi yang diunduh pelanggan dari aplikasi memakai berkas yang sama.
+7. Kartu **Pembayaran online** muncul bila pembayaran online Midtrans aktif atau tagihan sudah punya percobaan bayar. Tabelnya memuat **Status**, **Jumlah**, **Metode**, **ID transaksi**, **Dibuat**, dan **Selesai**. **Metode** ditulis seperti staf menyebutnya, misalnya `VA BCA`, `Kartu •••• 1114`, `GoPay`, atau `QRIS`, dan kosong sampai pelanggan memilih metode. Pelanggan membayar lewat aplikasi pelanggan, lalu pembayaran masuk ke tagihan setelah Midtrans mengonfirmasi. Percobaan berstatus Menunggu, Lunas, Gagal, Kedaluwarsa, Perlu dicek, atau Ditutup. **Ditutup** berarti Inbils sendiri menutup halaman bayar karena tagihannya sudah dibayar (tunai atau transfer yang Anda catat, juga sebagian, sebab jumlah di halaman itu tidak lagi sama dengan sisa) atau dibatalkan selagi halaman masih terbuka. Alasannya tertulis "Tagihan dibayar atau dibatalkan saat halaman pembayaran masih terbuka." Inbils lalu meminta Midtrans membatalkan transaksinya dari antrean, jadi pembayaran tunai Anda tetap tercatat meski Midtrans sedang tidak terjangkau. Pelanggan yang masih punya sisa menekan **Bayar** lagi untuk mendapat halaman baru. Bila uang tetap masuk lewat halaman yang sudah Ditutup dan tagihan tidak bisa menerimanya lagi (misalnya sudah lunas), percobaan itu menjadi Perlu dicek. Percobaan yang gagal dibukukan (misalnya nominal berbeda atau refund) berstatus Perlu dicek, dengan "Alasan:" di bawah lencananya, dan tidak dibalik otomatis. Alasan itu berbahasa Indonesia, misalnya `Ditolak sistem deteksi penipuan`, `Ditolak bank: ...`, `Dibatalkan di Midtrans`, `Gagal diproses Midtrans`, atau `Halaman bayar kedaluwarsa sebelum pelanggan memilih metode`. Pengguna dengan izin `billing.payment.reverse` membatalkan pembayaran yang sudah tercatat bila uang memang kembali.
+8. Di bawah tiap percobaan, klik **Riwayat notifikasi Midtrans** untuk membuka sampai lima panggilan terakhir dari Midtrans untuk halaman bayar itu, yang terbaru di atas. Setiap baris menulis `Diterima &lt;tanggal dan jam&gt; · &lt;status transaksi&gt; · dijawab &lt;kode&gt;`, dengan kode jawaban Inbils. Bila ada lima baris, tertulis "Notifikasi yang lebih lama tidak ditampilkan." Percobaan yang belum menerima panggilan menulis "Tidak ada notifikasi tercatat." Pakai riwayat ini untuk memeriksa apakah Midtrans sudah memberi kabar tentang pembayaran pelanggan.
+9. Percobaan berstatus **Menunggu** punya tombol **Batalkan di Midtrans** (izin `billing.payment.record`). Dialog **Batalkan pembayaran online?** menulis "Halaman bayar ini ditutup dan Midtrans diminta membatalkan transaksinya. Pelanggan tidak bisa lagi membayar lewat halaman itu, tetapi bisa membuka halaman bayar baru dari aplikasi." dan menyebut **Jumlah**, **Dibuat**, dan **Metode**. Klik **Batalkan di Midtrans** untuk melanjutkan. Toast "Pembatalan dikirim ke Midtrans." muncul. Bila halaman bayar sudah tidak menunggu saat Anda mengklik, dialog menulis "Hanya pembayaran yang masih menunggu yang bisa dibatalkan."
 
 ### Menerbitkan tagihan bulanan
 
@@ -3069,44 +3251,64 @@ Yang dibuat dan dilewati:
 
 ### Membuat tagihan manual
 
-Izin yang dibutuhkan: `billing.create`. Pakai tagihan manual untuk biaya di luar langganan bulanan.
+Izin yang dibutuhkan: `billing.create`. Pakai tagihan manual untuk biaya di luar langganan bulanan. Data tagihan dan itemnya diisi dalam satu form.
 
-1. Klik **Buat tagihan**. Halaman **Buat tagihan** terbuka dengan kartu **Data tagihan**.
-2. Isi form:
+1. Klik **Buat tagihan**. Halaman **Buat tagihan** terbuka dengan kartu **Data tagihan** dan kartu **Item**.
+2. Di kartu **Data tagihan**, isi:
    - **Pelanggan**: wajib. Kotak cari ("Cari nama atau kode pelanggan"): ketik minimal 2 huruf, lalu pilih dari hasil. Hasilnya hanya pelanggan aktif, paling banyak 20.
-   - **Langganan (opsional)**: kotak cari ("Cari kode langganan"). Pilih **Pelanggan** lebih dulu. Daftar lalu hanya memuat langganan Menunggu dan Aktif milik pelanggan itu, dan daftar kosong bila pelanggan itu tidak punya langganan seperti itu. Ketik minimal 2 huruf kode langganan atau nama pelanggan, lalu pilih. Nama pelanggan tampil di bawah kode langganan. Bila Anda mengganti **Pelanggan**, isian ini dikosongkan dan daftar berganti ke langganan pelanggan baru. Sebelum **Pelanggan** dipilih, daftar memuat langganan semua pelanggan. Server menolak langganan milik pelanggan lain.
+   - **Langganan (opsional)**: kotak cari ("Cari kode langganan"). Pilih **Pelanggan** lebih dulu. Daftar lalu hanya memuat langganan Menunggu dan Aktif milik pelanggan itu, dan daftar kosong bila pelanggan itu tidak punya langganan seperti itu. Bila pelanggan hanya punya satu langganan seperti itu, langganan itu terpilih sendiri. Ketik minimal 2 huruf kode langganan atau nama pelanggan, lalu pilih. Nama pelanggan tampil di bawah kode langganan. Bila Anda mengganti **Pelanggan**, isian ini dikosongkan dan daftar berganti ke langganan pelanggan baru. Sebelum **Pelanggan** dipilih, daftar memuat langganan semua pelanggan. Server menolak langganan milik pelanggan lain.
    - **Tanggal terbit**: opsional, pemilih tanggal. Ketik tanggal dalam format tanggal perusahaan atau klik **Buka kalender** (**Pilih tanggal**, **Hari ini**, **Hapus tanggal**). Kosong berarti hari ini.
-   - **Jatuh tempo**: opsional, pemilih tanggal yang sama. Kosong berarti 14 hari dari hari ini. Petunjuk di bawah isian menulis "setelah tanggal terbit", tetapi sistem menghitung dari hari ini. Isi **Jatuh tempo** sendiri bila **Tanggal terbit** bukan hari ini.
-   - **Catatan**: opsional.
+   - **Jatuh tempo**: sudah terisi sebanyak isian **Jatuh tempo tagihan** di Pengaturan Perusahaan (0 sampai 365 hari, bawaan 14, bagian 8.1) sesudah tanggal terbit, atau sesudah hari ini bila **Tanggal terbit** kosong. Petunjuk di bawah isian menulis "Otomatis {n} hari setelah tanggal terbit. Ubah jika perlu." Selama Anda belum mengubahnya sendiri, **Jatuh tempo** ikut bergeser bila Anda mengganti **Tanggal terbit**. Di bawahnya ada **Pilihan cepat**: **7 hari**, **14 hari**, dan **Akhir bulan**. Ketiganya dihitung dari tanggal terbit (hari ini bila kosong). **Jatuh tempo** tidak boleh sebelum tanggal terbit.
+   - **Catatan**: opsional, maksimal 5000 karakter.
 
-   ![Form Buat tagihan dengan isian Pelanggan, Langganan (opsional), Tanggal terbit, Jatuh tempo, dan Catatan](images/web/invoices-create.png)
-3. Klik **Simpan**. Toast "Tagihan dibuat." muncul dan Anda kembali ke daftar. Tagihan baru berstatus **Draf**, berjenis Sekali bayar, bersumber Manual, bertotal 0, dengan nomor otomatis dari **Penomoran** (bagian 7.13). **Batal** dan **Kembali** menutup form tanpa menyimpan.
-4. Cari tagihan itu lewat **Cari tagihan** atau filter **Pelanggan**, lalu klik **Lihat** untuk menambah item.
+   ![Form Buat tagihan dengan kartu Data tagihan berisi Pelanggan, Langganan (opsional), Tanggal terbit, Jatuh tempo, dan Catatan, serta kartu Item](images/web/invoices-create.png)
+3. Di kartu **Item**, isi baris pertama. Kartu menulis "Setiap baris dikenai PPN {n}% sesuai pengaturan perusahaan, dihitung per baris dan dibulatkan ke rupiah." Tidak ada isian pajak atau diskon per baris.
+   - **Deskripsi**: wajib bila baris terisi, maksimal 500 karakter.
+   - **Kuantitas**: angka dari 0,01 sampai 100000 dengan paling banyak dua angka di belakang koma. Terisi 1 sejak awal.
+   - **Harga satuan**: nominal rupiah, 0 atau lebih.
+   - **Total baris**: terhitung sendiri dari kuantitas kali harga, dibulatkan ke rupiah.
+4. Klik **Tambah item** untuk baris berikutnya (paling banyak 20 item per tagihan), atau **Hapus** pada sebuah baris untuk membuangnya. Baris yang **Deskripsi** dan **Harga satuan**-nya kosong tidak ikut disimpan. Setelah ada item, kanan bawah kartu menulis **Subtotal**, **PPN** dengan tarifnya, dan **Total**. Tanpa item, kartu menulis "Belum ada item terisi. Tagihan tetap bisa disimpan sebagai draf kosong, tetapi baru bisa dikirim setelah punya item."
+5. Klik **Simpan**. Toast "Tagihan dibuat." muncul dan Anda kembali ke daftar. Tagihan baru berstatus **Draf**, berjenis Sekali bayar, bersumber Manual, dengan total dari item (0 bila tanpa item) dan nomor otomatis dari **Penomoran** (bagian 7.13). **Batal** dan **Kembali** menutup form tanpa menyimpan.
+6. Cari tagihan itu lewat **Cari tagihan** atau filter **Pelanggan**, lalu klik **Lihat** untuk memeriksa, mengubah, atau mengirimnya.
 
-### Menambah item dan mengirim tagihan draf
+### Mengubah tagihan draf, menambah item, dan mengirim
 
-Izin yang dibutuhkan: `billing.update`, atau `billing.create` untuk menyusun tagihan **Draf**, serta `billing.send` untuk **Kirim tagihan**. Hanya tagihan **Draf** yang bisa diberi atau dihapus itemnya.
+Izin yang dibutuhkan: `billing.update`, atau `billing.create` bagi pembuat draf itu, untuk **Ubah** dan **Tambah item**, serta `billing.send` untuk **Kirim tagihan**. Hanya tagihan **Draf** yang bisa diubah atau diberi item.
 
-1. Buka detail tagihan **Draf**, lalu klik **Tambah item**.
+1. Buka detail tagihan **Draf**. Klik **Ubah** di kanan atas bila jatuh tempo, diskon, atau catatan perlu berubah (langkah di bawah). Klik **Tambah item** di kartu **Aksi** bila item perlu ditambah.
 2. Isi jendela **Tambah item**:
    - **Deskripsi**: wajib, maksimal 500 karakter.
    - **Kuantitas**: wajib, angka minimal 0,01. Terisi 1 sejak awal.
    - **Harga satuan**: wajib, angka minimal 0.
    - **Diskon**: opsional, nominal rupiah per baris (bukan persen), minimal 0. Terisi 0 sejak awal.
-   - **Pajak (%)**: opsional, 0 sampai 100. Terisi 0 sejak awal.
+   - Di bawah isian, jendela menulis "Pajak PPN {n}% mengikuti pengaturan perusahaan, dihitung per baris." Tidak ada isian pajak.
 3. Klik **Simpan**. Toast "Item ditambahkan." muncul, lalu tabel **Item** dan kartu **Ringkasan** terhitung ulang. Ulangi untuk item berikutnya. Isian yang ditolak diberi pesan merah di bawahnya, misalnya "Deskripsi wajib diisi.", "Kuantitas wajib diisi.", atau "Harga satuan wajib diisi.".
 4. Periksa **Total** di kartu **Ringkasan**, lalu klik **Kirim tagihan**. Dialog **Kirim tagihan {nomor}?** menyebut pelanggan, jumlah, dan jatuh tempo, serta bahwa pelanggan menerima notifikasi di aplikasi (dan WhatsApp bila aktif) dan item tidak bisa diubah lagi. Klik **Kirim tagihan** di dialog. Toast "Tagihan dikirim." muncul dan status menjadi **Belum dibayar**.
 
-Per baris, **Total baris** adalah **Kuantitas** kali **Harga satuan** dikurangi **Diskon**. Pajak baris adalah **Total baris** kali **Pajak (%)** dibagi 100. **Total** adalah jumlah **Total baris** ditambah jumlah pajak, dikurangi diskon tagihan bila ada.
+Per baris, **Total baris** adalah **Kuantitas** kali **Harga satuan** dikurangi **Diskon**. Pajak baris adalah **Total baris** kali tarif PPN perusahaan dibagi 100. **Total** adalah jumlah **Total baris** ditambah jumlah pajak, dikurangi diskon tagihan bila ada.
 
-- **Pajak (%)** tidak terisi otomatis dengan PPN perusahaan. Isi tarifnya sendiri untuk item yang kena PPN. Tagihan bulanan dan tagihan dari SPK memakai tarif perusahaan otomatis.
-- Layar tidak punya tombol untuk mengubah atau menghapus item. Setelah **Kirim tagihan**, item tidak bisa ditambah. Server menolak dengan "Hanya tagihan draf yang bisa diberi item." Bila isi tagihan salah, batalkan tagihan itu (lihat di bawah) dan buat ulang.
+- Pajak tidak diisi per baris. Setiap baris, juga pada tagihan bulanan dan tagihan dari SPK, memakai **Tarif PPN** di Pengaturan Perusahaan (0 sampai 100, bagian 8.1). Tarif yang berlaku saat baris dibuat tersimpan di baris itu dan tampil di kolom **Pajak** tabel **Item**, jadi mengubah tarif perusahaan tidak mengubah baris lama.
+- Item draf tidak bisa diubah. Klik **Hapus** di tabel **Item**, konfirmasi **Hapus item {deskripsi}?** ("Total tagihan dihitung ulang tanpa item ini."), lalu tambahkan lagi dengan nilai yang benar. Toast "Item dihapus." muncul. Setelah **Kirim tagihan**, item tidak bisa ditambah. Server menolak dengan "Hanya tagihan draf yang bisa diberi item." Bila isi tagihan terkirim salah, batalkan tagihan itu (lihat di bawah) dan buat ulang.
 - **Kirim tagihan** nonaktif selama draf belum punya item atau totalnya Rp 0. Petunjuknya menulis "Tambahkan minimal satu item sebelum mengirim." Server juga menolak keadaan itu dengan "Tagihan tanpa item atau bernilai Rp 0 tidak bisa dikirim."
 - Setelah **Kirim tagihan**, pelanggan melihat tagihan di aplikasi pelanggan. Pelanggan juga menerima WhatsApp "Tagihan terbit" bila WhatsApp aktif di Pengaturan Perusahaan (bagian 8.1), jenis pesan itu dicentang, dan pelanggan sudah menyetujui pesan WhatsApp.
 
+Untuk mengubah data draf:
+
+1. Klik **Ubah** di halaman detail draf. Halaman **Ubah tagihan {nomor}** terbuka. Kartu **Draf saat ini** menulis Pelanggan, Langganan, Tanggal terbit, Total saat ini, dan tabel item (**Deskripsi**, **Jml**, **Total baris**) yang hanya dibaca. Tautan **Kelola item di halaman tagihan** kembali ke detail.
+
+   ![Halaman Ubah tagihan dengan kartu Draf saat ini dan kartu Yang bisa diubah berisi Jatuh tempo, Diskon, dan Catatan](images/web/invoices-edit.png)
+
+2. Di kartu **Yang bisa diubah**, isi:
+   - **Jatuh tempo**: tidak boleh sebelum tanggal terbit ("Jatuh tempo tidak boleh sebelum tanggal terbit.").
+   - **Diskon**: nominal rupiah untuk seluruh tagihan. Petunjuknya: "Dikurangkan dari subtotal ditambah pajak. Total dihitung ulang saat disimpan." Diskon tidak boleh melebihi subtotal ditambah pajak ("Diskon tidak boleh melebihi subtotal ditambah pajak."). Isian yang dikosongkan dihitung 0.
+   - **Catatan**: opsional, maksimal 5000 karakter.
+3. Klik **Simpan**. Toast "Tagihan diperbarui." muncul dan Anda kembali ke daftar. **Batal** kembali ke halaman detail tanpa menyimpan.
+
+Pelanggan, langganan, dan tanggal terbit tidak bisa diubah. Bila tagihan bukan draf, halaman detail muncul dengan pesan "Hanya tagihan draf yang bisa diubah." Bila orang lain menyimpan draf yang sama lebih dulu, halaman menampilkan peringatan dengan "Muat ulang halaman untuk melihat data terbaru, lalu ulangi perubahan Anda." dan tombol **Muat ulang**.
+
 ### Mencatat pembayaran
 
-Izin yang dibutuhkan: `billing.payment.record`. Hanya tagihan **Belum dibayar**, **Sebagian**, dan **Lewat jatuh tempo** yang punya sisa dan menerima pembayaran.
+Izin yang dibutuhkan: `billing.payment.record`. Hanya tagihan **Belum dibayar**, **Dibayar sebagian**, dan **Lewat jatuh tempo** yang punya sisa dan menerima pembayaran.
 
 1. Buka detail tagihan, lalu klik **Catat pembayaran**. Jendela menulis "Sisa tagihan:" diikuti sisa tagihan.
 
@@ -3121,7 +3323,7 @@ Izin yang dibutuhkan: `billing.payment.record`. Hanya tagihan **Belum dibayar**,
 
 Tabel **Pembayaran** menyimpan riwayat pembayaran: **Jumlah**, **Metode**, **Referensi**, **Dibayar pada**, dan **Status**. Pembayaran yang dibatalkan tetap tampil dengan status **Dibatalkan**.
 
-Pencatat tersimpan otomatis. Status menjadi **Lunas** bila jumlah pembayaran aktif sudah menyamai **Total**, selain itu **Sebagian**. Pembayaran tidak bisa diubah atau dihapus. Koreksi salah catat dengan **Batalkan pembayaran**, lalu catat ulang. Pelanggan juga menerima WhatsApp "Pembayaran diterima" dengan tiga syarat yang sama seperti "Tagihan terbit" di atas. Setiap pembayaran yang Anda catat, juga yang sebagian, menutup halaman pembayaran online yang masih terbuka (status **Ditutup**), karena jumlah di halaman itu tidak lagi sama dengan sisa. Bila ada halaman online yang masih terbuka, jendela **Catat pembayaran** lebih dulu menulis peringatan "Ada pembayaran online yang masih terbuka" yang menyebut nomor order dan waktunya, serta bahwa halaman itu akan ditutup. Bila pelanggan tetap membayar lewat halaman itu, uangnya masuk ke daftar **Perlu dicek** di Tunggakan (bagian 7.2). Pelanggan yang masih punya sisa membuka halaman baru dengan **Bayar**.
+Pencatat tersimpan otomatis. Status menjadi **Lunas** bila jumlah pembayaran aktif sudah menyamai **Total**, selain itu **Dibayar sebagian**. Pembayaran tidak bisa diubah atau dihapus. Koreksi salah catat dengan **Batalkan pembayaran**, lalu catat ulang. Pelanggan juga menerima WhatsApp "Pembayaran diterima" dengan tiga syarat yang sama seperti "Tagihan terbit" di atas. Setiap pembayaran yang Anda catat, juga yang sebagian, menutup halaman pembayaran online yang masih terbuka (status **Ditutup**), karena jumlah di halaman itu tidak lagi sama dengan sisa. Bila ada halaman online yang masih terbuka, jendela **Catat pembayaran** lebih dulu menulis peringatan "Ada pembayaran online yang masih terbuka" yang menyebut nomor order dan waktunya, serta bahwa halaman itu akan ditutup. Bila pelanggan tetap membayar lewat halaman itu, uangnya masuk ke daftar **Perlu dicek** di Tunggakan (bagian 7.2). Pelanggan yang masih punya sisa membuka halaman baru dengan **Bayar**.
 
 ### Membatalkan pembayaran
 
@@ -3131,7 +3333,7 @@ Izin yang dibutuhkan: `billing.payment.reverse`. Pembatalan ini juga disebut mem
 2. Baca penjelasan di jendela **Batalkan pembayaran**: "Membatalkan pembayaran mengurangi jumlah terbayar pada tagihan dan menghitung ulang statusnya. Pembayaran ditandai dibatalkan beserta pelakunya." Isi **Alasan**: wajib, maksimal 500 karakter.
 3. Klik **Konfirmasi pembatalan**. Toast "Pembayaran dibatalkan." muncul dan baris itu berstatus **Dibatalkan**. Tombol **Kembali** menutup jendela tanpa membatalkan.
 
-Setelah pembatalan, tagihan menjadi **Belum dibayar** bila tidak ada pembayaran aktif tersisa, **Lunas** bila pembayaran aktif masih menutup **Total**, dan **Sebagian** selain itu. Pembayaran Midtrans dicatat oleh sistem, bukan oleh pengguna, jadi siapa pun dengan izin dapat membatalkannya.
+Setelah pembatalan, tagihan menjadi **Belum dibayar** bila tidak ada pembayaran aktif tersisa, **Lunas** bila pembayaran aktif masih menutup **Total**, dan **Dibayar sebagian** selain itu. Pembayaran Midtrans dicatat oleh sistem, bukan oleh pengguna, jadi siapa pun dengan izin dapat membatalkannya.
 
 Untuk tagihan **Lunas**, tombol **Batalkan tagihan** tidak ada. Batalkan pembayarannya sampai status kembali **Belum dibayar**, lalu batalkan tagihannya bila memang perlu.
 
@@ -3139,7 +3341,7 @@ Untuk tagihan **Lunas**, tombol **Batalkan tagihan** tidak ada. Batalkan pembaya
 
 Izin yang dibutuhkan: `billing.cancel`. Pembatalan tidak bisa dibatalkan lagi.
 
-1. Buka detail tagihan, lalu klik **Batalkan tagihan** di kartu **Aksi**. Tombol tidak ada untuk tagihan **Lunas** dan **Dibatalkan**. Tombol ini tampil juga untuk tagihan **Sebagian**, tetapi server menolaknya (lihat di bawah).
+1. Buka detail tagihan, lalu klik **Batalkan tagihan** di kartu **Aksi**. Tombol tidak ada untuk tagihan **Lunas** dan **Dibatalkan**. Tombol ini tampil juga untuk tagihan **Dibayar sebagian**, tetapi server menolaknya (lihat di bawah).
 2. Di jendela **Batalkan tagihan**, isi **Alasan**: wajib, maksimal 500 karakter.
 3. Klik **Konfirmasi pembatalan**. Toast "Tagihan dibatalkan." muncul, status menjadi **Dibatalkan**, dan alasan tampil di kartu **Detail** sebagai **Alasan pembatalan**. Tombol **Kembali** menutup jendela tanpa membatalkan.
 
@@ -3150,6 +3352,19 @@ Sistem menolak pembatalan bila tagihan masih punya pembayaran aktif ("Tagihan ya
 - Tagihan hasil **Buat tagihan bulanan** tidak punya pembuat, jadi siapa pun dengan izin dapat membatalkannya.
 - Tagihan bulanan yang dibatalkan mengunci periodenya: penerbitan berikutnya untuk periode itu, dari jadwal harian maupun **Buat tagihan bulanan**, melewatinya dan tidak membuat tagihan baru. Tagihan yang dibatalkan karena salah harus diganti dengan tagihan manual (**Buat tagihan**).
 - Membatalkan tagihan juga menutup halaman pembayaran online yang masih terbuka (status **Ditutup** di kartu **Pembayaran online**). Membatalkan **Draf** membekukan nama pelanggan, alamat, NPWP, dan paket yang berlaku saat itu, seperti tagihan yang dikirim.
+
+### Halaman setelah pembayaran online
+
+Pelanggan yang membayar dari aplikasi pelanggan dikembalikan ke halaman publik `/pembayaran/selesai` setelah Midtrans selesai. Halaman ini tidak memuat nomor order, jumlah, atau nama, dan tidak mengubah tagihan: yang menentukan status tetap tagihan di aplikasi dan di Inbils. Judulnya mengikuti status transaksi yang dibawa alamat dari Midtrans:
+
+- **Pembayaran berhasil**: "Tagihan ditandai lunas begitu Midtrans mengonfirmasi pembayaran. Lihat statusnya di aplikasi Inbils."
+- **Menunggu pembayaran**: "Selesaikan pembayaran lewat metode yang Anda pilih. Tagihan ditandai lunas setelah pembayaran diterima."
+- **Pembayaran tidak berhasil**: "Coba lagi dari aplikasi." Ini berlaku untuk pembayaran yang ditolak, dibatalkan, kedaluwarsa, atau gagal.
+- **Pembayaran sedang diproses**: "Silakan kembali ke aplikasi Inbils untuk melihat status tagihan." Halaman ini muncul bila alamat tidak membawa status yang dikenal.
+
+Tombol **Buka aplikasi Inbils** tampil bila operator platform sudah mengisi tautan Play Store aplikasi pelanggan, atau bila halaman dibuka di ponsel Android. Pelanggan yang bertanya apakah pembayarannya masuk perlu melihat tagihan di aplikasi, atau Anda cek **Riwayat notifikasi Midtrans** di detail tagihan.
+
+![Halaman setelah pembayaran online dengan judul Pembayaran berhasil dan keterangan di bawahnya](images/web/payment-finished.png)
 
 ### Melihat tagihan dari SPK
 
@@ -3164,18 +3379,18 @@ Satu SPK paling banyak punya satu tagihan. SPK **Perawatan**, **Peningkatan laya
 
 ### Memantau jatuh tempo dan isolir otomatis
 
-- Setiap hari pukul 03:00 UTC (10:00 WIB), tagihan **Belum dibayar** dan **Sebagian** yang jatuh temponya sudah lewat dan masih ada sisa menjadi **Lewat jatuh tempo**.
-- Bila WhatsApp aktif, pelanggan menerima pengingat 3 hari dan 1 hari sebelum jatuh tempo, dan 1 hari sesudahnya. Pesan ini bernama "Pengingat jatuh tempo (H-3, H-1, H+1)" di Pengaturan Perusahaan dan dikirim setiap hari pukul 01:00 UTC (08:00 WIB).
+- Setiap hari pukul 03:00 UTC (10:00 WIB), tagihan **Belum dibayar** dan **Dibayar sebagian** yang jatuh temponya sudah lewat dan masih ada sisa menjadi **Lewat jatuh tempo**.
+- Bila WhatsApp aktif, pelanggan menerima pengingat 3 hari dan 1 hari sebelum jatuh tempo, dan 1 hari sesudahnya. Pesan ini bernama "Pengingat jatuh tempo (H-3, H-1, H+1)" di Pengaturan Perusahaan dan dikirim setiap hari pukul 01:00 UTC (08:00 WIB). Staf juga bisa mengirim pengingat kapan saja lewat **Kirim pengingat** di Tunggakan (bagian 7.2), paling banyak sekali sehari untuk satu tagihan.
 - Isolir otomatis mati sampai admin menyalakan saklar **Tangguhkan langganan yang menunggak** di kartu **Penangguhan otomatis** di Pengaturan Perusahaan (bagian 8.1). **Batas keterlambatan** menentukan batas hari (bawaan 7, isian 1 sampai 60).
 - Setiap hari pukul 08:00 UTC (15:00 WIB), langganan Aktif yang punya tagihan belum lunas dengan jatuh tempo lebih dari batas hari lalu diisolir (status Ditangguhkan, sumber tunggakan). Tepat pada batas hari belum diisolir, satu hari lebih lama sudah. Alasan isolir yang sistem tulis sendiri berbahasa Inggris ("Automatic isolir: an invoice is more than N days past due.").
 - Pelanggan kehilangan layanannya. Akun jaringan yang disinkronkan ke RADIUS masuk grup isolir perusahaan dan sesinya diputus (bab 5). Langganan Ditangguhkan tidak ditagih bulanan lagi.
 - Pembayaran membuka isolir otomatis bila saklar **Aktifkan kembali saat tagihan lunas** menyala (bawaan menyala), langganan itu Ditangguhkan dengan sumber tunggakan, tagihannya yang sudah jatuh tempo saat isolir sudah lunas, dan tidak ada tagihan yang melewati batas hari. Pembayaran sebagian belum cukup, dan proses berjalan lewat antrean.
 - Isolir manual tidak dibuka otomatis. Blokir juga tidak dicabut oleh pembayaran (bagian 7.2).
-- Pengiriman, pembayaran, pembatalan pembayaran, dan pembatalan tagihan tercatat di Log Audit (bagian 7.12).
+- Pengiriman, perubahan draf, pembayaran, pembatalan pembayaran, pengingat manual, pembatalan di Midtrans, dan pembatalan tagihan tercatat di Log Audit (bagian 7.12).
 
 ### Kesalahan umum
 
-- Staf menekan **Tambah item** atau **Batalkan tagihan** dan ditolak (403). Tindakan itu perlu `billing.update` dan `billing.cancel`, yang dimiliki admin dan manajer. Minta mereka melakukannya.
+- Staf menekan **Tambah item**, **Ubah**, atau **Batalkan tagihan** dan ditolak (403). Tindakan itu perlu `billing.update` (kecuali pada draf buatan sendiri, yang cukup dengan `billing.create`) dan `billing.cancel`. Minta admin atau manajer melakukannya.
 - Toast "Data gagal disimpan. Periksa input." di jendela **Tambah item**, **Catat pembayaran**, **Batalkan tagihan**, atau **Batalkan pembayaran** berarti satu isian ditolak. Pesan merahnya tampil di bawah isian itu, misalnya "Alasan pembatalan wajib diisi." atau "Jumlah wajib diisi.". Perbaiki isiannya lalu simpan lagi.
 - **Jumlah** lebih besar dari sisa ditolak (galat 422, "Jumlah pembayaran melebihi sisa tagihan."). **Referensi** yang sama dengan pembayaran aktif lain juga ditolak ("Referensi pembayaran sudah ada."). Perbaiki isiannya. Tagihan yang statusnya tidak menerima pembayaran ditolak dengan "Tagihan tidak menerima pembayaran pada statusnya saat ini."
 - Pembatalan atau pembatalan pembayaran oleh pembuatnya ditolak ("Tagihan yang Anda buat sendiri tidak bisa Anda batalkan.", "Pembayaran yang Anda catat sendiri tidak bisa Anda batalkan."). Minta pengguna lain dengan izin yang sama.
@@ -3183,31 +3398,53 @@ Satu SPK paling banyak punya satu tagihan. SPK **Perawatan**, **Peningkatan laya
 - Draf tanpa item atau dengan **Total** Rp 0 tidak bisa dikirim. Tambahkan item bernilai lebih dari Rp 0 sebelum **Kirim tagihan**.
 - Periode tagihan bulanan tidak boleh melewati bulan berjalan. Untuk bulan berjalan, pratinjau menampilkan peringatan dan tombol pembuatan baru aktif setelah Anda mencentang **Saya mengerti, buat tagihan periode berjalan**. Bulan depan ditolak dengan "Periode tagihan paling lambat bulan berjalan.".
 - **Langganan (opsional)** kosong lagi setelah Anda mengganti **Pelanggan**. Ini disengaja karena daftar langganan mengikuti pelanggan. Pilih langganannya lagi. Bila server menolak simpan dengan pesan merah "langganan yang dipilih tidak sesuai dengan pelanggan yang dipilih.", langganan itu milik pelanggan lain: pilih pelanggan yang benar atau kosongkan isiannya. Pesan "Langganan yang dipilih tidak ditemukan." berarti langganan itu bukan milik perusahaan ini atau sudah dihapus.
-- Tagihan yang dibuat dengan **Jatuh tempo** kosong jatuh tempo 14 hari dari hari ini, bukan dari **Tanggal terbit**. Isi **Jatuh tempo** sendiri bila tanggal terbitnya berbeda.
+- Halaman **Ubah** tidak bisa dibuka untuk tagihan yang sudah dikirim: halaman detail muncul dengan pesan "Hanya tagihan draf yang bisa diubah." Untuk tagihan terkirim, hanya pembatalan yang tersedia.
+- Simpan di halaman **Ubah** ditolak dengan "Diskon tidak boleh melebihi subtotal ditambah pajak." bila diskon lebih besar dari subtotal ditambah pajak. Kurangi diskon, atau tambah item lebih dulu.
+- **Jatuh tempo** tagihan manual terisi dari isian **Jatuh tempo tagihan** di Pengaturan Perusahaan, dihitung dari **Tanggal terbit**. Tanggal itu tidak boleh sebelum tanggal terbit ("Jatuh tempo tidak boleh sebelum tanggal terbit.").
 - Tagihan bulanan memakai isian **Jatuh tempo tagihan** di Pengaturan Perusahaan (bagian 8.1). Awalan nomor tagihan diatur di **Penomoran** (bagian 7.13).
 
 ## 7.2 Tunggakan
 
-Halaman ini menjumlahkan sisa tagihan yang belum dibayar untuk tiap pelanggan dan mengelompokkannya menurut umur jatuh tempo. Buka halaman ini untuk melihat siapa yang menunggak dan sudah berapa lama, lalu mengisolir atau memblokir langganan pelanggan itu.
+Halaman ini menjumlahkan sisa tagihan yang belum dibayar dan mengelompokkannya menurut umur jatuh tempo, per tagihan atau per pelanggan. Buka halaman ini untuk melihat siapa yang menunggak dan sudah berapa lama, mengirim pengingat, lalu mengisolir atau memblokir langganan pelanggan itu.
 
-Peran yang dapat memakai: admin, manajer, dan staf. Izin: `billing.view`. Tombol **Isolir** perlu `customer.subscription.suspend`, tombol **Blokir** dan **Buka blokir** perlu `customer.subscription.block`. Admin dan manajer memiliki keduanya, jadi staf melihat angka tanpa tombol tindakan. Data hanya dari perusahaan aktif.
+Peran yang dapat memakai: admin, manajer, dan staf. Izin: `billing.view`. **Kirim pengingat** perlu `billing.send` (admin, manajer, staf), **Ekspor** perlu `billing.export` (admin, manajer). Tombol **Isolir** perlu `customer.subscription.suspend`, tombol **Blokir** dan **Buka blokir** perlu `customer.subscription.block`. Admin dan manajer memiliki keduanya, jadi staf tidak melihat tombol isolir dan blokir. Data hanya dari perusahaan aktif.
 
 ### Membuka dan membaca daftar
 
 1. Di sidebar, buka grup **Keuangan & Laporan**, lalu klik **Tunggakan**. Halaman ini menulis "Pantau umur piutang pelanggan dan tindakan isolir."
 2. Enam kartu di atas menjumlahkan semua pelanggan, bukan hanya halaman yang tampil: **Belum jatuh tempo**, tiga rentang umur (**1-30 hari**, **31-60 hari**, dan **61-90 hari**), **>90 hari**, dan **Total piutang**. Kartu tanpa nilai menulis Rp 0.
+3. Di bawah kartu ada dua tab: **Per tagihan** (terbuka lebih dulu) dan **Per pelanggan**. Pilihan tab ikut ke alamat halaman, jadi tautan ke tab tertentu bisa dibagikan.
 
-   ![Halaman Tunggakan dengan enam kartu umur piutang dan tabel per pelanggan](images/web/receivables.png)
-3. Tabel memuat satu baris per pelanggan: **Pelanggan** (nama dan jumlah tagihan terbuka, misalnya "(1 tagihan)"), **Belum jatuh tempo**, tiga kolom rentang umur, **>90 hari** (merah), **Total**, dan **Aksi**. Sel tanpa nilai menulis tanda hubung. Semua kolom kecuali **Aksi** bisa diurutkan, dan urutan awalnya **Pelanggan** dari A ke Z. Halaman, jumlah baris, dan urutan bekerja seperti di bagian 1.5. Halaman ini tidak punya kotak pencarian, filter, atau tombol ekspor. Bila tidak ada tunggakan, tabel menulis "Tidak ada tunggakan" dan "Tagihan yang belum lunas di perusahaan ini akan muncul di sini."
-4. Klik nama pelanggan untuk membuka **Tagihan** dengan filter **Pelanggan** yang sudah terisi nama itu, semua status termasuk yang lunas. Klik **Hapus pilihan: Pelanggan** untuk melihat semua tagihan lagi.
+   ![Halaman Tunggakan dengan enam kartu umur piutang dan tab Per tagihan berisi filter Cari tagihan, Umur, dan Jatuh tempo, tombol Ekspor, serta tabel tagihan terbuka](images/web/receivables.png)
+4. Tab **Per tagihan** memuat satu baris per tagihan yang masih punya sisa, yang jatuh temponya paling lama di atas, 25 baris per halaman. Kolomnya **Tagihan** (nomor, tautan ke detail), **Pelanggan** (nama dan kode), **Jatuh tempo**, **Umur** (`Lewat {n} hari` berwarna merah, atau `Belum jatuh tempo`), **Status**, **Total**, **Sisa**, dan **Aksi**. Lencana **Status** membaca tanggal jatuh tempo, seperti di daftar **Tagihan** (bagian 7.1). Di atas tabel ada:
+   - **Cari tagihan** (petunjuk `Nomor tagihan atau pelanggan`): mencari nomor tagihan serta nama dan kode pelanggan.
+   - **Umur**: **Semua umur**, **Belum jatuh tempo**, **1-30 hari**, **31-60 hari**, **61-90 hari**, atau **>90 hari**. Kelompoknya sama dengan kartu di atas.
+   - **Jatuh tempo**: rentang tanggal. Tanggal akhir tidak boleh sebelum tanggal awal ("Jatuh tempo akhir tidak boleh sebelum jatuh tempo awal.").
+   - **Ekspor** (pemegang `billing.export`): **Ekspor CSV** dan **Ekspor PDF** dari pencarian dan filter yang berlaku. Kolomnya Nomor tagihan, Pelanggan, Kode pelanggan, Tanggal terbit, Jatuh tempo, Lewat jatuh tempo (hari), Umur, Total, Terbayar, Sisa, dan Status (ditulis sebagai label, misalnya Belum dibayar). Format berkas dibahas di bagian 7.3.
+   - Bila tidak ada baris, tabel menulis "Tidak ada tagihan terbuka" dan "Tagihan yang belum lunas muncul di sini, yang paling lama jatuh tempo lebih dulu." Bila filter terlalu sempit, tombol **Reset filter** mengosongkannya.
+5. Tab **Per pelanggan** memuat satu baris per pelanggan: **Pelanggan** (nama dan jumlah tagihan terbuka, misalnya "(1 tagihan)"), **Belum jatuh tempo**, tiga kolom rentang umur, **>90 hari** (merah), **Total**, dan **Aksi** (tombol isolir dan blokir). Sel tanpa nilai menulis tanda hubung. Semua kolom kecuali **Aksi** bisa diurutkan, dan urutan awalnya **Pelanggan** dari A ke Z. Halaman, jumlah baris, dan urutan bekerja seperti di bagian 1.5. Tab ini tidak punya kotak pencarian, filter, atau tombol ekspor: pakai **Per tagihan** untuk itu. Bila tidak ada tunggakan, tabel menulis "Tidak ada tunggakan" dan "Tagihan yang belum lunas di perusahaan ini akan muncul di sini."
+
+   ![Tab Per pelanggan di halaman Tunggakan dengan tabel umur piutang dan tombol isolir dan blokir](images/web/receivables-customers.png)
+
+6. Di tab **Per pelanggan**, klik nama pelanggan untuk membuka **Tagihan** dengan filter **Pelanggan** yang sudah terisi nama itu, semua status termasuk yang lunas. Klik **Hapus pilihan: Pelanggan** untuk melihat semua tagihan lagi.
 
 Yang dihitung:
 
-- Tagihan berstatus **Belum dibayar**, **Sebagian**, atau **Lewat jatuh tempo** yang masih punya sisa. Nilainya **Total** dikurangi jumlah terbayar. Tagihan **Draf**, **Lunas**, dan **Dibatalkan** tidak dihitung.
+- Tagihan berstatus **Belum dibayar**, **Dibayar sebagian**, atau **Lewat jatuh tempo** yang masih punya sisa. Nilainya **Total** dikurangi jumlah terbayar. Tagihan **Draf**, **Lunas**, dan **Dibatalkan** tidak dihitung.
 - Kolom ditentukan dari tanggal jatuh tempo dan hari ini, bukan dari status. Tagihan yang jatuh tempo hari ini atau belum lewat masuk **Belum jatuh tempo**. Tagihan yang lewat 1 sampai 30 hari masuk kolom pertama, dan seterusnya sampai **>90 hari**.
 - Pelanggan yang semua tagihannya lunas tidak tampil.
 
-Beda dengan **Tagihan** (bagian 7.1): **Tagihan** memuat setiap tagihan, satu baris per tagihan, semua status, dengan filter dan ekspor. **Tunggakan** hanya memuat sisa yang masih terbuka, dijumlahkan per pelanggan dan dikelompokkan menurut umur.
+Beda dengan **Tagihan** (bagian 7.1): **Tagihan** memuat setiap tagihan, semua status, dengan filter lengkap dan ekspor. **Tunggakan** hanya memuat sisa yang masih terbuka: tab **Per tagihan** satu baris per tagihan, tab **Per pelanggan** dijumlahkan per pelanggan.
+
+### Mengirim pengingat
+
+Izin yang dibutuhkan: `billing.send`. Pakai ini bila pelanggan perlu diingatkan sekarang, tanpa menunggu pengingat otomatis (bagian 7.1).
+
+1. Di tab **Per tagihan**, klik **Kirim pengingat** pada baris tagihan.
+2. Baca dialog **Kirim pengingat untuk {nomor}?**: "Pelanggan menerima pengingat di aplikasi Inbils, juga lewat WhatsApp bila aktif. Satu tagihan hanya bisa diingatkan sekali per hari." Dialog menyebut **Pelanggan**, **Sisa**, dan **Jatuh tempo**.
+3. Klik **Kirim pengingat**. Toast "Pengingat dikirim untuk {nomor}." muncul.
+
+Satu tagihan hanya bisa diingatkan sekali dalam satu hari kalender perusahaan, oleh siapa pun. Setelah itu, kolom **Aksi** pada baris itu menulis "Pengingat terkirim hari ini". Bila orang lain mengirimnya lebih dulu saat dialog Anda terbuka, muncul toast "Pengingat untuk {nomor} sudah dikirim hari ini." dan tidak ada pesan kedua yang terkirim. Kolom **Aksi** kosong bila Anda tidak memegang `billing.send` atau pelanggan tagihan itu sudah dihapus. Server juga menolak tagihan yang sudah lunas atau dibatalkan ("Hanya tagihan yang belum lunas yang bisa diingatkan."). Pengingat yang terkirim tercatat di Log Audit (bagian 7.12).
 
 ### Pembayaran online yang perlu dicek
 
@@ -3220,9 +3457,9 @@ Bila Midtrans menerima uang yang tidak bisa dicatat Inbils sendiri, alert merah 
 
 ### Mengisolir langganan
 
-Izin yang dibutuhkan: `customer.subscription.suspend`. Kolom **Aksi** menampilkan tombol untuk setiap langganan Aktif milik pelanggan di baris itu, termasuk langganan yang tagihannya belum jatuh tempo.
+Izin yang dibutuhkan: `customer.subscription.suspend`. Di tab **Per pelanggan**, kolom **Aksi** menampilkan tombol untuk setiap langganan Aktif milik pelanggan di baris itu, termasuk langganan yang tagihannya belum jatuh tempo.
 
-1. Di kolom **Aksi**, klik tombol **Isolir** diikuti kode langganan yang benar.
+1. Buka tab **Per pelanggan**. Di kolom **Aksi**, klik tombol **Isolir** diikuti kode langganan yang benar.
 2. Isi **Alasan isolir (wajib)** di jendela `Isolir langganan <kode>?`. Tombol **Isolir** aktif setelah alasan terisi. Alasan maksimal 500 karakter, dan server menolak yang lebih panjang. Tombol **Batal** menutup jendela.
 3. Klik **Isolir**. Toast "Langganan ditangguhkan." muncul, dan langganan berstatus Ditangguhkan dengan sumber tunggakan.
 
@@ -3232,18 +3469,20 @@ Isolir dari halaman ini dihitung sebagai isolir karena tunggakan, jadi pembayara
 
 Izin yang dibutuhkan: `customer.subscription.block`. Blokir mengisolir pelanggan tanpa mengubah status langganan, dan pembayaran tidak mencabutnya.
 
-1. Klik tombol **Blokir** diikuti kode langganan yang benar. Langganan yang sudah diblokir menampilkan lencana **Diblokir** dan tombol **Buka blokir** diikuti kodenya. Langganan Ditangguhkan hanya tampil di halaman ini selama diblokir.
+1. Buka tab **Per pelanggan**, lalu klik tombol **Blokir** diikuti kode langganan yang benar. Langganan yang sudah diblokir menampilkan lencana **Diblokir** dan tombol **Buka blokir** diikuti kodenya. Langganan Ditangguhkan hanya tampil di halaman ini selama diblokir.
 2. Baca penjelasan di jendela `Blokir internet <kode>?` atau `Buka blokir internet <kode>?`. Blokir mengisolir dan memutus pelanggan, sedangkan penagihan jalan terus dan pembayaran tidak mencabut blokir. Buka blokir mengembalikan layanan normal saat router menyambung ulang. Bila langganan masih Ditangguhkan, layanan tetap diisolir sampai langganan diaktifkan kembali.
 3. Isi **Alasan** (wajib, maksimal 500 karakter) untuk blokir, atau **Catatan (opsional)** untuk buka blokir. Tombol **Batal** menutup jendela.
 4. Klik **Blokir internet** atau **Buka blokir**. Toast "Internet langganan diblokir." atau "Blokir internet langganan dibuka." muncul. Tombol **Blokir internet** aktif setelah alasan terisi.
 
 ### Kesalahan umum
 
-- Jumlah di **Tunggakan** berbeda dari jumlah di **Tagihan**. **Tunggakan** menghitung sisa, bukan **Total**, dan hanya tagihan **Belum dibayar**, **Sebagian**, dan **Lewat jatuh tempo**. Cocokkan dengan kolom **Sisa** dan **Status** di daftar tagihan pelanggan itu.
+- Jumlah di **Tunggakan** berbeda dari jumlah di **Tagihan**. **Tunggakan** menghitung sisa, bukan **Total**, dan hanya tagihan **Belum dibayar**, **Dibayar sebagian**, dan **Lewat jatuh tempo**. Cocokkan dengan kolom **Sisa** dan **Status** di daftar tagihan pelanggan itu.
 - Tombol **Isolir** muncul untuk setiap langganan aktif pelanggan itu, bukan hanya yang menunggak. Cocokkan kode langganan dengan tagihan yang menunggak sebelum klik.
 - Langganan Ditangguhkan tanpa blokir tidak punya tombol di halaman ini. Aktifkan kembali dari halaman langganan (bagian 4.1).
 - Server menolak blokir bila langganan sudah berhenti ("Langganan yang sudah berhenti tidak bisa diblokir."), sudah diblokir ("Internet langganan sudah diblokir."), dan buka blokir bila langganan tidak sedang diblokir ("Internet langganan tidak sedang diblokir.").
-- Staf tidak melihat tombol apa pun di kolom **Aksi**. Tombol hanya muncul untuk pemilik izin `customer.subscription.suspend` atau `customer.subscription.block`.
+- Staf tidak melihat tombol isolir atau blokir. Tombol itu hanya muncul untuk pemilik izin `customer.subscription.suspend` atau `customer.subscription.block`. Staf masih melihat **Kirim pengingat** bila memegang `billing.send`.
+- Halaman **Tunggakan** terbuka di **Per pelanggan**, bukan **Per tagihan**: alamat yang Anda buka membawa urutan atau halaman tabel pelanggan. Klik tab **Per tagihan**.
+- Tombol **Ekspor** tidak ada: peran Anda tidak memegang `billing.export`.
 
 ## 7.3 Laporan
 
@@ -3278,6 +3517,8 @@ Laporan **Metrik Konsolidasi** hanya muncul saat perusahaan aktif berupa Head, y
 4. **Kinerja Teknisi**, **KPI Penjualan**, dan **Metrik Konsolidasi** juga mempunyai menu sendiri di sidebar. Judul ketiganya di hub sama dengan nama menu itu.
 
 Bila tidak ada laporan yang diizinkan, hub menampilkan **Belum ada laporan yang bisa dibuka** dengan keterangan "Peran Anda belum punya akses laporan. Minta administrator memberi akses." Admin dapat menambah izin lewat Peran (bagian 8.6) dan Hak Akses (bagian 8.7).
+
+Bila Anda membuka alamat Metrik Konsolidasi saat bekerja di anak perusahaan, hub terbuka dengan kartu yang menunjuk ke perusahaan induk dan tombol **Pindah ke** diikuti nama induk (bagian 7.11).
 
 ### Memilih Periode
 
@@ -3322,14 +3563,21 @@ Klik **Rumus dan sumber data** untuk membuka rincian **Rumus**, **Satuan**, **Da
 2. Klik **Ekspor**. Log Audit memakai tombol **Ekspor log**.
 3. Pilih **Ekspor CSV** atau **Ekspor PDF**. Menu ekspor laporan hanya menawarkan kedua format ini.
 
-Ekspor ringkasan memakai kolom Metrik, Rincian, Nilai, Satuan, Cakupan, Filter, dan Versi. Kolom Rincian dan Satuan berisi kode apa adanya, misalnya status `available` atau satuan `currency`. Kolom Cakupan menyebut apakah angka berlaku untuk periode atau posisi saat ini. Kartu Stok dan Log Audit mengekspor seluruh baris yang cocok dengan filter, bukan hanya halaman tabel yang sedang terlihat.
+Ekspor ringkasan memakai kolom Metrik, Rincian, Nilai, Satuan, Cakupan, Filter, dan Versi. Rincian dan Satuan memakai kata yang sama seperti di layar: status aset dan jenis SPK dalam label (misalnya `Tersedia`, `Instalasi`), prioritas dalam label (`Mendesak`), teknisi dengan nama, dan satuan `Rupiah`, `Jumlah`, `Persen`, `Menit`, `Nilai (1-5)`, `Kuantitas`, `Rincian`, atau `Baris`. Kolom Filter menulis nama, bukan ID, misalnya `Teknisi: Budi Santoso` atau `Kategori: Internet mati`. Kolom Cakupan menyebut apakah angka berlaku untuk periode atau posisi saat ini. Pada daftar di balik angka, status, jenis tagihan atau SPK, dan jenis aset juga ditulis dalam label. Kartu Stok dan Log Audit mengekspor seluruh baris yang cocok dengan filter, bukan hanya halaman tabel yang sedang terlihat.
+
+CSV tetap menyimpan angka mentah supaya bisa dihitung di spreadsheet: uang tanpa tulisan Rp, tanggal dan jam apa adanya, dan durasi dalam menit. PDF ditulis untuk dibaca orang. Semua ekspor PDF di Inbils, termasuk Tagihan, Tunggakan, Stok, dan Mutasi Stok, memakai tata letak yang sama di kertas A4 lanskap:
+
+- Kop berisi logo perusahaan (bila ada), nama perusahaan, dan di kanan atas `Dicetak {tanggal dan jam} oleh {nama pengguna}` menurut jam dan format tanggal perusahaan.
+- Di bawah kop: judul laporan, `Periode:` (dalam format tanggal perusahaan), `Filter:` (satu frasa per filter, dipisah titik koma), dan `Baris:` jumlah baris. Periode dan Filter hanya tampil bila ekspornya memilikinya.
+- Kolom angka rata kanan dan ditulis seperti di layar: uang `Rp 1.250.000`, tanggal `18 Okt 2026`, durasi `2 j 15 m`, persen `63,6%`, angka dengan koma desimal.
+- Setiap halaman diberi `Halaman 2 dari 5` di kanan bawah.
 
 KPI Penjualan dan Kamus Data tidak menyediakan ekspor. Metrik Konsolidasi hanya menyediakan CSV. Ekspor baris (Kartu Stok, Log Audit, dan daftar di balik angka) dibatasi 5.000 baris. Pada CSV yang terpotong, baris terakhir berbunyi "# Ekspor dipotong pada 5000 baris. Persempit filter untuk mengekspor sisa barisnya." PDF memuat lebih sedikit baris: batasnya 1.500 sel dibagi jumlah kolom, jadi tabel yang lebar terpotong lebih awal, dan di bawah judul PDF tertulis "PDF dibatasi N baris. Untuk data lengkap, unduh CSV atau persempit periode." Batas ini dijelaskan juga di bagian 1.5.
 
 ### Melihat data di balik angka
 
 1. Klik **Lihat data** di bawah angka atau baris rincian. Tautan hanya muncul bila akun Anda juga boleh membuka modul sumber.
-2. Baca kartu **Kecocokan dengan laporan**. Kartu ini membandingkan jumlah baris atau penjumlahan baris dengan angka pada laporan. Kartu ini menampilkan **Baris ditampilkan**, penjumlahan kolom bila angkanya berupa uang, **Tepat waktu** bila angkanya persentase, dan **Angka di** diikuti judul laporan.
+2. Baca kartu **Kecocokan dengan laporan**. Kartu ini membandingkan jumlah baris atau penjumlahan baris dengan angka pada laporan. Kartu ini menampilkan **Baris ditampilkan**, penjumlahan kolom bila angkanya berupa uang (ditulis dengan nama kolomnya, misalnya `Σ MRC`, dan untuk piutang total dikurangi terbayar), **Tepat waktu** bila angkanya persentase, dan **Angka di** diikuti judul laporan.
 3. Baca lencana hasil:
    - **Cocok** berarti baris sama dengan angka laporan.
    - **Berbeda** berarti daftar dan angka laporan berbeda.
@@ -3368,13 +3616,13 @@ Peran yang dapat memakai: admin, manajer, staf. Izin: `report.business.view`. To
 3. Baca enam kartu. Kartu uang menulis angka dalam bentuk singkat, dan arahan penunjuk menampilkan rupiah yang tepat.
    - **MRR** menjumlahkan tarif bulanan semua langganan yang saat ini berstatus Aktif. Angka ini **Posisi saat ini**.
    - **Pendapatan terbayar** menjumlahkan jumlah terbayar tagihan berstatus Lunas berdasarkan tanggal terbit dalam **Periode**. Tagihan yang baru dibayar sebagian tidak masuk.
-   - **Piutang** menjumlahkan total dikurangi jumlah terbayar pada tagihan berstatus Belum dibayar, Sebagian, atau Lewat jatuh tempo. Angka ini **Posisi saat ini**.
+   - **Piutang** menjumlahkan total dikurangi jumlah terbayar pada tagihan berstatus Belum dibayar, Dibayar sebagian, atau Lewat jatuh tempo. Angka ini **Posisi saat ini**.
    - **Langganan aktif** menghitung langganan yang saat ini berstatus Aktif.
    - **Langganan ditangguhkan** menghitung langganan yang saat ini berstatus Ditangguhkan.
    - **Kepatuhan SLA** menghitung persentase tiket yang punya waktu selesai dan selesai paling lambat pada batas SLA. Angka ini memakai semua waktu dan mengabaikan **Periode**.
 4. Klik **Lihat data** untuk membuka langganan, tagihan, atau tiket di balik kartu. Tautan mengikuti izin modul sumber.
 5. Baca grafik **Pendapatan terbayar dan MRR per hari**, **per minggu**, atau **per bulan**. Garisnya bernama **Pendapatan terbayar** dan **MRR (akhir periode)**. Pendapatan memakai tanggal terbit tagihan lunas. MRR menunjukkan posisi pada akhir setiap kelompok waktu. Kelompok yang masih berjalan diberi tulisan **(berjalan)**.
-6. Baca diagram **Tagihan menurut status**. Diagram memakai tanggal terbit dan memisahkan status yang ada di data: Draf, Belum dibayar, Sebagian, Lunas, Lewat jatuh tempo, dan Dibatalkan.
+6. Baca diagram **Tagihan menurut status**. Diagram memakai tanggal terbit dan memisahkan status yang ada di data: Draf, Belum dibayar, Dibayar sebagian, Lunas, Lewat jatuh tempo, dan Dibatalkan.
 7. Klik **Ekspor** untuk mengunduh CSV atau PDF. File memuat semua 13 metrik Business, termasuk Langganan berhenti, Langganan baru, Churn, Pendapatan berulang, Pendapatan sekali bayar, Sebaran aset, dan Pemasangan selesai yang tidak tampil sebagai kartu.
 
 ### Kesalahan umum
@@ -3419,7 +3667,7 @@ Peran yang dapat memakai: admin, manajer, staf. Izin: `report.asset.view`. Tombo
 
 ## 7.6 Kepatuhan SLA
 
-Kepatuhan SLA menghitung tiket selesai, tiket yang memenuhi batas SLA, pelanggaran, kecepatan respons pertama, waktu penyelesaian, dan rincian kategori. Data sumbernya berasal dari Tiket (bagian 3.4).
+Kepatuhan SLA menghitung tiket selesai, tiket yang memenuhi batas SLA, pelanggaran, kecepatan respons pertama, waktu penyelesaian, rincian per kategori, teknisi, prioritas, dan sumber target, serta penilaian pelanggan. Data sumbernya berasal dari Tiket (bagian 3.4).
 
 Peran yang dapat memakai: admin, manajer, staf. Izin: `report.sla.view`. Tombol **Ekspor** memerlukan `report.export`.
 
@@ -3427,26 +3675,37 @@ Peran yang dapat memakai: admin, manajer, staf. Izin: `report.sla.view`. Tombol 
 
 1. Buka **Laporan**, lalu klik **Kepatuhan SLA**. Laporan langsung tampil untuk semua tanggal.
 2. Pilih **Periode**, lalu klik **Tampilkan**. Layar tidak mempunyai filter tambahan. Header menampilkan **Versi rumus** `sla.v1`.
-3. Baca lima kartu:
+
+   ![Halaman Kepatuhan SLA dengan kartu angka, tabel per kategori, teknisi, prioritas, dan sumber target, serta tabel Pelanggaran terlama](images/web/reports-sla.png)
+
+3. Baca enam kartu:
    - **Tiket selesai** menghitung tiket yang mempunyai waktu selesai dalam **Periode**, apa pun statusnya saat ini.
    - **Tingkat kepatuhan SLA** adalah persentase tiket selesai yang selesai paling lambat pada batas SLA.
    - **Tingkat respons** adalah persentase tiket selesai yang respons pertamanya datang paling lambat pada target respons. Hanya tiket yang sudah dinilai yang dihitung: tiket yang punya target respons dan punya catatan respons pertama. Di bawah angka tertulis `N tepat waktu, N terlambat, N tanpa target respons`. Angka kosong tampil sebagai **-**.
    - **Pelanggaran SLA** menghitung tiket selesai yang selesai setelah batas SLA.
    - **Rata-rata waktu penyelesaian** adalah rata-rata menit dari pembuatan sampai penyelesaian. Nilai kosong tampil sebagai **- menit**.
+   - **Kepuasan pelanggan** adalah rata-rata nilai 1 sampai 5 yang diberikan pelanggan pada tiket yang dinilai dalam **Periode**, ditulis misalnya `4,3 dari 5`. Di bawahnya tertulis `{n} penilaian`. Tanpa penilaian pada periode itu, angkanya **-** dan keterangannya "Belum ada penilaian pada periode ini." Tiket yang belum dinilai tidak dihitung dan tidak dianggap bernilai nol. Kartu ini mengikuti hari penilaian, bukan hari tiket selesai.
 4. Baca diagram **Tiket selesai menurut SLA**. Irisan **Sesuai SLA** dan **Melewati SLA** memakai jumlah tiket yang sesuai SLA dan angka **Pelanggaran SLA**.
 5. Baca grafik **Tiket selesai per kategori**. Grafik membandingkan **Total selesai** dan **Sesuai SLA** pada setiap kategori.
 6. Baca tabel **Tiket selesai per kategori** dengan kolom **Kategori**, **Total**, **Sesuai SLA**, dan **Persentase**. Klik **Lihat data** pada Total untuk membuka tiket kategori tersebut.
-7. Klik **Ekspor** untuk mengunduh CSV atau PDF. File memuat semua metrik laporan ini: Tiket selesai, Sesuai SLA, Tingkat kepatuhan SLA, Pelanggaran SLA, Respons tepat waktu, Respons terlambat, Tanpa target respons, Tingkat respons, Rata-rata waktu penyelesaian, dan Rata-rata respons pertama. Rincian kategori ditulis tiga baris per kategori: total, sesuai SLA, dan persentase.
+7. Baca tiga tabel rincian, yang mengikuti **Periode**: **Tiket selesai per teknisi** (kolom pertama **Teknisi**), **Tiket selesai per prioritas** (**Prioritas**, dari Mendesak sampai Rendah), dan **Tiket selesai per sumber target** (**Sumber target**). Sumber target ditulis `Tingkat SLA {nama}` untuk tiket yang langganannya punya tingkat SLA, dan `Target kategori tiket` untuk tiket tanpa langganan. Kolom di semua tabel: **Tiket selesai**, **Sesuai SLA**, **Melanggar**, **Persentase**, dan **Respons pertama** (rata-rata, ditulis misalnya `2 jam 15 menit`, atau **-** bila tidak ada). Tiket yang belum punya penangan menjadi satu baris **Belum ditugaskan**.
+   - Pengguna yang tidak memegang `report.manage` hanya melihat nama teknisi yang masuk cakupan Kinerja Teknisi mereka (bagian 7.9). Penangan lain digabung menjadi satu baris **Penangan lain**, jadi jumlah baris tetap sama dengan **Tiket selesai**.
+   - Tiket yang sudah ditutup memakai nama penangan saat ditutup.
+8. Baca tabel **Pelanggaran terlama**: sepuluh tiket selesai yang paling lama melewati batas SLA pada periode itu. Kolomnya **Tiket** (tautan ke tiket), **Judul**, **Kategori**, **Penangan**, **Prioritas**, dan **Terlambat** (misalnya `2 jam 15 menit`). Klik **Lihat semua pelanggaran** untuk membuka daftar di balik **Pelanggaran SLA**. Tabel ini hanya tampil bagi akun yang boleh membuka daftar tiket, dan penangan tanpa izin menugaskan hanya melihat tiket miliknya. Tanpa pelanggaran, tabel menulis "Tidak ada tiket yang melanggar SLA pada periode ini."
+9. Klik **Ekspor** untuk mengunduh CSV atau PDF. File memuat semua metrik laporan ini: Tiket selesai, Sesuai SLA, Tingkat kepatuhan SLA, Pelanggaran SLA, Respons tepat waktu, Respons terlambat, Tanpa target respons, Tingkat respons, Rata-rata waktu penyelesaian, Rata-rata respons pertama, Kepuasan pelanggan, dan Jumlah penilaian pelanggan. Rincian kategori ditulis tiga baris per kategori: total, sesuai SLA, dan persentase. Rincian per teknisi, prioritas, dan sumber target ditulis empat baris per entri: total, sesuai SLA, persentase, dan rata-rata respons pertama (bila ada).
 
 ### Kesalahan umum
 
-- Grafik dan tabel kategori mengabaikan **Periode**. Keduanya dapat berbeda dari lima kartu pada rentang yang sama.
+- Grafik dan tabel kategori mengabaikan **Periode**. Keduanya dapat berbeda dari kartu dan tabel rincian lain pada rentang yang sama.
 - Jumlah tiket yang sesuai SLA ditambah **Pelanggaran SLA** dapat lebih kecil daripada **Tiket selesai**. Tiket tanpa batas SLA masuk Tiket selesai, tetapi tidak dianggap patuh atau melanggar.
 - **Tingkat kepatuhan SLA** bernilai 0 bila tidak ada tiket selesai. **Rata-rata waktu penyelesaian** kosong pada kondisi yang sama.
 - **Tingkat respons** kosong (**-**) bila belum ada tiket yang dinilai. Tiket lama yang dibuat sebelum target respons ada tidak punya target respons. Tiket itu masuk hitungan **tanpa target respons** dan tidak masuk penyebut. Tiket yang punya target tetapi tidak punya catatan respons pertama juga tidak dinilai.
 - Definisi lengkap angka respons ada di Kamus Data (bagian 7.8): **Respons tepat waktu**, **Respons terlambat**, **Tanpa target respons**, dan **Tingkat respons**. Daftar tiket yang dibuka lewat **Lihat data** dan ekspornya memuat kolom **Target respons** dan **Respons**. Kolom **Respons** berisi Tepat waktu, Terlambat, Tanpa target, atau Belum ada respons. Kolom **SLA** berisi Tepat waktu, Terlambat, atau Tanpa batas.
 - Kategori bernama sama bergabung menjadi satu baris.
 - Parameter `category_id` dapat diterima server, tetapi layar ini tidak menyediakan pemilih kategori.
+- Kartu **Kepuasan pelanggan** berbeda dari jumlah **Tiket selesai**: kartu itu menghitung tiket menurut hari penilaian. Tiket yang selesai sebelum periode tetapi dinilai di dalamnya ikut dihitung.
+- Tabel **Pelanggaran terlama** tidak ada: akun Anda tidak boleh membuka daftar tiket (bagian 3.4).
+- Baris **Penangan lain** muncul pada tabel per teknisi bila Anda tidak memegang `report.manage` dan sebagian tiket ditangani teknisi di luar cakupan Anda.
 
 ## 7.7 Kartu Stok
 
@@ -3459,7 +3718,10 @@ Peran yang dapat memakai: admin, manajer, staf. Izin: `report.stock_card.view`. 
 1. Buka **Laporan**, lalu klik **Kartu Stok**.
 2. Pilih **Barang** (wajib, bertanda bintang). Ketik nama atau SKU di isian yang berbunyi **Cari nama atau SKU...**, lalu pilih barang dari daftar. Daftar baru muncul setelah Anda mengetik minimal dua huruf. Server mencari di barang perusahaan aktif dan menampilkan paling banyak 20 hasil, dengan SKU di bawah nama. Barang yang sudah dihapus tetap dapat dipilih, karena buku besar menyimpan gerakannya. Pilihan bertahan saat Anda mengetik dan berganti hanya saat Anda memilih barang lain atau mengklik **Hapus pilihan: Barang**.
 3. Bila perlu, pilih **Lokasi** dengan cara yang sama (cari nama atau kode lokasi). Isian kosong bertuliskan **Semua lokasi**. Dengan lokasi terpilih, laporan hanya memuat gerakan yang memakai lokasi itu sebagai asal atau tujuan.
-4. Pilih **Periode**, lalu klik **Tampilkan**. Tombol ini nonaktif sebelum barang dipilih. Sebelum Anda menerapkan barang, halaman menampilkan "Pilih barang lalu tekan Tampilkan untuk melihat pergerakan stok."
+4. Pilih **Periode**, lalu klik **Tampilkan**. Tombol ini nonaktif sebelum barang dipilih. Sebelum Anda menerapkan barang, halaman menampilkan "Pilih barang lalu tekan Tampilkan untuk melihat pergerakan stok." Di bawah kalimat itu, bagian **Barang terakhir bergerak** menampilkan sampai 8 barang yang stoknya paling baru bergerak, masing-masing dengan nama, SKU, dan tanggal gerakan terakhir. Klik salah satunya untuk membuka kartu barang itu tanpa mengetik. Bagian ini tidak tampil bila perusahaan belum punya gerakan stok.
+
+   ![Halaman Kartu Stok sebelum barang dipilih, dengan bagian Barang terakhir bergerak](images/web/reports-stock-card.png)
+
 5. Baca tabel:
    - Kolom **Jenis** menampilkan jenis gerakan sebagai lencana: Masuk, Keluar, Transfer, Penyesuaian, Dicadangkan, Cadangan dilepas, atau Pengembalian.
    - Kolom **Jumlah** menampilkan kuantitas bertanda seperti yang dicatat Inventaris.
@@ -3471,7 +3733,7 @@ Peran yang dapat memakai: admin, manajer, staf. Izin: `report.stock_card.view`. 
 6. Urutkan lewat judul kolom **Jumlah**, **Saldo**, atau **Tanggal**. Urutan awal memakai waktu terbaru. Di bawah tabel, pilih **Baris per halaman** (10, 25, atau 50 per halaman) dan pindah halaman dengan **Sebelumnya** dan **Berikutnya**.
 7. Gunakan **Lihat stok** untuk membuka Stok (bagian 6.5), atau **Semua pergerakan** untuk membuka Mutasi Stok (bagian 6.7). Tombol hanya muncul setelah barang diterapkan, dan membawa barang serta lokasi yang sama.
 8. Baca kartu **Definisi** di bawah tabel untuk definisi **Pergerakan stok**, **Jumlah**, dan **Saldo**.
-9. Klik **Ekspor** untuk mengunduh seluruh ledger yang cocok sebagai CSV atau PDF. File memuat Tanggal, Barang, Jenis, Jumlah, Saldo setelah, Dari, Ke, Referensi, dan Catatan. Kolom Jenis pada file berisi kode jenis apa adanya, misalnya `receive`.
+9. Klik **Ekspor** untuk mengunduh seluruh ledger yang cocok sebagai CSV atau PDF. File memuat Tanggal, Barang, Jenis, Jumlah, Saldo setelah, Dari, Ke, Referensi, dan Catatan. Kolom Jenis ditulis dengan label seperti di layar (Masuk, Keluar, Pengembalian, dan seterusnya). Kolom Tanggal memakai jam perusahaan, dan PDF menulis tanggal, jam, jumlah, dan saldo seperti di layar. PDF menulis barang dan lokasi yang dipilih di kop, pada baris **Filter**.
 
 ### Kesalahan umum
 
@@ -3522,7 +3784,7 @@ Kamus berisi Metrik Bisnis, KPI Penjualan, Kinerja Teknisi, Pemanfaatan Aset, Ke
 
 ## 7.9 Kinerja Teknisi
 
-Kinerja Teknisi menampilkan hasil satu teknisi: SPK selesai, tiket diselesaikan, kepatuhan SLA, rata-rata skor evaluasi, rata-rata respons pertama, dan beban kerja aktif. Layar tidak membandingkan banyak teknisi dalam satu tabel. Anda memilih satu teknisi lalu membaca hasilnya.
+Kinerja Teknisi menampilkan hasil satu teknisi: SPK selesai, tiket diselesaikan, kepatuhan SLA, rata-rata skor evaluasi, rata-rata respons pertama, dan beban kerja aktif. Tanpa teknisi terpilih, layar menampilkan peringkat semua teknisi dalam satu tabel. Pilih satu teknisi untuk membaca rinciannya.
 
 Peran yang dapat memakai di web: admin dengan `report.manage`, atau manajer dengan `report.technician`, profil karyawan aktif, dan penempatan pada organisasi aktif. Admin dapat memilih semua teknisi aktif pada perusahaan. Manajer hanya dapat memilih teknisi di unitnya dan unit di bawahnya. Aturan server juga mengizinkan peran teknisi dengan `report.technician` melihat dirinya sendiri, tetapi akun teknisi diarahkan ke aplikasi Android.
 
@@ -3530,30 +3792,31 @@ Peran yang dapat memakai di web: admin dengan `report.manage`, atau manajer deng
 
 1. Di sidebar, buka **Keuangan & Laporan**, lalu klik **Kinerja Teknisi**. Anda juga dapat membuka **Laporan** lalu klik tautan **Kinerja Teknisi**.
 
-   ![Halaman Kinerja Teknisi dengan pemilih Teknisi, isian Periode, dan tombol Tampilkan](images/web/reports-technician.png)
+   ![Halaman Kinerja Teknisi dengan pemilih Teknisi, isian Periode, tombol Tampilkan, dan tabel Peringkat teknisi](images/web/reports-technician.png)
 
-2. Pada **Teknisi** (wajib), ketik minimal 2 huruf nama atau email teknisi, tunggu daftar muncul, lalu pilih satu. Kotak ini hanya mencari, jadi tidak ada daftar sebelum Anda mengetik. Daftar memuat paling banyak 20 hasil dan hanya berisi pengguna aktif dengan peran teknisi dan profil karyawan aktif pada perusahaan. Pilihan tetap sampai Anda memilih teknisi lain atau mengklik tombol **Hapus pilihan: Teknisi**.
+2. Pada **Teknisi** (opsional, petunjuk **Semua teknisi**), ketik minimal 2 huruf nama atau email teknisi, tunggu daftar muncul, lalu pilih satu. Kotak ini hanya mencari, jadi tidak ada daftar sebelum Anda mengetik. Daftar memuat paling banyak 20 hasil dan hanya berisi pengguna aktif dengan peran teknisi dan profil karyawan aktif pada perusahaan. Pilihan tetap sampai Anda memilih teknisi lain atau mengklik tombol **Hapus pilihan: Teknisi**.
 3. Isi **Periode** bila perlu. Ketik rentang dengan format tanggal perusahaan, atau klik **Buka kalender**, pilih tanggal mulai lalu tanggal akhir, atau pakai pilihan cepat (**Hari ini**, **7 hari terakhir**, **30 hari terakhir**, **Bulan ini**, **Bulan lalu**, **Tahun ini**). Klik **Hapus rentang tanggal** untuk mengosongkan. Isian kosong (**Semua tanggal**) berarti tanpa batas.
-4. Klik **Tampilkan**. Tombol tetap nonaktif sampai teknisi dipilih.
-5. Baca enam kartu:
+4. Klik **Tampilkan**. Tombol aktif juga tanpa teknisi: dalam keadaan itu periode saja yang dipakai dan tabel **Peringkat teknisi** menjawabnya.
+5. Tanpa teknisi terpilih, baca tabel **Peringkat teknisi**: "Menurut jumlah SPK dan tiket yang selesai pada periode. Pilih satu teknisi untuk melihat rinciannya." Tabel memuat semua teknisi dalam cakupan akun Anda, dengan kolom **Peringkat**, **Teknisi** (tautan), **SPK selesai**, **Tiket diselesaikan**, **Kepatuhan SLA**, **Respons pertama**, **Skor evaluasi**, dan **Beban aktif**. Urutannya menurut jumlah SPK selesai ditambah tiket diselesaikan, yang terbanyak di atas. Teknisi dengan jumlah sama berbagi peringkat dan diurutkan menurut nama. Klik nama teknisi untuk membuka rinciannya dengan periode yang sama. Teknisi tanpa tiket diselesaikan tidak punya **Kepatuhan SLA**, dan ditulis **-**. **Respons pertama** ditulis misalnya `2 jam 15 menit`. Bila akun Anda tidak punya teknisi dalam cakupan, layar menulis "Tidak ada teknisi yang bisa dipilih."
+6. Dengan teknisi terpilih, baca enam kartu. Setiap angka ditulis bersama satuannya (`SPK`, `tiket`, `dari 5`, `pekerjaan`) dan persentase memakai koma desimal, misalnya `63,6%`:
    - **SPK selesai** menghitung SPK berstatus Selesai yang ditugaskan kepada teknisi dan selesai dalam **Periode**.
    - **Tiket diselesaikan** menghitung tiket berstatus Diselesaikan atau Ditutup yang ditugaskan kepada teknisi dan mempunyai waktu selesai dalam **Periode**.
    - **Kepatuhan SLA** adalah persentase Tiket diselesaikan yang selesai paling lambat pada batas SLA. Tiket tanpa batas SLA tetap dihitung, tetapi tidak pernah dianggap sesuai SLA.
    - **Rata-rata skor evaluasi** adalah rata-rata skor pada Evaluasi (bagian 3.5) yang tanggal evaluasinya jatuh dalam **Periode**.
-   - **Rata-rata respons pertama** adalah rata-rata menit dari pembuatan tiket sampai respons pertama, untuk Tiket diselesaikan yang mempunyai respons pertama.
+   - **Rata-rata respons pertama** adalah rata-rata waktu dari pembuatan tiket sampai respons pertama, untuk Tiket diselesaikan yang mempunyai respons pertama. Ditulis dalam jam dan menit, misalnya `45 menit` atau `2 jam 15 menit`.
    - **Beban kerja aktif** menghitung SPK berstatus Ditugaskan atau Dikerjakan, ditambah tiket berstatus Terbuka, Ditugaskan, atau Dikerjakan yang saat ini ditugaskan kepada teknisi.
-6. Klik **Lihat data** di bawah kartu untuk membuka daftar sumber (bagian 7.3). Tautan hanya muncul bila akun Anda boleh membuka modul sumbernya. Kartu **Beban kerja aktif** mempunyai dua tautan **Lihat data**: yang pertama untuk SPK, yang kedua untuk tiket.
-7. Baca tiga grafik:
+7. Klik **Lihat data** di bawah kartu untuk membuka daftar sumber (bagian 7.3). Tautan hanya muncul bila akun Anda boleh membuka modul sumbernya. Kartu **Beban kerja aktif** mempunyai dua tautan: **Lihat SPK** untuk SPK dan **Lihat tiket** untuk tiket.
+8. Baca tiga grafik:
    - **SPK selesai per hari**, **SPK selesai per minggu**, atau **SPK selesai per bulan** menampilkan SPK selesai sepanjang **Periode**. Satuan mengikuti panjang periode. Satuan yang masih berjalan hari ini diberi tulisan "(berjalan)".
    - **SPK selesai menurut jenis** memisahkan Instalasi, Perawatan, Peningkatan layanan, dan Pindah lokasi.
    - **Tiket selesai menurut kategori** membagi Tiket diselesaikan berdasarkan kategori tiket. Grafik batang menampilkan paling banyak 10 baris, sisanya digabung menjadi **Lainnya**.
-8. Klik **Ekspor** setelah hasil muncul, lalu pilih **Ekspor CSV** atau **Ekspor PDF**. Menu ini hanya ada bila akun Anda memegang `report.export`. Kolom file adalah Metrik, Rincian, Nilai, Satuan, Cakupan, Filter, dan Versi. File juga memuat Rata-rata waktu SPK, Rata-rata waktu tiket, Rata-rata rating pelanggan, SPK per jenis, dan Tiket per kategori yang tidak tampil sebagai kartu.
+9. Klik **Ekspor** setelah hasil muncul, lalu pilih **Ekspor CSV** atau **Ekspor PDF**. Menu ini hanya ada bila akun Anda memegang `report.export`. Kolom file adalah Metrik, Rincian, Nilai, Satuan, Cakupan, Filter, dan Versi, dengan nama teknisi di Filter. File juga memuat Rata-rata waktu SPK, Rata-rata waktu tiket, Rata-rata rating pelanggan, SPK per jenis, dan Tiket per kategori yang tidak tampil sebagai kartu. Peringkat tidak ikut diekspor.
 
 ### Kesalahan umum
 
 - Menu tidak ada atau halaman menampilkan **Akses ditolak**: manajer tidak memegang `report.technician`, tidak mempunyai profil aktif, atau belum ditempatkan pada organisasi aktif. Perbaiki data pada Karyawan (bagian 8.3) dan Organisasi (bagian 8.2).
 - Teknisi tidak muncul di daftar: akunnya nonaktif, profil karyawannya tidak aktif, perannya bukan teknisi, perusahaannya berbeda, atau posisinya di luar unit manajer. Ketik minimal 2 huruf, karena kotak **Teknisi** menampilkan "Ketik minimal 2 huruf untuk mencari." sebelum itu, dan "Tidak ada hasil." bila tidak ada yang cocok.
-- Pesan **Pilih teknisi untuk melihat laporan.** berarti belum ada pilihan. **Tidak ada teknisi yang bisa dipilih.** muncul bila pencarian terakhir tidak menemukan teknisi dalam ruang lingkup akun.
+- Pesan **Tidak ada teknisi yang bisa dipilih.** muncul bila akun Anda tidak punya teknisi dalam ruang lingkup, atau pencarian terakhir tidak menemukan teknisi. Tanpa teknisi terpilih, halaman menampilkan peringkat, bukan pesan **Pilih teknisi untuk melihat laporan.**, yang tidak dipakai lagi.
 - Nilai berupa tanda hubung (-) berarti tidak ada data yang dapat dirata-ratakan pada periode itu. Angka 0 berarti jumlah yang cocok memang nol.
 - **Beban kerja aktif** adalah posisi saat ini. Angka ini tidak berubah saat **Periode** diganti.
 - **Kepatuhan SLA** di sini hanya memakai tiket berstatus Diselesaikan atau Ditutup milik teknisi. Angkanya dapat berbeda dari Kepatuhan SLA pada bagian 7.6.
@@ -3581,10 +3844,10 @@ Peran yang dapat memakai: admin dan manajer. Izin: `report.sales.view`. Staf tid
    - **Pelanggan baru** menghitung pelanggan yang saat ini dikreditkan kepada petugas dan dibuat dalam **Periode**. Pelanggan yang dihapus secara lunak tidak masuk.
    - **Langganan diaktifkan** menghitung langganan pelanggan petugas yang mempunyai tanggal aktivasi dalam **Periode**, apa pun statusnya saat ini.
    - **MRR aktif** menjumlahkan tarif bulanan langganan yang saat ini berstatus Aktif. Angka ini adalah posisi saat ini.
-   - **Ditagihkan** menjumlahkan total tagihan berstatus Belum dibayar, Sebagian, Lunas, atau Lewat jatuh tempo menurut tanggal terbit dalam **Periode**.
+   - **Ditagihkan** menjumlahkan total tagihan berstatus Belum dibayar, Dibayar sebagian, Lunas, atau Lewat jatuh tempo menurut tanggal terbit dalam **Periode**.
    - **Terkumpul** menjumlahkan pembayaran yang tidak dibatalkan menurut tanggal bayar dalam **Periode**.
-   - **Piutang** menjumlahkan sisa tagihan berstatus Belum dibayar, Sebagian, atau Lewat jatuh tempo. Angka ini adalah posisi saat ini.
-   - **Tingkat penagihan** adalah Terkumpul dibagi Ditagihkan. Nilai tampil sebagai tanda hubung (-) bila Ditagihkan bernilai 0.
+   - **Piutang** menjumlahkan sisa tagihan berstatus Belum dibayar, Dibayar sebagian, atau Lewat jatuh tempo. Angka ini adalah posisi saat ini.
+   - **Tingkat penagihan** adalah Terkumpul dibagi Ditagihkan, ditulis dengan koma desimal dan paling banyak dua angka desimal, misalnya `95,5%`. Nilai tampil sebagai tanda hubung (-) bila Ditagihkan bernilai 0.
 
    Kartu uang menampilkan angka singkat, misalnya "Rp 1,2 jt". Arahkan penunjuk ke angka itu untuk melihat jumlah rupiah lengkap. Tabel di bawah selalu menampilkan jumlah lengkap. Setiap kartu juga memuat definisi singkat, keterangan **Per periode** atau **Posisi saat ini**, dan bagian **Rumus dan sumber data** yang dapat dibuka.
 6. Baca grafik:
@@ -3633,7 +3896,8 @@ Peran yang dapat memakai: admin. Izin: `report.consolidated.view`. Perusahaan ak
 ### Kesalahan umum
 
 - Menu tidak ada: perusahaan aktif bukan Head, tidak mempunyai anak perusahaan aktif, atau akun tidak memegang `report.consolidated.view`.
-- Pindah ke anak perusahaan menyembunyikan menu dan menolak alamat langsung dengan halaman **Akses ditolak**. Kembali ke Head melalui pemilih perusahaan.
+- Pindah ke anak perusahaan menyembunyikan menu. Bila akun Anda memegang `report.consolidated.view` dan Anda membuka alamat Metrik Konsolidasi dari anak perusahaan, Inbils membuka halaman **Laporan** dengan peringatan "Metrik Konsolidasi hanya tersedia di perusahaan induk {nama}. Ganti perusahaan lewat pemilih di menu samping." dan kartu "Metrik Konsolidasi ada di perusahaan induk {nama}." Klik **Pindah ke {nama}** di kartu itu untuk berpindah ke induk, sama seperti lewat pemilih perusahaan di sidebar (bagian 1.6). Tombol itu tidak tampil bila akun Anda tidak boleh berpindah ke induk. Tanpa izin laporan itu, alamat langsung ditolak dengan halaman **Akses ditolak**.
+- Kepatuhan SLA ditulis dengan koma desimal, misalnya `63,6%`, seperti di Kepatuhan SLA dan Kinerja Teknisi.
 - Bila mata uang perusahaan berbeda, layar menampilkan peringatan **Perusahaan ini tidak bisa dikonsolidasikan** dengan pesan "Laporan konsolidasi ditolak: perusahaan yang dipilih memakai mata uang berbeda" diikuti daftar mata uangnya. Samakan mata uang perusahaan sebelum menjumlahkan nilai uang. Bila akun Anda boleh membuka Metrik Bisnis, peringatan memuat tautan **Metrik Bisnis** untuk melihat angka tiap perusahaan. Menu **Ekspor** tidak muncul selama peringatan tampil.
 - **MRR**, **Piutang**, langganan, dan Kepatuhan SLA merupakan posisi saat ini. **Periode** terutama mengubah Pendapatan terbayar dan metrik periode lain di file ekspor.
 - Setiap perusahaan membaca batas hari dalam zona waktunya sendiri. Catatan dekat tengah malam dapat masuk ke hari berbeda pada dua perusahaan.
@@ -3642,7 +3906,7 @@ Peran yang dapat memakai: admin. Izin: `report.consolidated.view`. Perusahaan ak
 
 ## 7.12 Log Audit
 
-Log audit menelusuri aktivitas perusahaan menurut waktu, modul, aksi, pelaku, subjek, dan data perubahan. Buka laporan ini saat Anda perlu mengetahui siapa melakukan suatu tindakan atau nilai apa yang berubah.
+Log audit menelusuri aktivitas perusahaan menurut waktu, modul, pelaku, subjek, dan data perubahan. Setiap baris ditulis sebagai satu kalimat berbahasa Indonesia, misalnya "Pembayaran dicatat" atau "Tiket dibuka kembali oleh staf". Buka laporan ini saat Anda perlu mengetahui siapa melakukan suatu tindakan atau nilai apa yang berubah.
 
 Peran yang dapat memakai: admin. Izin: `report.audit.view`. Tombol **Ekspor log** memerlukan `report.export` selain izin audit.
 
@@ -3653,41 +3917,42 @@ Peran yang dapat memakai: admin. Izin: `report.audit.view`. Tombol **Ekspor log*
    ![Halaman Log audit dengan kartu Filter log dan tabel aktivitas perusahaan](images/web/reports-audit-log.png)
 
 2. Isi filter yang diperlukan:
-   - **Pencarian teks** mencari pada deskripsi, modul, aksi, serta nama atau email pelaku. Isian ini mencari pada nama modul tersimpan (misalnya `customer`), bukan pada label modul yang tampil.
+   - **Pencarian teks** mencari pada kalimat **Deskripsi** (dalam kata Indonesia, misalnya `ditugaskan`, `dibuka kembali`, atau `Pembayaran dicatat`), pada nama modul tersimpan (misalnya `customer`), pada kode aksi tersimpan, serta pada nama atau email pelaku. Yang dicari adalah kalimat dasar tiap jenis aktivitas: keterangan tambahan di ujung kalimat, seperti nama peran atau nama pemasok, tidak ikut dicari. Isian ini tidak mencari pada label modul yang tampil di lencana dan tidak mencari pada kolom **Subjek**.
    - **Modul** memilih satu modul dari daftar, misalnya Pelanggan, Tagihan, Inventaris, SPK, Tiket, Pengguna, atau Autentikasi. Klik kotaknya, ketik untuk menyaring, lalu pilih. Isian kosong menampilkan **Semua modul**.
    - **Pengguna** memilih pelaku. Ketik minimal 2 huruf nama atau email ("Cari nama atau email..."), tunggu daftar, lalu pilih. Daftar hanya memuat anggota perusahaan aktif: pengguna perusahaan itu dan pengguna perusahaan lain yang diberi akses ke perusahaan aktif. Akun nonaktif ikut dalam daftar. Klik **Hapus pilihan: Pengguna** untuk mengosongkan.
    - **Periode** membatasi waktu kejadian menurut hari kalender. Ketik rentang, atau buka kalender dan pakai pilihan cepat, seperti pada bagian 7.9. Log Audit selalu punya periode: bila tanggal mulai kosong, halaman memakai 7 hari sampai tanggal akhir (atau sampai hari ini menurut zona waktu perusahaan bila tanggal akhir juga kosong) dan mengisi tanggal mulai itu di isian. Periode paling lama 92 hari. Di bawah isian tertulis "Paling lama 92 hari. Tanpa tanggal mulai, 7 hari terakhir."
 3. Klik **Terapkan filter**. Klik **Reset filter** untuk menghapus semua filter dan mengembalikan urutan waktu terbaru. Kartu filter juga menulis "Menampilkan n dari m log".
 4. Klik **Muat ulang** di kanan atas untuk mengambil data terbaru tanpa mengubah filter.
 5. Baca tabel:
-   - **Waktu** menampilkan waktu terformat dan waktu UTC di bawahnya.
+   - **Waktu** menampilkan tanggal dan jam kejadian dalam format dan zona waktu perusahaan. Tidak ada jam kedua: semua tanggal dan jam di halaman ini, di dialog rincian, dan di ekspor memakai zona waktu perusahaan.
    - **Modul** menampilkan modul sebagai lencana, misalnya Pelanggan atau Tagihan. Log tanpa modul tampil sebagai **Umum**.
-   - **Aksi** menampilkan lencana Dibuat, Diperbarui, Dihapus, atau Dipulihkan untuk perubahan data. Entri yang ditulis langsung oleh sistem, seperti masuk, keluar, perubahan peran, dan ekspor, menyimpan kodenya di kolom ini dan menampilkannya sebagai lencana berlabel, misalnya Masuk atau Ekspor CSV. Kode yang belum punya label tampil apa adanya. Keterangannya ada di **Deskripsi**.
-   - **Deskripsi** memuat keterangan aktivitas.
+   - **Deskripsi** menulis aktivitasnya sebagai satu kalimat, misalnya "Permintaan barang disetujui dan stok dicadangkan", "Pembayaran online lunas", atau "Teknisi check-in di lokasi SPK". Sebagian kalimat membawa satu keterangan singkat, misalnya "Stok diterima dari {pemasok}" atau "Peran Admin ditambahkan ke pengguna". Pasangan modul dan aksi yang belum punya kalimat tampil sebagai `modul: aksi` dengan garis bawah dibaca spasi.
    - **Pelaku** memuat nama dan email, tulisan "Pengguna #" diikuti ID, atau **Sistem**. Tindakan tim dukungan Inbils memakai nama **Tim dukungan Inbils** (lihat di bawah).
-   - **Subjek** memuat jenis data dan ID, misalnya `Customer #12`.
+   - **Subjek** menyebut data yang terkena dengan nama atau kode yang dipakai orang, misalnya `REQ-2026-00001` atau nama pelanggan, bukan jenis data dan ID. Baris yang tidak punya subjek menulis **-**. Untuk baris stok, subjeknya nama barang.
    - **Detail** membuka dialog rincian log. Titik kecil pada tombol berarti log itu mempunyai perubahan properti.
-6. Urutkan lewat **Waktu**, **Modul**, **Aksi**, atau **Deskripsi**. **Pelaku** dan **Subjek** tidak dapat diurutkan.
+6. Urutkan lewat **Waktu** atau **Modul**. **Deskripsi**, **Pelaku**, dan **Subjek** tidak dapat diurutkan. Kolom **Aksi** tidak ada lagi di tabel: kode aksi tersimpan hanya tampil di CSV.
 7. Di bawah tabel, atur **Baris per halaman** menjadi 10, 15, 25, 50, atau 100. Nilai awal dari halaman ini adalah 25. Pindah halaman dengan **Sebelumnya** dan **Berikutnya**.
 
 Pada layar yang lebih sempit dari 768 piksel, tabel berubah menjadi kartu. Tombol **Lihat detail properti** menggantikan kolom **Detail**.
 
 ### Baris keamanan, ekspor, dan data pribadi
 
-Selain perubahan data, Log Audit memuat jejak keamanan perusahaan Anda di modul **Keamanan**. Kolom **Deskripsi** menyebut kodenya:
+Selain perubahan data, Log Audit memuat jejak keamanan perusahaan Anda di modul **Keamanan**. Kolom **Deskripsi** menulis kalimat berikut:
 
-- `login` dan `logout`: masuk dan keluar lewat web. Masuk lewat aplikasi tetap tercatat sebagai `api.token_issued`.
-- `login.failed`: kata sandi salah. Hanya satu baris per akun dan alamat IP dalam 15 menit. Properti `failures` menghitung percobaannya, jadi satu serangan tebak tidak memenuhi log. Kata sandi dan email yang diketik tidak disimpan. Email hanya tersimpan sebagai sidik (`email_hash`) yang tidak bisa dibaca kembali. Percobaan dengan email yang tidak terdaftar tidak punya perusahaan, jadi tidak tampil di halaman ini.
-- `lockout`: Inbils menolak karena terlalu banyak percobaan. Satu baris per rute dan alamat IP dalam 15 menit.
-- `password.reset_requested`, `password.reset`, dan `password.changed`: tautan atur ulang kata sandi diminta (hanya untuk akun yang ada), kata sandi diatur ulang, dan kata sandi berubah lewat cara apa pun. Barisnya tidak memuat kata sandi.
-- `two_factor.challenge_passed`: kode autentikator yang benar. Kode pemulihan yang dipakai tercatat sebagai `recovery_code_used`.
-- `role.attached` dan `role.detached`: peran ditambahkan atau dicabut. Properti `roles` menyebut nama perannya.
+- "Masuk ke akun" dan "Keluar dari akun": masuk dan keluar lewat web. Masuk lewat aplikasi tercatat sebagai "Token aplikasi seluler dibuat".
+- "Percobaan masuk gagal": kata sandi salah. Hanya satu baris per akun dan alamat IP dalam 15 menit. Properti `failures` menghitung percobaannya, jadi satu serangan tebak tidak memenuhi log. Kata sandi dan email yang diketik tidak disimpan. Email hanya tersimpan sebagai sidik (`email_hash`) yang tidak bisa dibaca kembali. Percobaan dengan email yang tidak terdaftar tidak punya perusahaan, jadi tidak tampil di halaman ini.
+- "Masuk dikunci sementara karena terlalu banyak percobaan": Inbils menolak karena terlalu banyak percobaan. Satu baris per rute dan alamat IP dalam 15 menit.
+- "Tautan atur ulang kata sandi diminta" (hanya untuk akun yang ada), "Kata sandi diatur ulang", dan "Kata sandi diubah" (lewat cara apa pun). Barisnya tidak memuat kata sandi.
+- "Kode 2FA benar" untuk kode autentikator yang benar, dan "Kode pemulihan 2FA dipakai" untuk kode pemulihan.
+- "Peran {nama} ditambahkan ke pengguna" dan "Peran {nama} dicabut dari pengguna". Properti `roles` menyebut nama perannya.
 
 Tindakan tim dukungan Inbils pada perusahaan Anda tampil di modul **Akses dukungan**, dengan **Deskripsi** berupa satu kalimat, misalnya "Tim dukungan Inbils mengatur ulang 2FA Budi Santoso", "Tim dukungan Inbils membuka kunci masuk Budi Santoso", "Tim dukungan Inbils masuk sebagai Budi Santoso", atau "Tim dukungan Inbils menangguhkan perusahaan ini". Kalimat yang sama dipakai di kotak **Pencarian teks** dan di berkas ekspor: cari "kunci masuk" atau nama pengguna yang ditangani untuk menemukan barisnya. Tindakan dukungan yang belum punya kalimat tampil sebagai "Akses dukungan oleh tim Inbils".
 
-Setiap ekspor CSV atau PDF tercatat di modul **Ekspor** sebagai `export.csv` atau `export.pdf`, dengan laporan, filter, jumlah baris, dan tanda terpotong. Barisnya ditulis setelah berkas selesai dikirim, jadi unduhan yang terputus tidak tercatat.
+Setiap ekspor CSV atau PDF tercatat di modul **Ekspor** sebagai "Data diekspor ke CSV" atau "Data diekspor ke PDF", dengan laporan, filter, jumlah baris, dan tanda terpotong. Barisnya ditulis setelah berkas selesai dikirim, jadi unduhan yang terputus tidak tercatat.
 
 Nilai data pribadi tidak tersimpan di log. Perubahan pelanggan (email, telepon, NPWP, kontak, catatan), kontak dan alamat pelanggan, profil karyawan (telepon, catatan), dan rekening pembayaran perusahaan menulis **[disembunyikan]** sebagai nilai lama dan baru. Yang terlihat hanya kolom apa yang berubah. Baris yang ditulis sebelum pembaruan ini masih menyimpan nilai aslinya sampai dihapus otomatis.
+
+Posisi teknisi juga disembunyikan. Baris "Teknisi check-in di lokasi tiket", "Teknisi check-in di lokasi SPK", dan "Teknisi berangkat ke lokasi SPK" menyimpan di mana teknisi berada. Di dialog **Detail** dan di ekspor, koordinatnya (`lat` dan `lng`) tertulis **[disembunyikan]**. Jarak ke lokasi pelanggan (`distance_m`), apakah itu terlalu jauh (`far`), dan alasannya (`far_reason`) tetap terlihat. Posisi aslinya tetap tersimpan di database.
 
 Inbils juga menyimpan ID permintaan, alamat IP, dan (untuk baris keamanan) jenis browser di database untuk penelusuran oleh pengelola server. Halaman ini tidak menampilkannya dan ekspor log tidak memuatnya.
 
@@ -3696,7 +3961,7 @@ Baris dihapus otomatis setiap hari: setelah 365 hari, dan setelah 730 hari untuk
 ### Membaca detail perubahan
 
 1. Klik **Detail** pada baris log. Dialog berjudul **Detail log aktivitas #&lt;ID&gt;** terbuka.
-2. Baca **Ringkasan**: Waktu kejadian, Modul dan aksi, Pelaku, Subjek, dan Deskripsi.
+2. Baca **Ringkasan**: Waktu kejadian (zona waktu perusahaan), Modul, Pelaku, Subjek, dan Deskripsi.
 3. Baca bagian **Properti dan perubahan nilai**:
    - Perubahan model tampil sebagai tabel dengan kolom **Kolom**, **Nilai lama**, dan **Nilai baru**.
    - Klik **Lihat JSON lengkap** untuk melihat seluruh properti pada perubahan model.
@@ -3712,18 +3977,18 @@ Baris dihapus otomatis setiap hari: setelah 365 hari, dan setelah 730 hari untuk
 2. Klik **Ekspor log**.
 3. Pilih **Ekspor CSV** atau **Ekspor PDF**.
 
-Kedua file memuat kolom ID, Waktu, Modul, Aksi, Deskripsi, Pelaku, ID pelaku, Jenis subjek, dan ID subjek. Kolom Modul dan Aksi di file berisi kode tersimpan, bukan label lencana. CSV juga memuat kolom Properti sebagai JSON. PDF sengaja tidak memuat Properti.
+Kedua file memuat Waktu, Modul, Deskripsi, Pelaku, dan Subjek, dengan **Modul** ditulis sebagai label (misalnya Tagihan, Permintaan barang) dan **Deskripsi** sebagai kalimat yang sama seperti di layar. CSV memuat lebih banyak kolom: ID, Waktu, Modul, Aksi, Deskripsi, Pelaku, ID pelaku, Subjek, Jenis subjek, ID subjek, dan Properti (JSON). Kolom Aksi, ID, dan Properti hanya ada di CSV. PDF sengaja tidak memuat ID, kode, dan Properti: orang yang membacanya tidak membutuhkannya, dan kop PDF menulis periode serta filter (Pengguna, Modul, Pencarian) dalam kata. Waktu di kedua file memakai zona waktu perusahaan.
 
-Ekspor memakai periode yang sama dengan halaman, paling lama 92 hari. CSV memuat sampai 5.000 baris. PDF memuat paling banyak 166 baris, karena batasnya 1.500 sel dibagi sembilan kolom, dan di bawah judulnya tertulis "PDF dibatasi 166 baris. Untuk data lengkap, unduh CSV atau persempit periode." Bila baris yang cocok lebih banyak, unduh CSV atau persempit periode.
+Ekspor memakai periode yang sama dengan halaman, paling lama 92 hari. CSV memuat sampai 5.000 baris. PDF memuat paling banyak 300 baris, karena batasnya 1.500 sel dibagi lima kolom, dan di bawah judulnya tertulis "PDF dibatasi 300 baris. Untuk data lengkap, unduh CSV atau persempit periode." Bila baris yang cocok lebih banyak, unduh CSV atau persempit periode.
 
 ### Kesalahan umum
 
 - Log audit hanya menampilkan baris milik perusahaan aktif. Baris lama tanpa `company_id` tidak ditampilkan.
 - Daftar **Pengguna** hanya berisi anggota perusahaan aktif, yaitu pengguna perusahaan itu dan pengguna perusahaan lain yang diberi akses ke perusahaan aktif. Pengguna tanpa akses ke perusahaan aktif tidak dapat dipilih. Alamat dengan `user_id` pengguna seperti itu, atau yang tidak ada, ditolak dengan kesalahan validasi "Pengguna tidak ditemukan." Log Audit tidak menulis pesan itu di dekat isian. Yang tampil hanya pemberitahuan "Data gagal disimpan. Periksa input." bila server mengembalikan Anda ke layar.
-- **Pencarian teks** tidak mencari jenis atau ID subjek. Gunakan **Modul**, **Pengguna**, atau **Deskripsi** untuk mempersempit hasil.
+- **Pencarian teks** tidak mencari kolom **Subjek**. Gunakan **Modul**, **Pengguna**, atau kata dari **Deskripsi** untuk mempersempit hasil.
 - Isian filter belum berlaku sebelum **Terapkan filter** diklik. **Ekspor log** memakai filter yang terakhir diterapkan.
-- **Waktu** utama mengikuti jam browser, sedangkan baris kecil menunjukkan UTC. Filter tanggal tetap mengikuti zona waktu perusahaan.
-- CSV memuat Properti, sedangkan PDF tidak, dan PDF dibatasi 166 baris. Buka dialog **Detail** atau gunakan CSV bila nilai lama dan baru diperlukan.
+- Jam di **Waktu** memakai zona waktu perusahaan, bukan jam browser Anda, dan sama dengan zona yang dipakai filter tanggal.
+- CSV memuat Properti, sedangkan PDF tidak, dan PDF dibatasi 300 baris. Buka dialog **Detail** atau gunakan CSV bila nilai lama dan baru diperlukan.
 - Bila tidak ada hasil, tabel menulis **Tidak ada log aktivitas** dan tombol **Reset filter**.
 - Halaman **Akses ditolak** berarti akun tidak memegang `report.audit.view`. Peran bawaan manajer dan staf tidak mempunyai izin ini.
 - **Tanggal akhir tidak boleh sebelum tanggal mulai.** muncul di bawah **Periode** bila rentang terbalik.
@@ -3749,7 +4014,7 @@ Peran yang dapat memakai: pengguna dengan izin `system.setting`, yaitu admin pad
    - Karyawan: nomor karyawan (bagian 8.3).
    - Langganan: kode langganan (bagian 4.1).
    - Pelanggan: kode pelanggan (bagian 4.1).
-   - Permintaan Barang: kode permintaan barang (bagian 6.1). Reset awalnya **Setiap hari**.
+   - Permintaan Barang: kode permintaan barang (bagian 6.1). Format awalnya `{PREFIX}-{YYYY}-{SEQ:5}` dan reset **Setiap tahun**, jadi nomor pertama tahun 2026 berbentuk `REQ-2026-00001`. Format awal yang lama bersifat harian (`REQ-20261020-0003`). Perusahaan yang masih memakai format harian bawaan itu dipindah ke format tahunan dan hitungannya mulai dari 1 lagi. Kode lama tetap, dan format yang pernah Anda ubah sendiri tidak disentuh.
    - SPK: kode SPK (bagian 3.3).
    - Tagihan: nomor tagihan (bagian 7.1). Format awalnya `{PREFIX}-{YYYY}-{SEQ:5}` dan tidak pernah reset, jadi nomor pertama tahun 2026 berbentuk `INV-2026-00001`.
    - Tiket: kode tiket (bagian 3.4). Reset awalnya **Setiap tahun**.
@@ -3802,7 +4067,7 @@ Setelah **Simpan**:
 
 ## 8.1 Perusahaan
 
-Menu ini memuat identitas perusahaan yang sedang aktif dan pengaturan operasionalnya. Buka saat logo, kontak (telepon, WhatsApp, jam layanan), warna merek untuk aplikasi, tarif pajak, jatuh tempo tagihan, penangguhan otomatis, wilayah peta bawaan atau notifikasi WhatsApp perlu diubah.
+Menu ini memuat identitas perusahaan yang sedang aktif dan pengaturan operasionalnya. Buka saat logo, kontak (telepon, WhatsApp, jam layanan), warna merek untuk aplikasi, tarif pajak, jatuh tempo tagihan, penangguhan otomatis, jarak check-in teknisi, jadwal jam layanan, wilayah peta bawaan atau notifikasi WhatsApp perlu diubah. Perusahaan induk juga membuka menu ini untuk meminta anak perusahaan.
 
 Peran yang dapat memakai: admin. Izin: `company.manage`. Manajer dan staf tidak memegang izin ini, jadi item **Perusahaan** tidak tampil di sidebar mereka dan alamat layarnya ditolak. Perubahan berlaku untuk perusahaan yang sedang aktif; untuk berpindah perusahaan, lihat bagian 1.6.
 
@@ -3821,28 +4086,39 @@ Peran yang dapat memakai: admin. Izin: `company.manage`. Manajer dan staf tidak 
    - **Email**: opsional, alamat e-mail yang valid, paling banyak 255 karakter.
    - **Situs web**: opsional, URL lengkap dengan awalan `https://`, paling banyak 255 karakter.
    - **Alamat**: opsional, paling banyak 1000 karakter.
-   - **Jam layanan**: opsional, teks bebas paling banyak 120 karakter. Contoh di isian: "Senin sampai Sabtu, 08.00 sampai 17.00". Keterangan di bawah isian: "Tampil di aplikasi pelanggan sebagai jam dukungan." Isian ini hanya teks. Ia tidak mengubah **Jam tenang mulai** dan **Jam tenang selesai** pada pengaturan WhatsApp.
+   - **Jam layanan**: opsional, teks bebas paling banyak 120 karakter. Contoh di isian: "Senin sampai Sabtu, 08.00 sampai 17.00". Keterangan di bawah isian: "Tampil di aplikasi pelanggan sebagai jam dukungan." Isian ini hanya teks untuk pelanggan. Ia tidak mengubah **Jam tenang mulai** dan **Jam tenang selesai** pada pengaturan WhatsApp, dan tidak menghitung tenggat tiket. Jadwal jam buka per hari yang menghitung tenggat ada di kartu **Jam layanan** pada **Pengaturan** (bagian di bawah). Samakan keduanya.
    - **Warna merek**: opsional. Pilih satu dari delapan bulatan warna (**Biru** `#2563EB`, **Hijau tosca** `#0F766E`, **Ungu** `#7C3AED`, **Merah muda** `#DB2777`, **Jingga** `#EA580C`, **Hijau** `#16A34A`, **Biru muda** `#0891B2`, **Abu kebiruan** `#334155`), atau ketik **Kode warna** dengan format `#RRGGBB`. Memilih bulatan mengisi **Kode warna**, dan mengetik kode yang sama dengan salah satu bulatan memilih bulatan itu. Kosongkan **Kode warna** untuk menghapus warna merek. Aplikasi pelanggan dan teknisi memakai warna ini untuk kartu utama, ikon, dan penanda menu. Tanpa warna merek, aplikasi memakai biru Inbils `#2563EB`.
      - Di samping isian, kotak **Contoh teks putih** menunjukkan warna itu dengan teks putih, disusul tulisan "Kontras N:1" (misalnya "Kontras 5,17:1. Teks putih terbaca jelas."). Rasio di bawah 4,5:1 menampilkan peringatan kuning "Di bawah 4,5:1, teks putih sulit dibaca. Pilih warna lebih gelap." Dari delapan warna siap pakai, **Jingga** (3,56:1), **Hijau** (3,30:1) dan **Biru muda** (3,68:1) memicu peringatan itu. Peringatan hanya saran, simpan tetap bisa dilakukan.
 3. Klik **Simpan**. Selama logo diunggah, bilah **Mengunggah logo** menunjukkan kemajuan. Setelah berhasil, toast "Profil perusahaan diperbarui." muncul, dan nama serta logo di kepala sidebar ikut berubah.
+4. Kartu **Anak perusahaan** tampil di bawah form bila perusahaan Anda adalah perusahaan induk (bukan anak perusahaan dari perusahaan lain) dan Anda memegang `company.manage`. Anak perusahaan dibuat operator platform, jadi di sini Anda hanya mengirim permintaan:
+   - Klik **Minta anak perusahaan**. Dialog dengan judul yang sama terbuka.
+   - Isi **Nama** (wajib, 3 sampai 100 karakter), **Kode usulan** (opsional, huruf, angka, `_` dan `-`, paling banyak 50 karakter) dan **Catatan** (opsional, paling banyak 500 karakter, misalnya cabang atau wilayah yang dimaksud). **Kode usulan** terisi dari nama selama Anda belum mengetik kode sendiri. Operator mengubah kodenya bila sudah dipakai, jadi sistem tidak memeriksa kode itu di sini.
+   - Klik **Kirim permintaan**. Toast "Permintaan anak perusahaan dikirim ke operator." muncul, dan operator platform menerima e-mail.
+   - Selama permintaan belum selesai, tombol **Minta anak perusahaan** hilang dan kartu menulis "Permintaan {nama} sedang ditinjau operator." disusul kode usulan, catatan dan waktu kirim. Satu perusahaan hanya bisa punya satu permintaan terbuka. Pesan "Masih ada permintaan anak perusahaan yang ditinjau operator. Tunggu sampai selesai sebelum mengajukan lagi." muncul bila permintaan lain masuk lebih dulu.
+   - Operator membuat perusahaannya, dan permintaan itu selesai. Bila operator menolak, pemohon menerima e-mail "Permintaan anak perusahaan ditolak" berisi alasannya. Sesuaikan permintaannya, lalu ajukan lagi dari layar ini.
+
+   ![Kartu Anak perusahaan di layar Perusahaan, dengan keterangan operator platform yang membuat anak perusahaan dan tombol Minta anak perusahaan](images/web/company-profile-subsidiary.png)
+
+   ![Dialog Minta anak perusahaan dengan isian Nama, Kode usulan dan Catatan, dan tombol Kirim permintaan](images/web/company-subsidiary-request-dialog.png)
 
 **Profil dan aplikasi.** Aplikasi pelanggan menampilkan **Telepon**, **WhatsApp**, **Email**, **Situs web** dan **Jam layanan** di kartu "Hubungi {nama perusahaan}" pada tab **Akun**, dan di lembar **Hubungi ISP** pada Beranda. Ketukan pada **WhatsApp** membuka wa.me, **Telepon** membuka pemanggil, **Email** membuka aplikasi email, dan **Situs web** membuka peramban. **Jam layanan** tampil sebagai teks. Isian yang kosong tidak tampil. Bila semuanya kosong, lembar **Hubungi ISP** mengarahkan pelanggan ke tab **Bantuan** untuk membuat tiket. Aplikasi teknisi memakai nama dan logo perusahaan di kepala Beranda. **Warna merek** dipakai kedua aplikasi. Aplikasi membaca semua isian ini dari server saat memuat data akun, jadi perubahan baru terlihat setelah aplikasi memuat ulang.
 
 ### Membuka dan mengubah pengaturan
 
-1. Di layar **Perusahaan**, klik tombol **Pengaturan** di kanan atas. Layar **Pengaturan Perusahaan** terbuka. Tombol **Profil perusahaan** di layar itu membawa Anda kembali. Keduanya adalah tombol biasa, bukan tab. Layar dibagi menjadi kartu **Tagihan**, **Penangguhan otomatis**, **Format tanggal**, **Peta**, **WhatsApp**, dan **Keamanan**. Navigasi bagian (di ponsel, deretan chip yang bisa digeser di atas layar, di layar lebar daftar di kiri) melompat ke kartunya dan tetap terlihat saat Anda menggulir.
+1. Di layar **Perusahaan**, klik tombol **Pengaturan** di kanan atas. Layar **Pengaturan Perusahaan** terbuka. Tombol **Profil perusahaan** di layar itu membawa Anda kembali. Keduanya adalah tombol biasa, bukan tab. Layar dibagi menjadi kartu **Tagihan**, **Penangguhan otomatis**, **Lapangan**, **Format tanggal**, **Peta**, **Jam layanan**, **WhatsApp**, dan **Keamanan**. Navigasi bagian (di ponsel, deretan chip yang bisa digeser di atas layar, di layar lebar daftar di kiri) melompat ke kartunya dan tetap terlihat saat Anda menggulir.
 
    ![Layar Pengaturan Perusahaan: judul, tombol Profil perusahaan dan kartu pengaturan Tagihan](images/web/company-settings.png)
 
-2. Ubah kartu pengaturan tagihan dan penangguhan. Setiap pengaturan punya nama, satuan bila ada, dan satu kalimat keterangan. Kartu **Tagihan** dan **Penangguhan otomatis** selalu tampil. Selama pengaturan tagihan belum pernah disimpan, kartu **Tagihan** menulis "Pilih cara penagihan otomatis. Saran kami: kirim tagihan pemasangan otomatis, dan isolir langganan 7 hari setelah jatuh tempo." Tombol **Pakai saran** hanya mengisi formulir (menyalakan **Kirim tagihan pemasangan otomatis** dan **Tangguhkan langganan yang menunggak**, batas 7 hari). Tekan **Simpan** untuk menyimpannya. Setelah Anda menyimpan sekali, pesan ini tidak muncul lagi dan langkah **Atur penagihan otomatis** di daftar **Mulai dari sini** (bagian 2.1) tercentang.
-   - **Tarif PPN (%)**: angka 0 sampai 100, langkah 0,01, bawaan 11. Tarif pajak pada tagihan bulanan dan tagihan dari SPK.
-   - **Jatuh tempo tagihan (hari)**: angka bulat 1 sampai 365, bawaan 14.
+2. Ubah kartu pengaturan tagihan, penangguhan dan lapangan. Setiap pengaturan punya nama, satuan bila ada, dan satu kalimat keterangan. Kartu **Tagihan**, **Penangguhan otomatis** dan **Lapangan** selalu tampil. Selama pengaturan tagihan belum pernah disimpan, kartu **Tagihan** menulis "Pilih cara penagihan otomatis. Saran kami: kirim tagihan pemasangan otomatis, dan isolir langganan 7 hari setelah jatuh tempo." Tombol **Pakai saran** hanya mengisi formulir (menyalakan **Kirim tagihan pemasangan otomatis** dan **Tangguhkan langganan yang menunggak**, batas 7 hari). Tekan **Simpan** untuk menyimpannya. Setelah Anda menyimpan sekali, pesan ini tidak muncul lagi dan langkah **Atur penagihan otomatis** di daftar **Mulai dari sini** (bagian 2.1) tercentang.
+   - **Tarif PPN (%)**: angka 0 sampai 100, langkah 0,01, paling banyak dua angka di belakang koma, bawaan 11. Tarif pajak pada item tagihan baru, apa pun asalnya (bulanan, SPK atau manual).
+   - **Jatuh tempo tagihan (hari)**: bilangan bulat 0 sampai 365, bawaan 14. Jumlah hari dari tanggal terbit sampai jatuh tempo.
    - **Rekening pembayaran**: kotak teks banyak baris. Isinya tercetak di PDF tagihan.
    - **Kirim tagihan pemasangan otomatis**: saklar, bawaan mati. Mati berarti tagihan pemasangan dibuat sebagai **Draf**, staf dengan `billing.send` diberi tahu, dan kartu Dasbor Keuangan muncul. Nyala berarti tagihan langsung dikirim saat SPK pemasangan disetujui.
    - **Tagihkan bahan terpakai**: saklar, bawaan mati. Mati berarti bahan termasuk biaya pemasangan dan tidak menjadi item tagihan. Nyala berarti setiap bahan ditagih per baris dengan label **Bahan terpakai**.
    - **Tangguhkan langganan yang menunggak**: saklar, bawaan mati. Bila aktif, sistem menangguhkan (mengisolir) langganan aktif yang punya tagihan belum lunas dan lewat jatuh tempo lebih dari **Batas keterlambatan (hari)**. Pemeriksaannya berjalan setiap hari pukul 08:00.
    - **Batas keterlambatan (hari)**: angka bulat 1 sampai 60, bawaan 7.
    - **Aktifkan kembali saat tagihan lunas**: saklar, bawaan aktif. Bila aktif, langganan yang ditangguhkan otomatis kembali aktif setelah pembayaran, selama tidak ada lagi tagihannya yang lewat masa tenggang. Penangguhan manual tidak pernah dibuka otomatis.
+   - **Jarak check-in maksimal (meter)** (kartu **Lapangan**): bilangan bulat 50 sampai 100000, bawaan 500. Teknisi yang memulai pekerjaan lebih jauh dari batas ini dari lokasi pelanggan wajib menulis alasan. Tanpa alasan, mulai pekerjaan ditolak dengan pesan "Anda berjarak {jarak} dari lokasi pelanggan. Tulis alasannya untuk melanjutkan." Batas ini hanya berlaku saat memulai pekerjaan, bukan saat berangkat. Halaman tiket dan halaman SPK menulis jaraknya di baris **Check-in**, disusul "Jauh dari lokasi: {alasan}" bila teknisi menulis alasan.
    - **Format tanggal**: teks. Pola penulisan tanggal di seluruh halaman, misalnya `d M Y` atau `d/m/Y`. Dengan `d M Y`, tanggal tampil seperti 13 Okt 2026; pola yang tidak dikenal kembali ke 13/10/2026.
    - **Format tanggal dan jam**: teks, contoh `d M Y H:i`. Layar menulis tanggal beserta jam memakai **Format tanggal** lalu jam 24 jam `HH:mm`; isian ini tidak mengubah tampilan tersebut.
 3. Pengaturan lain yang tersimpan untuk perusahaan, misalnya simbol mata uang atau awalan nomor dokumen dari Setup Wizard, tidak punya isian di layar ini. Menyimpan layar ini tidak menghapus atau mengubahnya.
@@ -3851,7 +4127,16 @@ Peran yang dapat memakai: admin. Izin: `company.manage`. Manajer dan staf tidak 
    - **Lintang** dan **Bujur**: angka desimal. Server menolak lintang di luar -11 sampai 6 dengan "Lintang harus di antara -11 dan 6." dan bujur di luar 94 sampai 142 dengan "Bujur harus di antara 94 dan 142." Salah satu tidak boleh diisi sendirian. Kosongkan keduanya untuk kembali ke seluruh Indonesia.
    - **Zoom**: angka bulat 3 sampai 18. Keterangan: "3 untuk seluruh Indonesia, 12 untuk satu kota." Di luar rentang itu muncul "Zoom harus di antara 3 dan 18."
    - Peta di bawahnya: klik peta atau seret penanda untuk mengisi lintang dan bujur, atau klik **Gunakan lokasi saya** bila peramban mengizinkan. Titik yang dipilih di peta atau diketik melepas pilihan **Wilayah default**.
-5. Gulir ke kartu **WhatsApp**. Bagian ini ada di bawah batas tangkapan layar di atas:
+5. Gulir ke kartu **Jam layanan**. Kartu ini berisi jadwal jam buka perusahaan menurut zona waktu perusahaan. Tingkat SLA yang **Hitungan tenggat**-nya **Jam layanan** (bagian 4.5) hanya menghitung jam buka di sini:
+   - Setiap hari, Senin sampai Minggu, punya kotak sendiri dengan kotak centang **Tutup** dan dua pemilih jam, **Dari** dan **Sampai**. Centang **Tutup** untuk hari libur. Bila Anda mencabut centangnya, jam terisi 08:00 sampai 17:00 dan bisa diubah. Pemilih jam bekerja seperti **Jam tenang mulai** di kartu **WhatsApp**.
+   - Jam tutup harus lebih akhir dari jam buka pada hari yang sama, karena jam layanan tidak melewati tengah malam. Kesalahan muncul di bawah isian: "Jam buka wajib diisi.", "Jam tutup wajib diisi.", "Format jam tidak valid. Contoh: 08:30." dan "Jam tutup harus setelah jam buka."
+   - Selama semua hari **Tutup**, jadwal dianggap belum diisi. Kartu menulis peringatan "Jam layanan belum diisi; tenggat dihitung 24 jam." dan tingkat SLA menghitung 24 jam penuh.
+   - Tiket yang masuk di luar jam buka mulai dihitung saat jam buka berikutnya. Hanya tingkat SLA berhitungan **Jam layanan** yang memakai jadwal ini. Tingkat SLA **24 jam** dan target dari Kategori Tiket tetap menghitung siang dan malam.
+   - Kartu mengingatkan bahwa jam dukungan yang dibaca pelanggan di aplikasi diisi terpisah di **Profil perusahaan**, dengan tautan ke layar itu. Samakan keduanya.
+
+   ![Kartu Jam layanan di Pengaturan Perusahaan: peringatan jam belum diisi dan kotak Tutup untuk tiap hari dari Senin sampai Minggu](images/web/company-settings-service-hours.png)
+
+6. Gulir ke kartu **WhatsApp**. Bagian ini ada di bawah batas tangkapan layar di atas:
    - Peringatan "WhatsApp belum dikonfigurasi untuk perusahaan ini." muncul bila kartu **WhatsApp** di **Integrasi** (bagian 8.9) belum diisi dan diaktifkan. Admin melihat tautan **Atur di Pengaturan → Integrasi**, pengguna lain melihat "Minta admin mengisinya di Pengaturan → Integrasi." Baris **Kredensial terkonfigurasi** menunjukkan Ya atau Tidak untuk perusahaan ini. Akun WhatsApp diisi per perusahaan di **Integrasi**, bukan di layar ini.
    - **Aktifkan notifikasi WhatsApp**: saklar, bawaan mati.
    - **Jenis pesan yang dikirim**: sembilan kotak centang, semuanya tercentang secara bawaan: **Tagihan terbit**, **Pengingat jatuh tempo (H-3, H-1, H+1)**, **Pembayaran diterima**, **Tiket dibuat**, **Tiket mulai ditangani**, **Tiket selesai**, **Penugasan SPK ke teknisi**, **Jadwal kunjungan teknisi ke pelanggan** dan **Info link akses portal (tanpa link)**. Hanya **Penugasan SPK ke teknisi** berketerangan **Untuk teknisi**; delapan lainnya berketerangan **Untuk pelanggan**.
@@ -3862,8 +4147,8 @@ Peran yang dapat memakai: admin. Izin: `company.manage`. Manajer dan staf tidak 
    ![Bagian bawah layar Pengaturan Perusahaan dengan kartu WhatsApp, isian Jam tenang mulai, Jam tenang selesai, Batas pesan per bulan, angka Pemakaian bulan ini, dan tombol Simpan](images/web/company-settings-whatsapp.png)
 
    Pelanggan hanya menerima pesan bila persetujuan WhatsApp mereka tercatat di data pelanggan (bab 4).
-6. Gulir ke kartu **Keamanan**. Saklar **Wajib 2FA untuk admin** mengatur kebijakan perusahaan (lihat bagian 1.4). Admin di sini adalah pengguna yang memegang `company.manage`, `users.manage`, atau `roles.manage`. Anda hanya bisa menyalakannya bila 2FA akun Anda sendiri sudah aktif. Bila belum, Inbils menulis "Aktifkan 2FA di profil Anda dulu sebelum mewajibkannya."
-7. Klik **Simpan** di bilah bawah layar. Bilah itu tetap terlihat saat Anda menggulir. Selama ada perubahan yang belum disimpan, bilah menulis "Ada perubahan yang belum disimpan". Toast "Pengaturan perusahaan diperbarui." muncul. Nilai baru dipakai oleh proses berikutnya: tagihan yang dibuat sesudahnya, pemeriksaan penangguhan berikutnya dan pesan WhatsApp yang dikirim sesudahnya.
+7. Gulir ke kartu **Keamanan**. Saklar **Wajib 2FA untuk admin** mengatur kebijakan perusahaan (lihat bagian 1.4). Admin di sini adalah pengguna yang memegang `company.manage`, `users.manage`, atau `roles.manage`. Anda hanya bisa menyalakannya bila 2FA akun Anda sendiri sudah aktif. Bila belum, Inbils menulis "Aktifkan 2FA di profil Anda dulu sebelum mewajibkannya."
+8. Klik **Simpan** di bilah bawah layar. Bilah itu tetap terlihat saat Anda menggulir. Selama ada perubahan yang belum disimpan, bilah menulis "Ada perubahan yang belum disimpan". Toast "Pengaturan perusahaan diperbarui." muncul. Nilai baru dipakai oleh proses berikutnya: tagihan yang dibuat sesudahnya, pemeriksaan penangguhan berikutnya, pesan WhatsApp yang dikirim sesudahnya, tenggat tiket baru dan mulai pekerjaan berikutnya.
 
 Mata uang, zona waktu dan alamat Play Store aplikasi tidak punya isian di kedua layar ini.
 
@@ -3873,8 +4158,9 @@ Mata uang, zona waktu dan alamat Play Store aplikasi tidak punya isian di kedua 
 - **Situs web** ditolak dengan "situs web harus berupa URL yang valid.": tulis URL lengkap, misalnya dengan awalan `https://`.
 - **WhatsApp** ditolak dengan "Nomor WhatsApp hanya boleh berisi angka dan karakter ( ) + -.", **Warna merek** ditolak dengan "Warna merek harus berupa kode warna heksadesimal seperti #2563EB.", dan **Jam layanan** ditolak bila lebih dari 120 karakter. Tulis ulang isiannya sesuai format di atas, atau kosongkan.
 - Peringatan kontras di bawah **Warna merek** (kuning, berbunyi "Di bawah 4,5:1, teks putih sulit dibaca. Pilih warna lebih gelap.") tidak menghalangi **Simpan**. Pilih warna yang lebih gelap bila ingin teks putih di atasnya terbaca jelas.
-- Kotak angka pada kartu **Tagihan** yang dikosongkan tersimpan sebagai kosong, dan sistem lalu memakai bawaannya (jatuh tempo 14 hari, tarif PPN bawaan sistem). **Batas keterlambatan (hari)**, **Batas pesan per bulan**, **Jam tenang mulai** dan **Jam tenang selesai** tidak boleh kosong: muncul pesan seperti "hari tunggakan penangguhan otomatis wajib diisi." di bawah isian.
-- Server tidak memeriksa rentang **Tarif PPN (%)** dan **Jatuh tempo tagihan (hari)**. Batas 0 sampai 100 dan 1 sampai 365 hanya ada pada isian di layar, jadi periksa angkanya sebelum menyimpan.
+- Kotak angka pada kartu **Tagihan** yang dikosongkan tersimpan sebagai kosong, dan sistem lalu memakai bawaannya (jatuh tempo 14 hari, tarif PPN bawaan sistem). **Batas keterlambatan (hari)**, **Jarak check-in maksimal (meter)**, **Batas pesan per bulan**, **Jam tenang mulai** dan **Jam tenang selesai** tidak boleh kosong: muncul pesan seperti "hari tunggakan penangguhan otomatis wajib diisi." atau "Jarak check-in wajib diisi." di bawah isian.
+- Server memeriksa rentang angka dan menulis pesannya di bawah isian, karena form tidak memakai gelembung peringatan peramban. **Tarif PPN (%)** ditolak dengan "Tarif PPN paling tinggi 100%.", "Tarif PPN tidak boleh negatif.", "Tarif PPN paling banyak dua angka di belakang koma." atau "Tarif PPN harus berupa angka.". **Jatuh tempo tagihan (hari)** ditolak dengan "Jatuh tempo paling lama 365 hari.", "Jatuh tempo tidak boleh negatif." atau "Jatuh tempo harus berupa bilangan bulat, dalam hari.". **Jarak check-in maksimal (meter)** ditolak dengan "Jarak check-in paling dekat 50 meter." atau "Jarak check-in paling jauh 100.000 meter.". Tidak ada yang tersimpan sampai semua isian lolos.
+- Peringatan "Jam layanan belum diisi; tenggat dihitung 24 jam." tidak menghalangi **Simpan**. Ia berarti tingkat SLA berhitungan **Jam layanan** masih menghitung 24 jam, sampai paling sedikit satu hari punya jam buka.
 - Pesan WhatsApp tidak terkirim padahal saklar aktif: periksa **Kredensial terkonfigurasi**, kotak centang jenis pesan, jam tenang, **Batas pesan per bulan** dan persetujuan WhatsApp di data pelanggan.
 
 ## 8.2 Organisasi
@@ -3903,7 +4189,7 @@ Peran yang dapat memakai: admin. Izin: `organization.view` membuka menu dan daft
 
 1. Klik **Buat Unit**.
 2. Isi form pada dialog **Buat Unit**:
-   - **Kode**: wajib, maksimal 50 karakter. Kode tidak boleh sama dengan kode unit lain di perusahaan yang sama, termasuk unit yang sudah dihapus. Kode ikut menyusun **Jalur**.
+   - **Kode**: wajib, maksimal 50 karakter. Selama **Kode** kosong dan **Nama** sudah terisi, tombol saran "Gunakan: &lt;kode&gt;" muncul di bawah isian, misalnya "Gunakan: CABANG-BANDUNG" untuk nama "Cabang Bandung". Kode saran berupa huruf besar dan angka, kata dipisah tanda `-`. Klik tombol itu untuk mengisinya, lalu ubah bila perlu. Tombol hilang begitu Anda mengetik kode sendiri. Kode tidak boleh sama dengan kode unit lain di perusahaan yang sama, termasuk unit yang sudah dihapus, dan server tetap memeriksanya. Kode ikut menyusun **Jalur**.
    - **Nama**: wajib, maksimal 255 karakter.
    - **Jenis**: wajib. Pilih **Perusahaan**, **Cabang**, **Area**, **Unit** atau **Tim**. Isian awalnya **Cabang**. Sistem tidak memeriksa kecocokan tingkat dengan induknya.
    - **Induk**: opsional. Ketik untuk mencari, lalu pilih unit di daftar (petunjuk "Cari unit induk"). Daftar hanya memuat unit aktif, ditulis "kode - nama" dengan jalur unit di bawahnya, dan memfilter menurut yang Anda ketik. Pilihan tetap sampai Anda memilih unit lain atau mengklik tombol silang ("Hapus pilihan: Induk"). Mengetik di kotak tidak mengubah pilihan. Kosongkan isian agar unit menjadi unit paling atas, sesuai teks bantuan "Kosongkan untuk unit utama." Isian ini nonaktif dengan teks "Belum ada unit lain" selama belum ada unit aktif.
@@ -3952,7 +4238,7 @@ Berkas bernama `organizations-export-<tanggal>-<jam>.csv` atau `.pdf` dan berisi
 
 ## 8.3 Karyawan
 
-Karyawan menyimpan profil karyawan yang terhubung ke satu akun pengguna: nomor karyawan, unit, kendaraan, nomor telepon, tanggal masuk, status dan catatan. Akun pengguna saja belum cukup untuk pekerjaan lapangan, karena fitur lapangan juga meminta profil berstatus **Aktif**. Buka menu ini setelah Anda membuat akun baru di Pengguna (bagian 8.5).
+Karyawan menyimpan profil karyawan yang terhubung ke satu akun pengguna: nomor karyawan, unit, kendaraan, nomor telepon, tanggal masuk, status dan catatan. Akun pengguna saja belum cukup untuk pekerjaan lapangan, karena fitur lapangan juga meminta profil berstatus **Aktif**. Buka menu ini setelah Anda mengundang akun baru di Pengguna (bagian 8.5). Pemegang `employee.manage` juga bisa membuat profilnya sekaligus di form **Buat Pengguna**. Form itu hanya memuat telepon, tanggal masuk, status dan catatan, jadi unit dan kendaraan tetap diisi di layar ini.
 
 Peran yang dapat memakai: admin. Izin: `employee.view` membuka menu dan daftar, `employee.manage` menampilkan tombol **Buat Karyawan** dan **Ubah**, `employee.export` menampilkan tombol **Ekspor**. Pada peran bawaan hanya admin yang memegang ketiganya. Layar ini tidak punya tombol **Lihat** dan **Hapus**.
 
@@ -3972,7 +4258,7 @@ Peran yang dapat memakai: admin. Izin: `employee.view` membuka menu dan daftar, 
 
 ### Menambah profil karyawan
 
-1. Pastikan akun pengguna karyawan sudah ada dan aktif (bagian 8.5).
+1. Pastikan akun pengguna karyawan sudah ada dan aktif (bagian 8.5). Akun yang dibuat bersama profil di form **Buat Pengguna** sudah punya profil, jadi lengkapi **Organisasi** dan **Kendaraan**-nya lewat **Ubah** pada baris karyawan itu.
 2. Klik **Buat Karyawan**.
 3. Isi form pada dialog **Buat Karyawan**:
    - **Pengguna**: wajib. Ketik nama atau email, lalu pilih akun (petunjuk "Cari nama atau email"). Server mencari setelah Anda mengetik sedikitnya 2 karakter dan menampilkan paling banyak 20 hasil. Daftar hanya memuat pengguna aktif yang belum punya profil karyawan di perusahaan ini, baik akun milik perusahaan ini maupun akun yang diberi akses ke perusahaan ini, sesuai teks bantuan "Hanya pengguna aktif yang belum punya profil karyawan." Bila tidak ada yang cocok, layar menulis "Tidak ada pengguna aktif yang cocok dan belum punya profil." Satu akun hanya bisa punya satu profil. Pilihan berubah hanya saat Anda memilih akun lain atau mengklik tombol silang ("Hapus pilihan: Pengguna").
@@ -4015,6 +4301,7 @@ Berkas `employees-export-<tanggal>-<jam>.csv` atau `.pdf` memuat Nomor karyawan,
 ### Kesalahan umum
 
 - Akun tidak ada di pilihan **Pengguna**: daftar hanya memuat pengguna aktif di perusahaan ini yang belum punya profil, dan baru mencari setelah Anda mengetik 2 karakter. Buat atau aktifkan akunnya di Pengguna (bagian 8.5). Akun yang sudah punya profil tidak bisa dipilih lagi.
+- Akun baru sudah punya profil karyawan tetapi **Organisasi** dan **Kendaraan** masih kosong: kartu **Profil karyawan** di form **Buat Pengguna** hanya memuat telepon, tanggal masuk, status dan catatan. Buka **Ubah** pada baris karyawan itu untuk mengisi unit dan kendaraan.
 - Pengguna muncul di pilihan tetapi ditolak dengan "Pengguna ini sudah punya profil karyawan.": akun itu sudah punya profil di perusahaan lain, atau profil lamanya pernah dihapus dan masih menahan akun itu. Satu akun hanya boleh punya satu profil karyawan, di semua perusahaan. Layar web tidak punya langkah untuk memperbaikinya.
 - Pekerjaan Saya atau aplikasi teknisi tidak terbuka untuk karyawan yang sudah punya profil: periksa akun aktif, email terverifikasi, profil **Aktif** (kolom **Status**) dan izin kerja pada perannya.
 - Teknisi tidak muncul di pilihan SPK: perannya belum memegang `spk.start` atau `spk.submit`, atau profilnya belum **Aktif**.
@@ -4040,7 +4327,7 @@ Peran yang dapat memakai: admin. Izin: `vehicle.view` membuka menu dan daftar, `
 1. Klik **Buat Kendaraan**.
 2. Isi form pada dialog **Buat Kendaraan**:
    - **Nomor polisi**: wajib, maksimal 20 karakter. Nomor tidak boleh sama dengan kendaraan lain di perusahaan yang sama, termasuk kendaraan yang sudah dihapus.
-   - **Jenis**: opsional, maksimal 50 karakter. Teks petunjuk "Motor, mobil, atau pikap".
+   - **Jenis**: opsional. Pilih **Motor**, **Mobil** atau **Pikap** dari daftar, atau biarkan "Pilih jenis" bila jenisnya belum perlu dicatat. Kendaraan lama yang jenisnya tersimpan dengan tulisan lain tetap menampilkan tulisan itu di daftar pilihan saat **Ubah**, jadi menyimpan ulang tidak menghapusnya.
    - **Merek**: opsional, maksimal 100 karakter.
    - **Model**: opsional, maksimal 100 karakter.
    - **Tanggal pembelian**: opsional. Ketik tanggal dalam format tanggal perusahaan, atau klik isian untuk membuka kalender ("Pilih tanggal") lalu pilih hari, atau klik **Hari ini**. Tombol "Hapus tanggal" mengosongkan isian.
@@ -4072,12 +4359,12 @@ Berkas bernama `vehicles-export-<tanggal>-<jam>.csv` atau `.pdf` dan berisi kolo
 ### Kesalahan umum
 
 - Pesan "nomor polisi sudah digunakan." di bawah **Nomor polisi**: nomor itu sudah dipakai kendaraan lain, termasuk kendaraan yang nonaktif atau sudah dihapus (**Dihapus**). Nomor tetap terpesan, jadi untuk kendaraan yang berhenti dipakai pilih **Nonaktifkan**, bukan hapus, atau **Pulihkan** kendaraan lama dari filter **Status** **Dihapus**.
-- Penyimpanan gagal dengan toast "Data gagal disimpan. Periksa input.": baca pesan merah di bawah isian. **Nomor polisi** menulis "nomor polisi wajib diisi." bila kosong, dan **Jenis**, **Merek**, **Model** menolak teks yang melewati batas panjangnya.
+- Penyimpanan gagal dengan toast "Data gagal disimpan. Periksa input.": baca pesan merah di bawah isian. **Nomor polisi** menulis "nomor polisi wajib diisi." bila kosong, dan **Merek** serta **Model** menolak teks yang melewati batas panjangnya.
 - Tombol **Buat Kendaraan**, **Ubah** atau **Hapus** tidak tampil, atau server menolaknya: peran Anda belum memegang `vehicle.manage`. Minta admin perusahaan menambahkannya ke peran di menu Peran (bagian 8.6), atau memberi Anda peran yang memegangnya (bagian 8.7).
 
 ## 8.5 Pengguna
 
-Menu ini mengelola akun login karyawan back-office: nama, e-mail, kata sandi awal, status aktif dan peran. Buka saat ada orang baru, saat peran berubah, saat akun perlu dinonaktifkan, atau saat seseorang kehilangan perangkat autentikasi dua langkah.
+Menu ini mengelola akun login karyawan back-office: nama, e-mail, status aktif, peran dan undangan untuk mengatur kata sandi. Buka saat ada orang baru, saat peran berubah, saat akun perlu dinonaktifkan, atau saat seseorang kehilangan perangkat autentikasi dua langkah.
 
 Peran yang dapat memakai: pemegang `users.manage` (daftar, tambah, ubah, hapus, ekspor, dan atur peran), yaitu Admin pada templat bawaan, dan `users.two_factor.reset` (atur ulang 2FA, hanya Admin). Daftar memuat anggota perusahaan yang sedang aktif: pengguna yang berasal dari perusahaan ini, dan pengguna dari perusahaan lain yang diberi keanggotaan di sini.
 
@@ -4099,17 +4386,33 @@ Peran yang dapat memakai: pemegang `users.manage` (daftar, tambah, ubah, hapus, 
 
 1. Klik **Buat Pengguna**.
 
-   ![Form Buat Pengguna dengan isian Nama, Email, Kata sandi, saklar Aktif dan daftar Peran](images/web/users-create.png)
+   ![Form Buat Pengguna dengan isian Nama, Email, saklar Aktif dan daftar Peran](images/web/users-create.png)
 
-2. Isi kartu **Data akun**:
+2. Isi kartu **Data akun**. Subjudul form berbunyi "Akun menerima undangan lewat email untuk mengatur kata sandi. Peran menentukan hak aksesnya." Form tidak punya isian **Kata sandi**: admin tidak mengetik kata sandi untuk akun baru, dan orang itu mengaturnya sendiri lewat undangan di langkah 4.
    - **Nama**: wajib, paling banyak 255 karakter.
-   - **Email**: wajib, e-mail yang valid, paling banyak 255 karakter, belum dipakai akun lain di sistem (perusahaan mana pun).
-   - **Kata sandi**: wajib, paling sedikit 8 karakter (petunjuk "Minimal 8 karakter."). Ini kata sandi awal. Sistem tidak mengirim e-mail apa pun ke pengguna baru, jadi sampaikan sendiri kata sandi itu dan minta pengguna menggantinya di profilnya (bagian 1.7).
-   - **Aktif**: saklar, bawaan hidup. Matikan bila akun baru belum boleh masuk. Nilainya tersimpan, jadi akun itu langsung berstatus **Nonaktif**.
+   - **Email**: wajib, e-mail yang valid, paling banyak 255 karakter, belum dipakai akun lain di sistem (perusahaan mana pun). Undangan dikirim ke alamat ini.
+   - **Aktif**: saklar, bawaan hidup. Matikan bila akun baru belum boleh masuk. Nilainya tersimpan, jadi akun itu langsung berstatus **Nonaktif**. Undangan tetap terkirim, tetapi akun nonaktif tidak bisa masuk sampai Anda mengaktifkannya lewat **Ubah**.
    - **Peran**: satu kotak centang per peran perusahaan ini, berlabel nama peran. Boleh memilih lebih dari satu; baca "Aturan saat memberi peran" di bawah. Peran akun pelanggan tidak ditawarkan di sini. Kotak peran yang memuat hak akses yang tidak Anda pegang tidak bisa dicentang dan diberi keterangan "Peran ini memuat hak akses yang tidak Anda pegang". Bila perusahaan belum punya peran, layar menulis "Perusahaan ini belum punya peran yang bisa diberikan di sini." dengan tautan **Buat peran**, atau "Minta admin perusahaan membuat peran." bila Anda tidak boleh membuat peran.
-3. Klik **Buat**. Anda kembali ke daftar dan toast "Pengguna dibuat." muncul. **Batal** kembali ke daftar tanpa menyimpan.
+3. Bila Anda memegang `employee.manage`, kartu **Profil karyawan** tampil di bawah **Data akun**. Nyalakan saklar **Buat profil karyawan untuk pengguna ini** bila orang itu bekerja di lapangan atau perlu profil karyawan. Isian yang muncul:
+   - **Telepon**: opsional, paling banyak 50 karakter.
+   - **Tanggal masuk**: opsional, dipilih dari kalender peramban.
+   - **Status karyawan**: **Aktif** (isian awal) atau **Nonaktif**. Status **Berhenti** hanya ada di layar Karyawan (bagian 8.3).
+   - **Catatan**: opsional, paling banyak 2000 karakter.
 
-Akun baru berasal dari perusahaan yang sedang aktif dan e-mailnya langsung terverifikasi. Akun yang hanya memegang peran untuk aplikasi (Teknisi atau Pelanggan) dialihkan di web ke halaman "Gunakan aplikasi Inbils"; peran back-office yang ikut dicentang menghilangkan pengalihan itu. Akun tanpa peran apa pun melihat "Akun ini belum punya akses aplikasi web" sampai diberi peran. Login pelanggan dibuat otomatis saat pelanggan dibuat (bab 4), jadi jangan membuatnya di sini. Teknisi juga memerlukan profil karyawan aktif (bagian 8.3).
+   Nomor karyawan dibuat otomatis, dan **Organisasi** serta **Kendaraan** diisi kemudian di layar Karyawan. Tanpa `employee.manage`, kartu ini tidak tampil, dan server menolak form yang tetap membawa data karyawan.
+4. Klik **Kirim undangan**. Anda kembali ke daftar dan toast "Pengguna dibuat. Undangan dikirim ke &lt;email&gt;." muncul. **Batal** kembali ke daftar tanpa menyimpan. Pengguna menerima e-mail "Undangan staf &lt;nama perusahaan&gt; di Inbils" dengan tombol **Atur kata sandi**. Tautannya berlaku 60 menit. Pengguna mengeklik tombol itu, memilih kata sandi, lalu masuk dengan e-mailnya. E-mail undangan selalu keluar lewat pengirim platform, bukan lewat SMTP perusahaan (bagian 8.9). Pengiriman tercatat di log keamanan.
+
+Akun baru berasal dari perusahaan yang sedang aktif dan e-mailnya langsung terverifikasi. Sampai orangnya mengatur kata sandi lewat undangan, akun itu belum bisa masuk. Akun yang hanya memegang peran untuk aplikasi (Teknisi atau Pelanggan) dialihkan di web ke halaman "Gunakan aplikasi Inbils"; peran back-office yang ikut dicentang menghilangkan pengalihan itu. Akun tanpa peran apa pun melihat "Akun ini belum punya akses aplikasi web" sampai diberi peran. Login pelanggan dibuat otomatis saat pelanggan dibuat (bab 4), jadi jangan membuatnya di sini. Teknisi juga memerlukan profil karyawan aktif (bagian 8.3), yang bisa Anda buat di kartu **Profil karyawan** di atas.
+
+### Mengirim ulang undangan
+
+Pakai fitur ini bila e-mail undangan hilang atau tautannya sudah lewat 60 menit.
+
+1. Buka halaman detail pengguna (bagian "Melihat detail pengguna").
+2. Klik **Kirim ulang undangan** di kanan atas. Tombol hanya tampil bila akun itu aktif dan belum pernah masuk (**Terakhir masuk** kosong), Anda memegang `users.manage`, dan Anda boleh mengubah akun itu.
+3. Toast "Undangan dikirim ulang ke &lt;email&gt;." muncul, dan pengguna menerima e-mail yang sama dengan tautan baru. Pengiriman ulang tercatat di log keamanan.
+
+Pengiriman ulang dibatasi enam kali per menit untuk satu akun, dengan pesan "Terlalu banyak pengiriman undangan. Coba lagi nanti." Akun yang sudah pernah masuk tidak punya tombol ini: pengguna itu memakai **Lupa kata sandi** di halaman masuk (bagian 1.3). Akun nonaktif juga tidak punya tombol ini, jadi aktifkan dulu lewat **Ubah**. Bila server menolak, kotak merah di atas kartu menulis "Undangan hanya dapat dikirim kepada pengguna aktif yang belum pernah masuk."
 
 ### Aturan saat memberi peran
 
@@ -4134,9 +4437,9 @@ Peran akun pelanggan tidak bisa ditambah atau dilepas di sini. Bila pengguna mem
 ### Mengubah pengguna
 
 1. Di daftar, klik **Ubah** pada baris pengguna, atau klik **Ubah** di halaman detail.
-2. Ubah isian di form **Ubah Pengguna**. Isiannya sama dengan form pembuatan, dengan perbedaan berikut:
+2. Ubah isian di form **Ubah Pengguna**. Isiannya sama dengan form pembuatan, tanpa kartu **Profil karyawan** (profil diubah di layar Karyawan, bagian 8.3), dengan perbedaan berikut:
    - **Email**: tetap harus unik. Mengubahnya di sini tidak mereset status verifikasi e-mail.
-   - **Kata sandi**: kosongkan untuk mempertahankan kata sandi lama (petunjuk "Kosongkan untuk mempertahankan kata sandi saat ini."). Bila diisi, paling sedikit 8 karakter.
+   - **Kata sandi**: isian ini hanya ada di form **Ubah**, untuk mengganti kata sandi akun yang sudah ada. Kosongkan untuk mempertahankan kata sandi lama (petunjuk "Kosongkan untuk mempertahankan kata sandi saat ini."). Bila diisi, paling sedikit 8 karakter.
    - **Peran**: hasilnya persis peran yang tercentang. Peran yang tidak dicentang dilepas. Peran akun pelanggan yang dipegang tidak ikut berubah.
 3. Klik **Simpan**. Anda kembali ke daftar dan toast "Pengguna diperbarui." muncul. **Batal** kembali ke daftar tanpa menyimpan. Tombol **Kembali** di kanan atas membuka halaman detail pengguna itu.
 
@@ -4145,7 +4448,7 @@ Menonaktifkan akun atau mengganti kata sandinya langsung mencabut semua token ap
 ### Melihat detail pengguna
 
 1. Klik nama pengguna di daftar, atau **Lihat detail** di menu **Aksi lainnya**.
-2. Judul halaman memuat nama dan e-mail, dengan tombol **Kembali**, **Log audit** dan **Ubah**. **Log audit** hanya tampil bila Anda memegang `report.audit.view` (bawaan: admin). Tombol itu membuka log audit yang sudah disaring untuk pengguna ini. Kartu **Data pengguna** menampilkan **Status**, **Dibuat**, **Terakhir masuk** (tanggal dan jam memakai format perusahaan), **Pelanggan** (kode dan nama, bila akun tertaut ke pelanggan) dan **Peran di perusahaan ini** ("Belum ada peran di perusahaan ini" bila kosong). Kartu **Autentikasi dua langkah** menampilkan lencana **Aktif** atau **Nonaktif**.
+2. Judul halaman memuat nama dan e-mail, dengan tombol **Kembali**, **Log audit**, **Kirim ulang undangan** (hanya untuk akun yang belum pernah masuk, lihat "Mengirim ulang undangan") dan **Ubah**. **Log audit** hanya tampil bila Anda memegang `report.audit.view` (bawaan: admin). Tombol itu membuka log audit yang sudah disaring untuk pengguna ini. Kartu **Data pengguna** menampilkan **Status**, **Dibuat**, **Terakhir masuk** (tanggal dan jam memakai format perusahaan), **Pelanggan** (kode dan nama, bila akun tertaut ke pelanggan) dan **Peran di perusahaan ini** ("Belum ada peran di perusahaan ini" bila kosong). Kartu **Autentikasi dua langkah** menampilkan lencana **Aktif** atau **Nonaktif**.
 
    ![Halaman detail pengguna dengan kartu Data pengguna, kartu Autentikasi dua langkah dan tab riwayat](images/web/users-show.png)
 
@@ -4175,7 +4478,9 @@ Penghapusan ditolak bila pengguna dikreditkan sebagai pembawa pelanggan (bab 4),
 
 ### Kesalahan umum
 
-- Simpan ditolak dengan toast "Data gagal disimpan. Periksa input.": baca pesan merah di bawah isian atau di bawah **Peran**. Penyebab umum: kombinasi peran atau peran yang tidak Anda pegang hak aksesnya (lihat "Aturan saat memberi peran"), "email sudah digunakan." bila e-mail dipakai akun lain, dan "kata sandi minimal 8 karakter." bila **Kata sandi** kurang dari 8 karakter.
+- Simpan ditolak dengan toast "Data gagal disimpan. Periksa input.": baca pesan merah di bawah isian atau di bawah **Peran**. Penyebab umum: kombinasi peran atau peran yang tidak Anda pegang hak aksesnya (lihat "Aturan saat memberi peran"), "email sudah digunakan." bila e-mail dipakai akun lain, dan isian **Telepon**, **Tanggal masuk** atau **Catatan** di kartu **Profil karyawan** yang melewati batasnya. Di **Ubah**, **Kata sandi** yang diisi kurang dari 8 karakter ditolak dengan "kata sandi minimal 8 karakter."
+- Pengguna baru tidak menerima undangan: periksa alamat di **Email**, folder spam, dan integrasi Email (bagian 8.9). Akun yang aktif dan belum pernah masuk bisa dikirimi ulang dari halaman detailnya. Tautan yang sudah lewat 60 menit tidak bisa dipakai lagi, jadi kirim ulang undangannya.
+- Kartu **Profil karyawan** tidak tampil di form **Buat Pengguna**: peran Anda belum memegang `employee.manage`. Minta orang yang berhak membuat profilnya lewat layar Karyawan (bagian 8.3).
 - Akun baru seharusnya nonaktif tetapi tampil **Aktif**: saklar **Aktif** di form pembuatan masih hidup saat Anda menyimpan. Matikan saklar itu, atau ubah akunnya lewat **Ubah**.
 - Teknisi atau pelanggan melihat halaman "Gunakan aplikasi Inbils": itu perilaku normal untuk akun yang perannya tidak memuat akses web. Beri peran back-office bila orangnya memang harus memakai web.
 - Pengguna sudah dinonaktifkan tetapi masih bisa bekerja di web: sesi yang sudah terbuka belum berakhir. Token aplikasinya sudah dicabut.
@@ -4207,8 +4512,8 @@ Peran yang dapat memakai: pemegang `roles.manage` (daftar, detail, buat, ubah, d
    | Peran | Fungsi |
    |---|---|
    | Admin | Administrator penuh dan jalan darurat. Memegang semua izin, kecuali izin yang hanya untuk aplikasi teknisi dan pelanggan, dan selalu memegang `roles.manage` dan akses web |
-   | Manajer | Pengendali: menyetujui permintaan barang, SPK dan penyesuaian stok, membatalkan tagihan, membatalkan pembayaran, melihat laporan |
-   | NOC & Layanan Pelanggan | Mendaftarkan pelanggan, menerima keluhan dan mengelola tiket, mengumumkan gangguan, melihat dan menelusuri jaringan, sinkron ulang RADIUS, blokir internet manual. Tanpa hapus, tanpa tulis tagihan, tanpa kelola pengguna dan peran |
+   | Manajer | Pengendali: menyetujui permintaan barang, SPK dan penyesuaian stok, membatalkan tagihan, membatalkan pembayaran, menutup dan membuka kembali tiket, melihat laporan |
+   | NOC & Layanan Pelanggan | Mendaftarkan pelanggan, menerima keluhan dan mengelola tiket (termasuk membuka kembali tiket yang sudah selesai atau ditutup), mengumumkan gangguan, melihat dan menelusuri jaringan, sinkron ulang RADIUS, blokir internet manual. Tanpa hapus, tanpa tulis tagihan, tanpa kelola pengguna dan peran |
    | Teknisi | Pekerjaan lapangan, di aplikasi teknisi |
    | Gudang | Menyiapkan dan menyerahkan barang, mengelola stok masuk, keluar dan pindah |
    | Keuangan | Membuat dan mengirim tagihan, mencatat dan membatalkan pembayaran, laporan keuangan. Tanpa pembatalan tagihan |
@@ -4282,6 +4587,7 @@ Peran yang memuat `roles.manage` dikecualikan sebagai jalan darurat. Aturan yang
 - Peran baru tidak mengubah menu seseorang: peran belum diberikan. Berikan lewat menu **Pengguna** (bagian 8.5).
 - Pengguna tidak melihat menu setelah izin dicabut dari perannya: itu perilaku normal. Menu mengikuti izin, bukan nama peran.
 - Perusahaan lama tidak punya templat yang baru, atau salah satu perannya terhapus: tambahkan dengan **Mulai dari templat** di **Buat peran**. Admin yang kehilangan semua peran admin dapat diperbaiki operator platform (**Panduan Panel Operator Inbils**).
+- Izin baru yang dirilis sesudah perusahaan Anda dibuat masuk ke peran yang disalin dari templat tertentu, bukan ke semua peran. Contohnya `ticket.reopen` ("Buka kembali tiket"): izin itu masuk ke peran salinan Manajer dan NOC & Layanan Pelanggan, juga yang sudah Anda ganti namanya. Peran buatan sendiri tidak menerimanya. Tombol **Buka kembali** di halaman tiket tidak tampil untuk peran itu sampai Admin menambahkan izinnya lewat **Ubah** di menu Peran.
 - Halaman detail menolak dengan **Akses ditolak** (403): Anda tidak memegang `roles.manage`.
 - Tombol **Ekspor** tidak ada: Anda tidak memegang `roles.export`.
 
@@ -4299,7 +4605,7 @@ Peran yang dapat memakai: admin. Izin: `roles.manage`, sama dengan menu **Peran*
    - **Kode** (bisa diurutkan): kode izin, berpola `<area>.<aksi>` atau `<area>.<objek>.<aksi>`, misalnya `billing.payment.record`.
    - **Fungsi**: apa yang dibolehkan izin itu dalam kalimat Indonesia, misalnya "Catat pembayaran". Teks ini sama dengan label izin di halaman detail peran (bagian 8.6).
    - **Kelompok**: lencana berisi nama Indonesia dari awalan kode sebelum titik pertama, misalnya **Tagihan** untuk `billing`. Kelompok ini sama dengan kategori di halaman detail peran.
-   - Di bawah tabel ada keterangan jumlah baris yang tampil, pemilih "Baris per halaman" (10, 25 atau 50), serta tombol **Sebelumnya** dan **Berikutnya** dengan keterangan "Halaman n dari m". Seeder peran membuat 166 izin.
+   - Di bawah tabel ada keterangan jumlah baris yang tampil, pemilih "Baris per halaman" (10, 25 atau 50), serta tombol **Sebelumnya** dan **Berikutnya** dengan keterangan "Halaman n dari m". Katalog bawaan memuat 173 izin.
    - Bila tidak ada baris, layar menampilkan "Belum ada hak akses" (keterangan "Hak akses dibuat bersama pembaruan sistem."), atau "Tidak ada hak akses yang cocok" dengan tombol **Reset filter** saat pencarian aktif.
 
    ![Daftar Hak Akses dengan kotak Cari, kolom Kode, Fungsi dan Kelompok](images/web/permissions.png)
@@ -4344,13 +4650,13 @@ Layar ini tidak menunjukkan peran mana yang memegang suatu izin. Untuk itu buka 
 
 ## 8.8 Dokumen
 
-Dokumen mengelola jenis dokumen bisnis, yaitu kategori berkas dengan nama, kode, objek yang dicakup, status wajib dan masa berlaku. Buka menu ini saat Anda menambah atau mengubah jenis dokumen. Halaman ini hanya mengelola jenisnya: tidak ada tombol untuk mengunggah atau menghapus berkas di sini, dan lampiran tiket serta bukti SPK dikelola di halaman tiket (bagian 3.4) dan SPK (bagian 3.3).
+Menu ini bernama **Jenis Dokumen** di sidebar. Ia mengelola jenis dokumen pelanggan, yaitu kategori berkas dengan nama, kode, objek yang dicakup, status wajib dan masa berlaku, misalnya KTP atau kontrak. Buka menu ini saat Anda menambah atau mengubah jenis dokumen. Halaman ini hanya mengelola jenisnya: berkas pelanggan diunggah di tab **Dokumen** pada halaman detail pelanggan (bagian 4.1; ringkasannya ada di "Berkas dokumen pelanggan" di bawah). Lampiran tiket dan bukti SPK dikelola di halaman tiket (bagian 3.4) dan SPK (bagian 3.3).
 
 Peran yang dapat memakai: admin. Izin: `system.setting` membuka menu dan mengizinkan semua aksi (lihat, tambah, ubah, hapus), `system.document.export` menampilkan tombol **Ekspor**. Pada peran bawaan hanya admin yang memegang keduanya. Izin `system.setting` juga membuka menu Penomoran (bagian 7.13).
 
 ### Membuka dan membaca daftar
 
-1. Di sidebar, buka grup **Administrasi**, lalu klik **Dokumen**.
+1. Di sidebar, buka grup **Administrasi**, lalu klik **Jenis Dokumen**. Judul layar berbunyi **Jenis Dokumen** dengan subjudul "Jenis dokumen pelanggan beserta status wajib dan masa berlakunya. Berkasnya diunggah di tab Dokumen pada halaman pelanggan."
 2. Baca daftar. Cara kerja pencarian, urutan, tombol baris dan dialog hapus ada di bagian 1.5.
 
    - Kotak **Cari** (petunjuk "Nama, kode, atau berlaku untuk") mencari di nama, kode dan **Berlaku untuk**.
@@ -4360,7 +4666,7 @@ Peran yang dapat memakai: admin. Izin: `system.setting` membuka menu dan mengizi
    - Tombol **Buat Jenis Dokumen**, **Ubah** dan menu **Aksi lainnya** (**Nonaktifkan** atau **Aktifkan**, dan **Hapus permanen** bila jenis belum dipakai) tampil untuk semua orang yang bisa membuka halaman ini. Filter **Status** punya **Aktif**, **Nonaktif**, **Dihapus**, dan **Semua, termasuk dihapus**.
    - Bila tidak ada baris, layar menampilkan "Belum ada jenis dokumen" dengan tombol **Buat Jenis Dokumen**, atau "Tidak ada jenis dokumen yang cocok" dengan tombol **Reset filter** saat pencarian aktif.
 
-   ![Daftar Dokumen yang masih kosong pada perusahaan demo, dengan pesan Belum ada jenis dokumen, tombol Ekspor dan Buat Jenis Dokumen](images/web/documents.png)
+   ![Daftar Jenis Dokumen yang masih kosong pada perusahaan demo, dengan pesan Belum ada jenis dokumen, tombol Ekspor dan Buat Jenis Dokumen](images/web/documents.png)
 
 ### Menambah jenis dokumen
 
@@ -4368,8 +4674,8 @@ Peran yang dapat memakai: admin. Izin: `system.setting` membuka menu dan mengizi
 2. Isi form pada dialog **Buat Jenis Dokumen**:
    - **Nama**: wajib, maksimal 255 karakter.
    - **Kode**: wajib, maksimal 50 karakter (petunjuk "Unik di perusahaan ini dan tidak bisa diubah nanti."). Kode tidak boleh sama dengan kode jenis lain di perusahaan yang sama, termasuk jenis yang sudah dihapus. Bila sama, pesan "kode sudah digunakan." muncul di bawah isian. Kode tidak bisa diubah setelah disimpan.
-   - **Berlaku untuk**: opsional, teks bebas maksimal 100 karakter. Petunjuk "Mis. pelanggan". Sistem tidak memeriksa isinya.
-   - **Masa berlaku (hari)**: opsional, bilangan bulat 1 atau lebih. Kosong berarti jenis ini tanpa masa berlaku.
+   - **Berlaku untuk**: opsional, teks bebas maksimal 100 karakter. Petunjuk "Mis. pelanggan". Sistem tidak memeriksa isinya, tetapi tab **Dokumen** pada halaman pelanggan hanya menawarkan jenis aktif yang **Berlaku untuk**-nya kosong, `Customer` atau `Pelanggan`. Jenis dengan isian lain tidak muncul di pilihan itu.
+   - **Masa berlaku (hari)**: opsional, bilangan bulat 1 atau lebih. Kosong berarti jenis ini tanpa masa berlaku. Berkas pelanggan yang diunggah dengan jenis ini berlaku sampai tanggal unggah ditambah jumlah hari itu.
    - **Wajib**: saklar, mati secara awal. Saklar ini hanya penanda yang tampil di kolom **Wajib** dan di ekspor. Layar lain tidak memakainya untuk menolak atau mengingatkan apa pun.
    - **Aktif**: saklar, hidup secara awal. Nilainya tersimpan: matikan bila jenis baru belum dipakai.
 3. Klik **Buat**. Muncul toast "Jenis dokumen dibuat." **Batal** menutup dialog tanpa menyimpan.
@@ -4390,12 +4696,12 @@ Kode jenis yang nonaktif atau sudah dihapus (**Dihapus**) tetap dianggap terpaka
 
 ### Berkas dokumen pelanggan
 
-Halaman **Dokumen** tidak menyediakan kontrol unggah, daftar berkas atau tombol hapus berkas. Backend hanya menyediakan rute untuk berkas pelanggan, tetapi belum ada layar web yang memakainya.
+Berkas pelanggan diunggah, dibuka dan dihapus di tab **Dokumen (n)** pada halaman detail pelanggan, bukan di menu **Jenis Dokumen**. Hubungannya dengan menu ini:
 
-- Unggah berkas memerlukan `system.setting`, hanya menerima pelanggan di perusahaan aktif sebagai pemilik, dan hanya memakai koleksi `documents`.
-- Validasi menerima semua jenis berkas yang dikenali sebagai file. Tidak ada pembatasan ekstensi atau MIME. Ukuran maksimalnya 10.240 KB.
-- Kode jenis dokumen bersifat opsional. Bila diisi, kodenya harus menunjuk jenis dokumen perusahaan aktif. Sistem menyimpan kode jenis, pengunggah dan tanggal kedaluwarsa sebagai metadata berkas.
-- Penghapusan berkas juga memerlukan `system.setting`. Sistem hanya menghapus berkas koleksi `documents` milik pelanggan di perusahaan aktif.
+- Tab itu hanya menampilkan formulir unggah bagi pemegang `customer.update`, bukan `system.setting`. Izin yang sama dibutuhkan untuk menghapus berkas. Berkas hanya terhubung ke pelanggan perusahaan aktif.
+- Formulir meminta **Jenis dokumen** (wajib, dari jenis aktif menurut aturan **Berlaku untuk** di atas) dan **Berkas**. Server hanya menerima PDF, JPG dan PNG, paling besar 10240 KB (10 MB).
+- Tanggal berlaku dihitung saat berkas diunggah, dari **Masa berlaku (hari)** jenisnya saat itu. Daftar berkas menulis "Berlaku sampai {tanggal}" atau "Tanpa masa berlaku". Lencana **Segera habis** muncul 30 hari sebelum tanggal itu, dan **Kedaluwarsa** sesudahnya. Mengubah masa berlaku jenis kemudian tidak menggeser tanggal berkas yang sudah ada.
+- Setiap hari dini hari Inbils menaruh pengingat di lonceng pemegang `customer.update`, sekali untuk setiap berkas yang masuk jendela 30 hari itu. Judulnya "Dokumen {jenis} {nama pelanggan} segera habis" dengan isi "Berlaku sampai {tanggal}.", dan mengetuknya membuka halaman pelanggan itu. Unggah dan hapus berkas tercatat di Log Audit pelanggan.
 
 ### Mengekspor daftar
 
@@ -4409,7 +4715,7 @@ Berkas `document-types-export-<tanggal>-<jam>.csv` (atau `.pdf`, berjudul "Jenis
 - Pesan "kode sudah digunakan." di bawah **Kode**: perusahaan ini sudah punya jenis dengan kode itu, termasuk yang sudah dihapus. Pakai kode lain, atau ubah jenis yang lama lewat **Ubah**.
 - Anda mengubah **Kode** di **Ubah Jenis Dokumen**: isian itu hanya bisa dibaca. Untuk kode lain, buat jenis baru.
 - Penyimpanan gagal dengan toast "Data gagal disimpan. Periksa input.": baca pesan merah di bawah isian. Periksa **Masa berlaku (hari)** (bilangan bulat 1 atau lebih) dan panjang **Berlaku untuk** (maksimal 100 karakter).
-- Anda mencari tombol untuk mengunggah berkas: halaman ini tidak punya tombol itu. Halaman ini hanya mengelola jenisnya.
+- Anda mencari tombol untuk mengunggah berkas: halaman ini tidak punya tombol itu. Buka tab **Dokumen** pada halaman detail pelanggan (bagian 4.1). Jenis yang Anda cari tidak muncul di sana: periksa bahwa jenisnya **Aktif** dan **Berlaku untuk**-nya kosong, `Customer` atau `Pelanggan`.
 
 ## 8.9 Integrasi (Pengaturan → Integrasi)
 
@@ -4473,8 +4779,8 @@ Notifikasi WhatsApp dikirim dari nomor milik perusahaan ini.
 Email ke pelanggan dan staf dikirim dari server SMTP perusahaan ini.
 
 - **Host SMTP** dan **Alamat pengirim**: wajib saat **Aktif**. **Port** (1 sampai 65535, isian awal 587), **Enkripsi** (**STARTTLS** atau **TLS**), **Nama pengguna**, **Kata sandi**, dan **Nama pengirim** opsional.
-- Selama kartu nonaktif, atau belum pernah diisi, email dikirim dari pengirim platform. Kartu menulis alamatnya: "Selama nonaktif, email dikirim dari pengirim platform …". Email tidak pernah gagal terkirim hanya karena kartu kosong.
-- Email yang berisi tautan kredensial (atur ulang kata sandi, verifikasi email, undangan administrator perusahaan, tautan akses pelanggan baru) selalu keluar lewat pengirim platform, bukan lewat SMTP perusahaan ini. Satu akun bisa terdaftar di beberapa perusahaan, dan operator SMTP satu perusahaan tidak boleh membaca tautan yang membuka akun di perusahaan lain.
+- Selama kartu nonaktif, atau belum pernah diisi, email dikirim dari pengirim platform. Kartu menulis alamatnya: "Selama nonaktif, email dikirim dari pengirim platform …". Email tidak pernah gagal terkirim hanya karena kartu kosong. Alamat server tetap milik platform, tetapi nama pengirim memakai nama perusahaan Anda, dan kepala serta kaki email menyebut perusahaan Anda (dengan logo bila logonya tersimpan sebagai berkas publik).
+- Email yang berisi tautan kredensial (atur ulang kata sandi, verifikasi email, undangan administrator perusahaan, undangan staf, tautan akses pelanggan baru) selalu keluar lewat pengirim platform, bukan lewat SMTP perusahaan ini, dan memakai nama Inbils sebagai pengirim. Isinya boleh menyebut nama perusahaan Anda. Satu akun bisa terdaftar di beberapa perusahaan, dan operator SMTP satu perusahaan tidak boleh membaca tautan yang membuka akun di perusahaan lain.
 - **Uji koneksi** mengirim email uji ke alamat email akun Anda, dengan subjek "Email uji Inbils". Periksa kotak masuk Anda dan folder spam. Pesan galat yang mungkin: "Login SMTP ditolak. Periksa nama pengguna dan kata sandi.", "Gagal membuka TLS ke server SMTP. Periksa enkripsi dan port.", dan "Server SMTP menolak alamat pengirim …".
 
 ### RADIUS
@@ -4550,13 +4856,13 @@ Siapkan dulu:
 ### Langkah
 
 1. Admin atau manajer membuka **Pelanggan** (bagian 4.1) lalu klik **Buat Pelanggan**. Staf bawaan tidak melihat tombol ini karena pendaftaran juga memerlukan izin langganan (`customer.subscription.manage`).
-2. Isi keempat tab: **Data pelanggan**, **Alamat**, **Kontak**, dan **Langganan & SPK**. Di **Data pelanggan**, centang **Pelanggan setuju menerima notifikasi WhatsApp** hanya bila pelanggan sudah menyetujuinya, dan pilih **Diperoleh oleh** bila penjualan perlu dikreditkan (ketik untuk mencari, lalu pilih; bagian 7.10). Di **Langganan & SPK**, pilih **Paket layanan** dan **POP pelayan** dengan cara yang sama. Klik **Buat pelanggan dan SPK**.
-3. Dalam satu transaksi, Inbils membuat pelanggan, akun masuk berperan `customer`, alamat, kontak, langganan berstatus **Menunggu**, dan SPK **Instalasi** berstatus **Menunggu penugasan**. SPK itu berjudul "Pemasangan &lt;kode langganan&gt; - &lt;nama pelanggan&gt;" dan memakai **POP pelayan** sebagai **Lokasi**. Status pelanggan masih **Prospek**. Inbils lalu membuka detail pelanggan dan menampilkan toast "Pelanggan, langganan, dan SPK pemasangan dibuat. Link akses dikirim ke &lt;email&gt;."
-4. Bila **Akun aktif** menyala, pelanggan menerima email **Akun pelanggan Anda sudah dibuat** dengan tombol **Atur kata sandi**, berlaku 60 menit. Setelah mengatur kata sandi, pelanggan masuk ke aplikasi pelanggan. Toast pendaftaran tidak memeriksa **Akun aktif**: bila akunnya nonaktif, email tidak terkirim. Bila email hilang atau tautannya kedaluwarsa, buka detail pelanggan dan klik **Kirim ulang link akses**.
-5. Admin atau manajer membuka **Penugasan** (bagian 3.1), mencari SPK **Menunggu penugasan** itu, lalu klik **Tugaskan**. Pilih teknisi di **Pilih teknisi lapangan** dan klik **Simpan penugasan**. Status SPK menjadi **Ditugaskan**. Teknisi menerima WhatsApp bila WhatsApp perusahaan aktif. Pelanggan menerima pesan jadwal hanya bila SPK punya tanggal jadwal, dan SPK dari pendaftaran dibuat tanpa tanggal itu.
+2. Isi keempat tab: **Data pelanggan**, **Alamat**, **Kontak**, dan **Langganan & SPK**. Di **Data pelanggan**, centang **Pelanggan setuju menerima notifikasi WhatsApp** hanya bila pelanggan sudah menyetujuinya, dan pilih **Diperoleh oleh** bila penjualan perlu dikreditkan (ketik untuk mencari, lalu pilih; bagian 7.10). Di **Langganan & SPK**, pilih **Paket layanan** dan **POP pelayan** dengan cara yang sama. Pemegang `spk.assign` juga melihat blok **Tugaskan sekarang** dengan isian **Teknisi** (ketik untuk mencari; daftar menulis beban kerja tiap teknisi) dan **Tanggal kunjungan**. Isi bila pemasangan sudah disepakati, atau kosongkan untuk menugaskan nanti dari **Penugasan** (langkah 5). Tanpa `spk.assign`, blok itu bernama **Jadwal kunjungan** dan hanya memuat **Tanggal kunjungan**. Tanggal kunjungan tidak boleh sebelum hari ini ("Tanggal kunjungan tidak boleh sebelum hari ini."). Klik **Buat pelanggan dan SPK**.
+3. Dalam satu transaksi, Inbils membuat pelanggan, akun masuk berperan `customer`, alamat, kontak, langganan berstatus **Menunggu**, dan SPK **Instalasi**. SPK itu berstatus **Menunggu penugasan**, atau **Ditugaskan** bila Anda memilih **Teknisi** di **Tugaskan sekarang** (penugasan yang gagal membatalkan seluruh pendaftaran). SPK itu berjudul "Pemasangan &lt;kode langganan&gt; - &lt;nama pelanggan&gt;", memakai **POP pelayan** sebagai **Lokasi**, dan membawa **Tanggal kunjungan** bila diisi. Status pelanggan masih **Prospek**. Inbils lalu membuka detail pelanggan dan menampilkan toast "Pelanggan, langganan, dan SPK pemasangan dibuat. Tautan akses akan dikirim ke &lt;email&gt;." Bila Anda memilih teknisi, kalimat pertamanya berbunyi "Pelanggan, langganan, dan SPK pemasangan dibuat dan ditugaskan ke &lt;nama teknisi&gt;." Kalimat tentang tautan akses hanya muncul bila akun pelanggan aktif, dan ia menyatakan apa yang akan terjadi: e-mailnya masuk antrean pengiriman.
+4. Bila **Akun aktif** menyala, pelanggan menerima email **Akun pelanggan Anda sudah dibuat** dengan tombol **Atur kata sandi**, berlaku 60 menit. Isi emailnya menyebut nama perusahaan Anda ("Akun pelanggan Anda di &lt;perusahaan&gt; sudah dibuat"), sedangkan pengirim dan kepala emailnya tetap Inbils karena email berisi tautan kredensial selalu keluar lewat pengirim platform. Setelah pelanggan menyimpan kata sandi, halaman masuk menulis "Kata sandi tersimpan. Masuk lewat aplikasi Inbils." dengan tombol **Buka aplikasi Inbils** (ke halaman aplikasi di Play Store bila alamatnya sudah diisi), karena pelanggan bekerja di aplikasi pelanggan, bukan di web. Toast pendaftaran tidak memeriksa **Akun aktif**: bila akunnya nonaktif, email tidak terkirim, dan kalimat tautan akses tidak muncul di toast. Bila email hilang atau tautannya kedaluwarsa, buka detail pelanggan dan klik **Kirim ulang link akses**.
+5. Bila SPK belum ditugaskan, admin atau manajer membuka **Penugasan** (bagian 3.1), mencari SPK **Menunggu penugasan** itu, lalu klik **Tugaskan**. Pilih teknisi di **Pilih teknisi lapangan**: tiap pilihan menulis "&lt;nama&gt; · &lt;n&gt; pekerjaan aktif", dan teknisi dengan pekerjaan paling sedikit diberi keterangan "Paling sedikit pekerjaan" bila bebannya tidak sama. Isi **Tanggal kunjungan** bila perlu (opsional; kosong berarti jadwal SPK tidak berubah), lalu klik **Simpan penugasan**. Toast "&lt;kode SPK&gt; ditugaskan ke &lt;nama teknisi&gt;." muncul, dan status SPK menjadi **Ditugaskan**. Teknisi menerima WhatsApp bila WhatsApp perusahaan aktif. Pada penugasan pertama, pelanggan menerima pesan jadwal bila SPK punya **Tanggal kunjungan**, baik dari pendaftaran maupun dari dialog ini. Tanpa tanggal, tidak ada pesan jadwal.
 6. Bila SPK harus memasang perangkat atau memakai barang, admin atau manajer membuka SPK itu (bagian 3.3) dan klik **Tambah item**. Pilih **Barang** bertipe **Aset** lalu **Aset jaringan** yang **Tersedia**, atau pilih barang **Habis pakai** dan isi **Jumlah terpakai** bila jumlahnya sudah diketahui. Item SPK tidak mencadangkan stok. Bila bahan diambil dari gudang lewat permintaan barang, ikuti alur 9.3.
-7. Teknisi mengerjakan SPK di aplikasi teknisi: memulai pekerjaan (status **Dikerjakan**), mencatat bahan yang dipakai, mengunggah foto bukti, lalu mengajukan hasil (status **Menunggu review**). Pengajuan ditolak dengan pesan "Bukti pekerjaan wajib diunggah sebelum SPK diajukan." bila belum ada bukti. Pengajuan juga ditolak bila ada permintaan barang **Diserahkan** yang sisa materialnya belum dilaporkan (bagian 6.8).
-8. Manajer atau admin yang bukan pembuat SPK dan bukan teknisinya membuka **Persetujuan** (bagian 3.2), klik **Tinjau**, lalu **Setujui**. Persetujuan butuh minimal satu bukti dan tidak bisa dibatalkan.
+7. Teknisi mengerjakan SPK di aplikasi teknisi: memulai pekerjaan (status **Dikerjakan**), mencatat bahan yang dipakai, mengunggah foto bukti, lalu mengajukan hasil (status **Menunggu review**). Bila teknisi memulai lebih jauh dari **Jarak check-in maksimal (meter)** (bagian 8.1) dari lokasi pelanggan, ia wajib menulis alasan, dan halaman SPK menulisnya di baris **Check-in** sebagai "Jauh dari lokasi: &lt;alasan&gt;". Pengajuan ditolak dengan pesan "Bukti pekerjaan wajib diunggah sebelum SPK diajukan." bila belum ada bukti. Pengajuan juga ditolak bila ada permintaan barang **Diserahkan** yang sisa materialnya belum dilaporkan (bagian 6.8).
+8. Manajer atau admin yang bukan pembuat SPK dan bukan teknisinya membuka **Persetujuan** (bagian 3.2), klik **Tinjau**, lalu **Setujui**. Persetujuan butuh minimal satu bukti dan tidak bisa dibatalkan. Bila hasil kerja belum layak, klik **Tolak** dan tulis alasannya: SPK berstatus **Dikembalikan** (bukan "Ditolak"), dan teknisi menerima alasan itu.
 9. Saat disetujui, SPK menjadi **Selesai** dan Inbils menjalankan langkah ini dalam satu transaksi:
    - Stok bahan yang tercatat di **Jumlah terpakai** berkurang di **Lokasi** SPK, dan **Mutasi Stok** mencatatnya sebagai **Keluar** (bagian 6.7). Jumlah yang sudah keluar lewat permintaan barang tidak dikurangi dua kali.
    - Pada SPK **Instalasi**, aset yang dipilih menjadi **Terpasang** pada pelanggan dan langganan (bagian 5.2).
@@ -4564,8 +4870,8 @@ Siapkan dulu:
    - Bila SPK punya biaya pemasangan atau bahan yang dipilih untuk ditagih, Inbils membuat tagihan sekali bayar. Baris biaya bernama **Biaya pemasangan**. Bahan hanya menjadi baris **Bahan terpakai** bila saklarnya menyala.
 10. Bila **Kirim tagihan pemasangan otomatis** menyala, pelanggan langsung melihat tagihan. Bila mati, buka kartu **Tagihan draf menunggu dikirim** di Dasbor Keuangan, periksa draf, lalu klik **Kirim tagihan**. Pemegang `billing.send` juga menerima lonceng dan push.
 11. Untuk tagihan bulanan, klik **Buat tagihan bulanan** di **Tagihan**, pilih **Periode**, klik **Lihat pratinjau**, lalu **Buat &lt;n&gt; tagihan**. Penerbitan juga berjalan terjadwal setiap hari. Tagihan langsung berstatus **Belum dibayar**, dan bulan pertama dihitung prorata sejak tanggal aktivasi. Langganan yang **Menunggu** atau **Ditangguhkan** tidak ikut tagihan bulanan.
-12. Pelanggan membayar lewat aplikasi pelanggan. Pembayaran masuk ke tagihan setelah Midtrans mengonfirmasi. Pemegang izin `billing.payment.record` (admin, manajer, dan staf) juga dapat mencatat pembayaran: buka tagihan yang belum lunas (**Belum dibayar**, **Sebagian**, atau **Lewat jatuh tempo**), klik **Catat pembayaran**, isi **Jumlah** (tidak lebih dari sisa) dan **Metode** (**Tunai**, **Transfer**, **Cek**, atau **Lainnya**), isi **Referensi** bila ada, lalu klik **Simpan**. Tagihan menjadi **Sebagian** atau **Lunas**.
-13. Bila tagihan tidak dibayar sampai lewat jatuh tempo, pekerjaan terjadwal menandainya **Lewat jatuh tempo**. Pelanggan juga menerima pengingat WhatsApp tiga hari dan satu hari sebelum jatuh tempo, dan satu hari sesudahnya. Bila saklar **Tangguhkan langganan yang menunggak** menyala di **Pengaturan Perusahaan** (bagian 8.1), langganan yang tagihannya melewati **Batas keterlambatan** diisolir otomatis dan berstatus **Ditangguhkan**. Pembayaran yang melunasi semua tunggakan mengaktifkan kembali langganan yang diisolir otomatis, bila saklar **Aktifkan kembali saat tagihan lunas** menyala. Nilai awalnya: penangguhan mati, batas 7 hari, aktif kembali menyala. Penangguhan manual dan blokir internet tidak pernah dibuka otomatis. Admin dan manajer juga dapat mengisolir atau memblokir sendiri dari **Tunggakan** (bagian 7.2 dan 5.3).
+12. Pelanggan membayar lewat aplikasi pelanggan. Pembayaran masuk ke tagihan setelah Midtrans mengonfirmasi. Pemegang izin `billing.payment.record` (admin, manajer, dan staf) juga dapat mencatat pembayaran: buka tagihan yang belum lunas (**Belum dibayar**, **Dibayar sebagian**, atau **Lewat jatuh tempo**), klik **Catat pembayaran**, isi **Jumlah** (tidak lebih dari sisa) dan **Metode** (**Tunai**, **Transfer**, **Cek**, atau **Lainnya**), isi **Referensi** bila ada, lalu klik **Simpan**. Tagihan menjadi **Dibayar sebagian** atau **Lunas**. Tagihan **Lunas** punya tombol **Unduh kuitansi** bagi pemegang `billing.pdf.view`.
+13. Bila tagihan tidak dibayar sampai lewat jatuh tempo, pekerjaan terjadwal menandainya **Lewat jatuh tempo**, dan daftar tagihan sudah menampilkannya begitu tanggal jatuh tempo lewat. Pelanggan juga menerima pengingat WhatsApp tiga hari dan satu hari sebelum jatuh tempo, dan satu hari sesudahnya. Pemegang `billing.send` dapat mengirim pengingat sendiri lewat tombol **Kirim pengingat** di **Tunggakan**, tab **Per tagihan** (bagian 7.2), paling banyak sekali sehari untuk satu tagihan. Bila saklar **Tangguhkan langganan yang menunggak** menyala di **Pengaturan Perusahaan** (bagian 8.1), langganan yang tagihannya melewati **Batas keterlambatan** diisolir otomatis dan berstatus **Ditangguhkan**. Pembayaran yang melunasi semua tunggakan mengaktifkan kembali langganan yang diisolir otomatis, bila saklar **Aktifkan kembali saat tagihan lunas** menyala. Nilai awalnya: penangguhan mati, batas 7 hari, aktif kembali menyala. Penangguhan manual dan blokir internet tidak pernah dibuka otomatis. Admin dan manajer juga dapat mengisolir atau memblokir sendiri dari **Tunggakan** (bagian 7.2 dan 5.3).
 
 Hasil akhirnya: langganan **Aktif** dan tagihan **Lunas**. Tagihan dan pembayaran pelanggan itu ikut terhitung di **Metrik Bisnis** dan **KPI Penjualan** (bagian 7.4 dan 7.10).
 
@@ -4574,7 +4880,7 @@ Hasil akhirnya: langganan **Aktif** dan tagihan **Lunas**. Tagihan dan pembayara
 - Tombol **Buat Pelanggan** tidak ada: peran Anda belum memegang semua izin pendaftaran, yaitu `customer.create`, `customer.address.manage`, `customer.subscription.manage`, dan `spk.create`. Minta admin atau manajer mendaftarkan pelanggan, atau tambahkan izinnya di Peran (bagian 8.6).
 - Anda mendaftarkan pelanggan lalu tidak bisa menyetujui SPK-nya. Itu aturan pemisahan tugas dan berlaku juga untuk admin. Di **Persetujuan**, SPK itu tidak punya tombol **Tinjau**, dan kolom **Tindakan** menulis "Perlu penyetuju lain". Minta rekan yang berhak menyetujuinya.
 - Langganan masih **Menunggu** padahal teknisi sudah selesai: SPK belum disetujui. Buka **Persetujuan**.
-- Stok tidak berkurang dan aset tidak terpasang setelah persetujuan: SPK tidak punya **Lokasi**. SPK dari pendaftaran selalu punya **Lokasi**, tetapi SPK manual belum tentu, dan layar SPK tidak punya tombol untuk mengubah **Lokasi** sesudah SPK dibuat.
+- Stok tidak berkurang dan aset tidak terpasang setelah persetujuan: SPK tidak punya **Lokasi**. SPK dari pendaftaran selalu punya **Lokasi**, tetapi SPK manual belum tentu. SPK yang masih **Draf** atau **Menunggu penugasan** bisa diubah lewat tombol **Ubah** di halaman SPK (bagian 3.3), termasuk **Lokasi**. Setelah ditugaskan, SPK tidak bisa diubah lagi lewat tombol itu.
 - Tagihan pemasangan tidak muncul setelah persetujuan: SPK tidak punya biaya pemasangan atau bahan yang diaktifkan untuk ditagih. Bila tagihan ada tetapi pelanggan belum melihatnya, periksa kartu **Tagihan draf menunggu dikirim** dan saklar **Kirim tagihan pemasangan otomatis**.
 - Pelanggan tidak bisa masuk ke aplikasi: **Akun aktif** mati saat pendaftaran sehingga email tidak terkirim, atau tautannya sudah lewat 60 menit. Aktifkan pelanggan di Pelanggan (bagian 4.1) dan penggunanya di Pengguna (bagian 8.5), lalu klik **Kirim ulang link akses**. Bila salah satunya nonaktif, Inbils menolak dengan pesan "Customer atau akun portalnya nonaktif, tautan akses tidak dikirim." Tombol ini dibatasi tiga kali per menit.
 - Pelanggan tidak menerima WhatsApp: buka kartu **WhatsApp** di detail pelanggan. Kolom **Status** dan **Keterangan** menyebut alasan pesan dilewati, misalnya "Pelanggan belum setuju" atau "WhatsApp perusahaan nonaktif".
@@ -4588,18 +4894,19 @@ Gangguan yang selesai dari jarak jauh melewati langkah 5 sampai 9 dan tidak butu
 
 ### Langkah
 
-1. Catat tiket. Buka **Tiket** (bagian 3.4), klik **Buat tiket**, isi **Judul**, **Sumber** (**Pelanggan**, **NOC**, atau **Internal**), **Kategori**, **Prioritas**, dan **Pelanggan** untuk tiket pelanggan, lalu klik **Simpan**. Isi **Langganan**, **Aset jaringan**, dan **Lokasi** bila diketahui. Isian **Pelanggan**, **Langganan**, dan **Aset jaringan** adalah kotak cari: ketik minimal 2 karakter, lalu pilih dari paling banyak 20 hasil. Pelanggan juga dapat membuat tiket sendiri dari aplikasi pelanggan, dan tiketnya tampil di daftar yang sama. Pelanggan menerima WhatsApp bahwa tiketnya tercatat bila WhatsApp perusahaan aktif dan pelanggan sudah setuju. Syarat yang sama berlaku untuk setiap pesan WhatsApp ke pelanggan di alur ini.
-2. Tiket baru berstatus **Terbuka**. **Target respons** dan **Target penyelesaian** dihitung dari waktu pembuatan. Sumbernya tingkat SLA versi paket langganan tiket itu (tetap berlaku walau tingkatnya sudah dinonaktifkan), atau **Kategori Tiket** bila tiket tidak punya langganan, dan halaman tiket menyebut sumbernya di samping kedua target. Prioritas **Mendesak** memotong keduanya jadi separuh, dibulatkan ke atas. Tiket yang lewat **Target penyelesaian** tampil di kartu **SLA terlampaui** di Dasbor (bagian 2.1).
-3. Tugaskan petugas. Admin atau manajer membuka **Penugasan** (bagian 3.1), mencari tiket itu, klik **Tugaskan**, memilih petugas di **Pilih petugas tiket**, lalu klik **Simpan penugasan**. Dari halaman tiket berstatus **Terbuka**, tombol **Tugaskan** membuka dialog dengan pilihan **Petugas** (ketik untuk mencari, lalu pilih). Status menjadi **Ditugaskan**. Petugas menerima email dan notifikasi di lonceng. Pada penugasan pertama, pelanggan menerima WhatsApp bahwa tiketnya ditangani.
+1. Catat tiket. Buka **Tiket** (bagian 3.4), klik **Buat tiket**, isi **Judul**, **Sumber** (**Pelanggan**, **NOC**, atau **Internal**), **Kategori**, **Prioritas**, dan **Pelanggan** untuk tiket pelanggan, lalu klik **Simpan**. Isi **Langganan**, **Aset jaringan**, dan **Lokasi** bila diketahui. Isian **Pelanggan**, **Langganan**, dan **Aset jaringan** adalah kotak cari: ketik minimal 2 karakter, lalu pilih dari paling banyak 20 hasil. Bila pelanggan yang dipilih hanya punya satu langganan, **Langganan** terisi sendiri. **Judul** terisi dengan nama **Kategori** sampai Anda menulis judul sendiri. Begitu **Kategori** dipilih, satu baris di bawah form menulis "Target respons &lt;waktu&gt;, selesai &lt;waktu&gt;" (atau "Tanpa target respons, selesai &lt;waktu&gt;"), dihitung dari kategori, langganan dan prioritas yang sedang dipilih, jadi Anda tahu target tiketnya sebelum menyimpan. Pelanggan juga dapat membuat tiket sendiri dari aplikasi pelanggan, dan tiketnya tampil di daftar yang sama. Pelanggan menerima WhatsApp bahwa tiketnya tercatat bila WhatsApp perusahaan aktif dan pelanggan sudah setuju. Syarat yang sama berlaku untuk setiap pesan WhatsApp ke pelanggan di alur ini.
+2. Tiket baru berstatus **Terbuka**. **Target respons** dan **Target penyelesaian** dihitung dari waktu pembuatan. Sumbernya tingkat SLA versi paket langganan tiket itu (tetap berlaku walau tingkatnya sudah dinonaktifkan), atau **Kategori Tiket** bila tiket tidak punya langganan, dan halaman tiket menyebut sumbernya di samping kedua target. Prioritas **Mendesak** memotong keduanya jadi separuh, dibulatkan ke atas. Bila **Hitungan tenggat** tingkat SLA-nya **Jam layanan**, hanya jam buka perusahaan yang dihitung (bagian 8.1): tiket yang masuk di luar jam buka mulai dihitung saat buka berikutnya, dan halaman tiket menulis "Dihitung sejak tiket dibuat, dalam jam layanan:". Tingkat SLA **24 jam** dan Kategori Tiket menghitung siang dan malam. Tiket yang lewat **Target penyelesaian** tampil di kartu **SLA terlampaui** di Dasbor (bagian 2.1).
+3. Tugaskan petugas. Admin atau manajer membuka **Penugasan** (bagian 3.1), mencari tiket itu, klik **Tugaskan**, memilih petugas di **Pilih petugas tiket**, lalu klik **Simpan penugasan**. Dari halaman tiket berstatus **Terbuka**, tombol **Tugaskan** membuka dialog dengan pilihan **Petugas** (ketik untuk mencari, lalu pilih). Pilihan di kedua tempat menulis "&lt;nama&gt; · &lt;n&gt; pekerjaan aktif" (tiket dan SPK yang sedang dipegangnya), dan petugas dengan pekerjaan paling sedikit diberi keterangan "Paling sedikit pekerjaan" bila bebannya tidak sama. Pemegang `ticket.assign` yang juga boleh menangani tiket melihat tombol **Tugaskan ke saya** di kartu **Tindakan** pada tiket **Terbuka** yang belum punya petugas, kecuali perusahaan melarang menugaskan diri sendiri. Toast-nya "&lt;kode tiket&gt; ditugaskan ke &lt;nama&gt;." dari **Penugasan**, "Tiket berhasil ditugaskan." dari dialog di halaman tiket, dan "Tiket &lt;kode tiket&gt; ditugaskan ke Anda." dari **Tugaskan ke saya**. Status menjadi **Ditugaskan**. Petugas menerima email dan notifikasi di lonceng. Pada penugasan pertama, pelanggan menerima WhatsApp bahwa tiketnya ditangani.
 4. Petugas memulai tiket. Teknisi melakukannya di aplikasi teknisi. Pengguna web yang memegang `ticket.start` memakai **Mulai** di halaman tiket atau di **Pekerjaan Saya** (bagian 3.6). Status menjadi **Dikerjakan** dan **Respons pertama** terisi.
 5. Bila gangguan butuh kunjungan, admin atau manajer dengan izin `ticket.spawn_spk` membuka tiket berstatus **Ditugaskan** atau **Dikerjakan** yang belum punya catatan penyelesaian, klik **Buat SPK** di kartu **Tindakan**, lalu konfirmasi dengan **Buat SPK** di dialog. Inbils membuat SPK **Perawatan** berstatus **Menunggu penugasan** dengan judul "SPK dari tiket &lt;kode tiket&gt;", lalu langsung membuka halaman SPK itu dengan toast "SPK berhasil dibuat dari tiket." **Pelanggan**, **Langganan**, **Lokasi**, **Prioritas**, dan deskripsi disalin dari tiket. Aset jaringan tiket tidak ikut disalin ke SPK.
 6. Tiket tidak ikut selesai dan tidak menampilkan tautan ke SPK itu. Untuk menemukan SPK lagi, cari kode tiket di kotak **Cari** pada **SPK** (bagian 3.3), karena judul SPK memuat kode tiket. Satu tiket hanya bisa dibuatkan satu SPK.
-7. Tugaskan SPK. Buka **Penugasan** atau halaman SPK, klik **Tugaskan**, lalu pilih teknisi dan simpan. Status SPK menjadi **Ditugaskan** dan teknisi menerima WhatsApp. SPK dari tiket dibuat tanpa tanggal jadwal, jadi pelanggan tidak menerima pesan jadwal.
+7. Tugaskan SPK. Buka **Penugasan** atau halaman SPK, klik **Tugaskan**, lalu pilih teknisi, isi **Tanggal kunjungan** bila perlu, dan simpan. Status SPK menjadi **Ditugaskan** dan teknisi menerima WhatsApp. SPK dari tiket dibuat tanpa tanggal jadwal. Pelanggan menerima pesan jadwal pada penugasan pertama hanya bila Anda mengisi **Tanggal kunjungan**.
 8. Teknisi mengerjakan SPK di aplikasi: memulai, mencatat bahan, mengunggah foto bukti, lalu mengajukan hasil. Bahan yang diambil dari gudang mengikuti alur 9.3.
 9. Manajer atau admin yang bukan pembuat SPK dan bukan teknisinya menyetujui SPK di **Persetujuan** (bagian 3.2). Pembuat SPK adalah orang yang menekan **Buat SPK** di tiket, jadi orang itu butuh rekan untuk menyetujui. SPK menjadi **Selesai**, dan stok bahan yang terpakai berkurang di **Lokasi** SPK bila SPK punya lokasi.
-10. Petugas tiket mengisi catatan penyelesaian: klik **Selesaikan**, isi **Catatan penyelesaian** (wajib, maksimal 1000 karakter), lalu klik **Selesaikan** di dialog. Status menjadi **Diselesaikan** dan pelanggan menerima WhatsApp bahwa tiketnya selesai. Tiket hanya bisa diselesaikan dari status **Dikerjakan**.
-11. Pemegang `ticket.close` yang bukan petugas tiket itu membuka tiket, klik **Tutup**, lalu **Tutup tiket** di dialog. Status menjadi **Ditutup**.
-12. Setelah itu, buat Evaluasi (bagian 3.5) untuk tiket atau SPK tadi lewat **Buat evaluasi** bila perlu. Waktu respons dan penyelesaian tiket masuk ke Kepatuhan SLA dan Kinerja Teknisi (bagian 7.6 dan 7.9).
+10. Petugas tiket mengisi catatan penyelesaian: klik **Selesaikan**, isi **Catatan penyelesaian** (wajib, maksimal 1000 karakter), lalu klik **Selesaikan** di dialog. Status menjadi **Diselesaikan** dan pelanggan menerima WhatsApp bahwa tiketnya selesai. Tiket hanya bisa diselesaikan dari status **Dikerjakan**. Di aplikasi pelanggan, tiket yang **Diselesaikan** menampilkan kartu "Masalah sudah beres?". Pelanggan yang mengetuk **Sudah beres** memberi nilai 1 sampai 5 (komentarnya opsional), dan tiket langsung **Ditutup** tanpa langkah 11. Pelanggan yang mengetuk **Masih bermasalah** membalas tiketnya, dan balasan itu membuka tiketnya kembali.
+11. Bila pelanggan belum menjawab, pemegang `ticket.close` yang bukan petugas tiket itu membuka tiket, klik **Tutup**, lalu **Tutup tiket** di dialog berjudul "Tutup tiket &lt;kode tiket&gt;?" ("Pelanggan tidak bisa membalas lagi; tiket masuk laporan."). Status menjadi **Ditutup**. Pelanggan masih bisa memberi nilai pada tiket yang **Ditutup** dan belum dinilai, lewat tombol **Beri nilai** di aplikasi. Halaman tiket menulis nilainya di **Penilaian pelanggan**, misalnya "4 dari 5".
+12. Bila masalah ternyata belum beres, pemegang `ticket.reopen` (Admin, Manajer dan NOC & Layanan Pelanggan pada templat bawaan, lihat 10.1) membuka tiket yang **Diselesaikan** atau **Ditutup**, klik **Buka kembali**, isi **Alasan** (wajib, 5 sampai 500 karakter), lalu klik **Buka kembali** di dialog "Buka kembali tiket &lt;kode tiket&gt;?". Toast "Tiket &lt;kode tiket&gt; dibuka kembali." muncul. Tiket kembali **Ditugaskan** bila masih punya petugas, atau **Terbuka** bila tidak, dengan lencana "Dibuka kembali &lt;tanggal&gt;" di kartu **Status**. Catatan penyelesaian dan waktu selesai atau tutupnya dikosongkan (catatan lama tetap ada di Log Audit). Target waktu tidak dihitung ulang, dan nilai dari pelanggan tetap tersimpan. Petugas tiket (atau pemegang `ticket.assign` bila belum ada petugas) menerima notifikasi "Tiket &lt;kode tiket&gt; dibuka kembali" berisi alasannya, dan pelanggan menerima kabar bahwa tiketnya akan ditangani lagi.
+13. Setelah itu, buat Evaluasi (bagian 3.5) untuk tiket atau SPK tadi lewat **Buat evaluasi** bila perlu. Bila Anda membukanya dari tombol **Evaluasi teknisi** di halaman tiket yang sudah dinilai pelanggan, isian **Penilaian pelanggan (opsional)** terisi dengan nilai itu, sedangkan skor evaluator tetap kosong. Waktu respons dan penyelesaian tiket masuk ke Kepatuhan SLA dan Kinerja Teknisi (bagian 7.6 dan 7.9).
 
 ### Kesalahan umum
 
@@ -4607,8 +4914,9 @@ Gangguan yang selesai dari jarak jauh melewati langkah 5 sampai 9 dan tidak butu
 - SPK perbaikan tidak bisa Anda setujui sendiri karena Anda pembuatnya. Server menolak dengan pesan "Pembuat SPK tidak boleh menyetujui SPK sendiri." Minta rekan yang berhak.
 - Persetujuan SPK **Perawatan** tidak membuat tagihan pemasangan. Alur tagihan pemasangan hanya berlaku untuk SPK **Instalasi**.
 - **Selesaikan** ditolak pada tiket **Ditugaskan**: petugas klik **Mulai** dulu. Pesannya "Tiket harus berstatus dikerjakan untuk bisa diselesaikan."
-- **Tutup** tidak tampil: tiket belum **Diselesaikan**, Anda tidak memegang `ticket.close`, atau Anda petugas tiket itu.
-- Tiket **Diselesaikan** dibuka kembali saat pelanggan membalas. Tiket **Ditutup** tidak menerima balasan; catat masalah yang muncul lagi sebagai tiket baru.
+- **Tutup** tidak tampil: tiket belum **Diselesaikan**, Anda tidak memegang `ticket.close`, atau Anda petugas tiket itu. Pelanggan yang mengetuk **Sudah beres** di aplikasi menutup tiketnya sendiri tanpa aturan itu.
+- **Buka kembali** tidak tampil: tiket belum **Diselesaikan** atau **Ditutup**, atau peran Anda belum memegang `ticket.reopen` (lihat bagian 8.6 dan 10.1). Dialog menolak alasan yang kosong atau kurang dari 5 karakter. Bila tiket sudah berubah lebih dulu, pesannya "Hanya tiket yang diselesaikan atau ditutup yang bisa dibuka kembali."
+- Tiket **Diselesaikan** dibuka kembali saat pelanggan membalas. Tiket **Ditutup** tidak menerima balasan dari pelanggan; ia tetap bisa dibuka kembali oleh staf lewat **Buka kembali**, atau pelanggan membuat tiket baru.
 
 ## 9.3 Permintaan barang sampai pengeluaran stok
 
@@ -4616,20 +4924,19 @@ Alur ketiga mengikuti barang dari permintaan sampai keluar dari gudang, lalu sis
 
 ### Langkah
 
-1. Pemohon membuat permintaan. Teknisi membuatnya di aplikasi teknisi, dan permintaan itu langsung berstatus **Menunggu persetujuan**. Di web, hanya peran yang memegang `inventory.request.create` (admin pada peran bawaan) melihat **Buat Permintaan Barang** di **Permintaan Barang** (bagian 6.1). Isi **Gudang Tujuan**, **Alasan Kebutuhan Barang** (wajib), dan **Tanggal Dibutuhkan** bila perlu. Di **Rujukan (opsional)**, pilih SPK atau tiket, lalu ketik kodenya untuk mencari dan pilih. Di **Barang 1**, ketik nama atau SKU barang habis pakai dan isi **Jumlah**. Klik **Tambah Barang** untuk baris berikutnya. Klik **Ajukan ke Antrean Gudang**. **Simpan sebagai Draf** menyimpan tanpa mengajukan, dan draf diajukan nanti lewat **Ajukan ke Gudang** di halaman detail. Pastikan **Gudang Tujuan** terisi: dialog persetujuan di web tidak punya pilihan gudang, jadi permintaan tanpa gudang tidak bisa disetujui dari web.
+1. Pemohon membuat permintaan. Teknisi membuatnya di aplikasi teknisi, dan permintaan itu langsung berstatus **Menunggu persetujuan**. Di web, hanya peran yang memegang `inventory.request.create` (admin pada peran bawaan) melihat **Buat Permintaan Barang** di **Permintaan Barang** (bagian 6.1). Isi **Gudang Tujuan**, **Alasan Kebutuhan Barang** (wajib), dan **Tanggal Dibutuhkan** bila perlu. Di **Rujukan (opsional)**, pilih SPK atau tiket, lalu ketik kodenya untuk mencari dan pilih. Di **Barang 1**, ketik nama atau SKU barang habis pakai dan isi **Jumlah**. Klik **Tambah Barang** untuk baris berikutnya. Klik **Ajukan ke Antrean Gudang**. **Simpan sebagai Draf** menyimpan tanpa mengajukan, dan draf diajukan nanti lewat **Ajukan ke Gudang** di halaman detail. Pastikan **Gudang Tujuan** terisi: dialog persetujuan di web tidak punya pilihan gudang, jadi permintaan tanpa gudang tidak bisa disetujui dari web. Setiap permintaan mendapat nomor berbentuk `REQ-<tahun>-<5 angka>`, misalnya REQ-2026-00001, dan hitungannya mulai dari 00001 lagi tiap tahun. Perusahaan yang masih memakai format lama (`REQ-20261020-0003`, hitungan harian) dipindahkan ke format ini, kecuali yang sudah mengubah formatnya di Penomoran (bagian 7.13). Nomor lama tetap berlaku. **Rujukan** tampil di daftar dan halaman detail sebagai kode yang dipakai orang, misalnya "SPK SPK-2026-00012", bukan sebagai kode acak.
 2. Pemegang izin setujui menerima pemberitahuan **Permintaan Barang Baru** di lonceng. Permintaan masuk ke **Persetujuan** dan kartu **Menunggu persetujuan saya** di Dasbor.
-3. Manajer atau admin yang bukan pemohon memutuskan. Penolakan memberi pemohon lonceng serta push berisi alasan.
+3. Manajer atau admin yang bukan pemohon memutuskan. Pengguna yang tidak boleh memutuskan melihat tulisan "Menunggu persetujuan Manajer/Admin" di halaman detail dan di kolom **Aksi Berikutnya** pada daftar, bukan tombol. Penolakan memberi pemohon lonceng serta push berisi alasan.
 4. Saat disetujui, Inbils memeriksa stok tersedia di **Gudang Tujuan**. Bila cukup, stok direservasi, status menjadi **Disetujui**, dan pemohon menerima lonceng serta push. Bila kurang, tidak ada reservasi dan pesan menyebut barang, gudang, jumlah tersedia, serta jumlah dibutuhkan.
-5. Petugas gudang yang bukan penyetuju membuka tab **Persiapan & Antrean Gudang**, lalu menjalankan **Mulai Penyiapan Barang**. Status menjadi **Disiapkan**.
-6. Setelah barang terkumpul, klik **Tandai Siap Diambil** dan konfirmasi. Status menjadi **Siap diambil**, dan pemohon menerima lonceng serta push.
-7. Saat pemohon menerima barang fisik, petugas yang bukan pemohon dan bukan penyetuju klik **Serah Terima & Kurangi Stok**, lalu **Konfirmasi Serah Terima**. Status menjadi **Diserahkan**. Reservasi dilepas (**Mutasi Stok** mencatat **Cadangan dilepas**), stok fisik berkurang (**Keluar**), dan **Jumlah Diserahkan** terisi. Serah terima tidak bisa dibatalkan.
-8. Inbils membuka berkas pengembalian untuk permintaan itu dengan status **Menunggu deklarasi teknisi**. Setelah pekerjaan selesai, teknisi melaporkan pemakaian aktual dan sisa barang di aplikasi teknisi. Pemilik berkas yang bekerja di web memakai **Laporkan Pemakaian & Ajukan Pengembalian** di halaman detail permintaan, mengisi **Dipakai Aktual** dan **Sisa Dikembalikan**, lalu klik **Kirim Laporan Deklarasi**. Jumlah dipakai, sisa baik, dan selisih harus berjumlah sama dengan jumlah **Dikeluarkan**. Berkas menjadi **Menunggu penerimaan gudang**, dan stok belum berubah.
-9. Pemegang `inventory.return.receive` yang bukan pemilik berkas membuka **Permintaan Barang**, tab **Antrean Pengembalian** (bagian 6.8), lalu klik **Buka Permintaan & Terima Barang**. Di halaman detail, klik **Terima Pengembalian Fisik**, isi **Diterima Baik (Tambah Stok)** dan **Rusak** per barang, lalu klik **Konfirmasi Penerimaan Fisik**. Barang baik masuk kembali ke stok (**Mutasi Stok** mencatat **Masuk**).
-10. Bila tidak ada barang rusak, berkas menjadi **Diterima**. Bila ada, berkas menjadi **Selisih perlu penyelesaian**, dan pemegang `inventory.return.resolve` menerima pemberitahuan di lonceng. Manajer yang bukan penerima fisik menyelesaikan selisih dengan catatan.
-11. Bila barang tidak sampai atau tidak sesuai laporan, tolak penyerahan fisik. Berkas menjadi **Perlu koreksi**. Teknisi menerima lonceng serta push berisi alasan dan melapor ulang.
-12. Periksa hasilnya. **Stok** (bagian 6.5) menunjukkan **Jumlah**, **Dicadangkan**, dan **Tersedia**. **Mutasi Stok** (bagian 6.7) menunjukkan jejak **Dicadangkan**, **Cadangan dilepas**, **Keluar**, dan **Masuk** untuk permintaan itu. Catatan mutasi **Keluar** memuat kode permintaan, jadi kode itu dapat dicari di kotak **Cari mutasi**.
+5. Petugas gudang yang bukan penyetuju membuka tab **Persiapan & Antrean Gudang**, lalu klik **Siapkan barang**. Satu klik tanpa dialog ini menyiapkan barang dan menandainya siap: status langsung menjadi **Siap diambil**, toast "Barang disiapkan dan siap diambil." muncul, dan pemohon menerima lonceng serta push. Riwayat tetap mencatat kedua langkah, **Disiapkan** lalu **Siap diambil**. Selama barang belum diserahkan, daftar barang menulis kolom **Ambil dari** (lokasi tiap barang). Permintaan yang tertinggal di status **Disiapkan** sejak sebelum pembaruan ini diselesaikan dengan tombol yang sama.
+6. Saat pemohon menerima barang fisik, petugas yang bukan pemohon dan bukan penyetuju klik **Serah terima**, lalu **Konfirmasi serah terima** di dialog "Konfirmasi serah terima barang?". Status menjadi **Diserahkan**. Reservasi dilepas (**Mutasi Stok** mencatat **Cadangan dilepas**), stok fisik berkurang (**Keluar**), dan **Jumlah Diserahkan** terisi. Serah terima tidak bisa dibatalkan.
+7. Inbils membuka berkas pengembalian untuk permintaan itu dengan status **Menunggu deklarasi teknisi**. Setelah pekerjaan selesai, teknisi melaporkan pemakaian aktual dan sisa barang di aplikasi teknisi. Pemilik berkas yang bekerja di web memakai **Laporkan Pemakaian & Ajukan Pengembalian** di halaman detail permintaan, mengisi **Dipakai Aktual** dan **Sisa Dikembalikan** untuk tiap barang, lalu klik **Kirim Laporan Deklarasi**. Jumlah dipakai, sisa baik, dan selisih harus berjumlah sama dengan jumlah **Diserahkan**. Berkas menjadi **Menunggu penerimaan gudang**, dan stok belum berubah.
+8. Pemegang `inventory.return.receive` yang bukan pemilik berkas membuka **Permintaan Barang**, tab **Pengembalian material** (bagian 6.8), lalu klik **Buka Permintaan & Terima Barang**. Di halaman detail, klik **Terima Pengembalian Fisik**, isi **Baik**, **Rusak**, **Hilang** dan **Lainnya** untuk tiap barang, lalu klik **Konfirmasi Penerimaan Fisik**. Di bawah tiap barang, baris "Jumlah cocok", "Kurang &lt;n&gt;" atau "Lebih &lt;n&gt;" menunjukkan apakah angkanya sudah sama dengan yang diserahkan, dan tombol baru bisa dipakai bila semuanya cocok. Barang baik masuk kembali ke stok, dan **Mutasi Stok** mencatatnya sebagai **Pengembalian**, bukan **Masuk**, supaya terbedakan dari penerimaan pembelian.
+9. Bila tidak ada barang rusak, hilang atau lainnya, berkas menjadi **Diterima**. Bila ada, berkas menjadi **Selisih perlu penyelesaian**, dan pemegang `inventory.return.resolve` menerima pemberitahuan di lonceng. Manajer yang bukan penerima fisik menyelesaikan selisih dengan catatan.
+10. Bila barang tidak sampai atau tidak sesuai laporan, tolak penyerahan fisik. Berkas menjadi **Perlu koreksi**. Teknisi menerima lonceng serta push berisi alasan dan melapor ulang.
+11. Periksa hasilnya. **Stok** (bagian 6.5) menunjukkan **Jumlah**, **Dicadangkan**, dan **Tersedia**. **Mutasi Stok** (bagian 6.7) menunjukkan jejak **Dicadangkan**, **Cadangan dilepas**, **Keluar**, dan **Pengembalian** untuk permintaan itu. Catatan mutasi **Keluar** memuat kode permintaan, jadi kode itu dapat dicari di kotak **Cari mutasi**.
 
-Permintaan yang masih **Draf** atau **Menunggu persetujuan** bisa dibatalkan lewat **Batalkan Permintaan**. Pemohon membatalkan permintaannya sendiri bila perannya memegang `inventory.request.cancel.own` (admin pada peran bawaan). Pemegang `inventory.request.approve` yang tidak memegang izin itu (manajer pada peran bawaan) dapat membatalkan permintaan siapa pun. Setelah disetujui, layar ini tidak menyediakan pembatalan.
+Permintaan yang masih **Draf** atau **Menunggu persetujuan** bisa dibatalkan lewat **Batalkan Permintaan**. Pemohon membatalkan permintaannya sendiri bila perannya memegang `inventory.request.cancel.own` (admin pada peran bawaan). Pemegang `inventory.request.approve` yang tidak memegang izin itu (manajer pada peran bawaan) dapat membatalkan permintaan siapa pun. Setelah disetujui, layar ini tidak menyediakan pembatalan. Garis waktu di halaman detail berhenti di **Ditolak** atau **Dibatalkan** untuk permintaan yang berakhir di sana, lengkap dengan siapa dan kapan, tanpa menampilkan langkah yang tidak pernah dicapai.
 
 ### Hubungan dengan SPK
 
@@ -4641,12 +4948,12 @@ Bila permintaan memakai **Rujukan** SPK, berkas pengembaliannya terhubung ke SPK
 
 ### Kesalahan umum
 
-- Dialog persetujuan menampilkan "Stok tidak mencukupi untuk produk ID &lt;id&gt; di lokasi ID &lt;id&gt;. Tersedia: &lt;jumlah&gt;, Diminta: &lt;jumlah&gt;.": kurangi jumlah yang disetujui, atau tambah stok lewat **Terima Barang** di **Stok** (bagian 6.5), lalu setujui lagi. Bila tidak dapat dipenuhi, tolak permintaan dengan alasan.
+- Dialog persetujuan menampilkan "Stok &lt;barang&gt; di &lt;gudang&gt; tidak cukup: tersedia &lt;n&gt; &lt;satuan&gt;, diminta &lt;m&gt; &lt;satuan&gt;." (misalnya "Stok Kabel Drop di Gudang Pusat tidak cukup: tersedia 3 m, diminta 5 m."): kurangi jumlah yang disetujui, atau tambah stok lewat **Terima Barang** di **Stok** (bagian 6.5), lalu setujui lagi. Bila tidak dapat dipenuhi, tolak permintaan dengan alasan.
 - Dialog persetujuan menampilkan "Lokasi gudang sumber wajib ditentukan untuk reservasi.": permintaan itu tersimpan tanpa **Gudang Tujuan**, dan dialog persetujuan di web tidak punya pilihan gudang. Permintaan seperti itu tidak bisa disetujui dari web (bagian 6.1). Batalkan dengan **Batalkan Permintaan**, lalu buat permintaan baru dengan **Gudang Tujuan** terisi.
-- Tombol **Setujui & Reservasi Stok**, **Mulai Penyiapan Barang**, atau **Serah Terima & Kurangi Stok** tidak tampil: cek status permintaan dan izin Anda, dan apakah Anda pemohon atau penyetuju permintaan itu. Pemohon tidak boleh menyetujui atau menyerahkan permintaannya sendiri, dan penyetuju tidak boleh menyiapkan atau menyerahkan barang yang ia setujui.
+- Tombol **Setujui & Reservasi Stok**, **Siapkan barang**, atau **Serah terima** tidak tampil: cek status permintaan dan izin Anda, dan apakah Anda pemohon atau penyetuju permintaan itu. Pemohon tidak boleh menyetujui atau menyerahkan permintaannya sendiri, dan penyetuju tidak boleh menyiapkan atau menyerahkan barang yang ia setujui.
 - Peran yang tidak memuat `roles.manage` tidak boleh memegang izin setujui bersama izin siapkan atau serahkan. Di templat bawaan, Manajer menyetujui sedangkan Gudang dan Staf menyiapkan dan menyerahkan. Bila perusahaan Anda hanya punya satu orang gudang yang juga penyetuju, tambahkan orang kedua. Saat peran seperti itu disimpan, Inbils menolak dengan pesan yang diawali "Pemisahan tugas (persetujuan permintaan barang vs pelaksanaan gudang)".
-- Daftar **Antrean Pengembalian** menampilkan kotak galat: peran Anda memegang izin retur tetapi tanpa `inventory.return.view.all` atau `inventory.return.view.own`. Minta admin perusahaan menambahkannya ke peran di menu Peran (bagian 8.6).
-- Pesan yang diawali "Jumlah tidak cocok pada baris" muncul bila angka satu barang tidak berjumlah sama dengan jumlah yang dikeluarkan. Ubah angkanya sampai cocok.
+- Tab **Pengembalian material** menampilkan kotak galat: peran Anda memegang izin retur tetapi tanpa `inventory.return.view.all` atau `inventory.return.view.own`. Minta admin perusahaan menambahkannya ke peran di menu Peran (bagian 8.6).
+- Pesan yang diawali "Jumlah tidak cocok untuk" diikuti nama barang muncul bila angka satu barang tidak berjumlah sama dengan jumlah yang diserahkan. Ubah angkanya sampai cocok.
 - Koreksi jumlah stok yang bukan akibat permintaan barang memakai **Ajukan Penyesuaian** di **Stok**, yang butuh persetujuan orang lain (bagian 6.5).
 
 # 10. Lampiran
@@ -4706,7 +5013,7 @@ Kolom izin menyebut izin yang membuka menu: satu saja sudah cukup. Menu hanya me
 | Administrasi | Pengguna | `users.manage` | ya | tidak | tidak |
 | Administrasi | Peran | `roles.manage` | ya | tidak | tidak |
 | Administrasi | Hak Akses | `roles.manage` | ya | tidak | tidak |
-| Administrasi | Dokumen | `system.setting` | ya | tidak | tidak |
+| Administrasi | Jenis Dokumen | `system.setting` | ya | tidak | tidak |
 | Administrasi | Penomoran | `system.setting` | ya | tidak | tidak |
 
 Catatan untuk menu bersyarat dan angka:
@@ -4735,6 +5042,7 @@ Catatan untuk menu bersyarat dan angka:
 | Membuat tiket | `ticket.create` | ya | ya | ya |
 | Membuat SPK dari tiket | `ticket.spawn_spk` | ya | ya | tidak |
 | Menutup tiket | `ticket.close` | ya | ya | tidak |
+| Membuka kembali tiket (dengan alasan) | `ticket.reopen` | ya | ya | tidak |
 | Memulai dan menyelesaikan tiket | `ticket.start`, `ticket.resolve` | ya | tidak | tidak |
 | Komentar dan lampiran tiket | `ticket.comment.create`, `ticket.attachment.upload` | ya | tidak | ya |
 | Mengekspor tiket | `ticket.export` | ya | ya | tidak |
@@ -4747,6 +5055,7 @@ Catatan untuk menu bersyarat dan angka:
 | Melihat pelanggan | `customer.view` | ya | ya | ya |
 | Membuat dan mengubah pelanggan, alamat, kontak | `customer.create`, `customer.update`, `customer.address.manage` | ya | ya | ya |
 | Mengekspor pelanggan | `customer.export` | ya | ya | tidak |
+| Mengunggah dan menghapus dokumen pelanggan (tab Dokumen) | `customer.update` | ya | ya | ya |
 | Menghapus pelanggan | `customer.delete` | ya | tidak | tidak |
 | Melihat langganan | `customer.subscription.view` | ya | ya | ya |
 | Membuat, mengaktifkan, dan menangguhkan langganan | `customer.subscription.manage`, `customer.subscription.activate`, `customer.subscription.suspend` | ya | ya | tidak |
@@ -4812,6 +5121,7 @@ Layar web **Stok** hanya menyediakan **Terima Barang**, **Ajukan Penyesuaian**, 
 | Menambah item tagihan | `billing.update` | ya | ya | tidak |
 | Membatalkan pembayaran dan membatalkan tagihan | `billing.payment.reverse`, `billing.cancel` | ya | ya | tidak |
 | Mengekspor tagihan | `billing.export` | ya | ya | tidak |
+| Mengunduh PDF dan kuitansi tagihan | `billing.pdf.view` | ya | ya | tidak |
 | Laporan (daftar), Metrik Bisnis, Pemanfaatan Aset | `report.view`, `report.business.view`, `report.asset.view` | ya | ya | ya |
 | Kepatuhan SLA, Kartu Stok, Kamus Data | `report.sla.view`, `report.stock_card.view`, `report.dictionary.view` | ya | ya | ya |
 | KPI Penjualan | `report.sales.view` | ya | ya | tidak |
@@ -4836,7 +5146,7 @@ Layar web **Stok** hanya menyediakan **Terima Barang**, **Ajukan Penyesuaian**, 
 | Mengelola kendaraan | `vehicle.manage` | ya | tidak | tidak |
 | Mengelola jenis dokumen dan penomoran | `system.setting` | ya | tidak | tidak |
 
-Nilai "ya" berarti peran memegang semua izin di baris itu. Bila izin dipisah dengan kata atau, satu izin saja sudah cukup.
+Nilai "ya" berarti peran memegang semua izin di baris itu. Bila izin dipisah dengan kata atau, satu izin saja sudah cukup. Kolom itu menggambarkan templat bawaan. Izin yang dirilis sesudah perusahaan Anda dibuat, seperti `ticket.reopen`, hanya masuk ke peran yang disalin dari templat tertentu (bagian 8.6).
 
 ### Teknisi dan pelanggan
 
@@ -4893,18 +5203,29 @@ Selain itu, peran yang tidak memuat `roles.manage` tidak boleh memegang pasangan
 | --- | --- |
 | 2FA | Autentikasi dua langkah. Kode 6 digit dari aplikasi autentikator diminta setelah kata sandi (bagian 1.4). |
 | Akses dukungan | Sesi terbatas 30 menit saat operator platform masuk sebagai seorang pengguna untuk menangani keluhan. Mulai dalam mode baca, tercatat di Log Audit perusahaan, dan ditandai banner di atas halaman. Lihat **Panduan Panel Operator Inbils**. |
+| Anak perusahaan | Perusahaan di bawah satu perusahaan induk, dengan data yang tetap terpisah. Operator platform yang membuatnya. Admin perusahaan induk mengajukannya lewat **Minta anak perusahaan** di layar **Perusahaan** (bagian 8.1). |
 | Anggota | Pengguna yang berasal dari perusahaan lain tetapi diberi keanggotaan di perusahaan ini. Di menu **Pengguna** hanya perannya di perusahaan ini yang diatur (bagian 8.5). |
 | Aset jaringan | Perangkat jaringan yang dilacak satu per satu, dengan nomor seri, lokasi, dan status (**Tersedia**, **Terpasang**, **Perawatan**, **Rusak**, atau **Dipensiunkan**) (bagian 5.2). |
 | Blokir internet | Isolasi jaringan manual pada satu langganan, lewat tombol **Blokir internet** di langganan atau **Blokir** di **Tunggakan**. Blokir bukan status, dan pembayaran tidak mencabutnya. **Buka blokir** mencabutnya (bagian 4.1 dan 7.2). |
 | Break-glass | Penyesuaian stok langsung oleh admin tanpa persetujuan. Layar web tidak menyediakan tombolnya (bagian 6.5). |
+| Buka kembali | Tombol di halaman tiket yang membawa tiket **Diselesaikan** atau **Ditutup** kembali ke penanganan, dengan alasan wajib. Butuh izin `ticket.reopen`. Target waktu tiket tidak dihitung ulang (bagian 9.2). |
+| Check-in | Titik lokasi yang dikirim aplikasi teknisi saat memulai pekerjaan. Halaman tiket dan SPK menulis jaraknya dari lokasi pelanggan di baris **Check-in**, dan alasan teknisi bila ia memulai lebih jauh dari **Jarak check-in maksimal (meter)** (bagian 8.1). |
+| Dibayar sebagian | Status tagihan yang sudah menerima sebagian pembayaran dan masih bersisa (bagian 7.1). Tagihan yang sudah lewat jatuh tempo tampil **Lewat jatuh tempo**. |
 | Dicadangkan | Jumlah stok yang dicadangkan oleh permintaan barang yang sudah disetujui (bagian 6.5). |
+| Dikembalikan | Status SPK yang hasilnya ditolak penyetuju di **Persetujuan**, dengan alasan (bagian 3.2). Kata yang sama tidak berarti "Ditolak": tulisan **Ditolak** dipakai untuk permintaan barang dan penyesuaian stok. Pada percobaan pembayaran, **Dikembalikan** berarti uang sudah kembali ke pelanggan di luar Inbils (bagian 7.1). |
 | Diperoleh oleh | Karyawan yang dikreditkan memperoleh pelanggan. Angkanya dibaca KPI Penjualan (bagian 4.1 dan 7.10). |
+| Diserahkan | Status permintaan barang yang barangnya sudah diterima pemohon lewat **Serah terima**. Stok fisik berkurang, dan kolom jumlahnya bernama **Jumlah Diserahkan** (bagian 6.1 dan 9.3). |
 | Drill-down | Membuka baris data sumber di balik satu angka laporan lewat tautan **Lihat data** (bagian 7.3). |
 | Ganti paket | Tombol di kartu **Paket** pada detail langganan yang memindahkan langganan ke versi terbaru sebuah paket (bagian 4.1). |
 | Hapus permanen | Menghapus data master yang belum pernah dipakai data lain, dan tidak bisa dibatalkan. Data yang sudah dipakai hanya bisa dinonaktifkan (bagian 1.5). |
 | Head | Perusahaan induk: perusahaan tanpa induk yang punya minimal satu anak perusahaan aktif. Di **Metrik Konsolidasi** ia ditandai badge **Induk** (bagian 1.6). |
+| Hitungan tenggat | Pilihan pada tingkat SLA: **24 jam** menghitung setiap jam, **Jam layanan** hanya menghitung jam buka perusahaan. Target dari Kategori Tiket selalu menghitung 24 jam (bagian 4.5). |
 | Isolir | Pembatasan akses jaringan pelanggan yang menunggak. Berjalan otomatis atau lewat tombol **Isolir** di **Tunggakan**, dan langganan berstatus **Ditangguhkan** (bagian 5.3 dan 7.2). |
 | Izin | Hak untuk satu tindakan, misalnya `spk.approve`. Peran adalah kumpulan izin (bagian 8.6 dan 8.7). |
+| Jam layanan | Dua hal dengan nama sama. Di profil perusahaan ia teks bebas untuk pelanggan di aplikasi. Di **Pengaturan Perusahaan** ia jadwal jam buka per hari (dengan **Tutup** untuk hari libur) yang menghitung tenggat tingkat SLA berhitungan **Jam layanan**. Samakan keduanya (bagian 8.1). |
+| Jarak check-in maksimal | Pengaturan di **Pengaturan Perusahaan**: jarak terjauh dari lokasi pelanggan yang boleh dipakai teknisi untuk memulai pekerjaan tanpa menulis alasan. Bawaan 500 meter (bagian 8.1). |
+| Jenis Dokumen | Menu di grup **Administrasi** untuk jenis dokumen pelanggan: nama, kode, masa berlaku dan penanda wajib. Berkasnya diunggah di tab **Dokumen** pada halaman pelanggan (bagian 8.8). |
+| Kuitansi | PDF bukti pembayaran satu tagihan **Lunas**, dengan tombol **Unduh kuitansi** di halaman tagihan. Berbeda dari PDF tagihan, ia tidak memuat rekening pembayaran (bagian 7.1). |
 | Langganan | Layanan satu paket untuk satu pelanggan. Statusnya **Menunggu**, **Aktif**, **Ditangguhkan**, atau **Berhenti** (bagian 4.1). |
 | Maker-checker | Pemisahan tugas: orang yang membuat atau mengajukan tidak boleh memutuskan persetujuannya (bagian 10.1). |
 | MRC | Monthly Recurring Charge, harga langganan per bulan. Di paket namanya **Harga bulanan**, dan di langganan **Biaya bulanan** (bagian 4.2). |
@@ -4915,6 +5236,8 @@ Selain itu, peran yang tidak memuat `roles.manage` tidak boleh memegang pasangan
 | Operator platform | Orang di tim Inbils yang memakai panel `/platform`: membuat dan menangguhkan perusahaan, memelihara templat peran, memperbaiki peran perusahaan atas permintaan, dan memberi akses dukungan. Bukan pengguna perusahaan. Lihat **Panduan Panel Operator Inbils**. |
 | OTC | One-Time Charge, biaya sekali bayar seperti biaya pemasangan. Di paket namanya **Harga pemasangan**, dan di langganan **Biaya pemasangan** (bagian 4.2). |
 | Panel perangkat | Gambar router, switch, OLT, ONU/ONT, ODC, ODP, atau rak seperti wajah aslinya, dengan port berwarna menurut statusnya. Lembar port di dalamnya mencatat label, sambungan antar perangkat, dan pelanggan di port (bagian 5.6). |
+| Penangan lain | Baris di tabel per teknisi pada **Kepatuhan SLA** yang menggabungkan penangan tiket di luar cakupan Anda, supaya jumlah barisnya tetap sama dengan tiket selesai (bagian 7.6). |
+| Penilaian pelanggan | Nilai 1 sampai 5 yang diberikan pelanggan untuk tiketnya di aplikasi pelanggan, dan tampil di halaman tiket. Isian dengan nama sama di Evaluasi (bagian 3.5) terisi dari nilai itu bila ada. |
 | Periode | Rentang tanggal yang dihitung sebuah laporan (bagian 7.3). |
 | Petugas tiket | Petugas yang ditunjuk menangani tiket (bagian 3.4). |
 | POP pelayan | Lokasi POP yang melayani sebuah langganan (bagian 4.1 dan 5.5). |
@@ -4924,12 +5247,15 @@ Selain itu, peran yang tidak memuat `roles.manage` tidak boleh memegang pasangan
 | Prefiks | Blok alamat IP dalam notasi CIDR yang dicatat di Alamat IP (bagian 5.4). |
 | Pulihkan | Mengembalikan data yang dihapus ke daftar dengan statusnya semula, lewat filter **Status** **Dihapus** (bagian 1.5). |
 | RADIUS | Server otentikasi akses jaringan. Inbils mengisinya dengan akun dan grup kecepatan pelanggan (bagian 4.4 dan 5.3). |
-| Respons pertama | Waktu petugas pertama kali memulai tiket (bagian 3.4). |
-| SLA | Service Level Agreement, batas waktu layanan. Tingkat SLA dipilih di paket (bagian 4.5). Target respons dan penyelesaian sebuah tiket diambil dari tingkat SLA paket langganannya, atau dari Kategori Tiket bila tidak ada tingkat aktif (bagian 3.4). |
+| Respons pertama | Waktu petugas pertama kali memulai tiket atau membalas pelanggan (bagian 3.4). |
+| SLA | Service Level Agreement, batas waktu layanan. Tingkat SLA dipilih di paket (bagian 4.5). Target respons dan penyelesaian sebuah tiket diambil dari tingkat SLA paket langganannya, atau dari Kategori Tiket bila tidak ada tingkat aktif (bagian 3.4). **Hitungan tenggat** tingkat itu menentukan apakah jam di luar jam buka ikut dihitung. |
 | SPK | Surat Perintah Kerja, perintah kerja lapangan untuk teknisi (bagian 3.3). |
 | Splitter | Pembagi yang mengubah satu port hulu menjadi beberapa port output, dengan rasio 1:2 sampai 1:64 (bagian 5.5). |
 | Templat peran | Peran awal yang disalin ke setiap perusahaan baru saat dibuat. Setelah disalin, peran itu milik perusahaan dan tidak berubah bila templat diubah (bagian 8.6). |
 | Tersedia | Jumlah stok yang bisa dipakai, yaitu **Jumlah** dikurangi **Dicadangkan** (bagian 6.5). |
+| Tugaskan ke saya | Tombol di halaman tiket **Terbuka** yang belum punya petugas. Pemegang `ticket.assign` yang boleh menangani tiket menugaskannya ke dirinya sendiri, kecuali perusahaan melarang menugaskan diri sendiri (bagian 9.2). |
+| Tugaskan sekarang | Blok di form **Buat Pelanggan** (tab **Langganan & SPK**) untuk memilih teknisi dan **Tanggal kunjungan** SPK pemasangan sejak pendaftaran, bagi pemegang `spk.assign` (bagian 9.1). |
 | Tunggakan | Menu yang mengelompokkan tagihan belum lunas per pelanggan menurut umur sejak jatuh tempo (bagian 7.2). |
+| Undangan | E-mail dengan tombol **Atur kata sandi** untuk akun staf baru, dikirim lewat **Kirim undangan** di form **Buat Pengguna**. Admin tidak mengetik kata sandi akun staf. **Kirim ulang undangan** di halaman pengguna mengirim tautan baru bagi akun aktif yang belum pernah masuk (bagian 8.5). |
 | Versi paket | Catatan harga, profil, tingkat SLA, dan kategori sebuah paket pada suatu waktu. Langganan tetap di versi yang dijualnya sampai dipindahkan lewat **Ganti paket** (bagian 4.1 dan 4.2). |
 | VLAN | Nomor jaringan virtual yang dicatat di Alamat IP dan ditautkan ke prefiks (bagian 5.4). |

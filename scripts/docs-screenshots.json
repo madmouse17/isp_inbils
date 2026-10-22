@@ -87,6 +87,19 @@
             ]
         },
         {
+            "slug": "platform-company-create-code-taken",
+            "url": "/platform/companies/create",
+            "auth": "platform",
+            "actions": [
+                {
+                    "fill": ["#tenant-name", "Demo"]
+                },
+                {
+                    "waitFor": "text=Kode sudah dipakai >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
             "slug": "platform-company-show",
             "url": "/platform?search=DEMO",
             "auth": "platform",
@@ -335,6 +348,21 @@
             ]
         },
         {
+            "slug": "spk-edit",
+            "url": "/admin/spk?search=E2E-DISPATCH-SPK",
+            "actions": [
+                {
+                    "click": "main table tbody tr a >> nth=0"
+                },
+                {
+                    "click": "role=link[name=/^Ubah$/] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "text=tidak bisa diubah di sini >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
             "slug": "spk-add-item",
             "url": "/admin/spk?search=E2E-DISPATCH-SPK",
             "actions": [
@@ -358,6 +386,21 @@
             "url": "/admin/tickets/create"
         },
         {
+            "slug": "tickets-create-target",
+            "url": "/admin/tickets/create",
+            "actions": [
+                {
+                    "click": "role=combobox[name=\"Kategori\"] >> visible=true >> nth=0"
+                },
+                {
+                    "click": "role=option[name=\"Masalah perangkat\"] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "text=Target respons >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
             "slug": "tickets-show",
             "url": "/admin/tickets",
             "actions": [
@@ -371,7 +414,7 @@
             "url": "/admin/ticket-categories",
             "actions": [
                 {
-                    "click": "role=button[name=\"Ubah kategori Device Issue\"] >> visible=true >> nth=0"
+                    "click": "role=button[name=\"Ubah kategori Masalah perangkat\"] >> visible=true >> nth=0"
                 },
                 {
                     "waitFor": "text=Hanya berlaku untuk tiket baru. >> visible=true >> nth=0"
@@ -400,11 +443,38 @@
             "url": "/admin/customers/create"
         },
         {
+            "slug": "customers-create-assign",
+            "url": "/admin/customers/create",
+            "actions": [
+                {
+                    "click": "role=tab[name=\"Langganan & SPK\"] >> visible=true >> nth=0"
+                },
+                {
+                    "click": "text=Tugaskan sekarang >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
             "slug": "customers-show",
             "url": "/admin/customers",
             "actions": [
                 {
                     "click": "main table tbody tr a >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "customers-show-documents",
+            "url": "/admin/customers?search=E2E-LINKED-CUST",
+            "actions": [
+                {
+                    "click": "main table tbody tr a >> nth=0"
+                },
+                {
+                    "click": "role=tab[name=/^Dokumen/] >> visible=true >> nth=0"
+                },
+                {
+                    "click": "text=Belum ada dokumen >> visible=true >> nth=0"
                 }
             ]
         },
@@ -445,6 +515,21 @@
             "actions": [
                 {
                     "waitFor": "text=Data paket >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "service-packages-quick-create",
+            "url": "/admin/service-packages/create",
+            "actions": [
+                {
+                    "waitFor": "text=Data paket >> visible=true >> nth=0"
+                },
+                {
+                    "click": "role=button[name=\"+ Baru\"] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "role=dialog[name=\"Profil bandwidth baru\"] >> visible=true >> nth=0"
                 }
             ]
         },
@@ -500,6 +585,33 @@
             ]
         },
         {
+            "slug": "announcements-publish-confirm",
+            "url": "/admin/announcements",
+            "actions": [
+                {
+                    "click": "role=button[name=\"Buat Pengumuman\"] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "role=dialog[name=\"Buat Pengumuman\"] >> visible=true >> nth=0"
+                },
+                {
+                    "fill": ["#announcement-title", "Tagihan bulan ini sudah terbit"]
+                },
+                {
+                    "fill": [
+                        "#announcement-body",
+                        "Buka menu Tagihan di aplikasi untuk melihat rinciannya."
+                    ]
+                },
+                {
+                    "click": "role=button[name=\"Simpan & Terbitkan\"] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "text=Terbitkan untuk >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
             "slug": "locations",
             "url": "/admin/locations"
         },
@@ -512,6 +624,21 @@
                 },
                 {
                     "waitFor": "text=Koordinat >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "locations-create",
+            "url": "/admin/locations",
+            "actions": [
+                {
+                    "click": "role=button[name=\"Buat Lokasi\"] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "role=dialog[name=\"Buat Lokasi\"] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "text=Klik peta atau seret penanda >> visible=true >> nth=0"
                 }
             ]
         },
@@ -537,6 +664,18 @@
         {
             "slug": "nas-devices",
             "url": "/admin/nas-devices"
+        },
+        {
+            "slug": "nas-devices-create-asset",
+            "url": "/admin/nas-devices/create",
+            "actions": [
+                {
+                    "click": "role=button[name=/^Router belum terdaftar/] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "text=Nama router baru >> visible=true >> nth=0"
+                }
+            ]
         },
         {
             "slug": "nas-devices-show",
@@ -770,6 +909,18 @@
             ]
         },
         {
+            "slug": "stocks-transfer",
+            "url": "/admin/stocks",
+            "actions": [
+                {
+                    "click": "role=button[name=\"Pindahkan stok\"] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "role=dialog[name=\"Pindahkan stok\"] >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
             "slug": "inventory-find",
             "url": "/admin/inventory/find"
         },
@@ -793,6 +944,21 @@
         {
             "slug": "invoices-create",
             "url": "/admin/invoices/create"
+        },
+        {
+            "slug": "invoices-edit",
+            "url": "/admin/invoices?status=draft",
+            "actions": [
+                {
+                    "click": "main table tbody tr a >> visible=true >> nth=0"
+                },
+                {
+                    "click": "role=link[name=\"Ubah\"] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "text=Yang bisa diubah >> visible=true >> nth=0"
+                }
+            ]
         },
         {
             "slug": "invoices-payment",
@@ -831,8 +997,27 @@
             ]
         },
         {
+            "slug": "payment-finished",
+            "url": "/pembayaran/selesai?transaction_status=settlement",
+            "auth": false,
+            "actions": [
+                {
+                    "waitFor": "role=heading[name=\"Pembayaran berhasil\"] >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
             "slug": "receivables",
             "url": "/admin/billing/receivables"
+        },
+        {
+            "slug": "receivables-customers",
+            "url": "/admin/billing/receivables?tab=customer",
+            "actions": [
+                {
+                    "waitFor": "role=tab[name=\"Per pelanggan\"] >> visible=true >> nth=0"
+                }
+            ]
         },
         {
             "slug": "reports",
@@ -866,8 +1051,26 @@
             ]
         },
         {
+            "slug": "reports-stock-card",
+            "url": "/admin/reports/stock-card",
+            "actions": [
+                {
+                    "waitFor": "text=Barang terakhir bergerak >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
             "slug": "reports-technician",
             "url": "/admin/reports/technician"
+        },
+        {
+            "slug": "reports-sla",
+            "url": "/admin/reports/sla",
+            "actions": [
+                {
+                    "waitFor": "text=Tiket selesai per sumber target >> visible=true >> nth=0"
+                }
+            ]
         },
         {
             "slug": "reports-sales",
@@ -886,6 +1089,30 @@
             "url": "/admin/company/profile"
         },
         {
+            "slug": "company-profile-subsidiary",
+            "url": "/admin/company/profile",
+            "actions": [
+                {
+                    "click": "role=heading[name=/^Anak perusahaan$/] >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "company-subsidiary-request-dialog",
+            "url": "/admin/company/profile",
+            "actions": [
+                {
+                    "click": "role=button[name=\"Minta anak perusahaan\"] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "role=dialog[name=\"Minta anak perusahaan\"] >> visible=true >> nth=0"
+                },
+                {
+                    "fill": ["#subsidiary-request-name", "Cabang Bandung"]
+                }
+            ]
+        },
+        {
             "slug": "company-settings",
             "url": "/admin/company/settings"
         },
@@ -895,6 +1122,15 @@
             "actions": [
                 {
                     "click": "text=Pemakaian bulan ini >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "company-settings-service-hours",
+            "url": "/admin/company/settings",
+            "actions": [
+                {
+                    "click": "role=heading[name=\"Jam layanan\"] >> visible=true >> nth=0"
                 }
             ]
         },

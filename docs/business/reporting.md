@@ -48,6 +48,7 @@ agar laporan bisa dibuat ulang." (DATABASE RULE, user spec).
   - Breakdown by SPK type (installation/maintenance/upgrade/relocation).
   - Breakdown by ticket category (no_internet/slow/packet_loss/device/
     fiber).
+- **Peringkat (tanpa teknisi dipilih, F9-U02).** Halaman Kinerja Teknisi tidak lagi menunggu satu teknisi: filter "Semua teknisi" mengisi tabel "Peringkat teknisi" untuk semua teknisi yang boleh dipilih pengguna. Urutannya jumlah SPK selesai + tiket selesai pada periode; seri berbagi peringkat dan diurut menurut nama. Kolom: Peringkat, nama, SPK selesai, tiket selesai, kepatuhan SLA (kosong bila tanpa tiket selesai), rata-rata respons pertama, nilai evaluasi rata-rata dan beban aktif. Satu query berkelompok per ukuran, bukan satu per teknisi (`TechnicianPerformanceQuery::ranking`).
 
 ### 2. Unit Performance (per unit/team)
 - **Input:** unit (region/area OR role-group NOC/field/billing), date
@@ -97,18 +98,34 @@ agar laporan bisa dibuat ulang." (DATABASE RULE, user spec).
   - Breach count + list (tickets sla_deadline < resolved_at OR breach
     flag).
   - Trend (monthly breakdown).
+  - Jumlah tiket selesai dipecah per penangan (`by_technician`), prioritas (`by_priority`, urut urgent, high, medium, low) dan sumber target (`by_source`: nama tingkat SLA, atau "Target kategori tiket" untuk tiket tanpa tingkat). Tiap pecahan memberi total, sesuai SLA, melanggar, persentase dan rata-rata respons pertama; baris-barisnya berjumlah `total_resolved`.
+  - Kepuasan pelanggan (CSAT): `csat_average` (rata-rata nilai 1 sampai 5, satu desimal) dan `csat_count` (jumlah penilaian), dari `tickets.customer_rating`. Mengikuti hari penilaian (`customer_rated_at`), bukan hari tiket selesai; tiket yang belum dinilai tidak dihitung dan tidak bernilai nol. Halaman menulis "Kepuasan pelanggan", angkanya dengan "dari 5" dan jumlah penilaian, atau "Belum ada penilaian pada periode ini."
+  - Pelanggaran terlama (`violators`, di luar `execute()`): sepuluh tiket selesai yang paling lama melewati `sla_deadline`, dengan kode, judul, kategori, penangan, prioritas dan menit terlambat. Hanya untuk yang boleh melihat daftar tiket (penangan hanya melihat tiketnya sendiri); selain itu `null` dan kartunya tidak tampil.
+  - Penangan dalam pecahan per teknisi: pemegang `report.manage` melihat semua nama. Pengguna lain hanya membaca nama teknisi dalam cakupan laporan Teknisi mereka, dan semua penangan di luar cakupan digabung menjadi satu baris "Penangan lain", jadi jumlah baris tetap sama dengan tiket selesai. Tiket tanpa penangan tetap satu baris "Belum ditugaskan".
 
 ### 6. Stock Card (admin/manager) — Inventory cross
 - **Input:** product_id, location_id, date range.
 - **Output:** stock movement history (receive/issue/transfer/adjustment/
   reserve/release/return) with balance_after snapshot + reference
   (SPK/invoice).
+- Tanpa produk dipilih, halaman menulis "Barang terakhir bergerak": delapan barang yang terakhir punya pergerakan, satu query.
 
 ### 7. Audit Log Report (admin)
 - **Input:** user, module, date range.
 - **Output:** activity_log entries (subject, causer, event, properties
   before/after).
 - Baris log `support` (tindakan tim Inbils pada tenant) ditulis satu kalimat per kode oleh `App\Support\SupportActionText` ("Tim dukungan Inbils mengatur ulang 2FA {nama}"). Kalimat itu dipakai `AuditLogResource` (`support_text`), pencarian teks (kode yang kalimatnya memuat istilah, atau subjek anggota yang namanya cocok) dan `ReportExporter`, jadi satu kode ditulis sekali. Kode yang belum dikenal ditulis "Akses dukungan oleh tim Inbils".
+- Kalimat baris audit ditulis server oleh `App\Support\AuditEventText` (pasangan `log_name` + `description`, dengan kata benda log dan kata kerja deskripsi bila belum ada kalimat khusus; pasangan yang tidak dikenal ditulis "{nama log}: {deskripsi}" dengan garis bawah menjadi spasi). Halaman Log Audit (`text`, `subject_label`), pencarian teks, ekspor, aktivitas terbaru di dashboard dan bagian aktivitas halaman perusahaan di panel platform memakai kalimat yang sama; kamus di sisi browser dihapus. Satu zona waktu: milik perusahaan.
+
+## Ekspor CSV dan PDF (K32, K33)
+
+- Semua ekspor lewat `App\Support\ExportQuery`. CSV selalu satu baris judul lalu data mentah. PDF memakai `resources/views/exports/table.blade.php` (A4 lanskap) dengan kop: logo perusahaan (disematkan ke berkas), nama perusahaan, judul laporan, "Periode: ...", "Filter: ..." dan "Dicetak {tanggal} oleh {nama}", lalu nomor halaman "Halaman {n} dari {total}" di kaki setiap halaman. Kolom bertipe ditulis seperti di halaman: uang "Rp 1.250.000", tanggal "18 Okt 2026", durasi "2 j 15 m". Font DomPDF disubset, jadi satu berkas tidak lagi membawa seluruh font DejaVu (sekitar 880 KB).
+- Isi ekspor memakai kata yang sama dengan halaman: jenis pergerakan stok, satuan, status, nama teknisi (bukan id) dan durasi (`Modules/Reporting/app/Exports/ExportLabels.php`). Batas baris mengikuti `config('exports.max_rows')`; PDF memakai batas sel, jadi tabel lebar memuat lebih sedikit baris, dan PDF yang terpotong menulis "PDF dibatasi {n} baris. Untuk data lengkap, unduh CSV atau persempit periode."
+- Ekspor tunggakan: `GET admin.billing.receivables.export` (izin `billing.export`, `format=csv|pdf`) mengikuti filter tab "Per tagihan" (`search`, `bucket`, `due_from`, `due_to`). Kolom: Nomor tagihan, Pelanggan, Kode pelanggan, Tanggal terbit, Jatuh tempo, Lewat jatuh tempo (hari), Umur, Total, Terbayar, Sisa, Status. Tombolnya "Ekspor" di halaman Tunggakan, dengan pilihan "Ekspor CSV" dan "Ekspor PDF".
+
+## Konsolidasi (flow-audit-fixes gelombang 3)
+
+- Laporan Konsolidasi hanya ada di perusahaan induk. Pemegang `report.consolidated.view` yang membukanya dari anak perusahaan dialihkan ke halaman Laporan dengan peringatan "Metrik Konsolidasi hanya tersedia di perusahaan induk {induk}. Ganti perusahaan lewat pemilih di menu samping." dan, bila boleh berpindah ke induk, tombol "Pindah ke {induk}" yang memakai pengalih perusahaan yang sama dengan menu samping. Tanpa izin itu, penolakannya tetap 403.
 
 ## Architecture (Query classes only, NO models)
 

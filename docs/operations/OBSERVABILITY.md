@@ -121,7 +121,9 @@ Any query over 500 ms writes `db.slow_query` with the SQL (placeholders only), t
     "queue": "ok|fail|unknown",
     "failed_jobs": "ok|fail|unknown",
     "scheduler": "ok|fail|unknown",
-    "backup": "ok|fail|unknown"
+    "backup": "ok|fail|unknown",
+    "storage_link": "ok|fail|unknown",
+    "mail": "ok|fail|unknown"
   }
 }
 ```
@@ -133,6 +135,8 @@ Rules:
 - Never return hosts, DSNs, exception messages, or stack traces.
 - Scheduler ok only if cache key `ops:scheduler:heartbeat_at` is fresh (≤300s).
 - Backup probe currently returns `unknown` until an app-owned backup marker exists (do not fake green).
+- `storage_link` is `ok` when every link declared in `config/filesystems.php` (`public/storage`) is a symbolic link to its target. It is `fail` when `public/storage` is a real directory, a broken link or points elsewhere: uploaded logos then show as broken images because `/storage/...` never reaches the public disk. Fix with `php artisan storage:link` (remove the copied directory first). In a test run it returns `unknown`.
+- `mail` is judged only in production (`APP_ENV=production`); elsewhere it returns `unknown`. It is `fail` when `MAIL_FROM_ADDRESS` is empty, ends with `.local` or ends with `example.com`, because every reset link, invoice mail and invitation would then leave from an address nobody owns. Set a real address on your own domain in `.env.docker`. A `fail` here makes the overall status `degraded`, not `not_ready`.
 
 Implementation: `App\Support\Observability\ReadinessChecker` + `App\Http\Controllers\Operations\ReadinessController`.
 
