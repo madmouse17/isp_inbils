@@ -1,6 +1,6 @@
 # Docker Operations
 
-The production-build stack (`compose.yaml` + `Dockerfile`) uses FrankenPHP (PHP 8.4), MySQL 8.4, Redis, two Laravel queue workers (`queue` for the default and WhatsApp queues, `platform-queue` for the platform panel's hour-long jobs, see [platform-queue.md](./platform-queue.md)), and a Laravel scheduler. Laravel storage and MySQL and Redis data use named volumes; `bootstrap/cache` is container-local and is not shared through a named volume. Local development uses Laravel Sail instead (next section).
+The production-build stack (`compose.yaml` + `Dockerfile`) uses FrankenPHP (PHP 8.5, base image `dunglas/frankenphp:php8.5-bookworm`; the `Dockerfile` stops the build below PHP 8.5.12, the fix of CVE-2026-109618 and CVE-2026-109619, so build with `--pull`), MySQL 8.4, Redis, two Laravel queue workers (`queue` for the default and WhatsApp queues, `platform-queue` for the platform panel's hour-long jobs, see [platform-queue.md](./platform-queue.md)), and a Laravel scheduler. Laravel storage and MySQL and Redis data use named volumes; `bootstrap/cache` is container-local and is not shared through a named volume. Local development uses Laravel Sail instead (next section).
 
 ## Local development (Laravel Sail)
 
@@ -10,7 +10,7 @@ Laravel Sail is the **local** development runtime. `compose.yaml` + `Dockerfile`
 |---|---|---|
 | Compose file | `compose.sail.yaml`, selected by `SAIL_FILES` in `.env` | `compose.yaml` |
 | Project / network | `inbils-sail` / `inbils-sail_sail` | `inbils` / `inbils_inbils` |
-| App runtime | `sail-8.4/app` (PHP 8.4, Node 24, `artisan serve`, source bind-mounted) | FrankenPHP image `inbils-app:local`, source baked in |
+| App runtime | `sail-8.5/app` (PHP 8.5, Node 24, `artisan serve`, source bind-mounted; rebuilt with `./vendor/bin/sail build --no-cache laravel.test` to take a PHP security release) | FrankenPHP image `inbils-app:local`, source baked in |
 | Env file | `.env` (`.env.example` holds the Sail defaults) | `.env.docker` via `--env-file` |
 | App | <http://localhost> | <http://localhost:8080> |
 | MySQL | `127.0.0.1:3306`, user `sail`, schema `inbils` | `127.0.0.1:3307`, user `inbils` |
@@ -53,7 +53,7 @@ curl --fail http://localhost/ready       # database, cache, queue and storage-li
 cp .env.docker.example .env.docker
 # Replace APP_KEY and both database passwords before any shared or production deployment.
 docker compose --env-file .env.docker config
-docker compose --env-file .env.docker build
+docker compose --env-file .env.docker build --pull
 docker compose --env-file .env.docker up -d
 # Preserve data: do not add --volumes and do not run docker compose --env-file .env.docker down -v.
 docker compose --env-file .env.docker ps
@@ -62,7 +62,7 @@ docker compose --env-file .env.docker ps
 Generate a unique application key without putting the value in shell history:
 
 ```bash
-docker run --rm dunglas/frankenphp:php8.4-bookworm php -r 'echo "base64:", base64_encode(random_bytes(32)), PHP_EOL;'
+docker run --rm dunglas/frankenphp:php8.5-bookworm php -r 'echo "base64:", base64_encode(random_bytes(32)), PHP_EOL;'
 ```
 
 Put the generated value in `.env.docker`; this file is ignored by Git. The committed `.env.docker.example` contains development-only placeholders and no production secret.
@@ -300,7 +300,7 @@ Connect remotely with `mysql -h 192.168.1.10 -P 3307 -u inbils -p inbils`.
 Implementation changes must rebuild/recreate affected services and verify health:
 
 ```bash
-docker compose --env-file .env.docker build app queue platform-queue scheduler
+docker compose --env-file .env.docker build --pull app queue platform-queue scheduler
 docker compose --env-file .env.docker up -d --force-recreate app queue platform-queue scheduler
 docker compose --env-file .env.docker ps
 curl --fail http://localhost:${APP_PORT:-8080}/ready

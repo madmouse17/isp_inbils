@@ -11,7 +11,7 @@ use App\Models\User;
 use App\Services\Core\CompanyService;
 use Carbon\CarbonImmutable;
 use Illuminate\Cookie\Middleware\EncryptCookies;
-use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\DB;
@@ -206,7 +206,7 @@ class WhatsAppWebhookTest extends TestCase
         $this->assertCount(0, array_intersect(Route::getRoutes()->getByName('webhooks.whatsapp.receive')->gatherMiddleware(), [
             EncryptCookies::class,
             StartSession::class,
-            VerifyCsrfToken::class,
+            PreventRequestForgery::class,
         ]));
     }
 

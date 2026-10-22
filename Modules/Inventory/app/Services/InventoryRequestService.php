@@ -221,7 +221,7 @@ class InventoryRequestService
             $reason = trim((string) ($data['reason'] ?? ''));
             if ($reason === '') {
                 $sourceType = $data['source_type'] ?? null;
-                $sourceModel = InventoryRequest::sourceModels()[$sourceType] ?? null;
+                $sourceModel = InventoryRequest::sourceModels()[(string) $sourceType] ?? null;
                 $sourceCode = $sourceModel !== null && ! empty($data['source_id']) ? $sourceModel::query()->whereKey($data['source_id'])->value('code') : null;
                 $reason = $sourceCode !== null
                     ? 'Permintaan material untuk '.($sourceType === 'ticket' ? 'tiket' : 'SPK').' '.$sourceCode

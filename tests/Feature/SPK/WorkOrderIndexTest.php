@@ -100,7 +100,7 @@ class WorkOrderIndexTest extends TestCase
 
         $response = $this->get(route('admin.spk.export', $params + ['format' => 'csv', 'page' => 2]))->assertOk();
         $lines = preg_split('/\r\n|\n|\r/', trim($response->streamedContent()));
-        $rows = array_map(str_getcsv(...), array_slice($lines, 1));
+        $rows = array_map(fn (string $line): array => str_getcsv($line, escape: ''), array_slice($lines, 1));
         $this->assertSame($expected, array_column($rows, 0));
     }
 
@@ -132,7 +132,7 @@ class WorkOrderIndexTest extends TestCase
 
         $content = $this->get(route('admin.spk.export', $params + ['format' => 'csv']))
             ->assertOk()->streamedContent();
-        $rows = array_map(str_getcsv(...), array_slice(preg_split('/\r\n|\n|\r/', trim($content)), 1));
+        $rows = array_map(fn (string $line): array => str_getcsv($line, escape: ''), array_slice(preg_split('/\r\n|\n|\r/', trim($content)), 1));
         $this->assertSame([$orders[1]->code, $orders[0]->code], array_column($rows, 0));
     }
 

@@ -56,9 +56,6 @@ class CompanyLogoService
         imagewebp($resized, null, 82);
         $contents = ob_get_clean();
 
-        imagedestroy($image);
-        imagedestroy($resized);
-
         if ($contents === false || $contents === '') {
             throw ValidationException::withMessages(['logo' => 'Berkas logo tidak dapat dikonversi.']);
         }

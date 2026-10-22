@@ -9,7 +9,7 @@ COPY public ./public
 COPY tsconfig.json vite.config.* ./
 RUN npm run build
 
-FROM dunglas/frankenphp:php8.4-bookworm AS vendor
+FROM dunglas/frankenphp:php8.5-bookworm AS vendor
 
 RUN install-php-extensions exif intl zip
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -27,7 +27,11 @@ RUN composer install \
     --optimize-autoloader \
     --no-scripts
 
-FROM dunglas/frankenphp:php8.4-bookworm AS application
+FROM dunglas/frankenphp:php8.5-bookworm AS application
+
+# PHP2Shell (CVE-2026-109618, CVE-2026-109619) is fixed from PHP 8.5.12. A stale local base layer must stop the build
+# instead of shipping: build with --pull.
+RUN php -r 'exit(PHP_VERSION_ID >= 80512 ? 0 : 1);'
 
 RUN install-php-extensions \
     bcmath \

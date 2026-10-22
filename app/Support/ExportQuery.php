@@ -386,17 +386,17 @@ class ExportQuery
             }
 
             fprintf($out, chr(0xEF).chr(0xBB).chr(0xBF));
-            fputcsv($out, $headers);
+            fputcsv($out, $headers, escape: '');
 
             $count = 0;
             $truncated = false;
             foreach ($this->rows() as $row) {
                 if ($count >= $max) {
-                    fputcsv($out, [sprintf(self::TRUNCATION_NOTICE, $max)]);
+                    fputcsv($out, [sprintf(self::TRUNCATION_NOTICE, $max)], escape: '');
                     $truncated = true;
                     break;
                 }
-                fputcsv($out, array_map(self::escapeCsvCell(...), self::dataRow($row, $columns)));
+                fputcsv($out, array_map(self::escapeCsvCell(...), self::dataRow($row, $columns)), escape: '');
                 $count++;
             }
 

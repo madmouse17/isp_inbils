@@ -552,14 +552,17 @@ class WhatsAppPrivacyAndTenantTest extends TestCase
     private function world(string $name, string $customerPhone = self::PHONE, string $technicianPhone = self::TECHNICIAN_PHONE): array
     {
         $company = $this->whatsAppEnabledFor(Company::factory()->create(['name' => $name, 'timezone' => 'Asia/Jakarta', 'is_active' => true]));
-        $admin = User::factory()->create(['company_id' => $company->id, 'email_verified_at' => now(), 'is_active' => true]);
+        // Fixed names: a Faker title such as "Miss" is also a word of every queue payload ("deleteWhenMissingModels", Laravel 13),
+        // and messages render first names (the technician on the way) that the scans below look for in the stores.
+        $admin = User::factory()->create(['company_id' => $company->id, 'name' => 'Rina Admin', 'email_verified_at' => now(), 'is_active' => true]);
         $this->grantRole($admin, 'admin');
 
         $customer = $this->consentedCustomer($company, $customerPhone);
         $portal = User::factory()->create(['company_id' => $company->id, 'is_active' => true, 'email' => 'pelanggan.'.$company->id.'@example.test']);
-        $customer->forceFill(['user_id' => $portal->id])->save();
+        $customer->forceFill(['user_id' => $portal->id, 'name' => 'Budi Santoso'])->save();
 
         $technician = $this->technician($company, $technicianPhone);
+        $technician->forceFill(['name' => 'Agus Teknisi'])->save();
         $this->grantRole($technician, 'technician');
 
         ServiceSubscription::factory()->create([

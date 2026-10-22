@@ -281,6 +281,6 @@ class StockServerTableExportTest extends TestCase
         $lines = preg_split('/\r\n|\n|\r/', trim($content));
         array_shift($lines);
 
-        return array_map(fn ($line) => str_getcsv($line), $lines);
+        return array_map(fn ($line) => str_getcsv($line, escape: ''), $lines);
     }
 }

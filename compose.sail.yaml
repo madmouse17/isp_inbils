@@ -12,11 +12,11 @@ name: inbils-sail
 # job, listener or notification run `sail artisan queue:restart`; it exits after its job and `restart` starts it again.
 x-sail-worker: &sail-worker
   build:
-    context: ./vendor/laravel/sail/runtimes/8.4
+    context: ./vendor/laravel/sail/runtimes/8.5
     dockerfile: Dockerfile
     args:
       WWWGROUP: "${WWWGROUP}"
-  image: sail-8.4/app
+  image: sail-8.5/app
   profiles: ["workers"]
   restart: unless-stopped
   extra_hosts:
@@ -37,11 +37,11 @@ x-sail-worker: &sail-worker
 services:
   laravel.test:
     build:
-      context: ./vendor/laravel/sail/runtimes/8.4
+      context: ./vendor/laravel/sail/runtimes/8.5
       dockerfile: Dockerfile
       args:
         WWWGROUP: "${WWWGROUP}"
-    image: sail-8.4/app
+    image: sail-8.5/app
     extra_hosts:
       - "host.docker.internal:host-gateway"
     # Everything is published on loopback only: APP_DEBUG=true, demo credentials and unauthenticated Redis.

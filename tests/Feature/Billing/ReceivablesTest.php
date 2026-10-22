@@ -247,7 +247,7 @@ class ReceivablesTest extends TestCase
 
         $this->assertSame(
             ['Nomor tagihan', 'Pelanggan', 'Kode pelanggan', 'Tanggal terbit', 'Jatuh tempo', 'Lewat jatuh tempo (hari)', 'Umur', 'Total', 'Terbayar', 'Sisa', 'Status'],
-            str_getcsv(trim(ltrim($response->streamedContent(), "\xEF\xBB\xBF"))),
+            str_getcsv(trim(ltrim($response->streamedContent(), "\xEF\xBB\xBF")), escape: ''),
         );
     }
 

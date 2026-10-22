@@ -1,6 +1,6 @@
 # Architecture Overview — inbils
 
-> ISP Operations Support System. Laravel 12 + Inertia.js + React 18 + TS + Tailwind v3.
+> ISP Operations Support System. Laravel 13 + Inertia.js + React 18 + TS + Tailwind v3.
 
 ## Principles
 

@@ -2,7 +2,7 @@
     "The provided two-factor code was invalid.": "Kode autentikasi dua langkah tidak valid.",
     "The provided password does not match your current password.": "Kata sandi yang Anda masukkan tidak sama dengan kata sandi Anda saat ini.",
     "If an account exists for that email address, we have emailed a password reset link.": "Jika ada akun dengan alamat email tersebut, kami telah mengirim tautan pengaturan ulang kata sandi.",
-    "Reset Password Notification": "Pengaturan Ulang Kata Sandi",
+    "Reset your password": "Pengaturan Ulang Kata Sandi",
     "You are receiving this email because we received a password reset request for your account.": "Anda menerima email ini karena kami menerima permintaan pengaturan ulang kata sandi untuk akun Anda.",
     "Reset Password": "Atur Ulang Kata Sandi",
     "This password reset link will expire in :count minutes.": "Tautan pengaturan ulang kata sandi ini berlaku :count menit.",

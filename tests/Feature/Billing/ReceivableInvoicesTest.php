@@ -305,7 +305,7 @@ class ReceivableInvoicesTest extends TestCase
         $this->seedOpenAndClosed();
 
         $response = $this->actingAs($this->admin)->get(route('admin.billing.receivables.export', ['format' => 'csv']))->assertOk();
-        $lines = array_map('str_getcsv', explode("\n", trim(ltrim($response->streamedContent(), "\xEF\xBB\xBF"))));
+        $lines = array_map(fn (string $line): array => str_getcsv($line, escape: ''), explode("\n", trim(ltrim($response->streamedContent(), "\xEF\xBB\xBF"))));
 
         $this->assertStringStartsWith('text/csv', (string) $response->headers->get('Content-Type'));
         $this->assertSame('0', $response->headers->get('X-Export-Truncated'));
@@ -320,7 +320,7 @@ class ReceivableInvoicesTest extends TestCase
     {
         $this->seedOpenAndClosed();
 
-        $rows = array_slice(array_map('str_getcsv', explode("\n", trim(ltrim($this->actingAs($this->admin)->get(route('admin.billing.receivables.export', ['bucket' => 'b1_30', 'search' => 'budi']))->streamedContent(), "\xEF\xBB\xBF")))), 1);
+        $rows = array_slice(array_map(fn (string $line): array => str_getcsv($line, escape: ''), explode("\n", trim(ltrim($this->actingAs($this->admin)->get(route('admin.billing.receivables.export', ['bucket' => 'b1_30', 'search' => 'budi']))->streamedContent(), "\xEF\xBB\xBF")))), 1);
 
         $this->assertSame(['INV-C'], array_column($rows, 0));
 

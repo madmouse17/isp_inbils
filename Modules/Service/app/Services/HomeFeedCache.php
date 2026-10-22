@@ -12,7 +12,8 @@ class HomeFeedCache
     {
         $version = Cache::get("announcements:{$companyId}:version", '1');
 
-        return "announcements:{$companyId}:{$version}:customer:{$customerId}";
+        // v2: the entry holds attribute rows. A v1 entry (models, written before the cache refused objects) is never read.
+        return "announcements:{$companyId}:{$version}:v2:customer:{$customerId}";
     }
 
     public static function flush(int $companyId): void

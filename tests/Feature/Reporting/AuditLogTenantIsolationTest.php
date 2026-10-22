@@ -399,7 +399,6 @@ class AuditLogTenantIsolationTest extends TestCase
         $migration = require database_path('migrations/2026_09_07_000001_add_company_id_to_activity_log_table.php');
         $reflection = new \ReflectionClass($migration);
         $method = $reflection->getMethod('backfillCompanyIds');
-        $method->setAccessible(true);
         $method->invoke($migration, config('activitylog.database_connection'), config('activitylog.table_name', 'activity_log'));
 
         // Assert proven row got backfilled to Company A

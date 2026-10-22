@@ -134,8 +134,8 @@ class EmployeeServerTableExportTest extends TestCase
 
         $response = $this->get(route('admin.employees.export', $filters + ['format' => 'csv']))->assertOk();
         $lines = preg_split('/\r?\n/', trim($response->streamedContent()));
-        $this->assertSame('Nomor karyawan', str_getcsv(ltrim((string) array_shift($lines), "\xEF\xBB\xBF"))[0]);
-        $this->assertSame(array_reverse($numbers), array_map(static fn ($line) => str_getcsv($line)[0], $lines));
+        $this->assertSame('Nomor karyawan', str_getcsv(ltrim((string) array_shift($lines), "\xEF\xBB\xBF"), escape: '')[0]);
+        $this->assertSame(array_reverse($numbers), array_map(static fn ($line) => str_getcsv($line, escape: '')[0], $lines));
     }
 
     public function test_export_forbidden_without_permission(): void

@@ -7,7 +7,7 @@ use App\Http\Middleware\HandlePlatformInertiaRequests;
 use App\Http\Middleware\UsePlatformGuard;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
@@ -32,7 +32,7 @@ class PlatformServiceProvider extends ServiceProvider
             StartSession::class,
             UsePlatformGuard::class,
             ShareErrorsFromSession::class,
-            ValidateCsrfToken::class,
+            PreventRequestForgery::class,
             DetectRecordEnumeration::class,
             SubstituteBindings::class,
             HandlePlatformInertiaRequests::class,

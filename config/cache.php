@@ -36,7 +36,8 @@ return [
 
         'array' => [
             'driver' => 'array',
-            'serialize' => false,
+            // Serialize like every real store, so the PHPUnit suite (CACHE_STORE=array) meets the same refusal of PHP objects.
+            'serialize' => true,
         ],
 
         'database' => [
@@ -113,5 +114,19 @@ return [
     */
 
     'prefix' => env('CACHE_PREFIX', Str::slug((string) env('APP_NAME', 'laravel')).'-cache-'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Serializable Classes
+    |--------------------------------------------------------------------------
+    |
+    | Which classes a cache store may unserialize. False allows none: a cache entry holds scalars and arrays only,
+    | so a planted entry cannot instantiate a PHP gadget chain. Store attribute rows, not models or collections (see
+    | HomeFeedController). An allow-list of class names is the other option; tests/Feature/Support/CacheRefusesObjectsTest.php
+    | pins this value and runs the array store of the suite through the same serialize-and-refuse path.
+    |
+    */
+
+    'serializable_classes' => false,
 
 ];

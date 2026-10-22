@@ -5,9 +5,11 @@ namespace Tests\Feature\Api\V1\Customer;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Modules\Service\Models\Announcement;
 use Modules\Service\Models\PromoBanner;
+use Modules\Service\Services\HomeFeedCache;
 use Tests\TestCase;
 use Tests\Traits\InteractsWithMobileApi;
 
@@ -47,6 +49,32 @@ class AnnouncementFeedTest extends TestCase
             ['id', 'title', 'alt_text', 'image_url', 'link_kind', 'link_target', 'starts_at', 'ends_at'],
             array_keys($response->json('data.banners.0')),
         );
+    }
+
+    public function test_a_cached_feed_is_the_same_response_without_touching_the_feed_tables(): void
+    {
+        [$user, $customer] = $this->customerLogin();
+        $companyId = (int) $customer->company_id;
+
+        CompanyService::runAs($companyId, function () use ($companyId): void {
+            Announcement::factory()->published()->create(['title' => 'Gangguan', 'kind' => 'outage']);
+            $banner = PromoBanner::factory()->published()->create(['title' => 'Banner']);
+            $banner->addMediaFromString(base64_decode(self::PNG))->usingFileName('banner.png')
+                ->withCustomProperties(['company_id' => $companyId])->toMediaCollection('promo_banner');
+        });
+        $token = $this->issueToken($user, 'customer');
+
+        $first = $this->api('GET', 'customer/home-feed', token: $token)->assertOk()->json();
+        $this->assertTrue(Cache::has(HomeFeedCache::key($companyId, (int) $customer->id)));
+
+        DB::enableQueryLog();
+        $second = $this->api('GET', 'customer/home-feed', token: $token)->assertOk()->json();
+        $feedQueries = collect(DB::getQueryLog())->pluck('query')
+            ->filter(fn (string $sql): bool => preg_match('/\b(announcements|promo_banners|media)\b/', $sql) === 1);
+
+        $this->assertSame($first, $second);
+        $this->assertNotNull($second['data']['banners'][0]['image_url']);
+        $this->assertCount(0, $feedQueries, 'A cache hit must not query the feed tables.');
     }
 
     public function test_tap_is_deduplicated_per_user_and_day_and_hidden_banner_is_not_found(): void

@@ -80,6 +80,16 @@ return [
             'tap' => [RedactLogContext::class],
         ],
 
+        // Laravel 13 merges its own `monthly` channel into every app; defined here so it carries the redaction tap too.
+        'monthly' => [
+            'driver' => 'monthly',
+            'path' => storage_path('logs/laravel.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'max_files' => 3,
+            'replace_placeholders' => true,
+            'tap' => [RedactLogContext::class],
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),

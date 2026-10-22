@@ -116,9 +116,9 @@ class InvoiceServerTableExportTest extends TestCase
         $lines = preg_split('/\r?\n/', trim(ltrim($content, "\xEF\xBB\xBF")));
         $this->assertSame(
             ['Nomor tagihan', 'Pelanggan', 'Status', 'Total', 'Tanggal terbit', 'Jatuh tempo', 'Dibuat'],
-            str_getcsv($lines[0]),
+            str_getcsv($lines[0], escape: ''),
         );
-        $row = str_getcsv($lines[1]);
+        $row = str_getcsv($lines[1], escape: '');
         $this->assertCount(7, $row);
         $this->assertSame('INV-COLUMNS-1', $row[0]);
         $this->assertSame('Column Customer', $row[1]);

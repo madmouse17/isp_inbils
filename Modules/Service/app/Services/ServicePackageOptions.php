@@ -21,7 +21,7 @@ class ServicePackageOptions
      */
     public static function grouped(?string $customerType): array
     {
-        $preferred = self::PREFERRED[$customerType] ?? [];
+        $preferred = self::PREFERRED[(string) $customerType] ?? [];
         $packages = ServicePackage::query()
             ->where('is_active', true)
             ->whereHas('category', fn ($query) => $query->where('is_active', true))

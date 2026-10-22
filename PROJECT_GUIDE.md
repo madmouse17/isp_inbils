@@ -34,8 +34,8 @@ Authoritative product behaviour per domain: `docs/business/*.md` (section 16).
 
 | Layer | Technology (from `composer.json` / `package.json`) |
 | --- | --- |
-| Runtime | PHP `^8.2` (Sail and the production image run PHP 8.4; FrankenPHP in production) |
-| Framework | Laravel `^12.0`, Inertia Laravel `^2.0` |
+| Runtime | PHP `^8.4` (Sail and the production image run PHP 8.5.12 or newer; FrankenPHP in production) |
+| Framework | Laravel `^13.0`, Inertia Laravel `^2.0` |
 | Modules | `nwidart/laravel-modules ^12.0` (+ composer merge plugin reading `Modules/*/composer.json`) |
 | Auth | Laravel Sanctum `^4.0` (mobile tokens), session guards for web; Breeze scaffolding for the login screens |
 | Packages | `spatie/laravel-permission ^6.25`, `spatie/laravel-medialibrary ^11.23`, `spatie/laravel-activitylog ^4.12`, `spatie/laravel-query-builder ^6.4`, `tightenco/ziggy ^2.0`, `barryvdh/laravel-dompdf`, `kreait/laravel-firebase` (FCM push), `laravolt/indonesia`, `mlocati/ip-lib`, `pragmarx/google2fa` |
@@ -66,7 +66,7 @@ app/                       Shared core (cross-cutting): companies, users, auth, 
   Support/                 PermissionCatalogue, PublicId, OptimisticLock, RecordNotFound, Money, SodConflicts, AuditEventText, Notifications/StaffRecipients, ...
   Traits/                  BelongsToCompany, HasPublicId, HasLifecycle
 Modules/<Name>/            Domain code (section 4). Namespace Modules\<Name>\...
-bootstrap/app.php          Middleware groups and aliases, exception rendering, routing (the Laravel 12 replacement of Kernel.php)
+bootstrap/app.php          Middleware groups and aliases, exception rendering, routing (the replacement of Kernel.php)
 config/                    platform.php, security.php, scramble.php, sanctum.php (app_token_days), modules.php, ziggy.php, permission.php, ...
 database/                  migrations/ (shared core), seeders/, factories/
 docker/                    Caddyfile + app/ (production image), mysql/{init,sail}/, devproxy/ (local *.test HTTPS proxy), php/
@@ -151,6 +151,7 @@ Route -> middleware (auth, company, can:) -> Controller (thin)
 - Use `php artisan make:*` with `--no-interaction` (via `sail artisan`); new models get factories (and seeders when they need data). Prefer named routes and `route()`.
 - Concurrency/integrity helpers that already exist: `App\Support\OptimisticLock` (forms send `expected_updated_at`, stale = 409), `PreventDuplicateWebSubmit` (identical `admin.*` write within 10 s is refused), `X-Inbils-Company` header check in `ResolveActiveCompany` (409 when another tab switched company), `DetectRecordEnumeration` (429 after many record 404s), `lockForUpdate` for counters and code generation.
 - Money: use `App\Support\Money`; numbering through `NumberSequenceService` (templates per company), never hand-built codes.
+- Cache: `config/cache.php` sets `serializable_classes` to `false`, and the array store of the PHPUnit suite serializes like Redis, so a cache entry holds scalars and arrays only: attribute rows, never models, collections, Carbon or DTOs (see `HomeFeedController`). `tests/Feature/Support/CacheRefusesObjectsTest.php` pins it. Version the key (`...:v2:...`) when the shape of an entry changes, so a deploy or rollback never reads the old shape.
 - Errors: a state/rule refusal is `abort(422, '...')` or a domain exception; the 409/403/404 rendering for Inertia writes (toast, no error page) is in `bootstrap/app.php`.
 
 ## 6. Multi-tenancy (the most important rule set)
@@ -265,7 +266,7 @@ Primary path: Laravel Sail (`compose.sail.yaml`, selected by `SAIL_FILES` in `.e
 
 | What | Where |
 | --- | --- |
-| App (Sail) | <http://localhost> (port 80), health `/up`, readiness `/ready` (checks `database`, `cache`, `queue`, `failed_jobs`, `scheduler`, `backup`, `storage_link`, `mail`; `unknown` is normal until a heartbeat exists); `sail` runs PHP 8.4, Node 24 |
+| App (Sail) | <http://localhost> (port 80), health `/up`, readiness `/ready` (checks `database`, `cache`, `queue`, `failed_jobs`, `scheduler`, `backup`, `storage_link`, `mail`; `unknown` is normal until a heartbeat exists); `sail` runs PHP 8.5, Node 24 (image `sail-8.5/app`) |
 | Mailpit | <http://localhost:8025> |
 | MySQL (Sail) | `127.0.0.1:3306`; schema `inbils` for dev, `inbils_test` for tests (created by `docker/mysql/sail/10-create-test-database.sh` on first volume init) |
 | Redis | `127.0.0.1:6379` (cache) |
@@ -282,6 +283,7 @@ Rules and commands:
 - Do not run `sail:install` or `sail:add` (they rewrite `compose.yaml`). Do not put `APP_PORT` in `.env` (shared with `compose.yaml`).
 - Never `down -v`, `docker volume rm` or `docker system prune --volumes` unless the owner explicitly wants data destroyed.
 - The deploy stack is the verification target for image changes: `docker compose --env-file .env.docker build app queue scheduler platform-queue`, `up -d --no-deps` the same services, then `migrate --force` and check `/up`, `/ready`, `/platform/login`. Details and the backup step: `docs/operations/DEPLOYMENT.md`, `docs/operations/DOCKER.md`.
+- PHP security releases: Sail takes them by rebuilding the image (`sail build --no-cache laravel.test && sail up -d`, check `sail php -v`); the deploy image takes them by `docker compose --env-file .env.docker build --pull ...` (the `Dockerfile` stops the build below PHP 8.5.12, so a stale cached base cannot ship). The Playwright E2E server and `docs:screenshots` run on the host's `php`, so the host needs its distribution's PHP update too.
 - Temporary scan/debug/patch files belong outside the repo; delete AI scratch artefacts when done.
 - Mail: `MAIL_*` in `.env` is the platform sender (credential mails always use it). Midtrans, WhatsApp, RADIUS, mail-per-company accounts are stored **per company** in Pengaturan > Integrasi (`company.integrations.manage`); the `.env` keys are one-time import sources (`inbils:integrations:import-env --company=<code>`). Firebase push uses `FIREBASE_CREDENTIALS` (service-account JSON outside git).
 - Logs and request ids: `X-Request-Id` in every response; grep the id in logs (`docs/operations/OBSERVABILITY.md`).
@@ -302,7 +304,8 @@ Rules and commands:
   ```
   Max 4 processes. A full run is the gate for changes that touch shared code; targeted runs for the rest.
 - Time: a test that depends on "now" (billing periods, SLA, dashboards, query counts) must freeze it with `Carbon::setTestNow(...)` and reset it.
-- Format and static analysis (PHP): `sail bin pint --dirty` (config `pint.json`, Laravel preset), `sail composer analyse` (PHPStan level 5 over `app/` and `Modules/`).
+- PHP deprecations: Laravel drops them while testing. To see them (after a PHP or package upgrade) add `-e LOG_DEPRECATIONS_WHILE_TESTING=true -e LOG_DEPRECATIONS_CHANNEL=stderr` to `sail exec`: a serial run prints them in its output. `artisan test --parallel` swallows the workers' stderr, so there use `-e LOG_DEPRECATIONS_CHANNEL=single`, note the size of `storage/logs/laravel.log` first and read what was appended (`tail -c +<size+1> storage/logs/laravel.log | grep ' in /var/www/html/'`). Silence in the console of a parallel run proves nothing.
+- Format and static analysis (PHP): `sail bin pint --dirty` (config `pint.json`, Laravel preset), `sail composer analyse` (PHPStan level 5 over `app/` and `Modules/`). PHPStan has no baseline file and reports about 585 findings (590 before the Laravel 13 upgrade, mostly model-property false positives): compare the list before and after your change instead of expecting zero.
 - Frontend gates: `sail npm run typecheck`, `sail npm run lint`, `sail npm run format:check`, `sail npm run build` (`tsc && vite build`). `*.selfcheck.mjs` files next to libs run with `node --test <file>`.
 - **Playwright E2E** (chromium, serial, host-run, canonical server on port 8010, schema `inbils_test`). One-time: `cp .env.e2e.example .env.e2e`, fill `DB_PASSWORD` (the deploy stack's MySQL `127.0.0.1:3307`, user `inbils`), `php artisan key:generate --env=e2e`, `npx playwright install chromium`. Run (never concurrently with PHPUnit or screenshots; the runner holds a mutex):
   ```bash
@@ -403,6 +406,7 @@ Rules and commands:
 20. Changing UI text or flows without updating `docs/user-guide/*.md`, screenshots, PDFs and `CHANGELOG.md`.
 21. Putting company-specific values (name, currency, timezone, payment keys) in code or `.env` instead of the company record and Pengaturan > Integrasi.
 22. Editing the Flutter apps from this repo; they live in `inbils-mobile`.
+23. Putting a model, collection, Carbon or DTO into the cache (it comes back as `__PHP_Incomplete_Class`); cache attribute rows and arrays, and version the key when the shape changes.
 
 ## 19. Before you call a change done
 

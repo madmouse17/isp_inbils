@@ -7,7 +7,7 @@ talk to `api/v1`.
 
 | Layer | Technology |
 | --- | --- |
-| Backend | Laravel 12, PHP 8.4 in Sail and in the production image (`composer.json` requires `^8.2`), nwidart modules, Sanctum, Spatie permission, medialibrary, activitylog |
+| Backend | Laravel 13, PHP 8.5 in Sail and in the production image (`composer.json` requires `^8.4`), nwidart modules, Sanctum, Spatie permission, medialibrary, activitylog |
 | Frontend | Inertia v2, React 18, TypeScript, Vite 7, Tailwind CSS v4 (CSS-first, `resources/css/app.css`) |
 | Data | MySQL 8.4, Redis 7.4 (cache), Mailpit (dev mail) |
 | Tests | PHPUnit 11 (with parallel runner), Playwright (chromium) |
@@ -22,7 +22,7 @@ code). History of changes: [CHANGELOG.md](CHANGELOG.md).
 | Docker Engine with Compose v2 | Everything runs in containers; the host needs no PHP or Composer |
 | Git | Access to the repository (`https://github.com/madmouse17/isp_inbils.git`) |
 | About 6 GB free disk, ports free | 80, 3306, 6379, 1025, 8025, 5173 (all bound to `127.0.0.1`). Change them per shell, see Troubleshooting |
-| Node.js and PHP on the host | **Optional.** Only the Playwright E2E suite and `npm run docs:screenshots` run on the host (Node 22+, PHP 8.2+ CLI). `package.json` has no `engines` field; the Docker build uses Node 22, Sail ships Node 24 |
+| Node.js and PHP on the host | **Optional.** Only the Playwright E2E suite and `npm run docs:screenshots` run on the host (Node 22+, PHP 8.4+ CLI, patched: 8.5.12 or the distribution's fix for CVE-2026-109618). `package.json` has no `engines` field; the Docker build uses Node 22, Sail ships Node 24 |
 
 ## 2. First-time setup (Laravel Sail)
 
@@ -52,7 +52,7 @@ once in a throwaway container:
 
 ```bash
 docker run --rm -u "$(id -u):$(id -g)" -v "$(pwd):/var/www/html" -w /var/www/html \
-    laravelsail/php84-composer:latest composer install --ignore-platform-reqs
+    composer:2 composer install --ignore-platform-reqs
 ```
 
 Start the stack and finish the install:
@@ -173,7 +173,7 @@ Max 4 processes. Never pass `--drop-databases` or `--recreate-databases` (worker
 ### Playwright E2E (first run)
 
 E2E runs on the host against a canonical server on port 8010 and the schema `inbils_test`. It needs Node, a PHP CLI
-(8.2+, with `vendor/` installed; set `PHP_BINARY` to use a specific binary) and a reachable MySQL that has `inbils_test`
+(8.4+, with `vendor/` installed; set `PHP_BINARY` to use a specific binary) and a reachable MySQL that has `inbils_test`
 and the `inbils` user. One-time:
 
 ```bash
@@ -213,6 +213,7 @@ reports "No tests found". Use `--grep "<text>"`, or `npm run test:e2e:smoke` for
 | Export the mobile API contract | `./vendor/bin/sail artisan scramble:export` (commit `docs/api/mobile-v1.openapi.json`) |
 | Render user-guide PDFs | `./vendor/bin/sail exec -T -u sail laravel.test php -d memory_limit=1G artisan inbils:docs:pdf` |
 | Web guide screenshots | `npm run build && npm run docs:screenshots` (host, E2E mutex, resets `inbils_test`) |
+| Take a PHP security release (Sail) | `./vendor/bin/sail build --no-cache laravel.test && ./vendor/bin/sail up -d`, then `./vendor/bin/sail php -v` (Ubuntu package from the Ondrej PPA; 8.5.12 fixes CVE-2026-109618 and CVE-2026-109619) |
 
 Never run `migrate:fresh`, `db:wipe`, `sail down -v`, `docker volume rm` or `docker system prune --volumes` on data you
 want to keep. `sail stop` and `sail down` keep the MySQL and Redis volumes. Do not run `sail:install` or `sail:add`.
@@ -225,10 +226,10 @@ queue, scheduler, MySQL on `127.0.0.1:3307`, Redis). It shares nothing with Sail
 
 ```bash
 cp .env.docker.example .env.docker      # git-ignored; set APP_KEY and the DOCKER_DB_* passwords (the example ships APP_ENV=production)
-docker run --rm dunglas/frankenphp:php8.4-bookworm php -r 'echo "base64:", base64_encode(random_bytes(32)), PHP_EOL;'   # a fresh APP_KEY value
+docker run --rm dunglas/frankenphp:php8.5-bookworm php -r 'echo "base64:", base64_encode(random_bytes(32)), PHP_EOL;'   # a fresh APP_KEY value
 export DOCKER_CONTEXT=default           # the root daemon; see Troubleshooting
 docker compose --env-file .env.docker config > /dev/null
-docker compose --env-file .env.docker build
+docker compose --env-file .env.docker build --pull
 docker compose --env-file .env.docker up -d
 docker compose --env-file .env.docker exec app php artisan migrate --force
 docker compose --env-file .env.docker exec app php artisan db:seed --force     # production env: roles, settings, regions only
