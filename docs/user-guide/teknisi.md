@@ -136,7 +136,7 @@ Bila tidak ada pekerjaan, layar menulis "Tidak ada pekerjaan untuk filter ini."
 - **Banner "Data offline · diperbarui HH:mm".** Ponsel tidak punya internet, dan aplikasi menampilkan salinan terakhir. Pekerjaan baru dan perubahan dari kantor tidak muncul sampai internet kembali. Tarik layar ke bawah setelah sinyal pulih.
 - **Banner "Anda sedang luring. Aksi disimpan dan dikirim otomatis saat online."** Tampil di layar SPK, tiket, dan pengembalian material setelah sebuah permintaan gagal karena tidak ada sinyal. Aksi yang Anda ketuk tetap tersimpan dan terkirim sendiri saat sinyal kembali (lihat "Tanpa sinyal: aksi menunggu kirim" di bab 3). Ketuk **Coba lagi** di banner untuk memeriksa sinyal dan mengirim saat itu juga.
 - **Banner "N foto belum terkirim".** Ada foto bukti di antrean unggah. Ketuk untuk membukanya.
-- **Pemberitahuan merah "N aksi gagal dikirim".** Server menolak aksi yang tersimpan di ponsel. Ketuk **Lihat aksi** untuk mencoba lagi atau membuangnya.
+- **Pemberitahuan merah "N aksi gagal dikirim".** Ada aksi tersimpan yang ditolak server atau belum pasti terkirim. Ketuk **Lihat aksi** untuk mencoba lagi atau membuangnya.
 - **Pekerjaan tidak muncul.** Hanya pekerjaan berstatus Ditugaskan dan Dikerjakan yang ditugaskan kepada Anda yang tampil. Bila yakin ada yang kurang, minta kantor memeriksa penugasan.
 
 # 3. SPK
@@ -343,6 +343,14 @@ Bila server menolak aksi itu, tandanya menjadi **Gagal dikirim: {alasan}** denga
 - **Buang** menghapus aksi dari ponsel setelah konfirmasi "Buang aksi ini?". Aksi yang dibuang tidak pernah terkirim.
 
 Aksi yang ditolak menahan aksi di belakangnya untuk SPK atau tiket yang sama sampai Anda memutuskannya. Di layar mana pun, pemberitahuan merah "N aksi gagal dikirim" dengan tombol **Lihat aksi** membuka lembar **Aksi belum terkirim**, yang mendaftar semua aksi yang menunggu dari semua SPK dan tiket ("Semua aksi sudah terkirim." bila kosong).
+
+### Belum pasti terkirim
+
+Kadang aksi sudah sampai ke server, tetapi jawabannya tidak sampai ke ponsel, misalnya sinyal putus tepat saat server menjawab. Aplikasi mencobanya lagi beberapa kali, lalu berhenti setelah sekitar 30 menit tanpa jawaban yang jelas. Aksi itu tampil dengan tulisan "Belum pasti terkirim. Aksi ini mungkin sudah sampai, dan mengirim ulang tidak membuatnya ganda." Waktu tanpa sinyal sama sekali tidak dihitung.
+
+- Periksa dulu status SPK atau tiketnya di layar. Aplikasi memuatnya ulang saat aksi berhenti.
+- **Coba lagi** mengirim aksi yang sama sekali lagi. Server mengenali aksi yang sudah pernah diterima dan tidak mencatatnya dua kali, jadi komentar atau permintaan barang tidak menjadi ganda.
+- **Buang** menghentikan pengiriman setelah konfirmasi "{aksi} belum pasti terkirim dan mungkin sudah sampai. Bila dibuang, aplikasi berhenti mengirimnya. Periksa statusnya di layar dulu." Aksi yang sudah sampai tetap tercatat di kantor.
 
 Beberapa hal tetap butuh internet dan tombolnya nonaktif dengan tulisan "Butuh koneksi internet": menampilkan kata sandi PPPoE, tambah, ubah, dan hapus material di SPK, lampiran tiket, menghapus foto yang sudah terkirim, membatalkan permintaan barang, notifikasi uji, dan masuk.
 
@@ -659,7 +667,8 @@ Menampilkan **Aplikasi**, **Versi** dan nomor build, **ID aplikasi**, **Lingkung
 | Anda sedang offline. Data yang tampil mungkin belum terbaru. | Aplikasi menampilkan salinan terakhir. Tarik layar ke bawah setelah sinyal pulih. |
 | Butuh koneksi internet | Tindakan itu tidak bisa disimpan untuk nanti: menampilkan kata sandi PPPoE, tambah atau hapus material, lampiran, menghapus foto yang sudah terkirim, membatalkan permintaan barang, notifikasi uji. Mulai, Saya berangkat, kirim untuk review, komentar, selesaikan tiket, deklarasi, dan permintaan barang menunggu kirim dan tidak memunculkan pesan ini. |
 | Anda sedang luring. Aksi disimpan dan dikirim otomatis saat online. | Banner di layar SPK, tiket, dan pengembalian material saat sinyal hilang. Aksi Anda tersimpan dan terkirim sendiri. Ketuk **Coba lagi** di banner setelah sinyal pulih. |
-| N aksi gagal dikirim | Server menolak aksi yang tersimpan. Ketuk **Lihat aksi**, lalu **Coba lagi** atau **Buang**. |
+| N aksi gagal dikirim | Server menolak aksi yang tersimpan, atau aksi belum pasti terkirim. Ketuk **Lihat aksi**, lalu **Coba lagi** atau **Buang**. |
+| Belum pasti terkirim. Aksi ini mungkin sudah sampai, dan mengirim ulang tidak membuatnya ganda. | Jawaban server tidak sampai ke ponsel selama sekitar 30 menit. Periksa status di layar, lalu ketuk **Coba lagi** (tidak membuat ganda) atau **Buang**. |
 | Jauh dari lokasi pelanggan | Anda menekan **Mulai** lebih jauh dari batas kantor. Tulis **Alasan**, lalu ketuk **Mulai**. |
 | Sesi Anda berakhir. Silakan masuk lagi. | Sesi habis (30 hari), kata sandi atau pengaturan verifikasi dua langkah berubah, atau perangkat dikeluarkan. Masuk lagi. |
 | Akun Anda dinonaktifkan. Hubungi kantor Inbils. | Admin menonaktifkan akun. |
@@ -681,7 +690,7 @@ Buka banner **N foto belum terkirim** untuk melihat antrean. Ketuk **Kirim sekar
 Baca teks merah di bawahnya. Penyebabnya: belum ada foto bukti, masih ada foto di antrean, atau ada deklarasi material yang belum dikirim. Tanpa internet tombol tetap bisa diketuk; aksinya menunggu kirim.
 
 **Aksi saya "Gagal dikirim". Apa yang harus dilakukan?**
-Baca alasannya di bawah nama aksi. Ketuk **Coba lagi** bila masalahnya sudah selesai (misalnya sinyal atau jarak), atau **Buang** bila aksi itu tidak perlu lagi. Aksi yang ditolak menahan aksi lain pada SPK atau tiket yang sama.
+Baca alasannya di bawah nama aksi. Ketuk **Coba lagi** bila masalahnya sudah selesai (misalnya sinyal atau jarak), atau **Buang** bila aksi itu tidak perlu lagi. Aksi yang ditolak menahan aksi lain pada SPK atau tiket yang sama. Bila tulisannya "Belum pasti terkirim", aksi itu mungkin sudah sampai: periksa statusnya di layar, lalu **Coba lagi** aman karena server tidak mencatatnya dua kali.
 
 **Kenapa aplikasi menanyakan alasan saat Mulai?**
 Anda lebih jauh dari lokasi pelanggan daripada batas yang diatur kantor (bawaan 500 m). Tulis alasannya, misalnya "Jalan ditutup, saya parkir di ujung gang", lalu ketuk **Mulai**. Kantor membacanya di SPK atau tiket.
