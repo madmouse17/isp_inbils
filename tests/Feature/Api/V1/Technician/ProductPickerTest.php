@@ -80,6 +80,27 @@ class ProductPickerTest extends TestCase
         $this->api('GET', 'technician/products?page=0', token: $token)->assertStatus(422)->assertJsonValidationErrors(['page'], 'errors');
     }
 
+    public function test_products_stay_grouped_by_category_across_pages(): void
+    {
+        $technician = $this->technicianLogin();
+        $token = $this->issueToken($technician, 'technician');
+        $unit = Unit::factory()->create(['company_id' => $technician->company_id]);
+        $b = Category::factory()->create(['company_id' => $technician->company_id, 'unit_id' => $unit->id, 'name' => 'B Category'])->id;
+        $a = Category::factory()->create(['company_id' => $technician->company_id, 'unit_id' => $unit->id, 'name' => 'A Category'])->id;
+        $this->product($technician, 'Item 1', 'S1', 'pcs', ['category_id' => $b]);
+        $this->product($technician, 'Item 2', 'S2', 'pcs', ['category_id' => $a]);
+        $this->product($technician, 'Item 3', 'S3', 'pcs', ['category_id' => $b]);
+        $this->product($technician, 'Item 4', 'S4', 'pcs', ['category_id' => $a]);
+        $this->product($technician, 'Item 5', 'S5', 'pcs', ['category_id' => $b]);
+
+        $names = [];
+        foreach ([1, 2, 3] as $page) {
+            $names[] = array_column($this->api('GET', "technician/products?per_page=2&page={$page}", token: $token)->assertOk()->json('data'), 'name');
+        }
+
+        $this->assertSame([['Item 2', 'Item 4'], ['Item 1', 'Item 3'], ['Item 5']], $names);
+    }
+
     public function test_products_are_not_offered_without_the_inventory_permission(): void
     {
         $technician = $this->technicianLogin();
@@ -178,7 +199,8 @@ class ProductPickerTest extends TestCase
 
         return Product::factory()->create([
             'company_id' => $owner->company_id,
-            'category_id' => Category::factory()->create(['company_id' => $owner->company_id, 'unit_id' => $unitRow->id])->id,
+            'category_id' => Category::withoutCompany()->where('company_id', $owner->company_id)->value('id')
+                ?? Category::factory()->create(['company_id' => $owner->company_id, 'unit_id' => $unitRow->id])->id,
             'unit_id' => $unitRow->id,
             'name' => $name,
             'sku' => $sku,

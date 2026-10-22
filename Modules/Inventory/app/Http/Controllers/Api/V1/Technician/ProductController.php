@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Modules\Inventory\Http\Requests\Api\V1\ListTechnicianProductsRequest;
 use Modules\Inventory\Http\Resources\Api\V1\TechnicianProductResource;
+use Modules\Inventory\Models\Category;
 use Modules\Inventory\Models\Product;
 use Modules\Inventory\Models\Stock;
 
@@ -30,6 +31,9 @@ class ProductController extends Controller
                 ->whereColumn('stocks.product_id', 'products.id')
                 ->where('stocks.location_id', $warehouse)]))
             ->with(['unit:id,name,symbol', 'category:id,public_id,name'])
+            // Keep each category contiguous across pages (the app groups loaded rows); products.category_id is NOT NULL.
+            ->orderBy(Category::query()->select('categories.name')->whereColumn('categories.id', 'products.category_id'))
+            ->orderBy('category_id')
             ->orderBy('name')
             ->orderBy('id')
             ->paginate($request->perPage());
