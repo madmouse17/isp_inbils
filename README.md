@@ -1,342 +1,304 @@
-# inbils — ISP Management System
+# Inbils
 
-ISP management platform built with Laravel 12 + Inertia.js + React 18 + TypeScript + Tailwind CSS v4.
-
-## Features
-
-### Phase 1 — Core Foundation
-
-- [x] **Company System** — Multi-tenant ready via `BelongsToCompany` trait (global scope + auto-set `company_id`), `CompanyService` (current/setting/updateProfile/updateSettings), two-layer config (`companies.settings` JSON + `settings` table system defaults)
-- [x] **Setup Wizard** — First-login bootstrap flow: `php artisan inbils:setup` creates admin user → login → 4-step wizard (Company info → System config → Initial admin → Confirmation) → company created with roles + master defaults seeded
-- [x] **Authentication** — Laravel Breeze (React/Inertia), register disabled (users created via admin CRUD or bootstrap command), 3 middleware: `RedirectIfNoCompany`, `RequireNoCompany`, `RequireHasCompany`
-- [x] **User Management** — Full CRUD, role assignment, activate/deactivate, self-protection (cannot delete/deactivate self), `last_login_at` tracking via Login event listener
-- [x] **Role Management** — Full CRUD with permission sync, 5 default roles (admin, manager, staff, technician, customer), protected roles cannot be deleted
-- [x] **Permission System** — spatie/laravel-permission, ~80+ permissions across 8 modules, read-only index, role-permission matrix per `SECURITY.md`
-- [x] **Audit Log** — spatie/laravel-activitylog, `LogsActivity` trait on core models, `AuditService` wrapper for manual events
-- [x] **Location Topology** — Hierarchical topology (region → area → pop → rack → site), materialized path, cycle prevention, recurse on move/rename, type validation per FK use-case
-- [x] **System Settings** — Key-value `settings` table, `SettingService` with cache, `SystemSettingSeeder` defaults
-- [x] **Dashboard** — Real data widgets (company info, user/role counts, recent activity log, module placeholders)
-- [x] **Master Defaults Seed** — `CompanySeeder::runFor()` fires on `CompanyCreated` event: default units, ISP ticket categories, SLA tiers, sample locations
-
-### Phase 2 — Master Data
-
-- [x] **Service Catalog** (Modules/Service) — `ServicePackage`, `BandwidthProfile`, `SpeedProfile`, `SLATier` models with full CRUD backend + frontend pages (Index/Create/Edit/Show)
-- [x] **Customer Management** — `Customer` (Individual/Company), `CustomerAddress` (multi-address, installation point guard), `CustomerContact` (multi-contact, primary guard)
-- [x] **Service Subscription** — `ServiceSubscription` lifecycle: pending → active → suspended → reactivated → terminated, `SubscriptionService` with DB transactions + audit logging, MRC snapshot from package, code generation (SUB-{YEAR}-{NNNNN})
-- [x] **Customer Frontend** — Index (filter/search/paginate), Create, Edit, Show (tabbed: profile + addresses + contacts + subscriptions), Address management (modal CRUD), Contact management (modal CRUD), Subscription index + create (modal), Subscription detail with lifecycle action buttons
-- [x] **Service Catalog Frontend** — Service Package (Index/Create/Edit/Show), Bandwidth Profile (Index/Create/Edit), Speed Profile (Index/Create/Edit), SLA Tier (Index/Create/Edit), sidebar link
-- [x] **Seeders** — CompanySeeder extended (5 bandwidth profiles, 5 speed profiles, 8 service packages, 3 SLA tiers, 5 categories, 10 products, 10 network assets), CustomerDemoSeeder (20 customers, 30 subscriptions)
-- [x] **UI Design System** — 35+ `Components/ui/*` primitives + 6 `Components/composite/*` (DataTable, PageHeader, FormField, StatusBadge, MoneyInput, DateRangeFilter), dark mode (class strategy + localStorage), fully responsive
-
-### Phase 3 — Inventory + NetworkAsset
-
-- [x] **Inventory Module** (Modules/Inventory) — `Product`, `Category`, `Unit`, `Stock`, `StockMovement` models
-- [x] **Stock Management** — `StockService` with 7 movement types (receive/issue/transfer/adjustment/reserve/release/return), DB transactions, `InsufficientStockException`, balance_after + reserved_after snapshots, multi-location support
-- [x] **Inventory Frontend** — Products (Index/Create/Edit/Show with stock-per-location + movement history), Categories (inline modal CRUD), Units (inline modal CRUD), Stocks (Index + receive/issue/transfer/adjust modals), Movements (history with filter), Item Finder (search → locations + qty)
-- [x] **NetworkAsset Module** (Modules/NetworkAsset) — `NetworkAsset`, `NetworkAssetInstallation` models
-- [x] **Asset Lifecycle** — `NetworkAssetService`: install → remove → maintenance → resume → damage → repair → retire, `NetworkAssetInstallation` append-only history (1 active per asset), code generation (AST-{YEAR}-{NNNNN})
-- [x] **NetworkAsset Frontend** — Index (filter type/status/location/search), Create, Edit, Show (detail + installation history timeline + lifecycle action buttons), Trace (search by serial/MAC/IP/customer)
-- [x] **Factories** — Category, Unit, Product, Stock, StockMovement, NetworkAsset factories
-- [x] **Sidebar** — Inventory + Network Assets links (permission-gated)
-
-### Phase 4 — SPK (Surat Perintah Kerja)
-
-- [x] **SPK Module** (Modules/SPK) — `WorkOrder`, `WorkOrderItem`, `WorkOrderAssignment`, `WorkOrderEvidence` models
-- [x] **8-State Machine** — draft → generated → assigned → in_progress → waiting_review → completed, rejected, cancelled
-- [x] **SpkService** — generate, assign (with assignment history), start, submitForReview (evidence guard), approve, reject, cancel
-- [x] **4 SPK Types** — installation, maintenance, upgrade_service, relocation
-- [x] **Evidence Upload** — photo/document, file storage, required before submit (app guard)
-- [x] **Assignment History** — append-only WorkOrderAssignment (re-assign tracked)
-- [x] **Items** — consumable line items (product + quantity_reserved + quantity_used)
-- [x] **Code Generation** — SPK-{YEAR}-{NNNNN}, race-safe with lockForUpdate
-- [x] **Policy** — technician self-limit (view assigned only), Kepala Unit assign/approve/reject
-- [x] **Frontend** — Index (filter type/status/technician/search), Create, Show (detail + lifecycle buttons + items table + evidence upload + assignment history)
-- [x] **Factory** — WorkOrderFactory
-
-### Phase 5 — Billing
-
-- [x] **Billing Module** (Modules/Billing) — `Invoice`, `InvoiceItem`, `Payment` models
-- [x] **Invoice State Machine** — draft → sent → partial → paid, overdue, cancelled
-- [x] **BillingService** — generateNumber, createRecurring, createFromSpk, send, recordPayment, cancel, recalculate, checkOverdue
-- [x] **Recurring MRC** — createRecurring generates invoice from subscription (billing_period dedup-ready)
-- [x] **OTC from SPK** — createFromSpk maps work_order_items + installation fee, unique per SPK
-- [x] **Payment** — immutable (no delete, cancel+reverse), overpay validation (amount <= sisa)
-- [x] **Tax Calculation** — per-line tax_rate, tax_amount = sum(line_total * tax_rate / 100)
-- [x] **Code Generation** — INV-{YEAR}-{NNNNN}, race-safe lockForUpdate
-- [x] **Policy** — billing.view/create/update/delete/send/payment.record/cancel
-- [x] **Frontend** — Index (filter type/status/source/customer/search), Create, Show (detail + items table + payments timeline + lifecycle buttons: Send/Add Item/Record Payment/Cancel)
-- [x] **Factory** — InvoiceFactory
-
-### Phase 6 — Ticketing
-
-- [x] **Ticketing Module** (Modules/Ticketing) — `Ticket`, `TicketCategory`, `TicketComment`, `TicketAttachment` models
-- [x] **5-State Machine** — open → assigned → on_progress → resolved → closed
-- [x] **TicketService** — assign, startWork (FRT tracking), resolve, close, spawnSpk (cross-module → SPK maintenance)
-- [x] **SLA Tracking** — deadline per category (urgent = half SLA), breach detection (computed attribute), FRT (first_response_at)
-- [x] **3 Sources** — customer, noc, internal
-- [x] **ISP Categories** — no_internet, slow_connection, packet_loss, device_issue, fiber_issue (seeded in CompanySeeder)
-- [x] **Comments** — internal (staff-only) + public, with author
-- [x] **Attachments** — file upload (photo/document/screenshot), local storage
-- [x] **Spawn SPK** — TicketService::spawnSpk creates WorkOrder type=maintenance, source=ticket, pre-fill customer/subscription/asset/location, backlink spawned_spk_id
-- [x] **Code Generation** — TKT-{YEAR}-{NNNNN}, race-safe lockForUpdate
-- [x] **Policy** — technician self-limit (view assigned only), Kepala Unit assign/close/spawn-spk
-- [x] **Frontend** — Index (filter status/source/category/sla_breached/search), Create, Show (detail + lifecycle buttons + comments thread + attachments + spawn-SPK button)
-- [x] **Factory** — TicketFactory
-
-### Phase 7 — Performance (Employee Evaluation)
-
-- [x] **EmployeeEvaluation** model (shared Core, app/Models/Core/) — polymorphic reference (WorkOrder/Ticket), score (1.0-5.0), customer_rating, FRT/resolution snapshot, unique per (reference, evaluator)
-- [x] **EvaluationController** — CRUD with snapshot auto-fill (FRT from ticket, resolution from ticket/SPK)
-- [x] **Policy** — technician own-view, Kepala Unit create for bawahan, admin delete
-- [x] **Frontend** — Index (filter employee/reference/search), Create, Show, Edit
-- [x] **Factory** — EmployeeEvaluationFactory
-
-### Phase 8 — Reporting (Read-Only)
-
-- [x] **Reporting Module** (Modules/Reporting) — read-only, NO models, 6 Query classes
-- [x] **BusinessMetricsQuery** — MRR, active/churn/new subscriptions, revenue, outstanding, SLA, asset distribution
-- [x] **TechnicianPerformanceQuery** — SPK/ticket counts, avg completion, SLA compliance, FRT, avg score/rating, workload, breakdown by type/category
-- [x] **AssetUtilizationQuery** — status distribution, per-location, installation count, customer-linked, retired
-- [x] **SlaComplianceQuery** — resolution rate, breach count, avg resolution/FRT, per-category breakdown
-- [x] **StockCardQuery** — movement history per product/location with balance_after
-- [x] **AuditLogQuery** — activity_log entries by user/module/date
-- [x] **Frontend** — 7 report pages (Index cards + Business + Technician + Asset + SLA + StockCard + AuditLog)
-- [x] **Real-time** — all reports computed from event history, NO static metrics tables
-
-## Tech Stack
+Multi-tenant ISP management SaaS. One installation serves many ISP companies (tenants): customers and subscriptions,
+network assets, RADIUS and IPAM, SPK work orders for field technicians, inventory, billing with Midtrans, ticketing with
+SLA, reports, and an operator panel at `/platform`. Two Flutter apps (customer and technician, repo `inbils-mobile`)
+talk to `api/v1`.
 
 | Layer | Technology |
-|-------|-----------|
-| Backend | Laravel 12, PHP 8.2+ |
-| Frontend | React 18, TypeScript, Inertia.js |
-| Styling | Tailwind CSS v4 (CSS-first config in `resources/css/app.css`) + @tailwindcss/forms |
-| Build | Vite |
-| Database | MySQL 8+ |
-| Auth | Laravel Breeze (Inertia/React) |
-| Roles/Permissions | spatie/laravel-permission |
-| Audit Log | spatie/laravel-activitylog |
-| Modules | nwidart/laravel-modules |
-| Icons | heroicons/react/24/outline |
+| --- | --- |
+| Backend | Laravel 12, PHP 8.4 in Sail and in the production image (`composer.json` requires `^8.2`), nwidart modules, Sanctum, Spatie permission, medialibrary, activitylog |
+| Frontend | Inertia v2, React 18, TypeScript, Vite 7, Tailwind CSS v4 (CSS-first, `resources/css/app.css`) |
+| Data | MySQL 8.4, Redis 7.4 (cache), Mailpit (dev mail) |
+| Tests | PHPUnit 11 (with parallel runner), Playwright (chromium) |
 
-## Requirements
+How the code is organised and the rules to follow: **[PROJECT_GUIDE.md](PROJECT_GUIDE.md)** (read it before changing
+code). History of changes: [CHANGELOG.md](CHANGELOG.md).
 
-- PHP 8.2+
-- MySQL 8+ (or MariaDB 10.6+)
-- Node.js 18+
-- Composer 2+
-- npm 9+
+## 1. Prerequisites
 
-## Installation
+| Need | Notes |
+| --- | --- |
+| Docker Engine with Compose v2 | Everything runs in containers; the host needs no PHP or Composer |
+| Git | Access to the repository (`https://github.com/madmouse17/isp_inbils.git`) |
+| About 6 GB free disk, ports free | 80, 3306, 6379, 1025, 8025, 5173 (all bound to `127.0.0.1`). Change them per shell, see Troubleshooting |
+| Node.js and PHP on the host | **Optional.** Only the Playwright E2E suite and `npm run docs:screenshots` run on the host (Node 22+, PHP 8.2+ CLI). `package.json` has no `engines` field; the Docker build uses Node 22, Sail ships Node 24 |
 
-### 1. Clone & install dependencies
+## 2. First-time setup (Laravel Sail)
 
-```bash
-git clone https://github.com/madmouse17/isp_inbils.git
-cd isp_inbils
-composer install
-npm install
-```
-
-### 2. Configure environment
+Sail is the local development stack (`compose.sail.yaml`, Compose project `inbils-sail`). It is independent from the
+production-style stack in `compose.yaml` (section 6).
 
 ```bash
+git clone https://github.com/madmouse17/isp_inbils.git inbils
+cd inbils
 cp .env.example .env
-php artisan key:generate
 ```
 
-Edit `.env`:
+Edit `.env` (names only; values are yours):
 
-```env
-APP_NAME=inbils
-APP_ENV=local
-APP_URL=http://localhost:8000
+| Key | Do |
+| --- | --- |
+| `APP_KEY` | Leave empty; step below generates it |
+| `WWWUSER`, `WWWGROUP` | Set to `id -u` and `id -g` of your host user if they are not 1000 |
+| `DB_PASSWORD` | The committed value is a local placeholder that also initialises the Sail MySQL volume. Change it **before the first `sail up`** if you want another one; later changes do not reach an existing MySQL volume |
+| `SAIL_FILES` | Keep `compose.sail.yaml` (already set) |
+| `APP_PORT` | Leave unset (shared with `compose.yaml`) |
+| `MAIL_*` | Defaults point to Mailpit; nothing to do |
+| `FIREBASE_CREDENTIALS`, `MIDTRANS_*`, `WHATSAPP_*`, `RADIUS_*` | Optional. Leave empty (section 8) |
 
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=inbils
-DB_USERNAME=root
-DB_PASSWORD=
-```
-
-### 3. Create databases
-
-```bash
-mysql -u root -e "CREATE DATABASE IF NOT EXISTS inbils;"
-mysql -u root -e "CREATE DATABASE IF NOT EXISTS inbils_test;"
-```
-
-### 4. Migrate & seed
-
-```bash
-php artisan migrate:fresh --seed
-```
-
-This seeds:
-- 5 system roles (admin, manager, staff, technician, customer)
-- ~80+ permissions across 8 modules
-- System setting defaults (app.name, default_currency, default_timezone, etc.)
-
-No company or user is seeded — use the bootstrap command.
-
-### Optional demo users
-
-For local manual testing or demos only, seed one user for every default role:
-
-```bash
-php artisan db:seed --class=DemoUserSeeder
-```
-
-This creates/updates `Inbils Demo Company` (`DEMO`), seeds company defaults, and creates these users with password `password`:
-
-| Role | Email | Manual test flow |
-|------|-------|------------------|
-| admin | admin@demo.inbils.test | Full admin shell, users, roles, company settings |
-| manager | manager@demo.inbils.test | Operational management pages |
-| staff | staff@demo.inbils.test | Staff CRUD and support flows |
-| technician | technician@demo.inbils.test | Technician SPK/ticket flows |
-| customer | customer@demo.inbils.test | Customer-facing permission checks |
-
-Run after `php artisan migrate:fresh --seed` when you want a clean demo dataset. Do not run this seeder in production; it uses stable public demo credentials.
-
-### 5. Build frontend
-
-```bash
-npm run build
-# or for development:
-npm run dev
-```
-
-### 6. Bootstrap admin user
-
-```bash
-php artisan inbils:setup
-```
-
-This interactively creates the first admin user (name, email, password). This user has no company yet.
-
-### 7. Start the server
-
-```bash
-php artisan serve
-```
-
-Visit `http://localhost:8000/login`, log in with the bootstrap credentials, and complete the Setup Wizard to create your company.
-
-## Local development (Laravel Sail)
-
-[Laravel Sail](https://laravel.com/docs/sail) is the Docker route for **local development**: PHP 8.4, MySQL 8.4, Redis 7.4 and Mailpit run from `compose.sail.yaml` (Compose project `inbils-sail`) with the source bind-mounted, so code changes need no rebuild. `compose.yaml` + `Dockerfile` are the **production** image build (see [docs/operations/DOCKER.md](docs/operations/DOCKER.md)); the two stacks share no containers, volumes, networks, or ports.
-
-```bash
-cp .env.example .env                       # Sail defaults; set WWWUSER/WWWGROUP to `id -u` / `id -g` if they are not 1000
-./vendor/bin/sail build
-./vendor/bin/sail up -d
-./vendor/bin/sail composer install
-./vendor/bin/sail artisan key:generate     # only while APP_KEY is empty
-./vendor/bin/sail artisan migrate --force
-./vendor/bin/sail artisan db:seed          # roles, settings, demo users and demo data (APP_ENV=local only)
-./vendor/bin/sail npm ci --legacy-peer-deps
-./vendor/bin/sail npm run build
-```
-
-`sail build` needs `vendor/laravel/sail`, so on a fresh clone without `vendor/` install it once with a throwaway container first:
+Install PHP dependencies. `sail build` needs `vendor/laravel/sail`, which a fresh clone does not have, so run Composer
+once in a throwaway container:
 
 ```bash
 docker run --rm -u "$(id -u):$(id -g)" -v "$(pwd):/var/www/html" -w /var/www/html \
     laravelsail/php84-composer:latest composer install --ignore-platform-reqs
 ```
 
-| Service | Address (loopback only) | Notes |
-|---------|-------------------------|-------|
-| App | <http://localhost> | `/up`, `/ready`; demo login `admin@demo.inbils.test` / `password` |
-| Mailpit | <http://localhost:8025> | SMTP `mailpit:1025` inside the stack, `127.0.0.1:1025` from the host |
-| MySQL | `127.0.0.1:3306` | `sail` / `password`, schema `inbils`; `./vendor/bin/sail mysql` opens a CLI |
-| Redis | `127.0.0.1:6379` | no password; cache store |
-| Vite | <http://localhost:5173> | only while `sail npm run dev` runs |
-
-Everyday commands:
+Start the stack and finish the install:
 
 ```bash
-./vendor/bin/sail artisan queue:work --queue=default,whatsapp --tries=3   # queue worker (QUEUE_CONNECTION=database); keep a terminal open
-./vendor/bin/sail artisan schedule:work          # scheduler, in another terminal
-./vendor/bin/sail npm run dev                    # Vite HMR on :5173
-./vendor/bin/sail artisan test                   # phpunit.xml pins host mysql, schema inbils_test, user inbils
-./vendor/bin/sail stop                           # stop, keep data
+./vendor/bin/sail build
+./vendor/bin/sail up -d
+./vendor/bin/sail ps                          # laravel.test, mysql, redis, mailpit must be healthy
+./vendor/bin/sail composer install            # again, inside the container, with the real PHP extensions
+./vendor/bin/sail artisan key:generate        # only while APP_KEY is empty
+./vendor/bin/sail artisan migrate --force
+./vendor/bin/sail artisan storage:link
+./vendor/bin/sail npm ci --legacy-peer-deps
+./vendor/bin/sail npm run build
 ```
 
-- To run a worker in the background instead: `./vendor/bin/sail exec -d -u sail laravel.test php artisan queue:work --queue=default,whatsapp --tries=3` (same for `schedule:work`); it ends when the container stops.
-- Queue worker and scheduler as containers, opt-in: `COMPOSE_PROFILES=workers ./vendor/bin/sail up -d` starts the `queue` and `scheduler` services next to the app (`compose.sail.yaml`; nothing starts them by default). A worker keeps the code it booted with: after you change a job, listener or notification class run `./vendor/bin/sail artisan queue:restart`, the worker ends after its job and Docker starts it again. Stop them with `COMPOSE_PROFILES=workers ./vendor/bin/sail stop queue scheduler`.
-- A real Midtrans callback needs those workers and a public address: `scripts/dev-payments.sh` starts the app and the workers and, when `INBILS_TUNNEL` names a cloudflared tunnel, runs it (`INBILS_TUNNEL=<name or id> ./scripts/dev-payments.sh`); without it the script prints how to expose `/webhooks/midtrans/{company}`.
-- `public/storage` must be a link to `storage/app/public` (`./vendor/bin/sail artisan storage:link`, which production does at start). `curl http://localhost/ready` reports `storage_link: fail` and status `degraded` until it is. If `public/storage` is a real directory, uploaded files never show (logos are a broken image): move it aside first with `mv public/storage public/storage.old`, then run `storage:link`.
-- Each environment has its own storage tree (`STORAGE_ENV_SUFFIX`, read only in `config/filesystems.php`): the dev site and production keep `storage/app/{private,public}`, `phpunit.xml` pins `/testing` and the E2E server `/e2e`, so the test and E2E files are under `storage/app/{private,public}/{testing,e2e}` and never mix with the dev site's. Leave the key empty in `.env`.
-- `phpunit.xml` pins the Sail test target (host `mysql`, schema `inbils_test`, user `inbils`) and the `/testing` storage tree. The MySQL init script `docker/mysql/sail/10-create-test-database.sh` creates schema `inbils_test`, user `inbils`, and its grants when an empty `inbils-sail_sail-mysql` volume is first started. Sail tests use only the Sail MySQL, never the production-stack database on port 3307.
-- Do not put `APP_PORT` in `.env`: `compose.yaml` reads the same variable (default 8080). To move Sail off port 80, set it for one shell instead, e.g. `APP_PORT=8081 ./vendor/bin/sail up -d`, and keep `APP_URL` in sync.
-- Do not run `php artisan sail:install` or `sail:add`: they rewrite `compose.yaml`.
-- `sail stop` and `sail down` keep the MySQL and Redis volumes. Never add `-v` unless you explicitly intend to wipe the local database.
+Seed the data (choose one):
 
-## Development
+| Choice | Commands | Result |
+| --- | --- | --- |
+| **Demo data** (quickest way to see the app) | `./vendor/bin/sail artisan db:seed` | `DatabaseSeeder` seeds the permission catalogue, role templates, system settings and Indonesian region reference data, and, because `APP_ENV=local`, a demo company `DEMO` ("Inbils Demo Company") with demo users and sample data. Slow: the region seeder loads about 80k village rows |
+| **Clean install** (production-like) | `./vendor/bin/sail artisan db:seed --class=RolePermissionSeeder`, then `--class=SystemSettingSeeder`, then `--class=IndonesiaRegionSeeder` | Catalogue, templates, settings and regions only: no company and no user |
 
-### Dev commands
+Then:
+
+- **After demo data**: open <http://localhost/login>. Logins are `admin@demo.inbils.test`, `manager@`, `staff@`,
+  `technician@`, `customer@demo.inbils.test`; the shared demo password is the constant `PASSWORD` in
+  `database/seeders/DemoUserSeeder.php`. It is public by design: never seed demo data on a real server.
+- **After a clean install**: create the first user, log in at <http://localhost/login>, and the Setup Wizard
+  (`/setup`, one-shot) creates the first company and copies the role templates:
+
+  ```bash
+  ./vendor/bin/sail artisan inbils:setup      # asks name, email, password; says "Already bootstrapped." if any user exists
+  ```
+
+Check it works:
 
 ```bash
-php artisan serve          # Backend dev server (port 8000)
-npm run dev                # Vite HMR frontend
-php artisan test           # Run test suite
-npm run build              # Production build (tsc + vite)
-composer dump-autoload     # Regenerate classmap
+curl --fail http://localhost/up
+curl http://localhost/ready      # JSON; "unknown" scheduler/backup is normal until heartbeats exist
 ```
 
-### Testing
+Service addresses (loopback only):
+
+| Service | Address |
+| --- | --- |
+| App | <http://localhost> |
+| Mailpit (all outgoing dev mail) | <http://localhost:8025> |
+| MySQL | `127.0.0.1:3306`, CLI with `./vendor/bin/sail mysql` |
+| Redis | `127.0.0.1:6379` |
+| Vite HMR | <http://localhost:5173> while `./vendor/bin/sail npm run dev` runs |
+
+### Queue and scheduler
+
+Mail, notifications, WhatsApp, Midtrans follow-ups and reports run on queues (`QUEUE_CONNECTION=database`), and
+billing and SLA checks run on the scheduler. Start them when you work on those features:
 
 ```bash
-php artisan test
+COMPOSE_PROFILES=workers ./vendor/bin/sail up -d       # queue + scheduler containers next to the app
+# or in two terminals:
+./vendor/bin/sail artisan queue:work --queue=default,whatsapp --tries=3 --timeout=90
+./vendor/bin/sail artisan schedule:work
+# the platform panel's long jobs (sample data, tenant exports) need their own worker:
+./vendor/bin/sail artisan queue:work platform --queue=platform --tries=1 --timeout=3600
 ```
 
-Note: 11 Breeze tests fail due to `RedirectIfNoCompany` middleware (expected — factory users have `company_id=null`). This is by design.
+A worker keeps the code it started with: run `./vendor/bin/sail artisan queue:restart` after changing a job, listener
+or notification.
 
-### Project structure
+### Platform (operator) admin
 
-```
-app/
-  Console/Commands/     # SetupBootstrapCommand
-  Http/
-    Controllers/Admin/  # Dashboard, Company, User, Role, Permission, Location, Customer, Subscription
-    Middleware/          # RedirectIfNoCompany, RequireNoCompany, RequireHasCompany
-    Requests/Admin/      # Form requests (validation + authorization)
-    Resources/           # API resources (JSON response shape)
-  Models/Core/           # Company, User, Setting, Location, Customer, CustomerAddress, CustomerContact, ServiceSubscription
-  Services/Core/         # CompanyService, SettingService, SetupWizardService, AuditService, SubscriptionService
-  Policies/              # CustomerPolicy, SubscriptionPolicy, etc.
-  Traits/                # BelongsToCompany
-database/
-  migrations/            # All schema
-  seeders/               # RolePermissionSeeder, SystemSettingSeeder, CompanySeeder
-  factories/             # Model factories
-modules/
-  Service/               # ServicePackage, BandwidthProfile, SpeedProfile, SLATier
-  Inventory/             # Product, Category, Unit, Stock, StockMovement, StockService
-  NetworkAsset/          # NetworkAsset, NetworkAssetInstallation, NetworkAssetService
-  SPK/                   # WorkOrder, WorkOrderItem, WorkOrderAssignment, WorkOrderEvidence, SpkService
-  Billing/               # Invoice, InvoiceItem, Payment, BillingService
-  Ticketing/             # Ticket, TicketCategory, TicketComment, TicketAttachment, TicketService
-  Reporting/             # 6 Query classes (BusinessMetrics, TechnicianPerformance, AssetUtilization, SlaCompliance, StockCard, AuditLog)
-resources/js/
-  Components/ui/         # 35+ primitives (Button, Input, Table, Card, Modal, etc.)
-  Components/composite/  # DataTable, PageHeader, FormField, StatusBadge, MoneyInput, DateRangeFilter
-  Pages/Admin/           # Dashboard, Users, Roles, Permissions, Company, Locations, Customers, Subscriptions, Service, Inventory, NetworkAssets, SPK, Billing, Tickets
-  Layouts/               # AdminLayout (sidebar + topbar + dark mode)
-  hooks/                 # usePermission, useCompany, useToast
-  types/                 # TypeScript interfaces (models, inventory, network-asset)
-docs/                    # Architecture, database, security, workflow specs
+The `/platform` panel uses a separate login that is not a tenant user. Create the first operator, then enrol two-factor
+authentication at the first login:
+
+```bash
+./vendor/bin/sail artisan inbils:platform:admin-create     # asks name, email, password (12+ characters, letters and numbers)
 ```
 
-## Architecture
+Open <http://localhost/platform/login>. Tenants (companies) and subsidiaries are created there.
 
-- **Thin controllers** → FormRequest (validation) → Policy (authorization) → Service (business logic) → Model (data + relations)
-- **Multi-tenant** via `BelongsToCompany` trait (global scope + auto-set `company_id`)
-- **Modular** domain logic in `Modules/` (nwidart/laravel-modules), shared cross-cutting in `app/`
-- **Inertia-as-Island** — Laravel routes drive pages, React renders per-route islands, no SPA/axios
-- **UI convention** — all pages compose `Components/ui/*` primitives, never inline raw HTML elements
+## 3. The test database `inbils_test`
+
+Tests and E2E use the MySQL schema `inbils_test` and nothing else (never `inbils`). The Sail MySQL init script
+`docker/mysql/sail/10-create-test-database.sh` creates the schema, the `inbils` test user and its grants (including
+the `inbils_test_test_%` worker schemas used by parallel runs) **once, when the MySQL volume is first created**, so a
+normal fresh setup needs nothing. If your volume already existed before that script, apply it once:
+
+```bash
+./vendor/bin/sail exec -T mysql bash -s < docker/mysql/sail/10-create-test-database.sh
+```
+
+## 4. Run the tests
+
+`phpunit.xml` pins host `mysql`, schema `inbils_test`, user `inbils`. `Tests\TestCase` refuses to boot on any other target.
+
+```bash
+# one file or filter (serial)
+./vendor/bin/sail artisan test --compact tests/Feature/Admin/DashboardTest.php
+./vendor/bin/sail artisan test --compact --filter=SomeTest
+
+# full suite in parallel (about 5400 tests, ~33 min with 3 workers; check `uptime` load first, keep it under 6)
+flock /tmp/inbils-e2e.lock env DOCKER_CONTEXT=default ./vendor/bin/sail exec -T -u sail laravel.test \
+  flock /tmp/inbils-phpunit.lock php -d memory_limit=1G artisan test --parallel --processes=3 --compact
+```
+
+Max 4 processes. Never pass `--drop-databases` or `--recreate-databases` (workers reuse the schemas
+`inbils_test_test_<N>`). Other gates:
+
+```bash
+./vendor/bin/sail bin pint --dirty              # PHP format
+./vendor/bin/sail composer analyse              # PHPStan (larastan) level 5
+./vendor/bin/sail npm run typecheck
+./vendor/bin/sail npm run lint
+./vendor/bin/sail npm run format:check
+./vendor/bin/sail npm run build                 # tsc + vite build
+```
+
+### Playwright E2E (first run)
+
+E2E runs on the host against a canonical server on port 8010 and the schema `inbils_test`. It needs Node, a PHP CLI
+(8.2+, with `vendor/` installed; set `PHP_BINARY` to use a specific binary) and a reachable MySQL that has `inbils_test`
+and the `inbils` user. One-time:
+
+```bash
+npm ci --legacy-peer-deps
+npx playwright install chromium
+cp .env.e2e.example .env.e2e        # fill DB_PASSWORD; `.env.e2e` is git-ignored
+php artisan key:generate --env=e2e  # or ./vendor/bin/sail artisan key:generate --env=e2e
+```
+
+`.env.e2e.example` points at `127.0.0.1:3307`, the MySQL of the deploy-like stack (section 6); its `DB_PASSWORD` is
+`DOCKER_DB_PASSWORD` from `.env.docker`. The Sail MySQL (`127.0.0.1:3306`) has the same schema and user too (the local test credentials are in
+`docker/mysql/sail/10-create-test-database.sh` and `phpunit.xml`), so `DB_PORT=3306` is the alternative when you do not run the
+8080 stack; the repo docs only describe the 3307 route.
+
+Run (never together with PHPUnit or `docs:screenshots`; they share `inbils_test` and a mutex):
+
+```bash
+flock /tmp/inbils-e2e.lock sh -c 'npm run build && node scripts/e2e-setup.mjs && npm run test:e2e -- --project=chromium --workers=1'
+```
+
+Do not add a positional spec path: the runner forwards arguments to Playwright, which reads them as a file filter and
+reports "No tests found". Use `--grep "<text>"`, or `npm run test:e2e:smoke` for the `@smoke` tests.
+`node scripts/e2e-setup.mjs` resets the data; never run `tests/e2e/setup.php` directly.
+
+## 5. Daily commands
+
+| Task | Command |
+| --- | --- |
+| Start / stop (keeps data) | `./vendor/bin/sail up -d` / `./vendor/bin/sail stop` |
+| Artisan, tinker | `./vendor/bin/sail artisan <cmd>` , `./vendor/bin/sail artisan tinker` |
+| New migration | `./vendor/bin/sail artisan make:migration <name>` (date must sort after the newest shipped migration) |
+| Migrate | `./vendor/bin/sail artisan migrate --force` |
+| Frontend HMR | `./vendor/bin/sail npm run dev` (then <http://localhost>) |
+| Frontend build | `./vendor/bin/sail npm run build` |
+| Logs | `./vendor/bin/sail artisan pail` or `./vendor/bin/sail logs -f laravel.test` |
+| Shell in the app container | `./vendor/bin/sail shell` |
+| Export the mobile API contract | `./vendor/bin/sail artisan scramble:export` (commit `docs/api/mobile-v1.openapi.json`) |
+| Render user-guide PDFs | `./vendor/bin/sail exec -T -u sail laravel.test php -d memory_limit=1G artisan inbils:docs:pdf` |
+| Web guide screenshots | `npm run build && npm run docs:screenshots` (host, E2E mutex, resets `inbils_test`) |
+
+Never run `migrate:fresh`, `db:wipe`, `sail down -v`, `docker volume rm` or `docker system prune --volumes` on data you
+want to keep. `sail stop` and `sail down` keep the MySQL and Redis volumes. Do not run `sail:install` or `sail:add`.
+
+## 6. Optional: deploy-like stack on port 8080
+
+`compose.yaml` + `Dockerfile` build the production-style image (FrankenPHP, source baked in, separate queue, platform
+queue, scheduler, MySQL on `127.0.0.1:3307`, Redis). It shares nothing with Sail. Full reference:
+[docs/operations/DOCKER.md](docs/operations/DOCKER.md); release procedure: [docs/operations/DEPLOYMENT.md](docs/operations/DEPLOYMENT.md).
+
+```bash
+cp .env.docker.example .env.docker      # git-ignored; set APP_KEY and the DOCKER_DB_* passwords (the example ships APP_ENV=production)
+docker run --rm dunglas/frankenphp:php8.4-bookworm php -r 'echo "base64:", base64_encode(random_bytes(32)), PHP_EOL;'   # a fresh APP_KEY value
+export DOCKER_CONTEXT=default           # the root daemon; see Troubleshooting
+docker compose --env-file .env.docker config > /dev/null
+docker compose --env-file .env.docker build
+docker compose --env-file .env.docker up -d
+docker compose --env-file .env.docker exec app php artisan migrate --force
+docker compose --env-file .env.docker exec app php artisan db:seed --force     # production env: roles, settings, regions only
+docker compose --env-file .env.docker exec app php artisan inbils:setup        # first user, then the wizard
+docker compose --env-file .env.docker ps
+```
+
+Check <http://localhost:8080/up>, <http://localhost:8080/ready> and <http://localhost:8080/platform/login>. Before
+updating a stack that holds data, back it up first (`scripts/operations/backup.sh`, see `docs/operations/BACKUP_RESTORE.md`).
+
+### Optional: `*.test` names with HTTPS
+
+`docker/devproxy/compose.yaml` gives `https://inbils.test` (Sail) and `https://deploy.inbils.test` (8080 stack). The
+one-time host steps (DNS for `*.test`, trusting the local certificate) are in the "Local `*.test` domains" section of
+[docs/operations/DOCKER.md](docs/operations/DOCKER.md).
+
+```bash
+DOCKER_CONTEXT=default docker compose -f docker/devproxy/compose.yaml up -d --build
+```
+
+## 7. Mobile apps
+
+The customer and technician Flutter apps live in the separate private repo `inbils-mobile` (never inside this one).
+They use `api/v1`; the contract is `docs/api/mobile-v1.openapi.json`. Push notifications need the Firebase service
+account (section 8). The Android emulator reaches the host as `10.0.2.2`.
+
+## 8. Integrations are configured per company
+
+Midtrans, WhatsApp Cloud API, RADIUS and a company mail account are **not** read from `.env` at runtime. Each
+company enters its own in the app: **Pengaturan > Integrasi** (`/admin/company/integrations`, permission
+`company.integrations.manage`). The `.env` keys (`MIDTRANS_*`, `WHATSAPP_*`, `RADIUS_*`) are one-time import sources:
+
+```bash
+./vendor/bin/sail artisan inbils:integrations:import-env --company=<company-code> [--provider=midtrans|whatsapp|radius] [--dry-run] [--force]
+```
+
+- Midtrans callback URL: `<APP_URL>/webhooks/midtrans/{company}`; WhatsApp webhook (Meta app): `<APP_URL>/webhooks/whatsapp`. Both need a public address; `scripts/dev-payments.sh` starts the workers and a cloudflared tunnel (`INBILS_TUNNEL=<name> ./scripts/dev-payments.sh`).
+- Firebase push: set `FIREBASE_CREDENTIALS` to the Admin SDK service-account JSON kept outside git (in Sail copy it to `storage/app/private/`, which git ignores). Empty means push is off. See [docs/operations/push-notifications.md](docs/operations/push-notifications.md).
+- Platform mail sender (reset and invitation mails) is `MAIL_*` in `.env`.
+
+## 9. Troubleshooting
+
+| Symptom | Fix |
+| --- | --- |
+| `docker compose` against the deploy stack shows containers as only "Created", or an empty list | Use the root daemon: prefix with `DOCKER_CONTEXT=default` (or `export` it) |
+| `sail build` says `vendor/laravel/sail` is missing | Run the throwaway-container `composer install` from section 2 first |
+| Port already in use (80, 3306, 6379, 8025, 5173) | Set it for one shell: `APP_PORT=8081 ./vendor/bin/sail up -d` (keep `APP_URL` in sync), `FORWARD_DB_PORT`, `FORWARD_REDIS_PORT`, `FORWARD_MAILPIT_DASHBOARD_PORT`, `VITE_PORT`. Never put `APP_PORT` in `.env` |
+| `/ready` shows `storage_link: fail` and status `degraded`, or uploaded logos are broken images | `./vendor/bin/sail artisan storage:link`; if `public/storage` is a real directory, `mv public/storage public/storage.old` first |
+| `/ready` `scheduler` or `backup` is `unknown` | Normal in dev until `schedule:work` (or the `workers` profile) has run; backups only exist where you run `scripts/operations/backup.sh` |
+| "Unable to locate file in Vite manifest" | `./vendor/bin/sail npm run build` (or start `npm run dev`) |
+| Permission denied or EACCES on `storage/app/...` from the host or from E2E, after a run as root | Files made by `sail exec` without `-u sail` are root-owned. Fix: `./vendor/bin/sail exec -T laravel.test sh -c 'find /var/www/html/storage -user root -exec chown 1000:1000 {} +'` (use your `id -u`:`id -g` if not 1000). Run PHP tasks as `sail artisan ...` or `sail exec -u sail` |
+| Test refuses to boot: "PHPUnit bootstrap safety guard refused to bootstrap Laravel." | The environment points at another database, or `bootstrap/cache/config.php` exists. Run `./vendor/bin/sail artisan config:clear`, and do not export `DB_*` or `APP_ENV` in your shell |
+| Tests cannot connect to MySQL as `inbils` | The MySQL volume predates the init script: apply it once (section 3) |
+| E2E login fails right after a PHPUnit run | PHPUnit wiped the demo users in the shared `inbils_test`: `node scripts/e2e-setup.mjs` resets them |
+| Queue jobs, mails or bells do not appear | Start the workers (section 2) and look at Mailpit; run `queue:restart` after code changes |
+| Page loads without styles behind `https://inbils.test` | `TRUSTED_PROXIES` must cover the Docker networks (see DOCKER.md); Vite HMR does not work behind the HTTPS proxy, use <http://localhost> for `npm run dev` |
+| Schedule or a worker runs old code | `./vendor/bin/sail artisan queue:restart`; for the 8080 stack rebuild and recreate `app queue platform-queue scheduler` |
+
+## 10. Where to read more
+
+| Topic | Doc |
+| --- | --- |
+| Project rules, structure, multi-tenancy, permissions, API, UI, testing, mistakes to avoid | [PROJECT_GUIDE.md](PROJECT_GUIDE.md) |
+| Architecture, modules, database | `docs/architecture/*.md`, ADRs in `docs/architecture/decisions/` |
+| Product behaviour per domain | `docs/business/*.md` |
+| Security, RBAC, platform panel, mobile API | [docs/SECURITY.md](docs/SECURITY.md) |
+| Docker stacks, ports, parallel tests, `*.test` proxy | [docs/operations/DOCKER.md](docs/operations/DOCKER.md) |
+| Deploy, backup, restore, incidents, observability | `docs/operations/*.md` |
+| Mobile API contract | `docs/api/mobile-v1.openapi.json` |
+| User guides (Indonesian) and how they are built | `docs/user-guide/README.md` |
 
 ## License
 
